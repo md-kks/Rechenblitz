@@ -10,6 +10,7 @@ class StorageService {
   static const _historyKey = 'history_v1';
   static const _soundKey = 'sound_enabled';
   static const _hapticKey = 'haptic_enabled';
+  static const _numberRangeKey = 'number_range_v1';
 
   Future<Map<String, MathFact>> loadFacts() async {
     final prefs = await SharedPreferences.getInstance();
@@ -26,9 +27,10 @@ class StorageService {
 
   Future<void> saveFacts(Iterable<MathFact> facts) async {
     final prefs = await SharedPreferences.getInstance();
+    final practiced = facts.where((f) => f.attempts > 0).toList();
     await prefs.setString(
       _factsKey,
-      jsonEncode(facts.map((e) => e.toJson()).toList()),
+      jsonEncode(practiced.map((e) => e.toJson()).toList()),
     );
   }
 
@@ -45,7 +47,7 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       _historyKey,
-      jsonEncode(history.take(200).map((e) => e.toJson()).toList()),
+      jsonEncode(history.take(300).map((e) => e.toJson()).toList()),
     );
   }
 
@@ -55,11 +57,25 @@ class StorageService {
   Future<bool> hapticEnabled() async =>
       (await SharedPreferences.getInstance()).getBool(_hapticKey) ?? true;
 
+  Future<NumberRangeLevel> numberRange() async {
+    final raw =
+        (await SharedPreferences.getInstance()).getString(_numberRangeKey);
+    if (raw == null) return NumberRangeLevel.twenty;
+    for (final value in NumberRangeLevel.values) {
+      if (value.name == raw) return value;
+    }
+    return NumberRangeLevel.twenty;
+  }
+
   Future<void> setSoundEnabled(bool value) async =>
       (await SharedPreferences.getInstance()).setBool(_soundKey, value);
 
   Future<void> setHapticEnabled(bool value) async =>
       (await SharedPreferences.getInstance()).setBool(_hapticKey, value);
+
+  Future<void> setNumberRange(NumberRangeLevel value) async =>
+      (await SharedPreferences.getInstance())
+          .setString(_numberRangeKey, value.name);
 
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();

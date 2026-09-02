@@ -8,11 +8,12 @@ class AdaptiveEngine {
 
   final Random _random;
 
-  static List<MathFact> buildFactPool() {
+  static List<MathFact> buildFactPool({int maxValue = 100}) {
     final facts = <MathFact>[];
-    for (var a = 0; a <= 10; a++) {
-      for (var b = 0; b <= 10; b++) {
-        if (a + b <= 10) {
+
+    for (var a = 0; a <= maxValue; a++) {
+      for (var b = 0; b <= maxValue; b++) {
+        if (a + b <= maxValue) {
           facts.add(MathFact(a: a, b: b, operation: MathOperation.plus));
         }
         if (a >= b) {
@@ -20,15 +21,46 @@ class AdaptiveEngine {
         }
       }
     }
-    return facts;
+
+    for (var a = 0; a <= 10; a++) {
+      for (var b = 0; b <= 10; b++) {
+        final product = a * b;
+        if (product <= maxValue) {
+          facts.add(MathFact(a: a, b: b, operation: MathOperation.multiply));
+        }
+        if (b > 0 && product <= maxValue) {
+          facts.add(MathFact(a: product, b: b, operation: MathOperation.divide));
+        }
+      }
+    }
+
+    final unique = <String, MathFact>{};
+    for (final fact in facts) {
+      unique[fact.key] = fact;
+    }
+    return unique.values.toList();
   }
 
-  static bool isValid(MathFact fact) =>
-      fact.result >= 0 && fact.result <= 10 && fact.a >= 0 && fact.b >= 0;
+  static bool isValid(MathFact fact, {int maxValue = 100}) {
+    if (fact.a < 0 || fact.b < 0 || fact.result < 0 || fact.result > maxValue) {
+      return false;
+    }
+    if (fact.operation == MathOperation.minus && fact.a < fact.b) return false;
+    if (fact.operation == MathOperation.divide) {
+      return fact.b > 0 && fact.a <= maxValue && fact.a % fact.b == 0;
+    }
+    if (fact.operation == MathOperation.plus) return fact.a + fact.b <= maxValue;
+    if (fact.operation == MathOperation.multiply) return fact.a * fact.b <= maxValue;
+    return fact.a <= maxValue && fact.b <= maxValue;
+  }
 
   double minusTargetShare(Iterable<MathFact> facts) {
-    final plus = facts.where((f) => !f.isMinus && f.attempts > 0).toList();
-    final minus = facts.where((f) => f.isMinus && f.attempts > 0).toList();
+    final plus = facts
+        .where((f) => f.operation == MathOperation.plus && f.attempts > 0)
+        .toList();
+    final minus = facts
+        .where((f) => f.operation == MathOperation.minus && f.attempts > 0)
+        .toList();
     if (minus.isEmpty) return 0.65;
 
     double meanMastery(List<MathFact> values) => values.isEmpty
@@ -41,10 +73,7 @@ class AdaptiveEngine {
     final commonSecurity = min(plusMastery, minusMastery);
     final securityProgress =
         ((commonSecurity - 0.55) / 0.35).clamp(0.0, 1.0).toDouble();
-
-    // Start around 65 % Minus. As both operations become secure, drift toward 50/50.
     final base = 0.65 - 0.15 * securityProgress;
-    // If Minus lags behind Plus, temporarily push it as high as 75 %.
     final gapBoost = (plusMastery - minusMastery) * 0.35;
     return (base + gapBoost).clamp(0.50, 0.75).toDouble();
   }
@@ -62,37 +91,69 @@ class AdaptiveEngine {
   }
 
   int difficultyTier(MathFact fact) {
-    if (fact.isMinus) {
-      if (fact.b <= 2 && fact.a <= 6) return 1;
-      if (fact.b <= 4 && fact.a <= 8) return 2;
+    if (fact.operation == MathOperation.multiply ||
+        fact.operation == MathOperation.divide) {
+      final quotient = fact.operation == MathOperation.divide ? fact.result : 0;
+      final smallFactor = fact.operation == MathOperation.multiply
+          ? max(fact.a, fact.b)
+          : max(fact.b, quotient);
+      if (fact.a <= 10 && fact.result <= 10 && smallFactor <= 5) return 1;
+      if (fact.a <= 20 &&
+          (fact.operation == MathOperation.divide || fact.result <= 20)) {
+        return 2;
+      }
       return 3;
     }
-    if (fact.result <= 6) return 1;
-    if (fact.result <= 8) return 2;
+
+    final largest = max(max(fact.a, fact.b), fact.result);
+    if (largest <= 10) return 1;
+    if (largest <= 20) return 2;
     return 3;
   }
 
   MathFact selectNext({
     required List<MathFact> facts,
     required TrainingMode mode,
+    int maxValue = 10,
     String? previousKey,
   }) {
-    var candidates = facts.where(isValid).toList();
-    if (mode == TrainingMode.minus) {
-      candidates = candidates.where((f) => f.isMinus).toList();
-    } else if (mode == TrainingMode.numberFriends) {
-      candidates = candidates
+    var candidates =
+        facts.where((f) => isValid(f, maxValue: maxValue)).toList();
+
+    candidates = switch (mode) {
+      TrainingMode.minus =>
+        candidates.where((f) => f.operation == MathOperation.minus).toList(),
+      TrainingMode.multiply => candidates
+          .where((f) => f.operation == MathOperation.multiply)
+          .toList(),
+      TrainingMode.divide =>
+        candidates.where((f) => f.operation == MathOperation.divide).toList(),
+      TrainingMode.numberFriends => candidates
           .where((f) =>
               f.operation == MathOperation.plus &&
-              (f.result == 10 || f.result == 8 || f.result == 7))
-          .toList();
-    }
+              _numberFriendTargets(maxValue).contains(f.result))
+          .toList(),
+      TrainingMode.mixed => candidates,
+      _ => candidates
+          .where((f) =>
+              f.operation == MathOperation.plus ||
+              f.operation == MathOperation.minus)
+          .toList(),
+    };
 
     if (mode == TrainingMode.practice ||
         mode == TrainingMode.minus ||
         mode == TrainingMode.speed ||
-        mode == TrainingMode.blitz) {
-      final tier = progressionTier(facts);
+        mode == TrainingMode.blitz ||
+        mode == TrainingMode.multiply ||
+        mode == TrainingMode.divide ||
+        mode == TrainingMode.mixed) {
+      final rangeTier = maxValue <= 10
+          ? 1
+          : maxValue <= 20
+              ? 2
+              : 3;
+      final tier = min(rangeTier, progressionTier(facts));
       final progressive =
           candidates.where((f) => difficultyTier(f) <= tier).toList();
       if (progressive.isNotEmpty) candidates = progressive;
@@ -104,19 +165,33 @@ class AdaptiveEngine {
       if (withoutPrevious.isNotEmpty) candidates = withoutPrevious;
     }
 
-    final minusShare = minusTargetShare(facts);
     if (mode == TrainingMode.practice ||
         mode == TrainingMode.speed ||
         mode == TrainingMode.blitz ||
         mode == TrainingMode.tempo) {
-      final wantsMinus = _random.nextDouble() < minusShare;
-      final opCandidates =
-          candidates.where((f) => f.isMinus == wantsMinus).toList();
+      final wantsMinus = _random.nextDouble() < minusTargetShare(facts);
+      final opCandidates = candidates
+          .where((f) =>
+              f.operation ==
+              (wantsMinus ? MathOperation.minus : MathOperation.plus))
+          .toList();
       if (opCandidates.isNotEmpty) candidates = opCandidates;
     }
 
-    // Keep most of a training round achievable, but reserve roughly a quarter
-    // for facts that are currently genuine weak spots.
+    if (mode == TrainingMode.mixed && maxValue >= 20) {
+      final roll = _random.nextDouble();
+      final operation = roll < 0.30
+          ? MathOperation.plus
+          : roll < 0.60
+              ? MathOperation.minus
+              : roll < 0.80
+                  ? MathOperation.multiply
+                  : MathOperation.divide;
+      final opCandidates =
+          candidates.where((f) => f.operation == operation).toList();
+      if (opCandidates.isNotEmpty) candidates = opCandidates;
+    }
+
     if (mode != TrainingMode.tempo && candidates.length > 4) {
       final challenges = candidates
           .where((f) => f.attempts > 0 && f.masteryScore < 0.55)
@@ -129,6 +204,10 @@ class AdaptiveEngine {
       }
     }
 
+    if (candidates.isEmpty) {
+      throw StateError('Keine Aufgabe für $mode im Zahlenraum $maxValue.');
+    }
+
     final weights = candidates.map(_weightFor).toList();
     final totalWeight = weights.fold<double>(0, (a, b) => a + b);
     var pick = _random.nextDouble() * totalWeight;
@@ -137,6 +216,12 @@ class AdaptiveEngine {
       if (pick <= 0) return candidates[i];
     }
     return candidates.last;
+  }
+
+  static Set<int> _numberFriendTargets(int maxValue) {
+    if (maxValue <= 10) return {7, 8, 10};
+    if (maxValue <= 20) return {10, 15, 20};
+    return {10, 20, 50, 100};
   }
 
   double _weightFor(MathFact fact) {
@@ -150,16 +235,28 @@ class AdaptiveEngine {
         : DateTime.now().difference(fact.lastPracticed!).inHours > 12
             ? 1.18
             : 1.0;
-    return masteryNeed * errorBoost * speedBoost * helpBoost * unseenBoost * recencyBoost;
+    return masteryNeed *
+        errorBoost *
+        speedBoost *
+        helpBoost *
+        unseenBoost *
+        recencyBoost;
   }
 
-  String recommendation(Iterable<MathFact> facts) {
-    final tried = facts.where((f) => f.attempts > 0).toList();
+  String recommendation(Iterable<MathFact> facts, {int maxValue = 10}) {
+    final tried = facts
+        .where((f) =>
+            f.attempts > 0 &&
+            (f.operation == MathOperation.plus ||
+                f.operation == MathOperation.minus) &&
+            isValid(f, maxValue: maxValue))
+        .toList();
     if (tried.length < 8) {
-      return 'Erst noch etwas ohne Zeitdruck üben. Die App braucht ein paar Antworten, um das Lernmuster sicher zu erkennen.';
+      return 'Eine kurze Runde ohne Zeitdruck ist ein guter Einstieg. Danach kann Rechenblitz gezielter passende Aufgaben auswählen.';
     }
+
     final minus = tried.where((f) => f.isMinus).toList();
-    final plus = tried.where((f) => !f.isMinus).toList();
+    final plus = tried.where((f) => f.isPlus).toList();
     double mastery(List<MathFact> list) => list.isEmpty
         ? 0.5
         : list.map((e) => e.masteryScore).reduce((a, b) => a + b) /
@@ -167,18 +264,22 @@ class AdaptiveEngine {
     final minusM = mastery(minus);
     final plusM = mastery(plus);
     if (minusM + 0.12 < plusM || minusM < 0.58) {
-      final hard = minus.toList()..sort((a, b) => a.masteryScore.compareTo(b.masteryScore));
+      final hard = minus.toList()
+        ..sort((a, b) => a.masteryScore.compareTo(b.masteryScore));
       final labels = hard.take(3).map((e) => e.label).join(', ');
-      return 'Minus ist momentan noch deutlich unsicherer. Als Nächstes passt Minus-Training${labels.isEmpty ? '' : ', besonders $labels'}.';
+      return 'Minus ist aktuell noch unsicherer. Eine Minus-Runde passt gut${labels.isEmpty ? '' : ', besonders zu $labels'}.';
     }
-    final avg = tried.map((e) => e.averageResponseMs).fold<double>(0, (a, b) => a + b) /
+
+    final avg = tried
+            .map((e) => e.averageResponseMs)
+            .fold<double>(0, (a, b) => a + b) /
         tried.length;
     if (mastery(tried) > 0.76 && avg > 4500) {
-      return 'Dein Kind rechnet schon ziemlich sicher. Jetzt lohnt sich eine kurze Runde „Schnell rechnen“.';
+      return 'Die Grundlagen sind schon recht sicher. Eine kurze Runde „Schnell rechnen“ kann die Automatisierung stärken.';
     }
     if (mastery(tried) > 0.78 && avg <= 4500) {
-      return 'Sicherheit und Tempo sind gut genug für einen kurzen Tempotest.';
+      return 'Sicherheit und Tempo passen gut zusammen. Ein kurzer Rechencheck ist jetzt sinnvoll.';
     }
-    return 'Noch eine kurze sichere Übungsrunde ist aktuell sinnvoller als zusätzlicher Zeitdruck.';
+    return 'Eine weitere sichere Übungsrunde ist aktuell sinnvoller als zusätzlicher Zeitdruck.';
   }
 }

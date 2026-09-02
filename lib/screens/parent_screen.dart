@@ -31,7 +31,8 @@ class _ParentScreenState extends State<ParentScreen> {
   }
 
   String _percent(double value) => '${(value * 100).round()} %';
-  String _seconds(double ms) => ms == 0 ? '–' : '${(ms / 1000).toStringAsFixed(1)} s';
+  String _seconds(double ms) =>
+      ms == 0 ? '–' : '${(ms / 1000).toStringAsFixed(1)} s';
 
   Future<void> _startRecommended() async {
     final mode = widget.controller.recommendedMode();
@@ -41,7 +42,8 @@ class _ParentScreenState extends State<ParentScreen> {
           controller: widget.controller,
           mode: mode,
           targetTasks: mode == TrainingMode.blitz ? 5 : 10,
-          timeLimit: mode == TrainingMode.tempo ? const Duration(minutes: 2) : null,
+          timeLimit:
+              mode == TrainingMode.tempo ? const Duration(minutes: 2) : null,
         ),
       ),
     );
@@ -50,20 +52,43 @@ class _ParentScreenState extends State<ParentScreen> {
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
-    final recommendation = c.engine.recommendation(c.facts);
+    final recommendation =
+        c.engine.recommendation(c.facts, maxValue: c.maxValue);
     final today = c.todayHistory.toList();
-    final todayCorrect = today.fold<int>(0, (s, e) => s + e.correctFirstTry);
-    final todayErrors = today.fold<int>(0, (s, e) => s + e.incorrectAttempts);
+    final todayCorrect =
+        today.fold<int>(0, (s, e) => s + e.correctFirstTry);
+    final todayErrors =
+        today.fold<int>(0, (s, e) => s + e.incorrectAttempts);
     final todayTasks = today.fold<int>(0, (s, e) => s + e.total);
+    final todayAccuracy = todayTasks == 0 ? 0.0 : todayCorrect / todayTasks;
     final todayAvg = today.isEmpty
         ? 0.0
-        : today.map((e) => e.averageResponseMs).fold<double>(0, (a, b) => a + b) / today.length;
+        : today.map((e) => e.averageResponseMs).fold<double>(0, (a, b) => a + b) /
+            today.length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Elternbereich')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 34),
         children: [
+          _Section(
+            title: 'Aktueller Lernrahmen',
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Zahlenraum ${c.numberRange.label}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                Text('${c.stars} ★ gesammelt'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
           _Section(
             title: 'Heute',
             child: Wrap(
@@ -71,52 +96,100 @@ class _ParentScreenState extends State<ParentScreen> {
               runSpacing: 16,
               children: [
                 _Metric('Aufgaben', '$todayTasks'),
-                _Metric('direkt richtig', '$todayCorrect'),
+                _Metric('direkt richtig',
+                    todayTasks == 0 ? '–' : _percent(todayAccuracy)),
                 _Metric('Fehlversuche', '$todayErrors'),
                 _Metric('Ø Antwort', _seconds(todayAvg)),
-                _Metric('Plus Treffer', _percent(c.accuracyFor(MathOperation.plus))),
-                _Metric('Minus Treffer', _percent(c.accuracyFor(MathOperation.minus))),
-                _Metric('Plus Ø', _seconds(c.averageMsFor(MathOperation.plus))),
-                _Metric('Minus Ø', _seconds(c.averageMsFor(MathOperation.minus))),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Grundrechenarten',
+            child: Column(
+              children: [
+                _PercentBar(
+                    label: 'Plus', value: c.accuracyFor(MathOperation.plus)),
+                _PercentBar(
+                    label: 'Minus', value: c.accuracyFor(MathOperation.minus)),
+                _PercentBar(
+                    label: 'Mal', value: c.accuracyFor(MathOperation.multiply)),
+                _PercentBar(
+                    label: 'Geteilt', value: c.accuracyFor(MathOperation.divide)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Weitere Lernwelten',
+            child: Column(
+              children: const [
+                TrainingMode.numberWall,
+                TrainingMode.missingNumber,
+                TrainingMode.neighbors,
+                TrainingMode.placeValue,
+                TrainingMode.doublesHalves,
+                TrainingMode.sequences,
+                TrainingMode.factFamilies,
+              ]
+                  .map(
+                    (mode) => _PercentBar(
+                      label: mode.title,
+                      value: c.modeAccuracy(mode),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Entwicklung',
+            child: _AccuracyTrend(history: c.history),
+          ),
+          const SizedBox(height: 14),
           _Section(
             title: 'Empfehlung',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(recommendation, style: Theme.of(context).textTheme.bodyLarge),
+                Text(recommendation,
+                    style: Theme.of(context).textTheme.bodyLarge),
                 const SizedBox(height: 14),
                 FilledButton.icon(
                   onPressed: _startRecommended,
                   icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Jetzt passende Runde starten'),
+                  label: const Text('Passende Runde starten'),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          _FactList(title: 'Schwierigste Aufgaben', facts: c.hardest()),
-          const SizedBox(height: 16),
-          _FactList(title: 'Sicherste Aufgaben', facts: c.safest()),
-          const SizedBox(height: 16),
-          _Section(
-            title: 'Entwicklung',
-            child: _Development(history: c.history),
+          const SizedBox(height: 14),
+          _FactList(title: 'Aktuell schwierigste Aufgaben', facts: c.hardest()),
+          const SizedBox(height: 14),
+          _FactList(title: 'Aktuell sicherste Aufgaben', facts: c.safest()),
+          const SizedBox(height: 14),
+          const _Section(
+            title: 'Belohnungssystem',
+            child: Text(
+              'Sterne gibt es für abgeschlossene Runden. Zusätzliche Sterne entstehen bei sicherem Rechnen und beim ersten Abschluss einer neuen Lernwelt. Geschwindigkeit allein gibt keine Extra-Belohnung. So lohnt sich Üben, ohne unnötigen Zeitdruck zu erzeugen.',
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 22),
           OutlinedButton.icon(
             onPressed: () async {
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (_) => AlertDialog(
                   title: const Text('Fortschritt zurücksetzen?'),
-                  content: const Text('Alle Lernstatistiken und bisherigen Runden werden gelöscht.'),
+                  content: const Text(
+                      'Alle Lernstatistiken und bisherigen Runden werden gelöscht.'),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Abbrechen')),
-                    FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Zurücksetzen')),
+                    TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Abbrechen')),
+                    FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Zurücksetzen')),
                   ],
                 ),
               );
@@ -135,6 +208,7 @@ class _Section extends StatelessWidget {
   const _Section({required this.title, required this.child});
   final String title;
   final Widget child;
+
   @override
   Widget build(BuildContext context) => Card(
         child: Padding(
@@ -142,7 +216,13 @@ class _Section extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+              Text(
+                title,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
               const SizedBox(height: 14),
               child,
             ],
@@ -155,14 +235,52 @@ class _Metric extends StatelessWidget {
   const _Metric(this.label, this.value);
   final String label;
   final String value;
+
   @override
   Widget build(BuildContext context) => SizedBox(
         width: 130,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              value,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
             Text(label),
+          ],
+        ),
+      );
+}
+
+class _PercentBar extends StatelessWidget {
+  const _PercentBar({required this.label, required this.value});
+  final String label;
+  final double value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            SizedBox(width: 105, child: Text(label)),
+            Expanded(
+              child: LinearProgressIndicator(
+                value: value,
+                minHeight: 10,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 44,
+              child: Text(
+                value == 0 ? '–' : '${(value * 100).round()} %',
+                textAlign: TextAlign.end,
+              ),
+            ),
           ],
         ),
       );
@@ -172,6 +290,7 @@ class _FactList extends StatelessWidget {
   const _FactList({required this.title, required this.facts});
   final String title;
   final List<MathFact> facts;
+
   @override
   Widget build(BuildContext context) => _Section(
         title: title,
@@ -182,8 +301,12 @@ class _FactList extends StatelessWidget {
                     .map(
                       (f) => ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: Text(f.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-                        subtitle: Text('Treffer ${(f.accuracy * 100).round()} % · Ø ${(f.averageResponseMs / 1000).toStringAsFixed(1)} s'),
+                        title: Text(f.label,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text(
+                          'Treffer ${(f.accuracy * 100).round()} % · Ø ${(f.averageResponseMs / 1000).toStringAsFixed(1)} s',
+                        ),
                         trailing: Text('${(f.masteryScore * 100).round()} %'),
                       ),
                     )
@@ -192,22 +315,86 @@ class _FactList extends StatelessWidget {
       );
 }
 
-class _Development extends StatelessWidget {
-  const _Development({required this.history});
+class _AccuracyTrend extends StatelessWidget {
+  const _AccuracyTrend({required this.history});
   final List<TrainingSessionResult> history;
 
   @override
   Widget build(BuildContext context) {
-    if (history.length < 2) return const Text('Nach zwei Runden wird hier die Entwicklung sichtbar.');
-    final first = history.last.averageResponseMs;
-    final current = history.first.averageResponseMs;
-    if (first == 0 || current == 0) return const Text('Noch nicht genug Zeitdaten.');
-    final difference = (first - current) / 1000;
-    return Text(
-      'Erste Runde: Ø ${(first / 1000).toStringAsFixed(1)} s\n'
-      'Aktuell: Ø ${(current / 1000).toStringAsFixed(1)} s\n'
-      '${difference > 0 ? 'Das sind ${difference.toStringAsFixed(1)} s schneller.' : 'Im Moment zählt Sicherheit mehr als Tempo.'}',
-      style: Theme.of(context).textTheme.bodyLarge,
+    final sessions =
+        history.where((e) => e.total > 0).take(12).toList().reversed.toList();
+    if (sessions.length < 2) {
+      return const Text(
+          'Nach zwei abgeschlossenen Runden wird hier die Entwicklung sichtbar.');
+    }
+    final values = sessions.map((e) => e.accuracy).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 150,
+          width: double.infinity,
+          child: CustomPaint(
+            painter: _TrendPainter(
+              values: values,
+              lineColor: Theme.of(context).colorScheme.primary,
+              gridColor: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Letzte Runde: ${(values.last * 100).round()} % direkt richtig · ${sessions.last.mode.title}',
+        ),
+      ],
     );
   }
+}
+
+class _TrendPainter extends CustomPainter {
+  _TrendPainter({
+    required this.values,
+    required this.lineColor,
+    required this.gridColor,
+  });
+
+  final List<double> values;
+  final Color lineColor;
+  final Color gridColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    for (final fraction in [0.25, 0.5, 0.75, 1.0]) {
+      final y = size.height * (1 - fraction);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final linePaint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final pointPaint = Paint()..color = lineColor;
+    final path = Path();
+    for (var i = 0; i < values.length; i++) {
+      final x = values.length == 1
+          ? size.width / 2
+          : size.width * i / (values.length - 1);
+      final normalized = values[i].clamp(0.0, 1.0).toDouble();
+      final y = size.height * (1 - normalized);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+      canvas.drawCircle(Offset(x, y), 4, pointPaint);
+    }
+    canvas.drawPath(path, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrendPainter oldDelegate) => true;
 }

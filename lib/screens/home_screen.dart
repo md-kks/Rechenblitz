@@ -6,6 +6,7 @@ import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'parent_screen.dart';
 import 'settings_screen.dart';
+import 'structured_training_screen.dart';
 import 'training_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -56,6 +57,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openMode(TrainingMode mode) async {
+    if (mode.isStructured) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => StructuredTrainingScreen(
+            controller: widget.controller,
+            mode: mode,
+          ),
+        ),
+      );
+      return;
+    }
+
     if (mode == TrainingMode.tempo) {
       final config = await showModalBottomSheet<TempoConfig>(
         context: context,
@@ -75,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       return;
     }
+
     final target = mode == TrainingMode.blitz ? 5 : 10;
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -91,16 +105,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final today = controller.todayHistory.toList();
-    final todayModes = today.map((e) => e.mode).toSet();
-    final todayCorrect = today.fold<int>(0, (sum, e) => sum + e.correctFirstTry);
-    final todayMinusCorrect = today.fold<int>(0, (sum, e) => sum + e.minusCorrect);
-    final blitzRounds = today.where((e) => e.mode == TrainingMode.blitz).length;
-    final speedRounds = controller.history
-        .where((e) => (e.mode == TrainingMode.speed || e.mode == TrainingMode.tempo) && e.averageResponseMs > 0)
-        .toList();
-    final bestMs = speedRounds.isEmpty
-        ? 0.0
-        : speedRounds.map((e) => e.averageResponseMs).reduce((a, b) => a < b ? a : b);
+    final todayCorrect =
+        today.fold<int>(0, (sum, e) => sum + e.correctFirstTry);
+    final todayTotal = today.fold<int>(0, (sum, e) => sum + e.total);
+    final todayAccuracy = todayTotal == 0 ? 0.0 : todayCorrect / todayTotal;
+    final recommendation = controller.engine.recommendation(
+      controller.facts,
+      maxValue: controller.maxValue,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rechenblitz'),
@@ -133,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 36),
           children: [
             Text(
               'Hallo!',
@@ -141,90 +154,238 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.w800,
                   ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
-              'Wir machen dich sicher bei Plus und Minus bis 10.',
+              'Rechnen üben, verstehen und Schritt für Schritt sicherer werden.',
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 22),
-            FilledButton.icon(
-              onPressed: () => _openMode(controller.recommendedMode()),
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Kurze Runde starten'),
+            const SizedBox(height: 18),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Zahlenraum',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<NumberRangeLevel>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(
+                              value: NumberRangeLevel.ten,
+                              label: Text('bis 10')),
+                          ButtonSegment(
+                              value: NumberRangeLevel.twenty,
+                              label: Text('bis 20')),
+                          ButtonSegment(
+                              value: NumberRangeLevel.hundred,
+                              label: Text('bis 100')),
+                        ],
+                        selected: {controller.numberRange},
+                        onSelectionChanged: (values) =>
+                            controller.setNumberRange(values.first),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      controller.numberRange == NumberRangeLevel.hundred
+                          ? 'Aufgaben bauen weiterhin auf den Grundlagen bis 10 und 20 auf.'
+                          : 'Die Aufgaben passen sich innerhalb dieses Zahlenraums an den Lernstand an.',
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 14),
-            _ModeCard(
-              icon: Icons.school_rounded,
-              title: 'Üben',
-              subtitle: 'Ganz ohne Zeitdruck',
-              onTap: () => _openMode(TrainingMode.practice),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.auto_awesome_rounded),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Empfohlene Runde',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(recommendation),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () => _openMode(controller.recommendedMode()),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Passende Runde starten'),
+                    ),
+                  ],
+                ),
+              ),
             ),
+            const SizedBox(height: 24),
+            _SectionTitle(title: 'Schnell starten'),
             const SizedBox(height: 10),
-            _ModeCard(
-              icon: Icons.remove_circle_outline_rounded,
-              title: 'Minus üben',
-              subtitle: 'Mit Hilfe, wenn du sie brauchst',
-              onTap: () => _openMode(TrainingMode.minus),
+            _LearningGrid(
+              children: [
+                _LearningTile(
+                  icon: Icons.school_rounded,
+                  title: 'Plus & Minus',
+                  subtitle: 'adaptiv üben',
+                  onTap: () => _openMode(TrainingMode.practice),
+                ),
+                _LearningTile(
+                  icon: Icons.flash_on_rounded,
+                  title: '5 Blitzaufgaben',
+                  subtitle: 'kurze Runde',
+                  onTap: () => _openMode(TrainingMode.blitz),
+                ),
+                _LearningTile(
+                  icon: Icons.speed_rounded,
+                  title: 'Schnell rechnen',
+                  subtitle: 'Tempo trainieren',
+                  onTap: () => _openMode(TrainingMode.speed),
+                ),
+                _LearningTile(
+                  icon: Icons.fact_check_outlined,
+                  title: 'Rechencheck',
+                  subtitle: 'mit optionaler Zeit',
+                  onTap: () => _openMode(TrainingMode.tempo),
+                ),
+              ],
             ),
+            const SizedBox(height: 24),
+            _SectionTitle(title: 'Grundrechenarten'),
             const SizedBox(height: 10),
-            _ModeCard(
-              icon: Icons.bolt_rounded,
-              title: 'Schnell rechnen',
-              subtitle: '10 kurze Aufgaben',
-              onTap: () => _openMode(TrainingMode.speed),
+            _LearningGrid(
+              children: [
+                _LearningTile(
+                  icon: Icons.remove_circle_outline_rounded,
+                  title: 'Minus üben',
+                  subtitle: 'mit Hilfen',
+                  onTap: () => _openMode(TrainingMode.minus),
+                ),
+                _LearningTile(
+                  icon: Icons.close_rounded,
+                  title: 'Malnehmen',
+                  subtitle: 'Einmaleins aufbauen',
+                  onTap: () => _openMode(TrainingMode.multiply),
+                ),
+                _LearningTile(
+                  icon: Icons.horizontal_rule_rounded,
+                  title: 'Teilen',
+                  subtitle: 'Umkehraufgaben nutzen',
+                  onTap: () => _openMode(TrainingMode.divide),
+                ),
+                _LearningTile(
+                  icon: Icons.shuffle_rounded,
+                  title: 'Gemischt',
+                  subtitle: 'alle Grundrechenarten',
+                  onTap: () => _openMode(TrainingMode.mixed),
+                ),
+              ],
             ),
+            const SizedBox(height: 24),
+            _SectionTitle(title: 'Zahlen verstehen'),
             const SizedBox(height: 10),
-            _ModeCard(
-              icon: Icons.timer_outlined,
-              title: 'Tempotest',
-              subtitle: 'Wie morgen in der Schule',
-              onTap: () => _openMode(TrainingMode.tempo),
+            _LearningGrid(
+              children: [
+                _LearningTile(
+                  icon: Icons.extension_rounded,
+                  title: 'Zahlenfreunde',
+                  subtitle: 'Zerlegen & ergänzen',
+                  onTap: () => _openMode(TrainingMode.numberFriends),
+                ),
+                _LearningTile(
+                  icon: Icons.swap_horiz_rounded,
+                  title: 'Nachbarzahlen',
+                  subtitle: 'vorher & nachher',
+                  onTap: () => _openMode(TrainingMode.neighbors),
+                ),
+                _LearningTile(
+                  icon: Icons.view_column_rounded,
+                  title: 'Zehner & Einer',
+                  subtitle: 'Stellenwert verstehen',
+                  onTap: () => _openMode(TrainingMode.placeValue),
+                ),
+                _LearningTile(
+                  icon: Icons.balance_rounded,
+                  title: 'Doppelt & Hälfte',
+                  subtitle: 'Zahlbeziehungen',
+                  onTap: () => _openMode(TrainingMode.doublesHalves),
+                ),
+                _LearningTile(
+                  icon: Icons.trending_up_rounded,
+                  title: 'Zahlenfolgen',
+                  subtitle: 'Muster erkennen',
+                  onTap: () => _openMode(TrainingMode.sequences),
+                ),
+              ],
             ),
+            const SizedBox(height: 24),
+            _SectionTitle(title: 'Rechenwege'),
             const SizedBox(height: 10),
-            _ModeCard(
-              icon: Icons.flash_on_rounded,
-              title: '5 Blitzaufgaben',
-              subtitle: 'Unter einer Minute üben',
-              onTap: () => _openMode(TrainingMode.blitz),
-            ),
-            const SizedBox(height: 10),
-            _ModeCard(
-              icon: Icons.extension_rounded,
-              title: 'Zahlenfreunde',
-              subtitle: 'Zahlen zerlegen und ergänzen',
-              onTap: () => _openMode(TrainingMode.numberFriends),
+            _LearningGrid(
+              children: [
+                _LearningTile(
+                  icon: Icons.account_balance_rounded,
+                  title: 'Zahlenmauern',
+                  subtitle: 'Steine ergänzen',
+                  onTap: () => _openMode(TrainingMode.numberWall),
+                ),
+                _LearningTile(
+                  icon: Icons.question_mark_rounded,
+                  title: 'Lückenaufgaben',
+                  subtitle: 'fehlende Zahl finden',
+                  onTap: () => _openMode(TrainingMode.missingNumber),
+                ),
+                _LearningTile(
+                  icon: Icons.family_restroom_rounded,
+                  title: 'Rechenfamilien',
+                  subtitle: 'Umkehraufgaben',
+                  onTap: () => _openMode(TrainingMode.factFamilies),
+                ),
+              ],
             ),
             const SizedBox(height: 26),
-            Text('Heute', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            _SectionTitle(title: 'Heute'),
             const SizedBox(height: 10),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Wrap(
-                  spacing: 18,
-                  runSpacing: 14,
+                  spacing: 22,
+                  runSpacing: 16,
                   children: [
                     _Stat(label: 'Runden', value: '${today.length}'),
-                    _Stat(label: 'Aufgaben', value: '${controller.todayTasks}'),
-                    _Stat(label: 'direkt richtig', value: '$todayCorrect'),
-                    _Stat(label: 'Minus richtig', value: '$todayMinusCorrect'),
-                    _Stat(label: 'Bestzeit Ø', value: bestMs == 0 ? '–' : '${(bestMs / 1000).toStringAsFixed(1)} s'),
+                    _Stat(label: 'Aufgaben', value: '$todayTotal'),
+                    _Stat(
+                      label: 'direkt richtig',
+                      value: todayTotal == 0
+                          ? '–'
+                          : '${(todayAccuracy * 100).round()} %',
+                    ),
                     _Stat(label: 'Sterne', value: '${controller.stars} ★'),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 22),
-            Text('Heute üben', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            _PlanItem(done: todayModes.contains(TrainingMode.practice), text: '5 Minuten sicher rechnen'),
-            _PlanItem(done: todayModes.contains(TrainingMode.blitz), text: '5 Blitzaufgaben'),
-            _PlanItem(done: todayModes.contains(TrainingMode.minus), text: '5 Minuten Minus-Training'),
-            _PlanItem(done: todayModes.contains(TrainingMode.tempo), text: '1 Tempotest'),
-            _PlanItem(done: blitzRounds >= 2, text: 'Abends noch einmal 5 Blitzaufgaben'),
             const SizedBox(height: 10),
             Text(
-              'Du musst nicht alles schaffen. Jede kurze Runde zählt.',
+              'Kurze Runden reichen aus. Sicherheit kommt vor Geschwindigkeit.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -234,8 +395,49 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _ModeCard extends StatelessWidget {
-  const _ModeCard({required this.icon, required this.title, required this.subtitle, required this.onTap});
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        title,
+        style: Theme.of(context)
+            .textTheme
+            .titleLarge
+            ?.copyWith(fontWeight: FontWeight.w800),
+      );
+}
+
+class _LearningGrid extends StatelessWidget {
+  const _LearningGrid({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final count = constraints.maxWidth >= 700 ? 3 : 2;
+          return GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: count,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: constraints.maxWidth < 390 ? 1.08 : 1.25,
+            children: children,
+          );
+        },
+      );
+}
+
+class _LearningTile extends StatelessWidget {
+  const _LearningTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
   final IconData icon;
   final String title;
   final String subtitle;
@@ -243,23 +445,33 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+            padding: const EdgeInsets.all(13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(radius: 24, child: Icon(icon)),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    Text(subtitle),
-                  ]),
+                Icon(icon, size: 28),
+                const Spacer(),
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
-                const Icon(Icons.chevron_right_rounded),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             ),
           ),
@@ -271,25 +483,20 @@ class _Stat extends StatelessWidget {
   const _Stat({required this.label, required this.value});
   final String label;
   final String value;
+
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            value,
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
           Text(label),
         ],
-      );
-}
-
-class _PlanItem extends StatelessWidget {
-  const _PlanItem({required this.done, required this.text});
-  final bool done;
-  final String text;
-  @override
-  Widget build(BuildContext context) => ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: Icon(done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded),
-        title: Text(text),
       );
 }
 
@@ -301,6 +508,7 @@ class TempoConfig {
 
 class _TempoConfigurator extends StatefulWidget {
   const _TempoConfigurator();
+
   @override
   State<_TempoConfigurator> createState() => _TempoConfiguratorState();
 }
@@ -316,7 +524,13 @@ class _TempoConfiguratorState extends State<_TempoConfigurator> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Tempotest einstellen', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              'Rechencheck einstellen',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 18),
             const Text('Aufgaben'),
             SegmentedButton<int>(
@@ -336,7 +550,7 @@ class _TempoConfiguratorState extends State<_TempoConfigurator> {
                 DropdownMenuItem(value: 1, child: Text('1 Minute')),
                 DropdownMenuItem(value: 2, child: Text('2 Minuten')),
                 DropdownMenuItem(value: 3, child: Text('3 Minuten')),
-                DropdownMenuItem(value: 0, child: Text('Ohne festes Limit')),
+                DropdownMenuItem(value: 0, child: Text('Ohne Zeitlimit')),
               ],
               onChanged: (v) => setState(() => minutes = v ?? 2),
             ),
@@ -344,9 +558,12 @@ class _TempoConfiguratorState extends State<_TempoConfigurator> {
             FilledButton(
               onPressed: () => Navigator.pop(
                 context,
-                TempoConfig(tasks, minutes == 0 ? null : Duration(minutes: minutes)),
+                TempoConfig(
+                  tasks,
+                  minutes == 0 ? null : Duration(minutes: minutes),
+                ),
               ),
-              child: const Text('Test starten'),
+              child: const Text('Rechencheck starten'),
             ),
           ],
         ),

@@ -1,6 +1,22 @@
 import 'dart:math';
 
-enum MathOperation { plus, minus }
+enum MathOperation { plus, minus, multiply, divide }
+
+extension MathOperationX on MathOperation {
+  String get symbol => switch (this) {
+        MathOperation.plus => '+',
+        MathOperation.minus => '−',
+        MathOperation.multiply => '×',
+        MathOperation.divide => '÷',
+      };
+
+  String get title => switch (this) {
+        MathOperation.plus => 'Plus',
+        MathOperation.minus => 'Minus',
+        MathOperation.multiply => 'Mal',
+        MathOperation.divide => 'Geteilt',
+      };
+}
 
 class MathFact {
   MathFact({
@@ -27,11 +43,20 @@ class MathFact {
   int helpCount;
   DateTime? lastPracticed;
 
-  int get result => operation == MathOperation.plus ? a + b : a - b;
+  int get result => switch (operation) {
+        MathOperation.plus => a + b,
+        MathOperation.minus => a - b,
+        MathOperation.multiply => a * b,
+        MathOperation.divide => b == 0 ? 0 : a ~/ b,
+      };
+
   String get key => '${operation.name}:$a:$b';
-  String get symbol => operation == MathOperation.plus ? '+' : '−';
+  String get symbol => operation.symbol;
   String get label => '$a $symbol $b';
+  bool get isPlus => operation == MathOperation.plus;
   bool get isMinus => operation == MathOperation.minus;
+  bool get isMultiply => operation == MathOperation.multiply;
+  bool get isDivide => operation == MathOperation.divide;
 
   double get accuracy => attempts == 0 ? 0.5 : correctAttempts / attempts;
 
@@ -39,9 +64,12 @@ class MathFact {
   double get masteryScore {
     if (attempts == 0) return 0.18;
     final accuracyScore = accuracy;
-    final speedScore = (1 - ((averageResponseMs - 1800) / 8200)).clamp(0.0, 1.0).toDouble();
-    final repetitionScore = (correctAttempts / 6).clamp(0.0, 1.0).toDouble();
-    final helpPenalty = (helpCount / max(1, attempts)).clamp(0.0, 1.0).toDouble();
+    final speedScore =
+        (1 - ((averageResponseMs - 1800) / 8200)).clamp(0.0, 1.0).toDouble();
+    final repetitionScore =
+        (correctAttempts / 6).clamp(0.0, 1.0).toDouble();
+    final helpPenalty =
+        (helpCount / max(1, attempts)).clamp(0.0, 1.0).toDouble();
     return (accuracyScore * 0.58 +
             speedScore * 0.18 +
             repetitionScore * 0.24 -
@@ -90,7 +118,8 @@ class MathFact {
         attempts: json['attempts'] as int? ?? 0,
         correctAttempts: json['correctAttempts'] as int? ?? 0,
         incorrectAttempts: json['incorrectAttempts'] as int? ?? 0,
-        averageResponseMs: (json['averageResponseMs'] as num?)?.toDouble() ?? 0,
+        averageResponseMs:
+            (json['averageResponseMs'] as num?)?.toDouble() ?? 0,
         lastResponseMs: json['lastResponseMs'] as int? ?? 0,
         helpCount: json['helpCount'] as int? ?? 0,
         lastPracticed: json['lastPracticed'] == null
