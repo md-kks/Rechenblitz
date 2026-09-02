@@ -1,0 +1,11 @@
+{
+  "name": "Rechenblitz",
+  "short_name": "Rechenblitz",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F8F7FC",
+  "theme_color": "#6B5DD3",
+  "description": "Adaptive Mathe-Lernapp für Plus und Minus im Zahlenraum bis 10.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false
+}
