@@ -10,7 +10,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('Startseite zeigt erweiterte Lernwelten', (tester) async {
+  testWidgets('Startseite zeigt Lernwelten bis Klasse zwei', (tester) async {
     final controller = AppController();
     controller.facts = const [];
     controller.loaded = true;
@@ -20,9 +20,19 @@ void main() {
     expect(find.text('bis 10'), findsOneWidget);
     expect(find.text('bis 20'), findsOneWidget);
     expect(find.text('bis 100'), findsOneWidget);
+    expect(find.byIcon(Icons.emoji_events_rounded), findsOneWidget);
 
     final scrollable = find.byType(Scrollable).first;
-    for (final label in ['Plus & Minus', 'Malnehmen', 'Zahlenmauern']) {
+    for (final label in [
+      'Plus & Minus',
+      'Malnehmen',
+      'Zahlenmauern',
+      'Sachaufgaben',
+      'Geld',
+      'Uhrzeit',
+      'Längen & Größen',
+      'Geometrie',
+    ]) {
       await tester.scrollUntilVisible(
         find.text(label),
         250,
@@ -30,6 +40,18 @@ void main() {
       );
       expect(find.text(label), findsOneWidget);
     }
+  });
+
+  testWidgets('Erfolgsseite ist für das Kind direkt erreichbar', (tester) async {
+    final controller = AppController();
+    controller.facts = const [];
+    controller.loaded = true;
+    await tester.pumpWidget(RechenblitzApp(controller: controller));
+
+    await tester.tap(find.byIcon(Icons.emoji_events_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Meine Erfolge'), findsOneWidget);
+    expect(find.text('So entstehen Erfolge'), findsOneWidget);
   });
 
   testWidgets('Zahlenraum kann auf 100 umgeschaltet werden', (tester) async {
