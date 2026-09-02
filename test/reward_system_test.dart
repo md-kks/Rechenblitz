@@ -114,6 +114,22 @@ void main() {
     expect(controller.unlockedBadges, contains('range:twenty'));
   });
 
+  test('drei sichere Runden schalten Lernwelt-Meisterschaft frei', () async {
+    final controller = AppController();
+    for (var i = 0; i < 3; i++) {
+      await controller.addSession(session(
+        mode: TrainingMode.numberWall,
+        range: NumberRangeLevel.twenty,
+        total: 10,
+        correct: 9,
+      ));
+    }
+    expect(
+      controller.unlockedBadges,
+      contains('mastery:numberWall:twenty'),
+    );
+  });
+
   test('wiederholt sichere Rechenart schaltet Profi-Abzeichen frei', () async {
     final controller = AppController();
     final fact = MathFact(a: 8, b: 4, operation: MathOperation.plus);
@@ -129,5 +145,32 @@ void main() {
       session(mode: TrainingMode.practice, range: NumberRangeLevel.twenty),
     );
     expect(controller.unlockedBadges, contains('operation:plus'));
+  });
+
+  test('frühere Schwachstelle kann nach mehreren Erfolgen gemeistert werden', () async {
+    final controller = AppController();
+    final fact = MathFact(
+      a: 9,
+      b: 6,
+      operation: MathOperation.minus,
+      attempts: 4,
+      correctAttempts: 1,
+      incorrectAttempts: 3,
+      averageResponseMs: 9000,
+      helpCount: 3,
+    );
+    controller.facts = [fact];
+
+    for (var i = 0; i < 15 && !controller.unlockedBadges.contains('weak_spot'); i++) {
+      await controller.recordAttempt(
+        fact,
+        correct: true,
+        responseTime: const Duration(seconds: 2),
+        usedHelp: false,
+      );
+    }
+
+    expect(controller.recoveredWeakFacts, contains(fact.key));
+    expect(controller.unlockedBadges, contains('weak_spot'));
   });
 }
