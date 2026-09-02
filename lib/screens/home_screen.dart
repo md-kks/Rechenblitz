@@ -120,10 +120,10 @@ class _HomeScreenState extends State<HomeScreen> {
             onPointerDown: (_) => _startParentGate(),
             onPointerUp: (_) => _cancelParentGate(),
             onPointerCancel: (_) => _cancelParentGate(),
-            child: const Semantics(
+            child: Semantics(
               button: true,
               label: 'Elternbereich – 2 Sekunden gedrückt halten',
-              child: Padding(
+              child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Icon(Icons.admin_panel_settings_rounded),
               ),
