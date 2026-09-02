@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+APP_HOME=$(cd "${0%/*}" && pwd -P)
+CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+
+if [ -f "$CLASSPATH" ]; then
+  if [ -n "${JAVA_HOME:-}" ]; then JAVACMD="$JAVA_HOME/bin/java"; else JAVACMD=java; fi
+  exec "$JAVACMD" -Dorg.gradle.appname=gradlew -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
+fi
+
+# Text-only repository fallback: bootstrap the official Gradle distribution
+# when the binary wrapper JAR is not present.
+GRADLE_VERSION=8.10.2
+BASE="${GRADLE_USER_HOME:-$HOME/.gradle}/rechenblitz-wrapper"
+DIST="$BASE/gradle-$GRADLE_VERSION"
+ZIP="$BASE/gradle-$GRADLE_VERSION-bin.zip"
+URL="https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip"
+
+if [ ! -x "$DIST/bin/gradle" ]; then
+  mkdir -p "$BASE"
+  if [ ! -f "$ZIP" ]; then
+    if command -v curl >/dev/null 2>&1; then
+      curl -fL "$URL" -o "$ZIP"
+    elif command -v wget >/dev/null 2>&1; then
+      wget -O "$ZIP" "$URL"
+    else
+      echo "Gradle bootstrap needs curl or wget." >&2
+      exit 1
+    fi
+  fi
+  if ! command -v unzip >/dev/null 2>&1; then
+    echo "Gradle bootstrap needs unzip." >&2
+    exit 1
+  fi
+  unzip -q -o "$ZIP" -d "$BASE"
+fi
+
+exec "$DIST/bin/gradle" "$@"
