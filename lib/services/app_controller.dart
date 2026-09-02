@@ -51,13 +51,19 @@ class AppController extends ChangeNotifier {
     required Duration responseTime,
     required bool usedHelp,
   }) async {
-    final wasWeak = fact.attempts >= 2 && fact.masteryScore < 0.45;
+    final hasWeakHistory = fact.attempts >= 2 &&
+        (fact.masteryScore < 0.45 ||
+            fact.incorrectAttempts >= 2 ||
+            fact.helpCount >= 2 ||
+            fact.accuracy < 0.60);
     fact.registerAttempt(
       correct: correct,
       responseTime: responseTime,
       usedHelp: usedHelp,
     );
-    if (wasWeak && fact.masteryScore >= 0.72 && recoveredWeakFacts.add(fact.key)) {
+    if (hasWeakHistory &&
+        fact.masteryScore >= 0.72 &&
+        recoveredWeakFacts.add(fact.key)) {
       if (_unlockBadge('weak_spot', _pendingBadgeIds)) {
         await storage.setRewardBadges(unlockedBadges);
       }
