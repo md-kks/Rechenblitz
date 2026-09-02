@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -118,29 +120,44 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       starsEarned: widget.controller.rewardStarsForSession(result),
     );
     if (completed > 0) await widget.controller.addSession(result);
+    final newBadges = widget.controller.lastSessionNewBadges;
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: const Text('Runde geschafft!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('$completed Aufgaben bearbeitet.'),
-            const SizedBox(height: 8),
-            Text('$correctFirstTry direkt richtig.'),
-            const SizedBox(height: 14),
-            Text(
-              '+${result.starsEarned} ★',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            Text(rewardReason),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$completed Aufgaben bearbeitet.'),
+              const SizedBox(height: 8),
+              Text('$correctFirstTry direkt richtig.'),
+              const SizedBox(height: 14),
+              Text(
+                '+${result.starsEarned} ★',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              Text(rewardReason),
+              if (newBadges.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text('Neues Abzeichen!',
+                    style: TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 6),
+                ...newBadges.map(
+                  (badge) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text('🏅 ${badge.title}  +${badge.stars} ★'),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         actions: [
           FilledButton(
@@ -180,24 +197,63 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                   Text('$completed/${widget.targetTasks}'),
                 ],
               ),
-              const SizedBox(height: 30),
-              if (current.isNumberWall) ...[
-                Text(
-                  current.prompt,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+              const SizedBox(height: 28),
+              Text(
+                current.prompt,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: widget.mode == TrainingMode.wordProblems ? 25 : 34,
+                  height: 1.25,
+                  fontWeight: FontWeight.w800,
                 ),
+              ),
+              if (current.isNumberWall) ...[
                 const SizedBox(height: 22),
                 _NumberWall(exercise: current),
-              ] else
-                Text(
-                  current.prompt,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 38, fontWeight: FontWeight.w800),
+              ],
+              if (current.hasClock) ...[
+                const SizedBox(height: 22),
+                Center(
+                  child: SizedBox(
+                    width: 190,
+                    height: 190,
+                    child: CustomPaint(
+                      painter: _ClockPainter(
+                        hour: current.clockHour!,
+                        minute: current.clockMinute!,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        accent: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
                 ),
+              ],
+              if (current.shape != null) ...[
+                const SizedBox(height: 22),
+                Center(
+                  child: SizedBox(
+                    width: 180,
+                    height: 145,
+                    child: CustomPaint(
+                      painter: _ShapePainter(
+                        shape: current.shape!,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              if (current.hasMoneyVisual) ...[
+                const SizedBox(height: 18),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: current.moneyPartsCents!
+                      .map((value) => _MoneyPiece(cents: value))
+                      .toList(),
+                ),
+              ],
               const SizedBox(height: 18),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
@@ -235,15 +291,62 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 ),
               ],
               const SizedBox(height: 18),
-              NumberAnswerPad(
-                key: ValueKey('${current.key}:$completed'),
-                maxValue: widget.controller.maxValue,
-                onAnswer: _answer,
-              ),
+              if (current.usesChoices)
+                ...List.generate(
+                  current.choices!.length,
+                  (index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: FilledButton.tonal(
+                      onPressed: locked ? null : () => _answer(index),
+                      child: Text(current.choices![index]),
+                    ),
+                  ),
+                )
+              else ...[
+                if (current.answerSuffix != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Antwort in ${current.answerSuffix}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                NumberAnswerPad(
+                  key: ValueKey('${current.key}:$completed'),
+                  maxValue:
+                      current.maxAnswerValue ?? widget.controller.maxValue,
+                  onAnswer: _answer,
+                ),
+              ],
             ],
           ),
         ),
       );
+}
+
+class _MoneyPiece extends StatelessWidget {
+  const _MoneyPiece({required this.cents});
+  final int cents;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = cents >= 100 && cents % 100 == 0
+        ? '${cents ~/ 100} €'
+        : '$cents ct';
+    return Container(
+      width: 58,
+      height: 58,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        color: Theme.of(context).colorScheme.secondaryContainer,
+      ),
+      child: Text(label,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+    );
+  }
 }
 
 class _NumberWall extends StatelessWidget {
@@ -293,4 +396,115 @@ class _NumberWall extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ClockPainter extends CustomPainter {
+  const _ClockPainter({
+    required this.hour,
+    required this.minute,
+    required this.color,
+    required this.accent,
+  });
+
+  final int hour;
+  final int minute;
+  final Color color;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2 - 8;
+    final outline = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawCircle(center, radius, outline);
+
+    final tick = Paint()
+      ..color = color
+      ..strokeWidth = 2;
+    for (var i = 0; i < 12; i++) {
+      final angle = i * math.pi / 6 - math.pi / 2;
+      final outer = Offset(
+        center.dx + math.cos(angle) * (radius - 5),
+        center.dy + math.sin(angle) * (radius - 5),
+      );
+      final inner = Offset(
+        center.dx + math.cos(angle) * (radius - 14),
+        center.dy + math.sin(angle) * (radius - 14),
+      );
+      canvas.drawLine(inner, outer, tick);
+    }
+
+    final minuteAngle = minute * math.pi / 30 - math.pi / 2;
+    final hourAngle = ((hour % 12) + minute / 60) * math.pi / 6 - math.pi / 2;
+    final minutePaint = Paint()
+      ..color = accent
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+    final hourPaint = Paint()
+      ..color = color
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      center,
+      Offset(center.dx + math.cos(minuteAngle) * radius * 0.72,
+          center.dy + math.sin(minuteAngle) * radius * 0.72),
+      minutePaint,
+    );
+    canvas.drawLine(
+      center,
+      Offset(center.dx + math.cos(hourAngle) * radius * 0.48,
+          center.dy + math.sin(hourAngle) * radius * 0.48),
+      hourPaint,
+    );
+    canvas.drawCircle(center, 6, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ClockPainter oldDelegate) =>
+      hour != oldDelegate.hour || minute != oldDelegate.minute;
+}
+
+class _ShapePainter extends CustomPainter {
+  const _ShapePainter({required this.shape, required this.color});
+
+  final ExerciseShape shape;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
+      ..strokeJoin = StrokeJoin.round;
+    final rect = Rect.fromLTWH(12, 12, size.width - 24, size.height - 24);
+    switch (shape) {
+      case ExerciseShape.triangle:
+        final path = Path()
+          ..moveTo(size.width / 2, 12)
+          ..lineTo(size.width - 12, size.height - 12)
+          ..lineTo(12, size.height - 12)
+          ..close();
+        canvas.drawPath(path, paint);
+      case ExerciseShape.square:
+        final side = math.min(rect.width, rect.height);
+        final square = Rect.fromCenter(
+          center: rect.center,
+          width: side,
+          height: side,
+        );
+        canvas.drawRect(square, paint);
+      case ExerciseShape.rectangle:
+        canvas.drawRect(rect, paint);
+      case ExerciseShape.circle:
+        canvas.drawOval(rect, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ShapePainter oldDelegate) =>
+      shape != oldDelegate.shape || color != oldDelegate.color;
 }
