@@ -15,6 +15,11 @@ void main() {
       TrainingMode.doublesHalves,
       TrainingMode.sequences,
       TrainingMode.factFamilies,
+      TrainingMode.wordProblems,
+      TrainingMode.money,
+      TrainingMode.clock,
+      TrainingMode.measures,
+      TrainingMode.geometry,
     ];
 
     for (final maxValue in [10, 20, 100]) {
@@ -22,7 +27,8 @@ void main() {
         for (var i = 0; i < 100; i++) {
           final exercise =
               generator.generate(mode: mode, maxValue: maxValue);
-          expect(exercise.answer, inInclusiveRange(0, maxValue),
+          final effectiveMax = exercise.maxAnswerValue ?? maxValue;
+          expect(exercise.answer, inInclusiveRange(0, effectiveMax),
               reason: '$mode im Zahlenraum $maxValue');
         }
       }
@@ -53,6 +59,52 @@ void main() {
           maxValue: maxValue,
         );
         expect(exercise.answer, inInclusiveRange(0, maxValue));
+      }
+    }
+  });
+
+  test('Uhrzeit-Aufgaben besitzen vier eindeutige Antwortoptionen', () {
+    final generator = StructuredExerciseGenerator(random: Random(17));
+    for (var i = 0; i < 50; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.clock,
+        maxValue: 100,
+      );
+      expect(exercise.hasClock, isTrue);
+      expect(exercise.choices, hasLength(4));
+      expect(exercise.choices!.toSet(), hasLength(4));
+      expect(exercise.answer, inInclusiveRange(0, 3));
+      expect(exercise.clockMinute, isIn([0, 15, 30, 45]));
+    }
+  });
+
+  test('Geometrie verwendet Grundformen und gültige Antworten', () {
+    final generator = StructuredExerciseGenerator(random: Random(23));
+    for (var i = 0; i < 80; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.geometry,
+        maxValue: 20,
+      );
+      expect(exercise.shape, isNotNull);
+      if (exercise.usesChoices) {
+        expect(exercise.answer, inInclusiveRange(0, exercise.choices!.length - 1));
+      } else {
+        expect(exercise.answer, inInclusiveRange(0, 4));
+      }
+    }
+  });
+
+  test('Sachaufgaben liefern Ergebnisse innerhalb des Zahlenraums', () {
+    final generator = StructuredExerciseGenerator(random: Random(31));
+    for (final maxValue in [10, 20, 100]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.wordProblems,
+          maxValue: maxValue,
+        );
+        expect(exercise.answer, inInclusiveRange(0, maxValue));
+        expect(exercise.prompt, isNotEmpty);
+        expect(exercise.hint, isNotEmpty);
       }
     }
   });
