@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'parent_screen.dart';
+import 'reward_screen.dart';
 import 'settings_screen.dart';
 import 'structured_training_screen.dart';
 import 'training_screen.dart';
@@ -119,6 +120,15 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Rechenblitz'),
         actions: [
           IconButton(
+            tooltip: 'Meine Erfolge',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => RewardScreen(controller: controller),
+              ),
+            ),
+            icon: const Icon(Icons.emoji_events_rounded),
+          ),
+          IconButton(
             tooltip: 'Einstellungen',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
@@ -180,14 +190,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         showSelectedIcon: false,
                         segments: const [
                           ButtonSegment(
-                              value: NumberRangeLevel.ten,
-                              label: Text('bis 10')),
+                            value: NumberRangeLevel.ten,
+                            label: Text('bis 10'),
+                          ),
                           ButtonSegment(
-                              value: NumberRangeLevel.twenty,
-                              label: Text('bis 20')),
+                            value: NumberRangeLevel.twenty,
+                            label: Text('bis 20'),
+                          ),
                           ButtonSegment(
-                              value: NumberRangeLevel.hundred,
-                              label: Text('bis 100')),
+                            value: NumberRangeLevel.hundred,
+                            label: Text('bis 100'),
+                          ),
                         ],
                         selected: {controller.numberRange},
                         onSelectionChanged: (values) =>
@@ -203,6 +216,48 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Card(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => RewardScreen(controller: controller),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.star_rounded, size: 30),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${controller.stars} Sterne',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                  Text('${controller.badges.length} Abzeichen'),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             Card(
@@ -237,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            _SectionTitle(title: 'Schnell starten'),
+            const _SectionTitle(title: 'Schnell starten'),
             const SizedBox(height: 10),
             _LearningGrid(
               children: [
@@ -268,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            _SectionTitle(title: 'Grundrechenarten'),
+            const _SectionTitle(title: 'Grundrechenarten'),
             const SizedBox(height: 10),
             _LearningGrid(
               children: [
@@ -299,7 +354,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            _SectionTitle(title: 'Zahlen verstehen'),
+            const _SectionTitle(title: 'Zahlen verstehen'),
             const SizedBox(height: 10),
             _LearningGrid(
               children: [
@@ -336,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            _SectionTitle(title: 'Rechenwege'),
+            const _SectionTitle(title: 'Rechenwege'),
             const SizedBox(height: 10),
             _LearningGrid(
               children: [
@@ -360,8 +415,45 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+            const _SectionTitle(title: 'Sachrechnen & Alltag'),
+            const SizedBox(height: 10),
+            _LearningGrid(
+              children: [
+                _LearningTile(
+                  icon: Icons.menu_book_rounded,
+                  title: 'Sachaufgaben',
+                  subtitle: 'Rechnen aus Geschichten',
+                  onTap: () => _openMode(TrainingMode.wordProblems),
+                ),
+                _LearningTile(
+                  icon: Icons.euro_rounded,
+                  title: 'Geld',
+                  subtitle: 'Euro, Cent & Rückgeld',
+                  onTap: () => _openMode(TrainingMode.money),
+                ),
+                _LearningTile(
+                  icon: Icons.schedule_rounded,
+                  title: 'Uhrzeit',
+                  subtitle: 'Uhren lesen',
+                  onTap: () => _openMode(TrainingMode.clock),
+                ),
+                _LearningTile(
+                  icon: Icons.straighten_rounded,
+                  title: 'Längen & Größen',
+                  subtitle: 'cm, dm & m',
+                  onTap: () => _openMode(TrainingMode.measures),
+                ),
+                _LearningTile(
+                  icon: Icons.category_rounded,
+                  title: 'Geometrie',
+                  subtitle: 'Formen, Seiten & Ecken',
+                  onTap: () => _openMode(TrainingMode.geometry),
+                ),
+              ],
+            ),
             const SizedBox(height: 26),
-            _SectionTitle(title: 'Heute'),
+            const _SectionTitle(title: 'Heute'),
             const SizedBox(height: 10),
             Card(
               child: Padding(
@@ -540,7 +632,8 @@ class _TempoConfiguratorState extends State<_TempoConfigurator> {
                 ButtonSegment(value: 30, label: Text('30')),
               ],
               selected: {tasks},
-              onSelectionChanged: (v) => setState(() => tasks = v.first),
+              onSelectionChanged: (values) =>
+                  setState(() => tasks = values.first),
             ),
             const SizedBox(height: 18),
             const Text('Zeit'),
@@ -550,9 +643,9 @@ class _TempoConfiguratorState extends State<_TempoConfigurator> {
                 DropdownMenuItem(value: 1, child: Text('1 Minute')),
                 DropdownMenuItem(value: 2, child: Text('2 Minuten')),
                 DropdownMenuItem(value: 3, child: Text('3 Minuten')),
-                DropdownMenuItem(value: 0, child: Text('Ohne Zeitlimit')),
+                DropdownMenuItem(value: 0, child: Text('Ohne festes Limit')),
               ],
-              onChanged: (v) => setState(() => minutes = v ?? 2),
+              onChanged: (value) => setState(() => minutes = value ?? 2),
             ),
             const SizedBox(height: 20),
             FilledButton(
