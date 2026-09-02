@@ -19,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Timer? _parentGateTimer;
+
   @override
   void initState() {
     super.initState();
@@ -34,6 +35,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _refresh() {
     if (mounted) setState(() {});
+  }
+
+  void _startParentGate() {
+    _parentGateTimer?.cancel();
+    _parentGateTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      _parentGateTimer = null;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ParentScreen(controller: widget.controller),
+        ),
+      );
+    });
+  }
+
+  void _cancelParentGate() {
+    _parentGateTimer?.cancel();
+    _parentGateTimer = null;
   }
 
   Future<void> _openMode(TrainingMode mode) async {
@@ -95,25 +114,18 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             icon: const Icon(Icons.tune_rounded),
           ),
-          GestureDetector(
-            onTapDown: (_) {
-              _parentGateTimer?.cancel();
-              _parentGateTimer = Timer(const Duration(seconds: 2), () {
-                if (!mounted) return;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ParentScreen(controller: controller),
-                  ),
-                );
-              });
-            },
-            onTapUp: (_) => _parentGateTimer?.cancel(),
-            onTapCancel: () => _parentGateTimer?.cancel(),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Tooltip(
-                message: 'Für Eltern: 2 Sekunden gedrückt halten',
-                child: Icon(Icons.settings_rounded),
+          Listener(
+            key: const ValueKey('parent-gate'),
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (_) => _startParentGate(),
+            onPointerUp: (_) => _cancelParentGate(),
+            onPointerCancel: (_) => _cancelParentGate(),
+            child: const Semantics(
+              button: true,
+              label: 'Elternbereich – 2 Sekunden gedrückt halten',
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Icon(Icons.admin_panel_settings_rounded),
               ),
             ),
           ),
