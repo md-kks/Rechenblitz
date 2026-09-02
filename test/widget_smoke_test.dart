@@ -17,10 +17,19 @@ void main() {
     await tester.pumpWidget(RechenblitzApp(controller: controller));
 
     expect(find.text('Hallo!'), findsOneWidget);
-    expect(find.text('Plus & Minus'), findsOneWidget);
-    expect(find.text('Malnehmen'), findsOneWidget);
-    expect(find.text('Zahlenmauern'), findsOneWidget);
-    expect(find.text('Rechencheck'), findsOneWidget);
+    expect(find.text('bis 10'), findsOneWidget);
+    expect(find.text('bis 20'), findsOneWidget);
+    expect(find.text('bis 100'), findsOneWidget);
+
+    final scrollable = find.byType(Scrollable).first;
+    for (final label in ['Plus & Minus', 'Malnehmen', 'Zahlenmauern']) {
+      await tester.scrollUntilVisible(
+        find.text(label),
+        250,
+        scrollable: scrollable,
+      );
+      expect(find.text(label), findsOneWidget);
+    }
   });
 
   testWidgets('Zahlenraum kann auf 100 umgeschaltet werden', (tester) async {
