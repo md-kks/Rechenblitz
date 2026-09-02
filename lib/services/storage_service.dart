@@ -11,6 +11,8 @@ class StorageService {
   static const _soundKey = 'sound_enabled';
   static const _hapticKey = 'haptic_enabled';
   static const _numberRangeKey = 'number_range_v1';
+  static const _badgesKey = 'reward_badges_v1';
+  static const _recoveredWeakFactsKey = 'recovered_weak_facts_v1';
 
   Future<Map<String, MathFact>> loadFacts() async {
     final prefs = await SharedPreferences.getInstance();
@@ -67,6 +69,16 @@ class StorageService {
     return NumberRangeLevel.twenty;
   }
 
+  Future<Set<String>> rewardBadges() async =>
+      (await SharedPreferences.getInstance()).getStringList(_badgesKey)?.toSet() ??
+      <String>{};
+
+  Future<Set<String>> recoveredWeakFacts() async =>
+      (await SharedPreferences.getInstance())
+          .getStringList(_recoveredWeakFactsKey)
+          ?.toSet() ??
+      <String>{};
+
   Future<void> setSoundEnabled(bool value) async =>
       (await SharedPreferences.getInstance()).setBool(_soundKey, value);
 
@@ -77,9 +89,19 @@ class StorageService {
       (await SharedPreferences.getInstance())
           .setString(_numberRangeKey, value.name);
 
+  Future<void> setRewardBadges(Set<String> values) async =>
+      (await SharedPreferences.getInstance())
+          .setStringList(_badgesKey, values.toList()..sort());
+
+  Future<void> setRecoveredWeakFacts(Set<String> values) async =>
+      (await SharedPreferences.getInstance())
+          .setStringList(_recoveredWeakFactsKey, values.toList()..sort());
+
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_factsKey);
     await prefs.remove(_historyKey);
+    await prefs.remove(_badgesKey);
+    await prefs.remove(_recoveredWeakFactsKey);
   }
 }
