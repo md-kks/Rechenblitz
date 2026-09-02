@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/math_fact.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import 'reward_screen.dart';
+import 'structured_training_screen.dart';
 import 'training_screen.dart';
 
 class ParentScreen extends StatefulWidget {
@@ -36,6 +38,17 @@ class _ParentScreenState extends State<ParentScreen> {
 
   Future<void> _startRecommended() async {
     final mode = widget.controller.recommendedMode();
+    if (mode.isStructured) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => StructuredTrainingScreen(
+            controller: widget.controller,
+            mode: mode,
+          ),
+        ),
+      );
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => TrainingScreen(
@@ -84,7 +97,7 @@ class _ParentScreenState extends State<ParentScreen> {
                         ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
-                Text('${c.stars} ★ gesammelt'),
+                Text('${c.stars} ★ · ${c.badges.length} Abzeichen'),
               ],
             ),
           ),
@@ -121,7 +134,21 @@ class _ParentScreenState extends State<ParentScreen> {
           ),
           const SizedBox(height: 14),
           _Section(
-            title: 'Weitere Lernwelten',
+            title: 'Zahlenraumvergleich',
+            child: Column(
+              children: NumberRangeLevel.values
+                  .map(
+                    (range) => _PercentBar(
+                      label: range.label,
+                      value: c.rangeAccuracy(range),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Zahlen & Rechenwege',
             child: Column(
               children: const [
                 TrainingMode.numberWall,
@@ -131,6 +158,26 @@ class _ParentScreenState extends State<ParentScreen> {
                 TrainingMode.doublesHalves,
                 TrainingMode.sequences,
                 TrainingMode.factFamilies,
+              ]
+                  .map(
+                    (mode) => _PercentBar(
+                      label: mode.title,
+                      value: c.modeAccuracy(mode),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Sachrechnen & Alltag',
+            child: Column(
+              children: const [
+                TrainingMode.wordProblems,
+                TrainingMode.money,
+                TrainingMode.clock,
+                TrainingMode.measures,
+                TrainingMode.geometry,
               ]
                   .map(
                     (mode) => _PercentBar(
@@ -168,10 +215,30 @@ class _ParentScreenState extends State<ParentScreen> {
           const SizedBox(height: 14),
           _FactList(title: 'Aktuell sicherste Aufgaben', facts: c.safest()),
           const SizedBox(height: 14),
-          const _Section(
+          _Section(
             title: 'Belohnungssystem',
-            child: Text(
-              'Sterne gibt es für abgeschlossene Runden. Zusätzliche Sterne entstehen bei sicherem Rechnen und beim ersten Abschluss einer neuen Lernwelt. Geschwindigkeit allein gibt keine Extra-Belohnung. So lohnt sich Üben, ohne unnötigen Zeitdruck zu erzeugen.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '${c.badges.length} Abzeichen · ${c.badgeStars} Bonussterne durch Abzeichen',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Trigger sind abgeschlossene Runden, mindestens 80 % sichere Antworten, deutlicher Fortschritt gegenüber vergleichbaren Runden, Dranbleiben bei schwierigen Aufgaben, das Entdecken verschiedener Lernwelten, sichere Zahlenräume, sichere Rechenarten und das Meistern früherer Schwachstellen. Geschwindigkeit allein wird nicht belohnt.',
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RewardScreen(controller: c),
+                    ),
+                  ),
+                  icon: const Icon(Icons.emoji_events_rounded),
+                  label: const Text('Erfolge ansehen'),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 22),
@@ -182,14 +249,17 @@ class _ParentScreenState extends State<ParentScreen> {
                 builder: (_) => AlertDialog(
                   title: const Text('Fortschritt zurücksetzen?'),
                   content: const Text(
-                      'Alle Lernstatistiken und bisherigen Runden werden gelöscht.'),
+                    'Alle Lernstatistiken, Sterne und Abzeichen werden gelöscht.',
+                  ),
                   actions: [
                     TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Abbrechen')),
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Abbrechen'),
+                    ),
                     FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Zurücksetzen')),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Zurücksetzen'),
+                    ),
                   ],
                 ),
               );
@@ -265,7 +335,7 @@ class _PercentBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            SizedBox(width: 105, child: Text(label)),
+            SizedBox(width: 115, child: Text(label)),
             Expanded(
               child: LinearProgressIndicator(
                 value: value,
@@ -325,14 +395,15 @@ class _AccuracyTrend extends StatelessWidget {
         history.where((e) => e.total > 0).take(12).toList().reversed.toList();
     if (sessions.length < 2) {
       return const Text(
-          'Nach zwei abgeschlossenen Runden wird hier die Entwicklung sichtbar.');
+        'Nach zwei abgeschlossenen Runden wird hier die Entwicklung sichtbar.',
+      );
     }
     final values = sessions.map((e) => e.accuracy).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: 150,
+          height: 160,
           width: double.infinity,
           child: CustomPaint(
             painter: _TrendPainter(
