@@ -27,6 +27,11 @@ enum TrainingMode {
   doublesHalves,
   sequences,
   factFamilies,
+  wordProblems,
+  money,
+  clock,
+  measures,
+  geometry,
 }
 
 extension TrainingModeX on TrainingMode {
@@ -47,6 +52,11 @@ extension TrainingModeX on TrainingMode {
         TrainingMode.doublesHalves => 'Doppelt & Hälfte',
         TrainingMode.sequences => 'Zahlenfolgen',
         TrainingMode.factFamilies => 'Rechenfamilien',
+        TrainingMode.wordProblems => 'Sachaufgaben',
+        TrainingMode.money => 'Geld',
+        TrainingMode.clock => 'Uhrzeit',
+        TrainingMode.measures => 'Längen & Größen',
+        TrainingMode.geometry => 'Geometrie',
       };
 
   bool get isStructured =>
@@ -56,7 +66,19 @@ extension TrainingModeX on TrainingMode {
       this == TrainingMode.placeValue ||
       this == TrainingMode.doublesHalves ||
       this == TrainingMode.sequences ||
-      this == TrainingMode.factFamilies;
+      this == TrainingMode.factFamilies ||
+      this == TrainingMode.wordProblems ||
+      this == TrainingMode.money ||
+      this == TrainingMode.clock ||
+      this == TrainingMode.measures ||
+      this == TrainingMode.geometry;
+
+  bool get isEverydayMath =>
+      this == TrainingMode.wordProblems ||
+      this == TrainingMode.money ||
+      this == TrainingMode.clock ||
+      this == TrainingMode.measures ||
+      this == TrainingMode.geometry;
 }
 
 class TrainingSessionResult {
