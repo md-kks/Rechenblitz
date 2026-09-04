@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/error_diagnosis.dart';
 import '../models/learning_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
