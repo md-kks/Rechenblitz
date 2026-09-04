@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/error_diagnosis.dart';
 import '../models/learning_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
@@ -200,6 +201,8 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
               const SizedBox(height: 8),
               ...group.$2.map((mode) {
                 final progress = widget.controller.competencyProgress(mode);
+                final diagnostic =
+                    widget.controller.topDiagnosticForMode(mode);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Card(
@@ -210,11 +213,26 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                         mode.title,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      subtitle: progress.tasks == 0
-                          ? const Text('Noch nicht bearbeitet')
-                          : Text(
-                              '${progress.tasks} Aufgaben · ${(progress.accuracy * 100).round()} % direkt richtig',
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            progress.tasks == 0
+                                ? 'Noch nicht bearbeitet'
+                                : '${progress.tasks} Aufgaben · ${(progress.accuracy * 100).round()} % direkt richtig',
+                          ),
+                          if (diagnostic != null) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              'Auffällig: ${diagnostic.pattern.label} · ${diagnostic.confidenceLabel}',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
+                          ],
+                        ],
+                      ),
                       trailing: Chip(label: Text(progress.state.label)),
                     ),
                   ),

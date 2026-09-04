@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/assessment.dart';
+import '../models/error_diagnosis.dart';
 import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
 import '../models/learning_path.dart';
@@ -19,6 +20,7 @@ class AppController extends ChangeNotifier {
   final AdaptiveEngine engine;
   List<MathFact> facts = [];
   List<TrainingSessionResult> history = [];
+  List<DiagnosticAttempt> diagnostics = [];
   List<LearnerProfile> profiles = [];
   String activeProfileId = 'default';
   MethodPreferences methodPreferences = const MethodPreferences();
@@ -54,6 +56,7 @@ class AppController extends ChangeNotifier {
     final saved = await storage.loadFacts();
     facts = pool.map((fresh) => saved[fresh.key] ?? fresh).toList();
     history = await storage.loadHistory();
+    diagnostics = await storage.loadDiagnostics();
     numberRange =
         await storage.numberRange() ?? gradeLevel.recommendedRange;
     if (!availableRanges.contains(numberRange)) {
@@ -90,6 +93,41 @@ class AppController extends ChangeNotifier {
   String get activeProfileName => activeProfile.name;
 
   bool get needsOnboarding => !activeProfile.onboardingComplete;
+
+  Future<void> recordDiagnosticAttempt({
+    required TrainingMode mode,
+    required String taskKey,
+    required int expected,
+    required int actual,
+    MathFact? fact,
+  }) async {
+    final pattern = ErrorClassifier.classify(
+      mode: mode,
+      taskKey: taskKey,
+      expected: expected,
+      actual: actual,
+      fact: fact,
+    );
+    diagnostics.insert(
+      0,
+      DiagnosticAttempt(
+        occurredAt: DateTime.now(),
+        mode: mode,
+        taskKey: taskKey,
+        expected: expected,
+        actual: actual,
+        correct: actual == expected,
+        gradeLevel: gradeLevel,
+        numberRange: numberRange,
+        pattern: pattern,
+      ),
+    );
+    if (diagnostics.length > 500) {
+      diagnostics = diagnostics.take(500).toList();
+    }
+    notifyListeners();
+    await storage.saveDiagnostics(diagnostics);
+  }
 
   Future<void> recordAttempt(
     MathFact fact, {
@@ -372,6 +410,73 @@ class AppController extends ChangeNotifier {
     return total == 0 ? 0 : correct / total;
   }
 
+  List<DiagnosticSummary> diagnosticSummaries({
+    int maxAttempts = 120,
+    bool recurringOnly = false,
+  }) {
+    final recent = diagnostics
+        .where((entry) =>
+            entry.gradeLevel == gradeLevel &&
+            entry.numberRange == numberRange)
+        .take(maxAttempts)
+        .where(
+          (entry) => !entry.correct && entry.pattern != null,
+        );
+    final grouped = <ErrorPattern, List<DiagnosticAttempt>>{};
+    for (final entry in recent) {
+      grouped.putIfAbsent(entry.pattern!, () => []).add(entry);
+    }
+
+    final summaries = grouped.entries
+        .map(
+          (entry) => DiagnosticSummary(
+            pattern: entry.key,
+            errors: entry.value.length,
+            lastSeen: entry.value
+                .map((value) => value.occurredAt)
+                .reduce((a, b) => a.isAfter(b) ? a : b),
+            modes: entry.value.map((value) => value.mode).toSet(),
+          ),
+        )
+        .where((summary) => !recurringOnly || summary.isRecurring)
+        .toList()
+      ..sort((a, b) {
+        final byErrors = b.errors.compareTo(a.errors);
+        if (byErrors != 0) return byErrors;
+        return b.lastSeen.compareTo(a.lastSeen);
+      });
+    return summaries;
+  }
+
+  DiagnosticSummary? topDiagnosticForMode(TrainingMode mode) {
+    final grouped = <ErrorPattern, List<DiagnosticAttempt>>{};
+    for (final entry in diagnostics
+        .where((entry) =>
+            entry.gradeLevel == gradeLevel &&
+            entry.numberRange == numberRange &&
+            entry.mode == mode &&
+            !entry.correct &&
+            entry.pattern != null)
+        .take(80)) {
+      grouped.putIfAbsent(entry.pattern!, () => []).add(entry);
+    }
+    if (grouped.isEmpty) return null;
+
+    final summaries = grouped.entries
+        .map(
+          (entry) => DiagnosticSummary(
+            pattern: entry.key,
+            errors: entry.value.length,
+            lastSeen: entry.value.first.occurredAt,
+            modes: {mode},
+          ),
+        )
+        .where((summary) => summary.isRecurring)
+        .toList()
+      ..sort((a, b) => b.errors.compareTo(a.errors));
+    return summaries.isEmpty ? null : summaries.first;
+  }
+
   List<MathFact> hardest({int count = 5}) {
     final tried = facts
         .where((f) =>
@@ -631,11 +736,14 @@ class AppController extends ChangeNotifier {
         : '${focus.mode.title} ist aktuell noch unsicher '
             '(${(focus.accuracy * 100).round()} % direkt richtig).';
 
-    final action = focus.tasks == 0
-        ? 'Eine kurze Runde „${focus.mode.title}“ reicht als Einstieg.'
-        : focus.accuracy < 0.70
-            ? '3–5 Minuten gezielt „${focus.mode.title}“ üben und dabei den gewählten Schul-Rechenweg nutzen.'
-            : 'Den Bereich in kurzen Abständen wiederholen, bis er über mehrere Runden stabil bleibt.';
+    final diagnostic = topDiagnosticForMode(focus.mode);
+    final action = diagnostic != null
+        ? '${diagnostic.pattern.label}: ${diagnostic.pattern.action}'
+        : focus.tasks == 0
+            ? 'Eine kurze Runde „${focus.mode.title}“ reicht als Einstieg.'
+            : focus.accuracy < 0.70
+                ? '3–5 Minuten gezielt „${focus.mode.title}“ üben und dabei den gewählten Schul-Rechenweg nutzen.'
+                : 'Den Bereich in kurzen Abständen wiederholen, bis er über mehrere Runden stabil bleibt.';
 
     final notYet = focus.tasks > 0 && focus.accuracy < 0.75
         ? 'Noch nicht nötig: auf Tempo trainieren. Zuerst sollte der Rechenweg sicher werden.'
@@ -1023,6 +1131,7 @@ class AppController extends ChangeNotifier {
     await storage.clear();
     facts = AdaptiveEngine.buildFactPool(maxValue: 100);
     history = [];
+    diagnostics = [];
     unlockedBadges = <String>{};
     recoveredWeakFacts = <String>{};
     _pendingBadgeIds.clear();

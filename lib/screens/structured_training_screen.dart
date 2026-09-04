@@ -70,6 +70,14 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   Future<void> _answer(int answer) async {
     if (locked || finishing) return;
     final response = DateTime.now().difference(shownAt);
+    if (wrongOnCurrent == 0) {
+      await widget.controller.recordDiagnosticAttempt(
+        mode: widget.mode,
+        taskKey: current.key,
+        expected: current.answer,
+        actual: answer,
+      );
+    }
     if (answer != current.answer) {
       incorrectAttempts += 1;
       wrongOnCurrent += 1;

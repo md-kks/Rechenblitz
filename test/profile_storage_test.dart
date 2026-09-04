@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/learner_profile.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/math_fact.dart';
@@ -110,6 +111,43 @@ void main() {
 
     expect(restored.onboardingComplete, isTrue);
     expect(restored.state, GermanState.thuringia);
+  });
+
+
+  test('Diagnosen bleiben zwischen Profilen getrennt', () async {
+    final storage = StorageService();
+    var profiles = await storage.initializeProfiles();
+
+    await storage.saveDiagnostics([
+      DiagnosticAttempt(
+        occurredAt: DateTime(2026, 9, 4, 20),
+        mode: TrainingMode.minus,
+        taskKey: 'minus:13:5',
+        expected: 8,
+        actual: 9,
+        correct: false,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        pattern: ErrorPattern.tenBridge,
+      ),
+    ]);
+
+    final second = LearnerProfile(
+      id: 'diagnostic-second',
+      name: 'Zweites Diagnoseprofil',
+      gradeLevel: GradeLevel.second,
+      createdAt: DateTime(2026, 9, 4),
+    );
+    profiles = [...profiles, second];
+    await storage.saveProfiles(profiles);
+    await storage.setActiveProfileId(second.id);
+
+    expect(await storage.loadDiagnostics(), isEmpty);
+
+    await storage.setActiveProfileId('default');
+    final first = await storage.loadDiagnostics();
+    expect(first, hasLength(1));
+    expect(first.single.pattern, ErrorPattern.tenBridge);
   });
 
 }

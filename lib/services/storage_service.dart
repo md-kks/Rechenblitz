@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/error_diagnosis.dart';
 import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
 import '../models/math_fact.dart';
@@ -17,6 +18,7 @@ class StorageService {
   static const _badgesKey = 'reward_badges_v1';
   static const _recoveredWeakFactsKey = 'recovered_weak_facts_v1';
   static const _methodsKey = 'method_preferences_v1';
+  static const _diagnosticsKey = 'diagnostics_v1';
 
   static const _profilesKey = 'learner_profiles_v1';
   static const _activeProfileKey = 'active_learner_profile_v1';
@@ -115,6 +117,7 @@ class StorageService {
       _badgesKey,
       _recoveredWeakFactsKey,
       _methodsKey,
+      _diagnosticsKey,
     ]) {
       await prefs.remove('profile:$id:$key');
     }
@@ -139,6 +142,29 @@ class StorageService {
     await prefs.setString(
       _profileKey(_factsKey),
       jsonEncode(practiced.map((e) => e.toJson()).toList()),
+    );
+  }
+
+  Future<List<DiagnosticAttempt>> loadDiagnostics() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_profileKey(_diagnosticsKey));
+    if (raw == null) return [];
+    try {
+      return (jsonDecode(raw) as List<dynamic>)
+          .map((e) => DiagnosticAttempt.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveDiagnostics(List<DiagnosticAttempt> diagnostics) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _profileKey(_diagnosticsKey),
+      jsonEncode(
+        diagnostics.take(500).map((entry) => entry.toJson()).toList(),
+      ),
     );
   }
 
@@ -238,6 +264,7 @@ class StorageService {
     await prefs.remove(_profileKey(_historyKey));
     await prefs.remove(_profileKey(_badgesKey));
     await prefs.remove(_profileKey(_recoveredWeakFactsKey));
+    await prefs.remove(_profileKey(_diagnosticsKey));
   }
 
   List<LearnerProfile> _decodeProfiles(String raw) {

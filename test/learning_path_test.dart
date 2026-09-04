@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/learning_path.dart';
 import 'package:rechenblitz/models/training.dart';
@@ -110,4 +111,45 @@ void main() {
       SubtractionStrategy.complement,
     );
   });
+
+  test('wiederkehrendes Fehlermuster präzisiert die Elternempfehlung', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.history = [
+      session(mode: TrainingMode.minus, correct: 5),
+      session(mode: TrainingMode.money, correct: 9),
+    ];
+    controller.diagnostics = [
+      DiagnosticAttempt(
+        occurredAt: DateTime(2026, 9, 4, 20, 2),
+        mode: TrainingMode.minus,
+        taskKey: 'minus:13:5',
+        expected: 8,
+        actual: 9,
+        correct: false,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        pattern: ErrorPattern.tenBridge,
+      ),
+      DiagnosticAttempt(
+        occurredAt: DateTime(2026, 9, 4, 20),
+        mode: TrainingMode.minus,
+        taskKey: 'minus:12:4',
+        expected: 8,
+        actual: 9,
+        correct: false,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        pattern: ErrorPattern.tenBridge,
+      ),
+    ];
+
+    final insight = controller.parentInsight();
+
+    expect(insight.focus, contains('Minus'));
+    expect(insight.action, contains('Zehnerübergang'));
+    expect(insight.action, contains('Tempo noch nicht'));
+  });
+
 }

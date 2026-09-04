@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/error_diagnosis.dart';
 import '../models/learning_methods.dart';
 import '../models/math_fact.dart';
 import '../models/training.dart';
@@ -82,6 +83,8 @@ class _ParentScreenState extends State<ParentScreen> {
     final c = widget.controller;
     final recommendation = c.recommendationText();
     final insight = c.parentInsight();
+    final diagnosticPatterns =
+        c.diagnosticSummaries(recurringOnly: true).take(4).toList();
     final today = c.todayHistory.toList();
     final todayCorrect =
         today.fold<int>(0, (s, e) => s + e.correctFirstTry);
@@ -188,6 +191,50 @@ class _ParentScreenState extends State<ParentScreen> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Mögliche Fehlermuster',
+            child: diagnosticPatterns.isEmpty
+                ? const Text(
+                    'Noch kein wiederkehrendes Fehlermuster. Rechenblitz zeigt hier erst etwas an, wenn ein ähnlicher Fehler mindestens zweimal aufgefallen ist.',
+                  )
+                : Column(
+                    children: diagnosticPatterns
+                        .map(
+                          (summary) => Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.search_rounded, size: 22),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        summary.pattern.label,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${summary.confidenceLabel} · ${summary.errors} Beobachtungen',
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(summary.pattern.action),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
           ),
           const SizedBox(height: 14),
           _Section(

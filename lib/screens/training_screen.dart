@@ -108,6 +108,15 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (locked || finishing) return;
     final response = DateTime.now().difference(taskShownAt);
     final correct = answer == _expectedAnswer;
+    if (wrongOnCurrent == 0) {
+      await widget.controller.recordDiagnosticAttempt(
+        mode: widget.mode,
+        taskKey: current.key,
+        expected: _expectedAnswer,
+        actual: answer,
+        fact: current,
+      );
+    }
     await widget.controller.recordAttempt(
       current,
       correct: correct,

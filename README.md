@@ -106,6 +106,26 @@ Für eine Veröffentlichung ist Rechenblitz nicht nur eine Aufgabensammlung, son
 - Elternhinweise mit **Das klappt / Hier üben / Was hilft / Noch nicht nötig**
 - alle Lernstände und Methoden bleiben local first auf dem Gerät
 
+## Erklärbare Fehlerdiagnose
+
+Rechenblitz wertet den ersten Antwortversuch einer Aufgabe lokal aus, um wiederkehrende Fehlermuster zu erkennen. Ein einzelner Fehler wird bewusst noch nicht als Lernproblem gewertet.
+
+Beispiele für erkannte Muster:
+
+- Zehnerübergang
+- Rechenart verwechselt
+- Stellenwert
+- Einmaleins- oder Geteilt-Fakt
+- Umkehraufgabe
+- Sachaufgabe in eine Rechnung übersetzen
+- Größen und Einheiten umwandeln
+- Uhrzeit lesen
+- Rundungsstelle
+- Übertrag / Entbündeln bei schriftlichen Verfahren
+- Bruchteile, Daten, Wahrscheinlichkeit, Umfang/Fläche und weitere Curriculum-Muster
+
+Erst wenn ein ähnliches Muster mindestens zweimal auftritt, erscheint es als vorsichtiger Hinweis im Elternbereich und in der Lernlandkarte. Die Diagnose ist regelbasiert und erklärbar; sie behauptet keine medizinische oder lerntherapeutische Diagnose. Diagnosebeobachtungen sind pro Profil, Klassenstufe und Zahlenraum getrennt und bleiben ausschließlich lokal auf dem Gerät.
+
 ## Adaptives Lernen
 
 Der bisherige adaptive Kern bleibt erhalten. Schwache oder langsame Grundaufgaben werden häufiger wiederholt. Für Klasse 3/4 ergänzt Rechenblitz dynamische Lehrplan-Aufgaben und empfiehlt zunächst noch nicht bearbeitete Lernbereiche, später die Bereiche mit der geringsten Sicherheit.
