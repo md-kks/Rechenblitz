@@ -5,6 +5,7 @@ import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/learner_profile.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/math_fact.dart';
+import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/remediation_path.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/storage_service.dart';
@@ -219,6 +220,44 @@ void main() {
         'story:-:cards:18:6',
       ],
     );
+  });
+
+
+  test('Mikro-Kompetenzen bleiben zwischen Profilen getrennt', () async {
+    final storage = StorageService();
+    var profiles = await storage.initializeProfiles();
+
+    await storage.saveMicroCompetencyObservations([
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.subtractionTenBridge,
+        occurredAt: DateTime(2026, 9, 5, 10),
+        correct: false,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.minus,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'minus:13:5',
+      ),
+    ]);
+
+    final second = LearnerProfile(
+      id: 'micro-second',
+      name: 'Zweites Mikroprofil',
+      gradeLevel: GradeLevel.second,
+      createdAt: DateTime(2026, 9, 5),
+    );
+    profiles = [...profiles, second];
+    await storage.saveProfiles(profiles);
+    await storage.setActiveProfileId(second.id);
+
+    expect(await storage.loadMicroCompetencyObservations(), isEmpty);
+
+    await storage.setActiveProfileId('default');
+    final first = await storage.loadMicroCompetencyObservations();
+    expect(first, hasLength(1));
+    expect(first.single.id, MicroCompetencyId.subtractionTenBridge);
   });
 
 }

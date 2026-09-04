@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../models/error_diagnosis.dart';
 import '../models/learning_methods.dart';
 import '../models/math_fact.dart';
+import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../widgets/learning_visual_aid.dart';
@@ -18,12 +19,14 @@ class TrainingScreen extends StatefulWidget {
     required this.mode,
     required this.targetTasks,
     this.timeLimit,
+    this.targetCompetency,
   });
 
   final AppController controller;
   final TrainingMode mode;
   final int targetTasks;
   final Duration? timeLimit;
+  final MicroCompetencyId? targetCompetency;
 
   @override
   State<TrainingScreen> createState() => _TrainingScreenState();
@@ -102,6 +105,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         maxValue: widget.controller.maxValue,
         previousKey: completed == 0 ? null : current.key,
         recentKeys: widget.controller.recentTaskKeys(widget.mode),
+        targetCompetency: widget.targetCompetency,
       );
 
   int get _expectedAnswer =>
@@ -122,6 +126,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         expected: _expectedAnswer,
         actual: answer,
         fact: current,
+        usedHelp: usedHelp || showHelp,
       );
     }
     await widget.controller.recordAttempt(

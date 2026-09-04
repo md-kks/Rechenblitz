@@ -6,6 +6,7 @@ import '../models/error_diagnosis.dart';
 import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
 import '../models/math_fact.dart';
+import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/training.dart';
 
@@ -22,6 +23,7 @@ class StorageService {
   static const _diagnosticsKey = 'diagnostics_v1';
   static const _remediationKey = 'remediation_progress_v1';
   static const _taskDiversityKey = 'task_diversity_v1';
+  static const _microCompetencyKey = 'micro_competency_v1';
 
   static const _profilesKey = 'learner_profiles_v1';
   static const _activeProfileKey = 'active_learner_profile_v1';
@@ -123,6 +125,7 @@ class StorageService {
       _diagnosticsKey,
       _remediationKey,
       _taskDiversityKey,
+      _microCompetencyKey,
     ]) {
       await prefs.remove('profile:$id:$key');
     }
@@ -220,6 +223,39 @@ class StorageService {
     await prefs.setString(
       _profileKey(_taskDiversityKey),
       jsonEncode(recentByMode),
+    );
+  }
+
+  Future<List<MicroCompetencyObservation>>
+      loadMicroCompetencyObservations() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_profileKey(_microCompetencyKey));
+    if (raw == null) return [];
+    try {
+      return (jsonDecode(raw) as List<dynamic>)
+          .map(
+            (entry) => MicroCompetencyObservation.fromJson(
+              entry as Map<String, dynamic>,
+            ),
+          )
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveMicroCompetencyObservations(
+    List<MicroCompetencyObservation> observations,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _profileKey(_microCompetencyKey),
+      jsonEncode(
+        observations
+            .take(1200)
+            .map((entry) => entry.toJson())
+            .toList(),
+      ),
     );
   }
 
@@ -322,6 +358,7 @@ class StorageService {
     await prefs.remove(_profileKey(_diagnosticsKey));
     await prefs.remove(_profileKey(_remediationKey));
     await prefs.remove(_profileKey(_taskDiversityKey));
+    await prefs.remove(_profileKey(_microCompetencyKey));
   }
 
   List<LearnerProfile> _decodeProfiles(String raw) {

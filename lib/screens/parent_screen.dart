@@ -44,13 +44,17 @@ class _ParentScreenState extends State<ParentScreen> {
       ms == 0 ? '–' : '${(ms / 1000).toStringAsFixed(1)} s';
 
   Future<void> _startRecommended() async {
-    final mode = widget.controller.recommendedMode();
+    final microFocus = widget.controller.currentMicroFocus();
+    final mode = microFocus?.definition.preferredMode ??
+        widget.controller.recommendedMode();
+    final targetCompetency = microFocus?.definition.id;
     if (mode.isUpperPrimary) {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => CurriculumTrainingScreen(
             controller: widget.controller,
             mode: mode,
+            targetCompetency: targetCompetency,
           ),
         ),
       );
@@ -62,6 +66,7 @@ class _ParentScreenState extends State<ParentScreen> {
           builder: (_) => StructuredTrainingScreen(
             controller: widget.controller,
             mode: mode,
+            targetCompetency: targetCompetency,
           ),
         ),
       );
@@ -75,6 +80,7 @@ class _ParentScreenState extends State<ParentScreen> {
           targetTasks: mode == TrainingMode.blitz ? 5 : 10,
           timeLimit:
               mode == TrainingMode.tempo ? const Duration(minutes: 2) : null,
+          targetCompetency: targetCompetency,
         ),
       ),
     );
@@ -85,6 +91,7 @@ class _ParentScreenState extends State<ParentScreen> {
     final c = widget.controller;
     final recommendation = c.recommendationText();
     final insight = c.parentInsight();
+    final microFocus = c.currentMicroFocus();
     final diagnosticPatterns = c
         .diagnosticSummaries(recurringOnly: true)
         .where(
@@ -200,6 +207,38 @@ class _ParentScreenState extends State<ParentScreen> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Warum gerade diese Aufgaben?',
+            child: microFocus == null
+                ? Text(c.microFocusReason())
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        microFocus.definition.label,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(microFocus.definition.description),
+                      const SizedBox(height: 10),
+                      Text(c.microFocusReason()),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Rechenblitz übt deshalb nicht pauschal „${microFocus.definition.preferredMode.title}“, sondern bevorzugt Aufgaben, die genau diesen Teilschritt überprüfen.',
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _startRecommended,
+                        icon: const Icon(Icons.track_changes_rounded),
+                        label: const Text('Teilschritt gezielt üben'),
+                      ),
+                    ],
+                  ),
           ),
           const SizedBox(height: 14),
           _Section(

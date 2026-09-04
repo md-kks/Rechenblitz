@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../models/curriculum_exercise.dart';
 import '../models/error_diagnosis.dart';
+import '../models/micro_competency.dart';
 import '../models/learning_methods.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
@@ -15,11 +16,13 @@ class CurriculumTrainingScreen extends StatefulWidget {
     required this.controller,
     required this.mode,
     this.targetTasks = 10,
+    this.targetCompetency,
   });
 
   final AppController controller;
   final TrainingMode mode;
   final int targetTasks;
+  final MicroCompetencyId? targetCompetency;
 
   @override
   State<CurriculumTrainingScreen> createState() =>
@@ -54,6 +57,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         gradeLevel: widget.controller.gradeLevel,
         maxValue: widget.controller.maxValue,
         recentKeys: widget.controller.recentTaskKeys(widget.mode),
+        targetCompetency: widget.targetCompetency,
       );
 
   String get _effectiveHint {
@@ -79,6 +83,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         taskKey: current.key,
         expected: current.answer,
         actual: answer,
+        usedHelp: showHint,
       );
     }
     if (answer != current.answer) {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/error_diagnosis.dart';
+import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
@@ -69,6 +70,10 @@ class _RemediationScreenState extends State<RemediationScreen> {
         taskKey: current.taskKey,
         expected: current.answer,
         actual: answer,
+        usedHelp: showHint ||
+            current.stage == RemediationStage.guided ||
+            current.stage == RemediationStage.supported,
+        source: MicroEvidenceSource.remediation,
       );
     }
 

@@ -173,6 +173,31 @@ Bei passenden Hinweisen zeigt Rechenblitz jetzt zusätzlich visuelle Rechenhilfe
 - Umfang-/Flächen-Darstellung
 - Entscheidungshilfe für die Rechenart in Sachaufgaben
 
+## Kompetenzmodell 2.0
+
+Rechenblitz bewertet nicht mehr nur ganze Lernmodi, sondern auch kleine mathematische Teilkompetenzen mit stabilen IDs.
+
+Beispiele:
+
+- Zahlen sinnvoll zerlegen
+- Plus ohne / mit Zehnerübergang
+- Minus ohne / mit Zehnerübergang
+- Einmaleins-Fakten und gleich große Gruppen
+- Geteilt-Fakten und Umkehraufgaben
+- Rechenart in Sachaufgaben erkennen
+- Stellenwerte und Zahlzerlegung
+- schriftliches Ausrichten sowie Übertrag / Entbündeln
+- Rundungsstelle, Überschlag und Rechengesetze
+- Einheiten umwandeln, Zeitspannen
+- Daten, Wahrscheinlichkeit und Kombinatorik
+- Umfang, Fläche, Körper, Symmetrie, Maßstab und Rauminhalt
+
+Eine Aufgabe kann mehrere Kompetenzen berühren. Die primäre Kompetenz erhält volle Evidenz, unterstützende Voraussetzungen nur einen kleineren Anteil. Richtige Antworten mit eingeblendeter Hilfe zählen ebenfalls schwächer als frei gelöste Antworten. Förderpfade liefern bewusst weniger Evidenz als normale Übungsaufgaben.
+
+Die Mikro-Lernkarte unterscheidet **Neu / Entdecken / Wird geübt / Sicher / Gemeistert**. „Meine Runde“ kann dadurch gezielt genau den mathematischen Teilschritt auswählen, der aktuell am meisten bringt. Sichere Teilkompetenzen werden als Warm-up oder fällige Wiederholung genutzt, während neue Lernschritte vorsichtig im Transferteil auftauchen.
+
+Im Elternbereich erklärt **„Warum gerade diese Aufgaben?“**, welcher Teilschritt derzeit fokussiert wird und auf welcher Beobachtungsbasis diese Auswahl beruht.
+
 ## Adaptives Lernen
 
 Der bisherige adaptive Kern bleibt erhalten. Schwache oder langsame Grundaufgaben werden häufiger wiederholt. Für Klasse 3/4 ergänzt Rechenblitz dynamische Lehrplan-Aufgaben und empfiehlt zunächst noch nicht bearbeitete Lernbereiche, später die Bereiche mit der geringsten Sicherheit.

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../models/error_diagnosis.dart';
 import '../models/learning_methods.dart';
+import '../models/micro_competency.dart';
 import '../models/structured_exercise.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
@@ -17,11 +18,13 @@ class StructuredTrainingScreen extends StatefulWidget {
     required this.controller,
     required this.mode,
     this.targetTasks = 10,
+    this.targetCompetency,
   });
 
   final AppController controller;
   final TrainingMode mode;
   final int targetTasks;
+  final MicroCompetencyId? targetCompetency;
 
   @override
   State<StructuredTrainingScreen> createState() =>
@@ -55,6 +58,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         mode: widget.mode,
         maxValue: widget.controller.maxValue,
         recentKeys: widget.controller.recentTaskKeys(widget.mode),
+        targetCompetency: widget.targetCompetency,
       );
 
   String get _effectiveHint {
@@ -83,6 +87,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         taskKey: current.key,
         expected: current.answer,
         actual: answer,
+        usedHelp: showHint,
       );
     }
     if (answer != current.answer) {

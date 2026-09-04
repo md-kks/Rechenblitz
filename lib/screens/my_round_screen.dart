@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/error_diagnosis.dart';
 import '../models/learning_path.dart';
+import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'curriculum_training_screen.dart';
@@ -39,6 +40,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             controller: widget.controller,
             mode: segment.mode,
             targetTasks: segment.tasks,
+            targetCompetency: segment.targetCompetency,
           ),
         ),
       );
@@ -49,6 +51,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             controller: widget.controller,
             mode: segment.mode,
             targetTasks: segment.tasks,
+            targetCompetency: segment.targetCompetency,
           ),
         ),
       );
@@ -59,6 +62,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             controller: widget.controller,
             mode: segment.mode,
             targetTasks: segment.tasks,
+            targetCompetency: segment.targetCompetency,
           ),
         ),
       );
@@ -96,7 +100,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    allDone ? 'Für heute geschafft.' : 'Etwa 5 Minuten Mathe.',
+                    allDone ? 'Für heute geschafft.' : 'Etwa 5–8 Minuten Mathe.',
                     style: Theme.of(context)
                         .textTheme
                         .headlineSmall
@@ -105,8 +109,8 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                   const SizedBox(height: 8),
                   Text(
                     allDone
-                        ? 'Grundlage, Lernziel und Transfer sind erledigt. Mehr ist heute nicht nötig.'
-                        : 'Rechenblitz stellt die Runde aus Grundlagen, dem wichtigsten aktuellen Lernziel und einer Transferaufgabe zusammen.',
+                        ? 'Grundlage, Lernziel, Wiederholung und Transfer sind erledigt. Mehr ist heute nicht nötig.'
+                        : 'Rechenblitz stellt die Runde aus sicherer Grundlage, einem konkreten Teilschritt, fälliger Wiederholung und Transfer zusammen.',
                   ),
                   const SizedBox(height: 14),
                   LinearProgressIndicator(
@@ -220,6 +224,15 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                             Text(
                               '${segment.tasks} Aufgaben · ${segment.reason}',
                             ),
+                            if (segment.targetCompetency != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Ziel: ${MicroCompetencyCatalog.definition(segment.targetCompetency!).label}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                             if (!isDone && isNext) ...[
                               const SizedBox(height: 12),
                               FilledButton.icon(

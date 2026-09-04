@@ -66,19 +66,19 @@ void main() {
     );
   });
 
-  test('Meine Runde besteht aus 10 Aufgaben in drei Lernabschnitten', () {
+  test('Meine Runde besteht aus 12 Aufgaben in vier Lernabschnitten', () {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
 
     final plan = controller.buildMyRound();
 
-    expect(plan, hasLength(3));
-    expect(plan.fold<int>(0, (sum, item) => sum + item.tasks), 10);
-    expect(plan.first.tasks, 3);
-    expect(plan[1].tasks, 4);
-    expect(plan.last.tasks, 3);
-    expect(plan[1].mode, isNot(plan.first.mode));
+    expect(plan, hasLength(4));
+    expect(plan.fold<int>(0, (sum, item) => sum + item.tasks), 12);
+    expect(plan[0].tasks, 2);
+    expect(plan[1].tasks, 5);
+    expect(plan[2].tasks, 3);
+    expect(plan[3].tasks, 2);
   });
 
   test('Elternhinweis nennt Stärke, Fokus und konkrete nächste Handlung', () {

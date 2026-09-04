@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../models/task_diversity.dart';
 
@@ -53,6 +54,7 @@ class StructuredExerciseGenerator {
     required TrainingMode mode,
     required int maxValue,
     Iterable<String> recentKeys = const <String>[],
+    MicroCompetencyId? targetCompetency,
   }) {
     final recent = recentKeys.toList();
     final exactWindow = TaskDiversity.recentExactWindow(
@@ -73,8 +75,15 @@ class StructuredExerciseGenerator {
       final exactNew = !exactAvoid.contains(candidate.key);
       final familyNew =
           !familyAvoid.contains(TaskDiversity.familyForKey(candidate.key));
-      if (exactNew && familyNew) return candidate;
-      if (exactNew && firstExactNew == null) firstExactNew = candidate;
+      final targetMatches = targetCompetency == null ||
+          MicroCompetencyCatalog.tagsForTask(
+            mode: mode,
+            taskKey: candidate.key,
+          ).any((tag) => tag.id == targetCompetency);
+      if (targetMatches && exactNew && familyNew) return candidate;
+      if (targetMatches && exactNew && firstExactNew == null) {
+        firstExactNew = candidate;
+      }
     }
     return firstExactNew ?? last ?? _generateOnce(mode: mode, maxValue: maxValue);
   }

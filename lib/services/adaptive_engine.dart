@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../models/math_fact.dart';
+import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../models/task_diversity.dart';
 
@@ -118,6 +119,7 @@ class AdaptiveEngine {
     int maxValue = 10,
     String? previousKey,
     Iterable<String> recentKeys = const <String>[],
+    MicroCompetencyId? targetCompetency,
   }) {
     var candidates =
         facts.where((f) => isValid(f, maxValue: maxValue)).toList();
@@ -142,6 +144,17 @@ class AdaptiveEngine {
               f.operation == MathOperation.minus)
           .toList(),
     };
+
+    if (targetCompetency != null && candidates.length > 1) {
+      final targeted = candidates.where((fact) {
+        return MicroCompetencyCatalog.tagsForTask(
+          mode: mode,
+          taskKey: fact.key,
+          fact: fact,
+        ).any((tag) => tag.id == targetCompetency);
+      }).toList();
+      if (targeted.isNotEmpty) candidates = targeted;
+    }
 
     if (mode == TrainingMode.practice ||
         mode == TrainingMode.minus ||

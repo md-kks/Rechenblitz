@@ -54,8 +54,8 @@ void main() {
     await tester.tap(myRoundButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Etwa 5 Minuten Mathe.'), findsOneWidget);
-    expect(find.textContaining('von 10 Aufgaben'), findsOneWidget);
+    expect(find.text('Etwa 5–8 Minuten Mathe.'), findsOneWidget);
+    expect(find.textContaining('von 12 Aufgaben'), findsOneWidget);
   });
 
   testWidgets('Erfolgsseite ist für das Kind direkt erreichbar', (tester) async {

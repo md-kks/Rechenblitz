@@ -6,6 +6,7 @@ import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
 import '../models/learning_path.dart';
 import '../models/math_fact.dart';
+import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/reward_badge.dart';
 import '../models/training.dart';
@@ -24,6 +25,7 @@ class AppController extends ChangeNotifier {
   List<TrainingSessionResult> history = [];
   List<DiagnosticAttempt> diagnostics = [];
   List<RemediationProgress> remediationProgress = [];
+  List<MicroCompetencyObservation> microObservations = [];
   Map<String, List<String>> recentTaskKeysByMode = <String, List<String>>{};
   List<LearnerProfile> profiles = [];
   String activeProfileId = 'default';
@@ -62,6 +64,7 @@ class AppController extends ChangeNotifier {
     history = await storage.loadHistory();
     diagnostics = await storage.loadDiagnostics();
     remediationProgress = await storage.loadRemediationProgress();
+    microObservations = await storage.loadMicroCompetencyObservations();
     recentTaskKeysByMode = await storage.loadTaskDiversity();
     numberRange =
         await storage.numberRange() ?? gradeLevel.recommendedRange;
@@ -148,6 +151,8 @@ class AppController extends ChangeNotifier {
     required int expected,
     required int actual,
     MathFact? fact,
+    bool usedHelp = false,
+    MicroEvidenceSource source = MicroEvidenceSource.practice,
   }) async {
     final pattern = ErrorClassifier.classify(
       mode: mode,
@@ -155,6 +160,14 @@ class AppController extends ChangeNotifier {
       expected: expected,
       actual: actual,
       fact: fact,
+    );
+    _recordMicroCompetencies(
+      mode: mode,
+      taskKey: taskKey,
+      correct: actual == expected,
+      fact: fact,
+      usedHelp: usedHelp,
+      source: source,
     );
     diagnostics.insert(
       0,
@@ -187,6 +200,7 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     await storage.saveDiagnostics(diagnostics);
     await storage.saveRemediationProgress(remediationProgress);
+    await storage.saveMicroCompetencyObservations(microObservations);
   }
 
   Future<void> recordAttempt(
@@ -808,6 +822,193 @@ class AppController extends ChangeNotifier {
     ];
   }
 
+  void _recordMicroCompetencies({
+    required TrainingMode mode,
+    required String taskKey,
+    required bool correct,
+    required bool usedHelp,
+    required MicroEvidenceSource source,
+    MathFact? fact,
+  }) {
+    final sourceWeight =
+        source == MicroEvidenceSource.remediation ? 0.65 : 1.0;
+    final helpWeight = correct && usedHelp ? 0.65 : 1.0;
+    final now = DateTime.now();
+
+    for (final tag in MicroCompetencyCatalog.tagsForTask(
+      mode: mode,
+      taskKey: taskKey,
+      fact: fact,
+    )) {
+      microObservations.insert(
+        0,
+        MicroCompetencyObservation(
+          id: tag.id,
+          occurredAt: now,
+          correct: correct,
+          evidenceWeight: tag.weight * sourceWeight * helpWeight,
+          source: source,
+          usedHelp: usedHelp,
+          mode: mode,
+          gradeLevel: gradeLevel,
+          numberRange: numberRange,
+          taskKey: taskKey,
+        ),
+      );
+    }
+
+    if (microObservations.length > 1200) {
+      microObservations = microObservations.take(1200).toList();
+    }
+  }
+
+  MicroCompetencyProgress microCompetencyProgress(
+    MicroCompetencyId id,
+  ) {
+    final definition = MicroCompetencyCatalog.definition(id);
+    final observations = microObservations
+        .where(
+          (entry) =>
+              entry.id == id &&
+              entry.gradeLevel == gradeLevel &&
+              entry.numberRange == numberRange,
+        )
+        .take(24)
+        .toList();
+
+    if (observations.isEmpty) {
+      return MicroCompetencyProgress(
+        definition: definition,
+        state: MicroCompetencyState.newSkill,
+        accuracy: 0,
+        evidence: 0,
+        observations: 0,
+      );
+    }
+
+    var evidence = 0.0;
+    var correctEvidence = 0.0;
+    for (final observation in observations) {
+      evidence += observation.evidenceWeight;
+      if (observation.correct) {
+        correctEvidence += observation.evidenceWeight;
+      }
+    }
+    final accuracy = evidence == 0 ? 0.0 : correctEvidence / evidence;
+
+    final state = evidence < 1.5
+        ? MicroCompetencyState.discovering
+        : evidence >= 8 && accuracy >= 0.88
+            ? MicroCompetencyState.mastered
+            : evidence >= 4 && accuracy >= 0.80
+                ? MicroCompetencyState.secure
+                : MicroCompetencyState.practicing;
+
+    return MicroCompetencyProgress(
+      definition: definition,
+      state: state,
+      accuracy: accuracy,
+      evidence: evidence,
+      observations: observations.length,
+      lastSeen: observations.first.occurredAt,
+    );
+  }
+
+  List<MicroCompetencyProgress> microCompetenciesForGrade() =>
+      MicroCompetencyCatalog.forGrade(gradeLevel)
+          .map((definition) => microCompetencyProgress(definition.id))
+          .toList();
+
+  List<MicroCompetencyProgress> microCompetenciesForMode(
+    TrainingMode mode,
+  ) =>
+      MicroCompetencyCatalog.forGrade(gradeLevel)
+          .where((definition) => definition.preferredMode == mode)
+          .map((definition) => microCompetencyProgress(definition.id))
+          .toList();
+
+  MicroCompetencyProgress? currentMicroFocus() {
+    final candidates = microCompetenciesForGrade()
+        .where(
+          (progress) =>
+              progress.observations > 0 &&
+              progress.state != MicroCompetencyState.secure &&
+              progress.state != MicroCompetencyState.mastered,
+        )
+        .toList()
+      ..sort((a, b) {
+        final accuracyOrder = a.accuracy.compareTo(b.accuracy);
+        if (accuracyOrder != 0) return accuracyOrder;
+        return b.evidence.compareTo(a.evidence);
+      });
+
+    if (candidates.isEmpty) return null;
+    final candidate = candidates.first;
+
+    for (final prerequisite in candidate.definition.prerequisites) {
+      final prerequisiteProgress = microCompetencyProgress(prerequisite);
+      if (prerequisiteProgress.observations > 0 &&
+          prerequisiteProgress.state != MicroCompetencyState.secure &&
+          prerequisiteProgress.state != MicroCompetencyState.mastered) {
+        return prerequisiteProgress;
+      }
+    }
+    return candidate;
+  }
+
+  MicroCompetencyProgress? strongestMicroCompetency() {
+    final candidates = microCompetenciesForGrade()
+        .where((progress) => progress.observations > 0)
+        .toList()
+      ..sort((a, b) {
+        final accuracyOrder = b.accuracy.compareTo(a.accuracy);
+        if (accuracyOrder != 0) return accuracyOrder;
+        return b.evidence.compareTo(a.evidence);
+      });
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
+  MicroCompetencyProgress? dueReviewMicroCompetency() {
+    final secure = microCompetenciesForGrade()
+        .where(
+          (progress) =>
+              progress.lastSeen != null &&
+              (progress.state == MicroCompetencyState.secure ||
+                  progress.state == MicroCompetencyState.mastered),
+        )
+        .toList()
+      ..sort((a, b) => a.lastSeen!.compareTo(b.lastSeen!));
+    return secure.isEmpty ? null : secure.first;
+  }
+
+  MicroCompetencyProgress? nextNewMicroCompetency() {
+    final preferred = recommendedMode();
+    for (final definition in MicroCompetencyCatalog.forGrade(gradeLevel)) {
+      final progress = microCompetencyProgress(definition.id);
+      if (progress.state == MicroCompetencyState.newSkill &&
+          definition.preferredMode == preferred) {
+        return progress;
+      }
+    }
+    for (final definition in MicroCompetencyCatalog.forGrade(gradeLevel)) {
+      final progress = microCompetencyProgress(definition.id);
+      if (progress.state == MicroCompetencyState.newSkill) return progress;
+    }
+    return null;
+  }
+
+  String microFocusReason() {
+    final focus = currentMicroFocus();
+    if (focus == null) {
+      return 'Noch keine einzelne Teilkompetenz ist klar auffällig. '
+          'Weitere abwechslungsreiche Aufgaben machen die Lernkarte genauer.';
+    }
+    final percentage = (focus.accuracy * 100).round();
+    return '„${focus.definition.label}“ ist aktuell der sinnvollste '
+        'Teilschritt: ${focus.observations} passende Beobachtungen, '
+        '$percentage % direkt richtig.';
+  }
+
   CompetencyProgress competencyProgress(TrainingMode mode) {
     final sessions = history
         .where((entry) =>
@@ -864,7 +1065,13 @@ class AppController extends ChangeNotifier {
   }
 
   List<GuidedRoundSegment> buildMyRound() {
-    var focus = recommendedMode();
+    final microFocus = currentMicroFocus();
+    final strongMicro = strongestMicroCompetency();
+    final reviewMicro = dueReviewMicroCompetency();
+    final newMicro = nextNewMicroCompetency();
+
+    var focus =
+        microFocus?.definition.preferredMode ?? recommendedMode();
     final warmUp = gradeLevel.index >= GradeLevel.third.index
         ? TrainingMode.mixed
         : TrainingMode.practice;
@@ -913,21 +1120,48 @@ class AppController extends ChangeNotifier {
       }
     }
 
+    final warmUpTarget = strongMicro?.definition.id;
+    final reviewTarget = reviewMicro?.definition.id;
+    final transferTarget = newMicro?.definition.id;
+
     return [
       GuidedRoundSegment(
-        mode: warmUp,
-        tasks: 3,
-        reason: 'Mit vertrauten Grundlagen ruhig ankommen.',
+        mode: warmUpTarget == null
+            ? warmUp
+            : strongMicro!.definition.preferredMode,
+        tasks: 2,
+        reason: warmUpTarget == null
+            ? 'Mit vertrauten Grundlagen ruhig ankommen.'
+            : 'Mit einem bereits sicheren Lernschritt ruhig ankommen.',
+        targetCompetency: warmUpTarget,
       ),
       GuidedRoundSegment(
         mode: focus,
-        tasks: 4,
-        reason: 'Das ist heute das wichtigste Lernziel.',
+        tasks: 5,
+        reason: microFocus == null
+            ? 'Das ist heute das wichtigste Lernziel.'
+            : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
+        targetCompetency: microFocus?.definition.id,
       ),
       GuidedRoundSegment(
-        mode: transfer,
+        mode: reviewTarget == null
+            ? warmUp
+            : reviewMicro!.definition.preferredMode,
         tasks: 3,
-        reason: 'Zum Schluss Wissen in einem anderen Zusammenhang anwenden.',
+        reason: reviewTarget == null
+            ? 'Eine wichtige Grundlage wird wiederholt.'
+            : 'Dieser sichere Lernschritt ist wieder für Wiederholung dran.',
+        targetCompetency: reviewTarget,
+      ),
+      GuidedRoundSegment(
+        mode: transferTarget == null
+            ? transfer
+            : newMicro!.definition.preferredMode,
+        tasks: 2,
+        reason: transferTarget == null
+            ? 'Zum Schluss Wissen in einem anderen Zusammenhang anwenden.'
+            : 'Zum Schluss einen neuen Lernschritt vorsichtig entdecken.',
+        targetCompetency: transferTarget,
       ),
     ];
   }
@@ -1367,6 +1601,7 @@ class AppController extends ChangeNotifier {
     history = [];
     diagnostics = [];
     remediationProgress = [];
+    microObservations = [];
     recentTaskKeysByMode = <String, List<String>>{};
     unlockedBadges = <String>{};
     recoveredWeakFacts = <String>{};

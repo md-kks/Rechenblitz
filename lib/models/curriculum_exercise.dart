@@ -2,6 +2,7 @@
 
 import 'dart:math';
 
+import 'micro_competency.dart';
 import 'training.dart';
 import 'task_diversity.dart';
 
@@ -50,6 +51,7 @@ class CurriculumExerciseGenerator {
     required GradeLevel gradeLevel,
     required int maxValue,
     Iterable<String> recentKeys = const <String>[],
+    MicroCompetencyId? targetCompetency,
   }) {
     if (!mode.isUpperPrimary) {
       throw ArgumentError('$mode ist kein Lernbereich für Klasse 3/4.');
@@ -81,8 +83,15 @@ class CurriculumExerciseGenerator {
       final exactNew = !exactAvoid.contains(candidate.key);
       final familyNew =
           !familyAvoid.contains(TaskDiversity.familyForKey(candidate.key));
-      if (exactNew && familyNew) return candidate;
-      if (exactNew && firstExactNew == null) firstExactNew = candidate;
+      final targetMatches = targetCompetency == null ||
+          MicroCompetencyCatalog.tagsForTask(
+            mode: mode,
+            taskKey: candidate.key,
+          ).any((tag) => tag.id == targetCompetency);
+      if (targetMatches && exactNew && familyNew) return candidate;
+      if (targetMatches && exactNew && firstExactNew == null) {
+        firstExactNew = candidate;
+      }
     }
     return firstExactNew ??
         last ??

@@ -1,3 +1,4 @@
+import 'micro_competency.dart';
 import 'training.dart';
 
 enum CompetencyState { newSkill, learning, secure, mastered }
@@ -30,11 +31,13 @@ class GuidedRoundSegment {
     required this.mode,
     required this.tasks,
     required this.reason,
+    this.targetCompetency,
   });
 
   final TrainingMode mode;
   final int tasks;
   final String reason;
+  final MicroCompetencyId? targetCompetency;
 }
 
 class ParentLearningInsight {
