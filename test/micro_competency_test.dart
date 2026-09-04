@@ -80,7 +80,7 @@ void main() {
     final aided = controller.microObservations.firstWhere(
       (entry) => entry.id == MicroCompetencyId.subtractionTenBridge,
     );
-    expect(aided.evidenceWeight, closeTo(0.65, 0.001));
+    expect(aided.evidenceWeight, closeTo(0.80, 0.001));
   });
 
   test('unsichere Voraussetzung wird vor höherem Teilschritt fokussiert', () {
