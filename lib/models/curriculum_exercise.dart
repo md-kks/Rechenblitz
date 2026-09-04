@@ -243,7 +243,7 @@ class CurriculumExerciseGenerator {
         method: 'Schriftliche Addition',
       );
     }
-    final a = _between(200, limit);
+    final a = _between(min(200, max(20, limit ~/ 2)), limit);
     final b = _between(1, a);
     return CurriculumExercise(
       mode: TrainingMode.writtenAddSub,
