@@ -103,6 +103,17 @@ class AssessmentGenerator {
       );
     }
 
+    if (mode == TrainingMode.numberFriends) {
+      final target = maxValue <= 10 ? 10 : 20;
+      final a = _between(0, target);
+      return AssessmentTask(
+        mode: mode,
+        prompt: '$a + ? = $target',
+        answer: target - a,
+        maxAnswerValue: target,
+      );
+    }
+
     if (mode == TrainingMode.minus) {
       final upper = max(5, min(maxValue, grade == GradeLevel.first ? 20 : 100));
       final a = _between(2, upper);

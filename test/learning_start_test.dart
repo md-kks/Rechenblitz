@@ -169,9 +169,11 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('learning-start-assessment-later')),
-    );
+    final later =
+        find.byKey(const ValueKey('learning-start-assessment-later'));
+    await tester.ensureVisible(later);
+    await tester.pumpAndSettle();
+    await tester.tap(later);
     await tester.pumpAndSettle();
 
     expect(controller.needsOnboarding, isFalse);
