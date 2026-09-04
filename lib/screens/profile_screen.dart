@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/learner_profile.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 
@@ -91,6 +92,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         name: nameController.text,
         grade: grade,
       );
+      if (mounted) Navigator.of(context).pop();
     }
     nameController.dispose();
   }
@@ -185,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     profile.name,
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
-                  subtitle: Text(profile.gradeLevel.label),
+                  subtitle: Text('${profile.gradeLevel.label} · ${profile.state.label}'),
                   trailing: active
                       ? PopupMenuButton<String>(
                           tooltip: 'Profil verwalten',

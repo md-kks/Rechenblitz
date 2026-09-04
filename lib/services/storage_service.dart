@@ -44,6 +44,15 @@ class StorageService {
       }
     }
 
+    final hadLegacyData = [
+      _factsKey,
+      _historyKey,
+      _gradeLevelKey,
+      _numberRangeKey,
+      _badgesKey,
+      _recoveredWeakFactsKey,
+    ].any(prefs.containsKey);
+
     final legacyGrade = _parseGrade(prefs.getString(_gradeLevelKey)) ??
         GradeLevel.second;
     final legacyRange = _parseRange(prefs.getString(_numberRangeKey)) ??
@@ -54,6 +63,7 @@ class StorageService {
       name: 'Lernprofil',
       gradeLevel: legacyGrade,
       createdAt: DateTime.now(),
+      onboardingComplete: hadLegacyData,
     );
 
     _activeProfileId = profile.id;

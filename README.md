@@ -78,6 +78,23 @@ Der adaptive Grundaufgaben-Pool bleibt bewusst kompakt bis 100. Aufgaben mit gro
 - einfache Gewinnchancen
 - Kombinatorik und systematisches Finden von Möglichkeiten
 
+## Rechenblitz Lernstart
+
+Neue Installationen beginnen mit einem kurzen, druckfreien Lernstart:
+
+- lokales Lernprofil mit Name/Spitzname, Klassenstufe und Bundesland
+- Auswahl der in der Schule verwendeten Rechenwege
+- optionaler Einstufungscheck mit 12 Aufgaben aus sechs Kompetenzbereichen
+- keine Note, kein Zeitlimit, keine Sterne und keine Abzeichen im Lerncheck
+- „Weiß ich noch nicht“ als normale Antwortmöglichkeit
+- sichere Startbereiche werden in der Lernlandkarte markiert
+- unsichere Startbereiche beeinflussen direkt die erste persönliche „Meine Runde“
+- der Lerncheck kann später wiederholt werden und ersetzt dann nur die alte Einstufung
+
+Bestehende Nutzer werden bei einem Update nicht nachträglich durch das Onboarding gezwungen. Alte lokale Lernstände werden weiterverwendet.
+
+Das Bundesland wird ausschließlich lokal gespeichert. Thüringen ist derzeit vollständig lehrplangeprüft; andere Bundesländer verwenden bis zu einem eigenen Curriculum-Audit zunächst den gemeinsamen Grundschul-Mathematikkern.
+
 ## Persönlicher Lernpfad
 
 Für eine Veröffentlichung ist Rechenblitz nicht nur eine Aufgabensammlung, sondern ein lokaler Mathe-Lernbegleiter:

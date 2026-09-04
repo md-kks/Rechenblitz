@@ -31,6 +31,7 @@ void main() {
 
     expect(profiles, hasLength(1));
     expect(profiles.first.gradeLevel, GradeLevel.third);
+    expect(profiles.first.onboardingComplete, isTrue);
     expect(storage.activeProfileId, 'default');
     expect(await storage.numberRange(), NumberRangeLevel.thousand);
 
@@ -90,4 +91,25 @@ void main() {
       SubtractionStrategy.bridgeToTen,
     );
   });
+
+  test('neue Profile ohne Altdaten benötigen den Lernstart', () async {
+    final storage = StorageService();
+    final profiles = await storage.initializeProfiles();
+
+    expect(profiles, hasLength(1));
+    expect(profiles.first.onboardingComplete, isFalse);
+  });
+
+  test('alte Profil-JSONs ohne Lernstart-Feld bleiben freigeschaltet', () {
+    final restored = LearnerProfile.fromJson({
+      'id': 'legacy',
+      'name': 'Alt',
+      'gradeLevel': 'second',
+      'createdAt': '2026-09-01T10:00:00.000',
+    });
+
+    expect(restored.onboardingComplete, isTrue);
+    expect(restored.state, GermanState.thuringia);
+  });
+
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../models/learner_profile.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import 'assessment_screen.dart';
 import 'method_screen.dart';
 import 'profile_screen.dart';
 
@@ -72,6 +74,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 14),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.route_rounded),
+              title: const Text('Lerncheck wiederholen'),
+              subtitle: Text(
+                controller.activeProfile.assessmentCompletedAt == null
+                    ? 'Noch kein Einstufungscheck gespeichert'
+                    : 'Lernlandkarte mit 12 kurzen Aufgaben neu einordnen',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => AssessmentScreen(controller: controller),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
           Text(
             'Lernrahmen',
@@ -97,6 +117,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 .toList(),
             onChanged: (value) {
               if (value != null) controller.setGradeLevel(value);
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<GermanState>(
+            initialValue: controller.activeProfile.state,
+            decoration: const InputDecoration(
+              labelText: 'Bundesland',
+              border: OutlineInputBorder(),
+            ),
+            items: GermanState.values
+                .map(
+                  (value) => DropdownMenuItem(
+                    value: value,
+                    child: Text(value.label),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) controller.setProfileState(value);
             },
           ),
           const SizedBox(height: 12),

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../models/assessment.dart';
 import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
 import '../models/learning_path.dart';
@@ -88,6 +89,8 @@ class AppController extends ChangeNotifier {
 
   String get activeProfileName => activeProfile.name;
 
+  bool get needsOnboarding => !activeProfile.onboardingComplete;
+
   Future<void> recordAttempt(
     MathFact fact, {
     required bool correct,
@@ -135,6 +138,7 @@ class AppController extends ChangeNotifier {
   Iterable<TrainingSessionResult> get todayHistory {
     final now = DateTime.now();
     return history.where((h) =>
+        !h.isAssessment &&
         h.startedAt.year == now.year &&
         h.startedAt.month == now.month &&
         h.startedAt.day == now.day);
@@ -160,7 +164,8 @@ class AppController extends ChangeNotifier {
     if (result.total == 0) return 0;
     var value = 1;
     if (result.total >= 5 && result.accuracy >= 0.80) value += 1;
-    if (!history.any((entry) => entry.mode == result.mode)) value += 1;
+    if (!history.any((entry) =>
+        !entry.isAssessment && entry.mode == result.mode)) value += 1;
     if (_isMeaningfulProgress(result)) value += 1;
     if (_isCourageRound(result)) value += 1;
     return value.clamp(1, 5).toInt();
@@ -168,7 +173,8 @@ class AppController extends ChangeNotifier {
 
   String rewardReasonForSession(TrainingSessionResult result) {
     final reasons = <String>[];
-    if (!history.any((entry) => entry.mode == result.mode)) {
+    if (!history.any((entry) =>
+        !entry.isAssessment && entry.mode == result.mode)) {
       reasons.add('Neue Lernwelt entdeckt');
     }
     if (result.accuracy >= 0.80) reasons.add('sicher gerechnet');
@@ -184,6 +190,7 @@ class AppController extends ChangeNotifier {
             entry.mode == result.mode &&
             entry.numberRange == result.numberRange &&
             entry.gradeLevel == result.gradeLevel &&
+            !entry.isAssessment &&
             entry.total > 0)
         .take(3)
         .toList();
@@ -210,6 +217,7 @@ class AppController extends ChangeNotifier {
     final learningModes = history
         .where((entry) =>
             entry.total > 0 &&
+            !entry.isAssessment &&
             entry.mode != TrainingMode.speed &&
             entry.mode != TrainingMode.tempo &&
             entry.mode != TrainingMode.blitz)
@@ -225,7 +233,10 @@ class AppController extends ChangeNotifier {
 
     for (final grade in GradeLevel.values) {
       final sessions = history
-          .where((entry) => entry.gradeLevel == grade && entry.total > 0)
+          .where((entry) =>
+              entry.gradeLevel == grade &&
+              !entry.isAssessment &&
+              entry.total > 0)
           .toList();
       final total = sessions.fold<int>(0, (sum, entry) => sum + entry.total);
       final correct = sessions.fold<int>(
@@ -244,7 +255,9 @@ class AppController extends ChangeNotifier {
     for (final range in NumberRangeLevel.values) {
       final sessions = history
           .where((entry) =>
-              entry.numberRange == range && entry.total > 0)
+              entry.numberRange == range &&
+              !entry.isAssessment &&
+              entry.total > 0)
           .toList();
       final total = sessions.fold<int>(0, (sum, entry) => sum + entry.total);
       final correct = sessions.fold<int>(
@@ -282,6 +295,7 @@ class AppController extends ChangeNotifier {
             .where((entry) =>
                 entry.mode == mode &&
                 entry.numberRange == range &&
+                !entry.isAssessment &&
                 entry.total > 0)
             .take(3)
             .toList();
@@ -476,13 +490,41 @@ class AppController extends ChangeNotifier {
     final correct =
         sessions.fold<int>(0, (sum, entry) => sum + entry.correctFirstTry);
     final accuracy = tasks == 0 ? 0.0 : correct / tasks;
+
+    final practiceSessions =
+        sessions.where((entry) => !entry.isAssessment).toList();
+    final practiceTasks =
+        practiceSessions.fold<int>(0, (sum, entry) => sum + entry.total);
+    final practiceCorrect = practiceSessions.fold<int>(
+      0,
+      (sum, entry) => sum + entry.correctFirstTry,
+    );
+    final practiceAccuracy =
+        practiceTasks == 0 ? 0.0 : practiceCorrect / practiceTasks;
+
+    final assessmentSessions =
+        sessions.where((entry) => entry.isAssessment).toList();
+    final assessmentTasks =
+        assessmentSessions.fold<int>(0, (sum, entry) => sum + entry.total);
+    final assessmentCorrect = assessmentSessions.fold<int>(
+      0,
+      (sum, entry) => sum + entry.correctFirstTry,
+    );
+    final assessmentAccuracy =
+        assessmentTasks == 0 ? 0.0 : assessmentCorrect / assessmentTasks;
+
     final state = tasks == 0
         ? CompetencyState.newSkill
-        : sessions.length >= 3 && tasks >= 15 && accuracy >= 0.85
+        : practiceSessions.length >= 3 &&
+                practiceTasks >= 15 &&
+                practiceAccuracy >= 0.85
             ? CompetencyState.mastered
-            : tasks >= 8 && accuracy >= 0.78
+            : practiceTasks >= 8 && practiceAccuracy >= 0.78
                 ? CompetencyState.secure
-                : CompetencyState.learning;
+                : assessmentTasks >= 2 && assessmentAccuracy >= 1.0
+                    ? CompetencyState.secure
+                    : CompetencyState.learning;
+
     return CompetencyProgress(
       mode: mode,
       state: state,
@@ -614,6 +656,7 @@ class AppController extends ChangeNotifier {
     double accuracyBetween(DateTime start, DateTime end) {
       final sessions = history.where(
         (entry) =>
+            !entry.isAssessment &&
             !entry.finishedAt.isBefore(start) &&
             entry.finishedAt.isBefore(end) &&
             entry.total > 0,
@@ -641,8 +684,38 @@ class AppController extends ChangeNotifier {
         : 'Die Trefferquote liegt etwa ${delta.abs()} Prozentpunkte unter der Vorwoche – kurze Wiederholungen sind sinnvoll.';
   }
 
+  TrainingMode? _assessmentFocusFor(List<TrainingMode> modes) {
+    TrainingMode? focus;
+    var lowest = 2.0;
+    for (final mode in modes) {
+      final sessions = history
+          .where((entry) =>
+              entry.isAssessment &&
+              entry.gradeLevel == gradeLevel &&
+              entry.mode == mode &&
+              entry.total > 0)
+          .toList();
+      if (sessions.isEmpty) continue;
+      final total = sessions.fold<int>(0, (sum, entry) => sum + entry.total);
+      final correct = sessions.fold<int>(
+        0,
+        (sum, entry) => sum + entry.correctFirstTry,
+      );
+      final accuracy = total == 0 ? 0.0 : correct / total;
+      if (accuracy < lowest) {
+        lowest = accuracy;
+        focus = mode;
+      }
+    }
+    return lowest < 0.80 ? focus : null;
+  }
+
   TrainingMode _upperPrimaryRecommendation() {
     final modes = curriculumModesForGrade(gradeLevel);
+    final assessmentFocus =
+        _assessmentFocusFor(learningModesForGrade(gradeLevel));
+    if (assessmentFocus != null) return assessmentFocus;
+
     for (final mode in modes) {
       final attempted = history.any(
         (entry) => entry.gradeLevel == gradeLevel && entry.mode == mode,
@@ -698,10 +771,12 @@ class AppController extends ChangeNotifier {
       return _upperPrimaryRecommendation();
     }
 
+    final modes = learningModesForGrade(gradeLevel);
+    final assessmentFocus = _assessmentFocusFor(modes);
+    if (assessmentFocus != null) return assessmentFocus;
+
     final coreText = engine.recommendation(facts, maxValue: maxValue);
     if (coreText.contains('Minus-Runde')) return TrainingMode.minus;
-
-    final modes = learningModesForGrade(gradeLevel);
     final untried = modes.where(
       (mode) => !history.any(
         (entry) => entry.gradeLevel == gradeLevel && entry.mode == mode,
@@ -715,13 +790,23 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> setGradeLevel(GradeLevel value) async {
+    final gradeChanged = value != gradeLevel;
     gradeLevel = value;
     numberRange = value.recommendedRange;
+
+    if (gradeChanged) {
+      history = history.where((entry) => !entry.isAssessment).toList();
+      await storage.saveHistory(history);
+    }
+
     if (profiles.isNotEmpty) {
       profiles = profiles
           .map(
             (profile) => profile.id == activeProfileId
-                ? profile.copyWith(gradeLevel: value)
+                ? profile.copyWith(
+                    gradeLevel: value,
+                    clearAssessment: gradeChanged,
+                  )
                 : profile,
           )
           .toList();
@@ -743,6 +828,10 @@ class AppController extends ChangeNotifier {
       name: cleanName,
       gradeLevel: grade,
       createdAt: DateTime.now(),
+      state: profiles.isEmpty
+          ? GermanState.thuringia
+          : activeProfile.state,
+      onboardingComplete: false,
     );
     profiles = [...profiles, profile];
     await storage.saveProfiles(profiles);
@@ -810,6 +899,104 @@ class AppController extends ChangeNotifier {
         methodPreferences.copyWith(writtenSubtraction: value);
     notifyListeners();
     await storage.setMethodPreferences(methodPreferences);
+  }
+
+  Future<void> saveLearningStartSetup({
+    required String name,
+    required GradeLevel grade,
+    required GermanState state,
+    required MethodPreferences methods,
+  }) async {
+    final cleanName = name.trim().isEmpty ? 'Lernprofil' : name.trim();
+    gradeLevel = grade;
+    numberRange = grade.recommendedRange;
+    methodPreferences = methods;
+
+    profiles = profiles
+        .map(
+          (profile) => profile.id == activeProfileId
+              ? profile.copyWith(
+                  name: cleanName,
+                  gradeLevel: grade,
+                  state: state,
+                )
+              : profile,
+        )
+        .toList();
+
+    await storage.saveProfiles(profiles);
+    await storage.setGradeLevel(grade);
+    await storage.setNumberRange(numberRange);
+    await storage.setMethodPreferences(methodPreferences);
+    notifyListeners();
+  }
+
+  Future<void> completeAssessment(
+    List<AssessmentModeResult> results,
+  ) async {
+    final now = DateTime.now();
+    history = history.where((entry) => !entry.isAssessment).toList();
+
+    for (final result in results.reversed) {
+      history.insert(
+        0,
+        TrainingSessionResult(
+          mode: result.mode,
+          startedAt: now,
+          finishedAt: now,
+          total: result.total,
+          correctFirstTry: result.correct,
+          incorrectAttempts: result.total - result.correct,
+          plusCorrect: 0,
+          plusTotal: 0,
+          minusCorrect: 0,
+          minusTotal: 0,
+          averageResponseMs: 0,
+          numberRange: numberRange,
+          gradeLevel: gradeLevel,
+          starsEarned: 0,
+          isAssessment: true,
+        ),
+      );
+    }
+
+    if (history.length > 300) history = history.take(300).toList();
+    _markOnboardingComplete(assessmentCompletedAt: now);
+    await storage.saveHistory(history);
+    await storage.saveProfiles(profiles);
+    notifyListeners();
+  }
+
+  Future<void> completeOnboardingWithoutAssessment() async {
+    _markOnboardingComplete();
+    await storage.saveProfiles(profiles);
+    notifyListeners();
+  }
+
+  void _markOnboardingComplete({DateTime? assessmentCompletedAt}) {
+    profiles = profiles
+        .map(
+          (profile) => profile.id == activeProfileId
+              ? profile.copyWith(
+                  onboardingComplete: true,
+                  assessmentCompletedAt: assessmentCompletedAt,
+                )
+              : profile,
+        )
+        .toList();
+  }
+
+  Future<void> setProfileState(GermanState value) async {
+    if (profiles.isEmpty) return;
+    profiles = profiles
+        .map(
+          (profile) => profile.id == activeProfileId
+              ? profile.copyWith(state: value)
+              : profile,
+        )
+        .toList();
+    notifyListeners();
+    await storage.saveProfiles(profiles);
   }
 
   Future<void> setNumberRange(NumberRangeLevel value) async {

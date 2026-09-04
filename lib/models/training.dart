@@ -209,6 +209,7 @@ class TrainingSessionResult {
     this.numberRange = NumberRangeLevel.ten,
     this.gradeLevel = GradeLevel.second,
     this.starsEarned = 1,
+    this.isAssessment = false,
   });
 
   final TrainingMode mode;
@@ -229,6 +230,7 @@ class TrainingSessionResult {
   final NumberRangeLevel numberRange;
   final GradeLevel gradeLevel;
   final int starsEarned;
+  final bool isAssessment;
 
   double get accuracy => total == 0 ? 0 : correctFirstTry / total;
 
@@ -251,6 +253,7 @@ class TrainingSessionResult {
         numberRange: numberRange,
         gradeLevel: gradeLevel,
         starsEarned: starsEarned ?? this.starsEarned,
+        isAssessment: isAssessment,
       );
 
   Map<String, dynamic> toJson() => {
@@ -272,6 +275,7 @@ class TrainingSessionResult {
         'numberRange': numberRange.name,
         'gradeLevel': gradeLevel.name,
         'starsEarned': starsEarned,
+        'isAssessment': isAssessment,
       };
 
   factory TrainingSessionResult.fromJson(Map<String, dynamic> json) =>
@@ -299,5 +303,6 @@ class TrainingSessionResult {
             ? GradeLevel.second
             : GradeLevel.values.byName(json['gradeLevel'] as String),
         starsEarned: json['starsEarned'] as int? ?? 1,
+        isAssessment: json['isAssessment'] as bool? ?? false,
       );
 }

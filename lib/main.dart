@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'services/app_controller.dart';
 import 'screens/home_screen.dart';
+import 'screens/learning_start_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +41,22 @@ class RechenblitzApp extends StatelessWidget {
           ),
         ),
       ),
-      home: HomeScreen(controller: controller),
+      home: _AppRoot(controller: controller),
     );
   }
+}
+
+
+class _AppRoot extends StatelessWidget {
+  const _AppRoot({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) => controller.needsOnboarding
+            ? LearningStartScreen(controller: controller)
+            : HomeScreen(controller: controller),
+      );
 }
