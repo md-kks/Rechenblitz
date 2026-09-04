@@ -1,5 +1,5 @@
 name: rechenblitz
-description: Adaptive Mathe-Lernapp für Plus und Minus im Zahlenraum bis 10.
+description: Local-first Mathe-Fördertrainer für die Grundschule mit adaptiven Lernpfaden.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -10,6 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: ^2.5.5
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.4.0
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:

@@ -198,6 +198,71 @@ Die Mikro-Lernkarte unterscheidet **Neu / Entdecken / Wird geübt / Sicher / Gem
 
 Im Elternbereich erklärt **„Warum gerade diese Aufgaben?“**, welcher Teilschritt derzeit fokussiert wird und auf welcher Beobachtungsbasis diese Auswahl beruht.
 
+## Methoden-Engine, Schulmodus und Barrierearmut
+
+Rechenblitz verwendet Hilfen jetzt in drei Stufen:
+
+1. **Denkhinweis** – nur ein Einstieg in den Rechenweg
+2. **Darstellung** – passende visuelle Hilfe
+3. **Gemeinsam lösen** – geführte, teilweise interaktive Rechenschritte
+
+Die tatsächlich benötigte Hilfestufe wird in der Mikro-Kompetenz-Evidenz berücksichtigt. Eine richtige Lösung ohne Hilfe zählt stärker als dieselbe Lösung nach einem vollständig geführten Rechenweg. Ebenso wird gespeichert, welcher schulische Rechenweg verwendet wurde.
+
+Unter **So rechnen wir** gibt es zwei Modi:
+
+- **Schulmethode** – die hinterlegte Methode wird konsequent genutzt.
+- **Automatisch / weiß ich nicht** – Rechenblitz darf verschiedene schulübliche Darstellungen vergleichen, ändert die gespeicherte Schulmethode aber niemals automatisch.
+
+### Transfer-Sachaufgaben
+
+Für Klasse 3/4 gibt es zusätzlich zu normalen Sachaufgaben echte Transferformate:
+
+- zwei Rechenschritte nacheinander
+- unnötige Informationen erkennen
+- passende Rechnung auswählen
+- Unterschiedsaufgaben
+- Rückwärtsaufgaben
+- Kombination aus Multiplikation und anschließendem Weiterrechnen
+
+Der Transferteil von **Meine Runde** bevorzugt diese Aufgaben.
+
+### Lokaler Lehrer-QR-Modus
+
+Lehrkräfte können einen Lernauftrag aus:
+
+- Klassenstufe
+- Zahlenraum
+- Mikro-Lernziel
+- Aufgabenanzahl
+- Rechenweg
+- optionalem Transfer-Schwerpunkt
+
+erzeugen. Der QR-Code enthält **keinen Namen, keine Profil-ID und keinen Lernverlauf**. Beim Scannen wird der Auftrag nur als temporärer Sitzungsrahmen verwendet; persönliche Profileinstellungen werden danach wiederhergestellt. Aufträge für eine andere Klassenstufe werden nicht still in das Profil übernommen.
+
+### Lehrplan-Audit
+
+Der interne Thüringen-Audit ordnet jede Mikro-Kompetenz einem Lernbereich und einer stabilen Lernziel-ID zu. Er unterscheidet zwischen:
+
+- **digital üb- und prüfbar**
+- **digital unterstützt – praktisch ergänzen**
+
+Reales Messen, Zeichnen, Falten, Bauen und Orientieren wird bewusst nicht als vollständig digital prüfbar dargestellt. Der Audit ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
+
+### Lesen & Darstellung
+
+Geräteweite Accessibility-Optionen:
+
+- größere Schrift
+- hoher Kontrast
+- reduzierte Animationen
+- deutsches Vorlesen per System-TTS
+- einstellbare Sprechgeschwindigkeit
+- Vorlesen auf Knopfdruck auch dann, wenn automatisches Vorlesen deaktiviert ist
+
+### Beta-Test
+
+Rechenblitz kann strukturiertes lokales Testfeedback nach Rolle und Bereich erfassen. Der Export hängt automatisch keine Profil- oder Lerndaten an. Freitext kann jedoch persönliche Angaben enthalten, wenn Testpersonen diese selbst eintragen; die Oberfläche weist deshalb ausdrücklich darauf hin.
+
 ## Adaptives Lernen
 
 Der bisherige adaptive Kern bleibt erhalten. Schwache oder langsame Grundaufgaben werden häufiger wiederholt. Für Klasse 3/4 ergänzt Rechenblitz dynamische Lehrplan-Aufgaben und empfiehlt zunächst noch nicht bearbeitete Lernbereiche, später die Bereiche mit der geringsten Sicherheit.

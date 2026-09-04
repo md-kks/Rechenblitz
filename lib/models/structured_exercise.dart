@@ -55,6 +55,8 @@ class StructuredExerciseGenerator {
     required int maxValue,
     Iterable<String> recentKeys = const <String>[],
     MicroCompetencyId? targetCompetency,
+    GradeLevel gradeLevel = GradeLevel.second,
+    bool transferEmphasis = false,
   }) {
     final recent = recentKeys.toList();
     final exactWindow = TaskDiversity.recentExactWindow(
@@ -70,7 +72,12 @@ class StructuredExerciseGenerator {
     StructuredExercise? firstExactNew;
     StructuredExercise? last;
     for (var attempt = 0; attempt < 28; attempt++) {
-      final candidate = _generateOnce(mode: mode, maxValue: maxValue);
+      final candidate = _generateOnce(
+        mode: mode,
+        maxValue: maxValue,
+        gradeLevel: gradeLevel,
+        transferEmphasis: transferEmphasis,
+      );
       last = candidate;
       final exactNew = !exactAvoid.contains(candidate.key);
       final familyNew =
@@ -85,12 +92,21 @@ class StructuredExerciseGenerator {
         firstExactNew = candidate;
       }
     }
-    return firstExactNew ?? last ?? _generateOnce(mode: mode, maxValue: maxValue);
+    return firstExactNew ??
+        last ??
+        _generateOnce(
+          mode: mode,
+          maxValue: maxValue,
+          gradeLevel: gradeLevel,
+          transferEmphasis: transferEmphasis,
+        );
   }
 
   StructuredExercise _generateOnce({
     required TrainingMode mode,
     required int maxValue,
+    required GradeLevel gradeLevel,
+    required bool transferEmphasis,
   }) =>
       switch (mode) {
         TrainingMode.numberWall => _numberWall(maxValue),
@@ -100,7 +116,8 @@ class StructuredExerciseGenerator {
         TrainingMode.doublesHalves => _doublesHalves(maxValue),
         TrainingMode.sequences => _sequence(maxValue),
         TrainingMode.factFamilies => _factFamily(maxValue),
-        TrainingMode.wordProblems => _wordProblem(maxValue),
+        TrainingMode.wordProblems =>
+          _wordProblem(maxValue, gradeLevel, transferEmphasis),
         TrainingMode.money => _money(maxValue),
         TrainingMode.clock => _clock(maxValue),
         TrainingMode.measures => _measures(maxValue),
@@ -280,7 +297,16 @@ class StructuredExerciseGenerator {
     );
   }
 
-  StructuredExercise _wordProblem(int maxValue) {
+  StructuredExercise _wordProblem(
+    int maxValue,
+    GradeLevel gradeLevel,
+    bool transferEmphasis,
+  ) {
+    if (gradeLevel.index >= GradeLevel.third.index &&
+        (transferEmphasis || _random.nextDouble() < 0.45)) {
+      return _advancedWordProblem(maxValue);
+    }
+
     final allowGroups = maxValue >= 20;
     final kind = _random.nextInt(allowGroups ? 4 : 2);
 
@@ -367,6 +393,102 @@ class StructuredExerciseGenerator {
       key: 'story:divide:${template.$1}:$total:$groups',
     );
   }
+
+  StructuredExercise _advancedWordProblem(int maxValue) {
+    final safeMax = max(30, maxValue);
+    final kind = _random.nextInt(5);
+
+    if (kind == 0) {
+      final start = _between(15, min(250, safeMax));
+      final add = _between(2, min(60, max(2, safeMax - start)));
+      final afterAdd = start + add;
+      final remove = _between(1, min(afterAdd, max(2, add + 15)));
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt:
+            'In der Schulbibliothek stehen $start Bücher in einem Regal. $add neue Bücher werden einsortiert. Später werden $remove Bücher ausgeliehen. Wie viele Bücher stehen danach im Regal?',
+        answer: afterAdd - remove,
+        hint:
+            'Es passieren zwei Dinge nacheinander: zuerst wird die Menge größer, danach kleiner.',
+        key: 'story:multi:library:$start:$add:$remove',
+        maxAnswerValue: safeMax,
+      );
+    }
+
+    if (kind == 1) {
+      final groups = _between(3, 8);
+      final each = _between(2, 10);
+      final total = groups * each;
+      final used = _between(1, min(total - 1, max(2, each + 3)));
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt:
+            '$groups Schachteln enthalten jeweils $each Kreidestücke. Für den Unterricht werden $used Kreidestücke verbraucht. Wie viele Kreidestücke bleiben insgesamt?',
+        answer: total - used,
+        hint:
+            'Berechne zuerst die Gesamtmenge in allen Schachteln und ziehe danach die verbrauchten Stücke ab.',
+        key: 'story:multi:boxes:$groups:$each:$used',
+        maxAnswerValue: max(100, safeMax),
+      );
+    }
+
+    if (kind == 2) {
+      final children = _between(18, min(80, safeMax));
+      final adults = _between(2, 12);
+      final balls = _between(3, 15);
+      final needed = children + adults;
+      final options = [
+        '$children + $adults',
+        '$children + $balls',
+        '$adults + $balls',
+        '$children − $adults',
+      ];
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt:
+            'Zu einem Ausflug fahren $children Kinder und $adults Erwachsene mit. Außerdem werden $balls Bälle eingepackt. Wie viele Personen fahren mit? Welche Rechnung passt?',
+        answer: 0,
+        hint:
+            'Die Bälle sind für die Frage nach Personen eine unnötige Information.',
+        key: 'story:transfer:irrelevant:$children:$adults:$balls',
+        choices: options,
+        maxAnswerValue: needed,
+      );
+    }
+
+    if (kind == 3) {
+      final first = _between(20, min(180, safeMax));
+      final difference = _between(3, min(50, first));
+      final second = first - difference;
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt:
+            'Eine Klasse sammelt $first Kastanien, eine andere $second. Um wie viele Kastanien hat die erste Klasse mehr gesammelt?',
+        answer: difference,
+        hint:
+            '„Um wie viele mehr?“ fragt nach dem Unterschied zwischen zwei Mengen.',
+        key: 'story:transfer:difference:$first:$second',
+        maxAnswerValue: safeMax,
+      );
+    }
+
+    final finalAmount = _between(12, min(120, safeMax));
+    final gaveAway = _between(2, min(30, finalAmount));
+    final start = finalAmount + gaveAway;
+    return StructuredExercise(
+      mode: TrainingMode.wordProblems,
+      prompt:
+          'Nach dem Verschenken von $gaveAway Stickern sind noch $finalAmount Sticker übrig. Wie viele Sticker waren vorher da?',
+      answer: start,
+      hint:
+          'Denke rückwärts: Zur Restmenge müssen die verschenkten Sticker wieder dazugerechnet werden.',
+      key: 'story:transfer:reverse:$finalAmount:$gaveAway',
+      maxAnswerValue: max(safeMax, start),
+    );
+  }
+
+  int _between(int low, int high) =>
+      high <= low ? low : low + _random.nextInt(high - low + 1);
 
   StructuredExercise _money(int maxValue) {
     final budget = max(2, maxValue);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/error_diagnosis.dart';
+import '../models/guided_method.dart';
 import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/training.dart';
@@ -41,6 +42,22 @@ class _RemediationScreenState extends State<RemediationScreen> {
 
   RemediationTask get current => plan.tasks[index];
 
+  GuidedMethodGuide get _guide => GuidedMethodFactory.forTask(
+        mode: current.mode,
+        taskKey: current.taskKey,
+        expected: current.answer,
+        preferences: widget.controller.effectiveMethodPreferences,
+      );
+
+  int get _currentHelpLevel => switch (current.stage) {
+        RemediationStage.guided => HelpLevel.guided.value,
+        RemediationStage.supported => HelpLevel.visual.value,
+        RemediationStage.transfer || RemediationStage.check =>
+          showHint ? HelpLevel.nudge.value : HelpLevel.none.value,
+      };
+
+
+
   @override
   void initState() {
     super.initState();
@@ -50,8 +67,11 @@ class _RemediationScreenState extends State<RemediationScreen> {
       preferredMode: widget.preferredMode,
       grade: widget.controller.gradeLevel,
       range: widget.controller.numberRange,
-      methods: widget.controller.methodPreferences,
+      methods: widget.controller.effectiveMethodPreferences,
       reviewOnly: reviewOnly,
+    );
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.controller.speak(current.prompt),
     );
     unawaited(
       widget.controller.startRemediation(
@@ -70,9 +90,9 @@ class _RemediationScreenState extends State<RemediationScreen> {
         taskKey: current.taskKey,
         expected: current.answer,
         actual: answer,
-        usedHelp: showHint ||
-            current.stage == RemediationStage.guided ||
-            current.stage == RemediationStage.supported,
+        usedHelp: _currentHelpLevel > 0,
+        helpLevel: _currentHelpLevel,
+        methodKey: _guide.methodKey,
         source: MicroEvidenceSource.remediation,
       );
     }
@@ -120,6 +140,9 @@ class _RemediationScreenState extends State<RemediationScreen> {
       showHint = false;
       feedback = '';
     });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.controller.speak(current.prompt),
+    );
   }
 
   Future<void> _finish() async {

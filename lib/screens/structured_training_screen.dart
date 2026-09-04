@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/error_diagnosis.dart';
-import '../models/learning_methods.dart';
+import '../models/guided_method.dart';
 import '../models/micro_competency.dart';
 import '../models/structured_exercise.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
-import '../widgets/learning_visual_aid.dart';
+import '../widgets/guided_method_panel.dart';
 import '../widgets/number_answer_pad.dart';
 
 class StructuredTrainingScreen extends StatefulWidget {
@@ -19,12 +19,14 @@ class StructuredTrainingScreen extends StatefulWidget {
     required this.mode,
     this.targetTasks = 10,
     this.targetCompetency,
+    this.transferEmphasis = false,
   });
 
   final AppController controller;
   final TrainingMode mode;
   final int targetTasks;
   final MicroCompetencyId? targetCompetency;
+  final bool transferEmphasis;
 
   @override
   State<StructuredTrainingScreen> createState() =>
@@ -43,6 +45,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   bool locked = false;
   bool finishing = false;
   bool showHint = false;
+  int helpLevel = 0;
+  String? activeMethodKey;
   String feedback = '';
   final List<int> responseTimes = [];
 
@@ -52,27 +56,38 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     startedAt = DateTime.now();
     current = _next();
     shownAt = DateTime.now();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.controller.speak(current.prompt),
+    );
   }
 
   StructuredExercise _next() => generator.generate(
         mode: widget.mode,
-        maxValue: widget.controller.maxValue,
+        maxValue: widget.controller.effectiveMaxValue,
         recentKeys: widget.controller.recentTaskKeys(widget.mode),
+        targetCompetency: widget.targetCompetency,
+        gradeLevel: widget.controller.effectiveGradeLevel,
+        transferEmphasis: widget.transferEmphasis,
+      );
+
+  ErrorPattern get _helpPattern =>
+      ErrorClassifier.classify(
+        mode: widget.mode,
+        taskKey: current.key,
+        expected: current.answer,
+        actual: current.answer,
+      ) ??
+      ErrorPattern.unknown;
+
+  GuidedMethodGuide get _guide => GuidedMethodFactory.forTask(
+        mode: widget.mode,
+        taskKey: current.key,
+        expected: current.answer,
+        preferences: widget.controller.effectiveMethodPreferences,
         targetCompetency: widget.targetCompetency,
       );
 
-  String get _effectiveHint {
-    final key = current.key;
-    if (key.startsWith('gap:-') || key.startsWith('story:-')) {
-      final strategy = widget.controller.methodPreferences.subtraction;
-      return '${strategy.label}: ${strategy.description}';
-    }
-    if (key.startsWith('story:x')) {
-      final strategy = widget.controller.methodPreferences.multiplication;
-      return '${strategy.label}: ${strategy.description}';
-    }
-    return current.hint;
-  }
+
 
   Future<void> _answer(int answer) async {
     if (locked || finishing) return;
@@ -88,6 +103,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         expected: current.answer,
         actual: answer,
         usedHelp: showHint,
+        helpLevel: helpLevel,
+        methodKey: activeMethodKey,
       );
     }
     if (answer != current.answer) {
@@ -124,8 +141,13 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       wrongOnCurrent = 0;
       locked = false;
       showHint = false;
+      helpLevel = 0;
+      activeMethodKey = null;
       feedback = '';
     });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.controller.speak(current.prompt),
+    );
   }
 
   Future<void> _finish() async {
@@ -146,8 +168,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       minusCorrect: 0,
       minusTotal: 0,
       averageResponseMs: avg,
-      numberRange: widget.controller.numberRange,
-      gradeLevel: widget.controller.gradeLevel,
+      numberRange: widget.controller.effectiveNumberRange,
+      gradeLevel: widget.controller.effectiveGradeLevel,
       starsEarned: 0,
     );
     final rewardReason = widget.controller.rewardReasonForSession(result);
@@ -211,7 +233,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(
-              '${widget.mode.title} · ${widget.controller.numberRange.label}'),
+              '${widget.mode.title} · ${widget.controller.effectiveNumberRange.label}'),
         ),
         body: SafeArea(
           child: ListView(
@@ -233,14 +255,28 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 ],
               ),
               const SizedBox(height: 28),
-              Text(
-                current.prompt,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: widget.mode == TrainingMode.wordProblems ? 25 : 34,
-                  height: 1.25,
-                  fontWeight: FontWeight.w800,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      current.prompt,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize:
+                            widget.mode == TrainingMode.wordProblems ? 25 : 34,
+                        height: 1.25,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Aufgabe vorlesen',
+                    onPressed: () =>
+                        widget.controller.speakOnDemand(current.prompt),
+                    icon: const Icon(Icons.volume_up_outlined),
+                  ),
+                ],
               ),
               if (current.isNumberWall) ...[
                 const SizedBox(height: 22),
@@ -304,35 +340,29 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
               ),
               if (showHint) ...[
                 const SizedBox(height: 12),
-                LearningVisualAid(
-                  pattern: ErrorClassifier.classify(
-                        mode: widget.mode,
-                        taskKey: current.key,
-                        expected: current.answer,
-                        actual: current.answer,
-                      ) ??
-                      ErrorPattern.unknown,
+                GuidedMethodPanel(
+                  key: ValueKey('guide:${current.key}:$completed'),
+                  guide: _guide,
+                  pattern: _helpPattern,
                   taskKey: current.key,
                   expected: current.answer,
-                ),
-                const SizedBox(height: 10),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.lightbulb_outline_rounded),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(_effectiveHint)),
-                      ],
-                    ),
-                  ),
+                  onHelpLevelChanged: (level) {
+                    if (!mounted) return;
+                    setState(() {
+                      helpLevel = level.value;
+                      activeMethodKey = _guide.methodKey;
+                    });
+                  },
+                  onSpeak: widget.controller.speakOnDemand,
                 ),
               ] else ...[
                 const SizedBox(height: 8),
                 TextButton.icon(
-                  onPressed: () => setState(() => showHint = true),
+                  onPressed: () => setState(() {
+                  showHint = true;
+                  helpLevel = HelpLevel.nudge.value;
+                  activeMethodKey = _guide.methodKey;
+                }),
                   icon: const Icon(Icons.lightbulb_outline_rounded),
                   label: const Text('Hinweis anzeigen'),
                 ),
@@ -362,7 +392,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 NumberAnswerPad(
                   key: ValueKey('${current.key}:$completed'),
                   maxValue:
-                      current.maxAnswerValue ?? widget.controller.maxValue,
+                      current.maxAnswerValue ?? widget.controller.effectiveMaxValue,
                   onAnswer: _answer,
                 ),
               ],

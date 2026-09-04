@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/error_diagnosis.dart';
-import '../models/learning_methods.dart';
+import '../models/guided_method.dart';
 import '../models/math_fact.dart';
 import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
-import '../widgets/learning_visual_aid.dart';
+import '../widgets/guided_method_panel.dart';
 import '../widgets/number_answer_pad.dart';
 
 class TrainingScreen extends StatefulWidget {
@@ -47,6 +47,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
   bool locked = false;
   bool finishing = false;
   bool helpCountedForCurrent = false;
+  int helpLevel = 0;
+  String? activeMethodKey;
   String feedback = '';
   final List<int> completedResponseMs = [];
   int plusTotal = 0;
@@ -63,8 +65,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
         .where((f) =>
             f.isMinus &&
             f.attempts > 0 &&
-            f.a <= widget.controller.maxValue &&
-            f.b <= widget.controller.maxValue)
+            f.a <= widget.controller.effectiveMaxValue &&
+            f.b <= widget.controller.effectiveMaxValue)
         .toList();
     if (tried.length < 8) return 1;
     final average = tried
@@ -83,7 +85,12 @@ class _TrainingScreenState extends State<TrainingScreen> {
     current = _next();
     usedHelp = widget.mode == TrainingMode.minus && _minusStage == 1;
     showHelp = usedHelp;
+    helpLevel = showHelp ? HelpLevel.nudge.value : 0;
+    activeMethodKey = showHelp ? _guide.methodKey : null;
     taskShownAt = DateTime.now();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.controller.speak(_spokenTask),
+    );
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => elapsed = DateTime.now().difference(startedAt));
@@ -102,11 +109,34 @@ class _TrainingScreenState extends State<TrainingScreen> {
   MathFact _next() => widget.controller.engine.selectNext(
         facts: widget.controller.facts,
         mode: widget.mode,
-        maxValue: widget.controller.maxValue,
+        maxValue: widget.controller.effectiveMaxValue,
         previousKey: completed == 0 ? null : current.key,
         recentKeys: widget.controller.recentTaskKeys(widget.mode),
         targetCompetency: widget.targetCompetency,
       );
+
+  ErrorPattern get _helpPattern =>
+      ErrorClassifier.classify(
+        mode: widget.mode,
+        taskKey: current.key,
+        expected: _expectedAnswer,
+        actual: _expectedAnswer,
+        fact: current,
+      ) ??
+      ErrorPattern.unknown;
+
+  GuidedMethodGuide get _guide => GuidedMethodFactory.forTask(
+        mode: widget.mode,
+        taskKey: current.key,
+        expected: _expectedAnswer,
+        preferences: widget.controller.effectiveMethodPreferences,
+        targetCompetency: widget.targetCompetency,
+        fact: current,
+      );
+
+  String get _spokenTask => widget.mode == TrainingMode.numberFriends
+      ? '${current.result} ist gleich ${current.a} plus welche Zahl?'
+      : '${current.a} ${current.symbol} ${current.b} ist gleich?';
 
   int get _expectedAnswer =>
       widget.mode == TrainingMode.numberFriends ? current.b : current.result;
@@ -127,6 +157,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
         actual: answer,
         fact: current,
         usedHelp: usedHelp || showHelp,
+        helpLevel: helpLevel,
+        methodKey: activeMethodKey,
       );
     }
     await widget.controller.recordAttempt(
@@ -166,6 +198,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
         if (wrongOnCurrent >= 2) {
           showHelp = true;
           usedHelp = true;
+          if (helpLevel < HelpLevel.nudge.value) {
+            helpLevel = HelpLevel.nudge.value;
+          }
+          activeMethodKey ??= _guide.methodKey;
         }
       });
       return;
@@ -223,9 +259,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
       helpCountedForCurrent = false;
       usedHelp = widget.mode == TrainingMode.minus && _minusStage == 1;
       showHelp = usedHelp;
+      helpLevel = showHelp ? HelpLevel.nudge.value : 0;
+      activeMethodKey = showHelp ? _guide.methodKey : null;
       feedback = '';
       locked = false;
     });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.controller.speak(_spokenTask),
+    );
   }
 
   Future<void> _finish() async {
@@ -253,8 +294,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
       divideCorrect: divideCorrect,
       divideTotal: divideTotal,
       averageResponseMs: avg,
-      numberRange: widget.controller.numberRange,
-      gradeLevel: widget.controller.gradeLevel,
+      numberRange: widget.controller.effectiveNumberRange,
+      gradeLevel: widget.controller.effectiveGradeLevel,
       starsEarned: 0,
     );
     final rewardReason = widget.controller.rewardReasonForSession(result);
@@ -317,7 +358,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
             .toInt();
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.mode.title} · ${widget.controller.numberRange.label}'),
+        title: Text('${widget.mode.title} · ${widget.controller.effectiveNumberRange.label}'),
         actions: [
           if (visibleTimer)
             Padding(
@@ -361,20 +402,36 @@ class _TrainingScreenState extends State<TrainingScreen> {
                     Chip(label: Text('Minus · Lernstufe $_minusStage')),
                     const SizedBox(height: 12),
                   ],
-                  if (widget.mode == TrainingMode.numberFriends)
-                    Text(
-                      '${current.result} = ${current.a} + ?',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 48, fontWeight: FontWeight.w800),
-                    )
-                  else
-                    Text(
-                      '${current.a} ${current.symbol} ${current.b} = ?',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 52, fontWeight: FontWeight.w800),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: widget.mode == TrainingMode.numberFriends
+                            ? Text(
+                                '${current.result} = ${current.a} + ?',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 48,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              )
+                            : Text(
+                                '${current.a} ${current.symbol} ${current.b} = ?',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 52,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                      IconButton(
+                        tooltip: 'Aufgabe vorlesen',
+                        onPressed: () =>
+                            widget.controller.speakOnDemand(_spokenTask),
+                        icon: const Icon(Icons.volume_up_outlined),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 20),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
@@ -389,24 +446,23 @@ class _TrainingScreenState extends State<TrainingScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (showHelp) ...[
-                    LearningVisualAid(
-                      pattern: ErrorClassifier.classify(
-                            mode: widget.mode,
-                            taskKey: current.key,
-                            expected: _expectedAnswer,
-                            actual: _expectedAnswer,
-                            fact: current,
-                          ) ??
-                          ErrorPattern.unknown,
+                  if (showHelp)
+                    GuidedMethodPanel(
+                      key: ValueKey('guide:${current.key}:$completed'),
+                      guide: _guide,
+                      pattern: _helpPattern,
                       taskKey: current.key,
                       expected: _expectedAnswer,
+                      onHelpLevelChanged: (level) {
+                        if (!mounted) return;
+                        setState(() {
+                          usedHelp = true;
+                          helpLevel = level.value;
+                          activeMethodKey = _guide.methodKey;
+                        });
+                      },
+                      onSpeak: widget.controller.speakOnDemand,
                     ),
-                    _FactHelp(
-                      fact: current,
-                      controller: widget.controller,
-                    ),
-                  ],
                   if (!showHelp &&
                       widget.mode != TrainingMode.tempo &&
                       (current.isMinus || current.isMultiply || current.isDivide))
@@ -414,6 +470,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
                       onPressed: () => setState(() {
                         usedHelp = true;
                         showHelp = true;
+                        helpLevel = HelpLevel.nudge.value;
+                        activeMethodKey = _guide.methodKey;
                       }),
                       icon: const Icon(Icons.lightbulb_outline_rounded),
                       label: const Text('Zeig mir eine Hilfe'),
@@ -421,7 +479,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                   const SizedBox(height: 24),
                   NumberAnswerPad(
                     key: ValueKey('${current.key}:$completed'),
-                    maxValue: widget.controller.maxValue,
+                    maxValue: widget.controller.effectiveMaxValue,
                     onAnswer: _answer,
                   ),
                 ],
@@ -434,186 +492,3 @@ class _TrainingScreenState extends State<TrainingScreen> {
   }
 }
 
-class _FactHelp extends StatelessWidget {
-  const _FactHelp({
-    required this.fact,
-    required this.controller,
-  });
-
-  final MathFact fact;
-  final AppController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: switch (fact.operation) {
-          MathOperation.minus => _minusHelp(),
-          MathOperation.multiply => _multiplyHelp(),
-          MathOperation.divide => _divideHelp(),
-          MathOperation.plus =>
-            const Text('Zerlege eine Zahl in Zehner und Einer.'),
-        },
-      ),
-    );
-  }
-
-  Widget _minusHelp() {
-    final strategy = controller.methodPreferences.subtraction;
-    switch (strategy) {
-      case SubtractionStrategy.bridgeToTen:
-        final toTen = fact.a % 10;
-        if (toTen > 0 && fact.b > toTen) {
-          final rest = fact.b - toTen;
-          final ten = fact.a - toTen;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Schulmethode: ${strategy.label}',
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 8),
-              Text('${fact.a} − $toTen = $ten'),
-              Text('$ten − $rest = ${fact.result}'),
-            ],
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Schulmethode: ${strategy.label}',
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Zerlege ${fact.b} so, dass du zuerst einen glatten Zehner erreichst.',
-            ),
-          ],
-        );
-
-      case SubtractionStrategy.takeAway:
-        final first = fact.b <= 1 ? fact.b : (fact.b / 2).ceil();
-        final rest = fact.b - first;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Schulmethode: ${strategy.label}',
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text('${fact.b} = $first + $rest'),
-            Text('${fact.a} − $first = ${fact.a - first}'),
-            if (rest > 0)
-              Text('${fact.a - first} − $rest = ${fact.result}'),
-          ],
-        );
-
-      case SubtractionStrategy.complement:
-        final nextTen = ((fact.b + 9) ~/ 10) * 10;
-        final firstStep =
-            nextTen <= fact.a ? nextTen - fact.b : fact.a - fact.b;
-        final secondStep =
-            nextTen <= fact.a ? fact.a - nextTen : 0;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Schulmethode: ${strategy.label}',
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text('Starte bei ${fact.b} und ergänze bis ${fact.a}.'),
-            if (firstStep > 0) Text('Bis $nextTen fehlen $firstStep.'),
-            if (secondStep > 0)
-              Text('Von $nextTen bis ${fact.a} fehlen $secondStep.'),
-            Text('Zusammen fehlen ${fact.result}.'),
-          ],
-        );
-    }
-  }
-
-  Widget _multiplyHelp() {
-    final strategy = controller.methodPreferences.multiplication;
-    switch (strategy) {
-      case MultiplicationStrategy.groups:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Schulmethode: ${strategy.label}',
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${fact.a} × ${fact.b} bedeutet ${fact.a} Gruppen mit je ${fact.b}.',
-            ),
-            const SizedBox(height: 6),
-            Text(
-              List.filled(
-                fact.a.clamp(0, 10).toInt(),
-                '${fact.b}',
-              ).join(' + '),
-            ),
-          ],
-        );
-
-      case MultiplicationStrategy.decompose:
-        final first = fact.b > 5 ? 5 : (fact.b / 2).ceil();
-        final rest = fact.b - first;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Schulmethode: ${strategy.label}',
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text('${fact.b} = $first + $rest'),
-            Text(
-              '${fact.a} × $first = ${fact.a * first}',
-            ),
-            if (rest > 0)
-              Text('${fact.a} × $rest = ${fact.a * rest}'),
-            Text(
-              'Teilprodukte zusammen: ${fact.result}',
-            ),
-          ],
-        );
-
-      case MultiplicationStrategy.neighborFacts:
-        final base = fact.b >= 6 ? 10 : 5;
-        final difference = fact.b - base;
-        final sign = difference >= 0 ? '+' : '−';
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Schulmethode: ${strategy.label}',
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Nutze ${fact.a} × $base = ${fact.a * base}.',
-            ),
-            if (difference != 0)
-              Text(
-                'Dann $sign ${fact.a * difference.abs()} = ${fact.result}.',
-              ),
-          ],
-        );
-    }
-  }
-
-  Widget _divideHelp() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('${fact.a} ÷ ${fact.b}: Wie oft passt ${fact.b} in ${fact.a}?'),
-          const SizedBox(height: 6),
-          Text('Denke an die Umkehraufgabe: ${fact.b} × ? = ${fact.a}'),
-        ],
-      );
-}

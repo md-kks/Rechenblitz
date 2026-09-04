@@ -7,6 +7,9 @@ import '../models/remediation_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'competency_map_screen.dart';
+import 'teacher_mode_screen.dart';
+import 'curriculum_audit_screen.dart';
+import 'beta_feedback_screen.dart';
 import 'curriculum_training_screen.dart';
 import 'method_screen.dart';
 import 'remediation_screen.dart';
@@ -92,6 +95,9 @@ class _ParentScreenState extends State<ParentScreen> {
     final recommendation = c.recommendationText();
     final insight = c.parentInsight();
     final microFocus = c.currentMicroFocus();
+    final methodInsight = microFocus == null
+        ? null
+        : c.methodSupportInsight(microFocus.definition.id);
     final diagnosticPatterns = c
         .diagnosticSummaries(recurringOnly: true)
         .where(
@@ -227,6 +233,24 @@ class _ParentScreenState extends State<ParentScreen> {
                       Text(microFocus.definition.description),
                       const SizedBox(height: 10),
                       Text(c.microFocusReason()),
+                      if (methodInsight != null) ...[
+                        const SizedBox(height: 10),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.insights_outlined),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(methodInsight),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 10),
                       Text(
                         'Rechenblitz übt deshalb nicht pauschal „${microFocus.definition.preferredMode.title}“, sondern bevorzugt Aufgaben, die genau diesen Teilschritt überprüfen.',
@@ -239,6 +263,44 @@ class _ParentScreenState extends State<ParentScreen> {
                       ),
                     ],
                   ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Schule & Weiterentwicklung',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TeacherModeScreen(controller: c),
+                    ),
+                  ),
+                  icon: const Icon(Icons.qr_code_2_rounded),
+                  label: const Text('Lehrerauftrag erstellen'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CurriculumAuditScreen(controller: c),
+                    ),
+                  ),
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: const Text('Lehrplan-Audit öffnen'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => BetaFeedbackScreen(controller: c),
+                    ),
+                  ),
+                  icon: const Icon(Icons.science_outlined),
+                  label: const Text('Beta-Testfeedback'),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 14),
           _Section(

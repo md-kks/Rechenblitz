@@ -4,6 +4,10 @@ import '../models/learner_profile.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'assessment_screen.dart';
+import 'accessibility_screen.dart';
+import 'beta_feedback_screen.dart';
+import 'curriculum_audit_screen.dart';
+import 'teacher_mode_screen.dart';
 import 'method_screen.dart';
 import 'profile_screen.dart';
 
@@ -90,6 +94,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   builder: (_) => AssessmentScreen(controller: controller),
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.accessibility_new_rounded),
+                  title: const Text('Lesen & Darstellung'),
+                  subtitle: const Text(
+                    'Große Schrift, Kontrast, weniger Bewegung und Vorlesen',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          AccessibilityScreen(controller: controller),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.qr_code_2_rounded),
+                  title: const Text('Lehrerauftrag erstellen'),
+                  subtitle: const Text(
+                    'Lokaler QR-Auftrag ohne Schülerkonto',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          TeacherModeScreen(controller: controller),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.fact_check_outlined),
+                  title: const Text('Lehrplan-Audit'),
+                  subtitle: const Text(
+                    'Lernziele und digitale Abdeckung prüfen',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          CurriculumAuditScreen(controller: controller),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.science_outlined),
+                  title: const Text('Beta-Test'),
+                  subtitle: const Text(
+                    'Anonymes lokales Testfeedback erfassen',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          BetaFeedbackScreen(controller: controller),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),

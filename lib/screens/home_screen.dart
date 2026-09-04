@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import 'assignment_scanner_screen.dart';
 import 'competency_map_screen.dart';
 import 'curriculum_training_screen.dart';
 import 'my_round_screen.dart';
@@ -334,6 +335,27 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 14),
             Card(
+              child: ListTile(
+                leading: const Icon(Icons.qr_code_scanner_rounded),
+                title: const Text(
+                  'Schulauftrag scannen',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                subtitle: const Text(
+                  'QR-Auftrag der Lehrkraft lokal öffnen – ohne Konto.',
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => AssignmentScannerScreen(
+                      controller: controller,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Card(
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
@@ -352,14 +374,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ?.copyWith(fontWeight: FontWeight.w900),
                           ),
                         ),
-                        const Chip(label: Text('ca. 5 Min')),
+                        const Chip(label: Text('ca. 5–8 Min')),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Text(recommendation),
                     const SizedBox(height: 6),
                     const Text(
-                      '10 Aufgaben: ruhig ankommen, aktuelles Lernziel üben und Wissen übertragen.',
+                      '12 Aufgaben: sicher ankommen, gezielten Teilschritt üben, wiederholen und Wissen übertragen.',
                     ),
                     const SizedBox(height: 14),
                     FilledButton.icon(

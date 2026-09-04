@@ -19,29 +19,69 @@ class RechenblitzApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const seed = Color(0xFF6B5DD3);
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Rechenblitz',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final accessibility = controller.accessibilityPreferences;
+        final baseScheme = ColorScheme.fromSeed(
           seedColor: seed,
           brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF8F7FC),
-        cardTheme: const CardThemeData(
-          margin: EdgeInsets.zero,
-          elevation: 0,
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(54),
-            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        );
+        final scheme = accessibility.highContrast
+            ? baseScheme.copyWith(
+                surface: Colors.white,
+                onSurface: Colors.black,
+                outline: Colors.black87,
+                outlineVariant: Colors.black54,
+              )
+            : baseScheme;
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Rechenblitz',
+          builder: (context, child) {
+            final media = MediaQuery.of(context);
+            return MediaQuery(
+              data: media.copyWith(
+                textScaler: TextScaler.linear(
+                  accessibility.largeText ? 1.25 : 1.0,
+                ),
+                disableAnimations: accessibility.reducedMotion,
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
+          theme: ThemeData(
+            colorScheme: scheme,
+            useMaterial3: true,
+            scaffoldBackgroundColor: accessibility.highContrast
+                ? Colors.white
+                : const Color(0xFFF8F7FC),
+            cardTheme: CardThemeData(
+              margin: EdgeInsets.zero,
+              elevation: accessibility.highContrast ? 1 : 0,
+              shape: RoundedRectangleBorder(
+                side: accessibility.highContrast
+                    ? const BorderSide(color: Colors.black54)
+                    : BorderSide.none,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            filledButtonTheme: FilledButtonThemeData(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(54),
+                textStyle: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
-      home: _AppRoot(controller: controller),
+          home: _AppRoot(controller: controller),
+        );
+      },
     );
   }
 }

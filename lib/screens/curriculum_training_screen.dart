@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 
 import '../models/curriculum_exercise.dart';
 import '../models/error_diagnosis.dart';
+import '../models/guided_method.dart';
 import '../models/micro_competency.dart';
-import '../models/learning_methods.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
-import '../widgets/learning_visual_aid.dart';
+import '../widgets/guided_method_panel.dart';
 import '../widgets/number_answer_pad.dart';
 
 class CurriculumTrainingScreen extends StatefulWidget {
@@ -41,6 +41,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   bool locked = false;
   bool finishing = false;
   bool showHint = false;
+  int helpLevel = 0;
+  String? activeMethodKey;
   String feedback = '';
   final List<int> responseTimes = [];
 
@@ -50,25 +52,37 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     startedAt = DateTime.now();
     current = _next();
     shownAt = DateTime.now();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.controller.speak(current.prompt),
+    );
   }
 
   CurriculumExercise _next() => generator.generate(
         mode: widget.mode,
-        gradeLevel: widget.controller.gradeLevel,
-        maxValue: widget.controller.maxValue,
+        gradeLevel: widget.controller.effectiveGradeLevel,
+        maxValue: widget.controller.effectiveMaxValue,
         recentKeys: widget.controller.recentTaskKeys(widget.mode),
         targetCompetency: widget.targetCompetency,
       );
 
-  String get _effectiveHint {
-    if (widget.mode == TrainingMode.writtenAddSub &&
-        current.key.startsWith('written:-')) {
-      final strategy =
-          widget.controller.methodPreferences.writtenSubtraction;
-      return '${strategy.label}: ${strategy.description}';
-    }
-    return current.hint;
-  }
+  ErrorPattern get _helpPattern =>
+      ErrorClassifier.classify(
+        mode: widget.mode,
+        taskKey: current.key,
+        expected: current.answer,
+        actual: current.answer,
+      ) ??
+      ErrorPattern.unknown;
+
+  GuidedMethodGuide get _guide => GuidedMethodFactory.forTask(
+        mode: widget.mode,
+        taskKey: current.key,
+        expected: current.answer,
+        preferences: widget.controller.effectiveMethodPreferences,
+        targetCompetency: widget.targetCompetency,
+      );
+
+
 
   Future<void> _answer(int answer) async {
     if (locked || finishing) return;
@@ -84,6 +98,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         expected: current.answer,
         actual: answer,
         usedHelp: showHint,
+        helpLevel: helpLevel,
+        methodKey: activeMethodKey,
       );
     }
     if (answer != current.answer) {
@@ -93,7 +109,13 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         feedback = wrongOnCurrent >= 2
             ? 'Nutze den Rechenhinweis und probiere noch einmal.'
             : 'Fast. Prüfe deinen Rechenweg noch einmal.';
-        if (wrongOnCurrent >= 2) showHint = true;
+        if (wrongOnCurrent >= 2) {
+          showHint = true;
+          if (helpLevel < HelpLevel.nudge.value) {
+            helpLevel = HelpLevel.nudge.value;
+          }
+          activeMethodKey ??= _guide.methodKey;
+        }
       });
       return;
     }
@@ -126,8 +148,13 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       wrongOnCurrent = 0;
       locked = false;
       showHint = false;
+      helpLevel = 0;
+      activeMethodKey = null;
       feedback = '';
     });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.controller.speak(current.prompt),
+    );
   }
 
   Future<void> _finish() async {
@@ -148,8 +175,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       minusCorrect: 0,
       minusTotal: 0,
       averageResponseMs: avg,
-      numberRange: widget.controller.numberRange,
-      gradeLevel: widget.controller.gradeLevel,
+      numberRange: widget.controller.effectiveNumberRange,
+      gradeLevel: widget.controller.effectiveGradeLevel,
       starsEarned: 0,
     );
     final reason = widget.controller.rewardReasonForSession(result);
@@ -215,7 +242,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.mode.title} · ${widget.controller.gradeLevel.label}'),
+        title: Text('${widget.mode.title} · ${widget.controller.effectiveGradeLevel.label}'),
       ),
       body: SafeArea(
         child: ListView(
@@ -242,8 +269,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                Chip(label: Text(widget.controller.gradeLevel.label)),
-                Chip(label: Text(widget.controller.numberRange.label)),
+                Chip(label: Text(widget.controller.effectiveGradeLevel.label)),
+                Chip(label: Text(widget.controller.effectiveNumberRange.label)),
                 if (current.method != null)
                   Chip(
                     avatar: const Icon(Icons.route_rounded, size: 18),
@@ -252,14 +279,27 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               ],
             ),
             const SizedBox(height: 22),
-            Text(
-              current.prompt,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 31,
-                height: 1.3,
-                fontWeight: FontWeight.w800,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    current.prompt,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 31,
+                      height: 1.3,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Aufgabe vorlesen',
+                  onPressed: () =>
+                      widget.controller.speakOnDemand(current.prompt),
+                  icon: const Icon(Icons.volume_up_outlined),
+                ),
+              ],
             ),
             if (current.hasBars) ...[
               const SizedBox(height: 22),
@@ -280,35 +320,29 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
             ),
             if (showHint) ...[
               const SizedBox(height: 12),
-              LearningVisualAid(
-                pattern: ErrorClassifier.classify(
-                      mode: widget.mode,
-                      taskKey: current.key,
-                      expected: current.answer,
-                      actual: current.answer,
-                    ) ??
-                    ErrorPattern.unknown,
+              GuidedMethodPanel(
+                key: ValueKey('guide:${current.key}:$completed'),
+                guide: _guide,
+                pattern: _helpPattern,
                 taskKey: current.key,
                 expected: current.answer,
-              ),
-              const SizedBox(height: 10),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.lightbulb_outline_rounded),
-                      const SizedBox(width: 10),
-                      Expanded(child: Text(_effectiveHint)),
-                    ],
-                  ),
-                ),
+                onHelpLevelChanged: (level) {
+                  if (!mounted) return;
+                  setState(() {
+                    helpLevel = level.value;
+                    activeMethodKey = _guide.methodKey;
+                  });
+                },
+                onSpeak: widget.controller.speakOnDemand,
               ),
             ] else ...[
               const SizedBox(height: 8),
               TextButton.icon(
-                onPressed: () => setState(() => showHint = true),
+                onPressed: () => setState(() {
+                showHint = true;
+                helpLevel = HelpLevel.nudge.value;
+                activeMethodKey = _guide.methodKey;
+              }),
                 icon: const Icon(Icons.lightbulb_outline_rounded),
                 label: const Text('Rechenhinweis anzeigen'),
               ),
@@ -340,7 +374,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                 ),
               NumberAnswerPad(
                 key: ValueKey('${current.key}:$completed'),
-                maxValue: current.maxAnswerValue ?? widget.controller.maxValue,
+                maxValue: current.maxAnswerValue ?? widget.controller.effectiveMaxValue,
                 onAnswer: _answer,
               ),
             ],

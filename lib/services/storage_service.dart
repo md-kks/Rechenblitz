@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/accessibility_preferences.dart';
+import '../models/beta_feedback.dart';
 import '../models/error_diagnosis.dart';
 import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
@@ -24,6 +26,8 @@ class StorageService {
   static const _remediationKey = 'remediation_progress_v1';
   static const _taskDiversityKey = 'task_diversity_v1';
   static const _microCompetencyKey = 'micro_competency_v1';
+  static const _accessibilityKey = 'accessibility_preferences_v1';
+  static const _betaFeedbackKey = 'beta_feedback_v1';
 
   static const _profilesKey = 'learner_profiles_v1';
   static const _activeProfileKey = 'active_learner_profile_v1';
@@ -330,6 +334,52 @@ class StorageService {
   Future<void> setMethodPreferences(MethodPreferences value) async =>
       (await SharedPreferences.getInstance()).setString(
         _profileKey(_methodsKey),
+        jsonEncode(value.toJson()),
+      );
+
+  Future<List<BetaFeedbackEntry>> betaFeedback() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_betaFeedbackKey);
+    if (raw == null) return [];
+    try {
+      return (jsonDecode(raw) as List<dynamic>)
+          .map(
+            (entry) => BetaFeedbackEntry.fromJson(
+              entry as Map<String, dynamic>,
+            ),
+          )
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> setBetaFeedback(
+    List<BetaFeedbackEntry> entries,
+  ) async =>
+      (await SharedPreferences.getInstance()).setString(
+        _betaFeedbackKey,
+        jsonEncode(entries.map((entry) => entry.toJson()).toList()),
+      );
+
+  Future<AccessibilityPreferences> accessibilityPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_accessibilityKey);
+    if (raw == null) return const AccessibilityPreferences();
+    try {
+      return AccessibilityPreferences.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return const AccessibilityPreferences();
+    }
+  }
+
+  Future<void> setAccessibilityPreferences(
+    AccessibilityPreferences value,
+  ) async =>
+      (await SharedPreferences.getInstance()).setString(
+        _accessibilityKey,
         jsonEncode(value.toJson()),
       );
 

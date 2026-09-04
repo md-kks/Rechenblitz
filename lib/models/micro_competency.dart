@@ -113,6 +113,8 @@ class MicroCompetencyObservation {
     required this.evidenceWeight,
     required this.source,
     required this.usedHelp,
+    this.helpLevel = 0,
+    this.methodKey,
     required this.mode,
     required this.gradeLevel,
     required this.numberRange,
@@ -125,6 +127,8 @@ class MicroCompetencyObservation {
   final double evidenceWeight;
   final MicroEvidenceSource source;
   final bool usedHelp;
+  final int helpLevel;
+  final String? methodKey;
   final TrainingMode mode;
   final GradeLevel gradeLevel;
   final NumberRangeLevel numberRange;
@@ -137,6 +141,8 @@ class MicroCompetencyObservation {
         'evidenceWeight': evidenceWeight,
         'source': source.name,
         'usedHelp': usedHelp,
+        'helpLevel': helpLevel,
+        'methodKey': methodKey,
         'mode': mode.name,
         'gradeLevel': gradeLevel.name,
         'numberRange': numberRange.name,
@@ -161,6 +167,8 @@ class MicroCompetencyObservation {
                 json['source'] as String,
               ),
         usedHelp: json['usedHelp'] as bool? ?? false,
+        helpLevel: json['helpLevel'] as int? ?? ((json['usedHelp'] as bool? ?? false) ? 1 : 0),
+        methodKey: json['methodKey'] as String?,
         mode: TrainingMode.values.byName(json['mode'] as String),
         gradeLevel: GradeLevel.values.byName(
           json['gradeLevel'] as String,

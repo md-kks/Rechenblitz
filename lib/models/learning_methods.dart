@@ -1,3 +1,12 @@
+enum MethodSelectionPreference { schoolMethod, automatic }
+
+extension MethodSelectionPreferenceX on MethodSelectionPreference {
+  String get label => switch (this) {
+        MethodSelectionPreference.schoolMethod => 'Schulmethode',
+        MethodSelectionPreference.automatic => 'Automatisch / weiß ich nicht',
+      };
+}
+
 enum SubtractionStrategy { bridgeToTen, takeAway, complement }
 
 extension SubtractionStrategyX on SubtractionStrategy {
@@ -57,27 +66,32 @@ class MethodPreferences {
     this.subtraction = SubtractionStrategy.bridgeToTen,
     this.multiplication = MultiplicationStrategy.groups,
     this.writtenSubtraction = WrittenSubtractionStrategy.regroup,
+    this.selectionPreference = MethodSelectionPreference.schoolMethod,
   });
 
   final SubtractionStrategy subtraction;
   final MultiplicationStrategy multiplication;
   final WrittenSubtractionStrategy writtenSubtraction;
+  final MethodSelectionPreference selectionPreference;
 
   MethodPreferences copyWith({
     SubtractionStrategy? subtraction,
     MultiplicationStrategy? multiplication,
     WrittenSubtractionStrategy? writtenSubtraction,
+    MethodSelectionPreference? selectionPreference,
   }) =>
       MethodPreferences(
         subtraction: subtraction ?? this.subtraction,
         multiplication: multiplication ?? this.multiplication,
         writtenSubtraction: writtenSubtraction ?? this.writtenSubtraction,
+        selectionPreference: selectionPreference ?? this.selectionPreference,
       );
 
   Map<String, dynamic> toJson() => {
         'subtraction': subtraction.name,
         'multiplication': multiplication.name,
         'writtenSubtraction': writtenSubtraction.name,
+        'selectionPreference': selectionPreference.name,
       };
 
   factory MethodPreferences.fromJson(Map<String, dynamic> json) =>
@@ -94,5 +108,27 @@ class MethodPreferences {
           (value) => value.name == json['writtenSubtraction'],
           orElse: () => WrittenSubtractionStrategy.regroup,
         ),
+        selectionPreference: MethodSelectionPreference.values.firstWhere(
+          (value) => value.name == json['selectionPreference'],
+          orElse: () => MethodSelectionPreference.schoolMethod,
+        ),
       );
+  SubtractionStrategy effectiveSubtraction({required String taskKey}) {
+    if (selectionPreference == MethodSelectionPreference.schoolMethod) {
+      return subtraction;
+    }
+    final variants = SubtractionStrategy.values;
+    return variants[taskKey.hashCode.abs() % variants.length];
+  }
+
+  MultiplicationStrategy effectiveMultiplication({required String taskKey}) {
+    if (selectionPreference == MethodSelectionPreference.schoolMethod) {
+      return multiplication;
+    }
+    final variants = MultiplicationStrategy.values;
+    return variants[taskKey.hashCode.abs() % variants.length];
+  }
+
+  String get selectionLabel => selectionPreference.label;
+
 }

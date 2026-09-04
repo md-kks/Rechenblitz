@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
+import '../models/accessibility_preferences.dart';
 import '../models/assessment.dart';
+import '../models/beta_feedback.dart';
 import '../models/error_diagnosis.dart';
 import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
@@ -11,16 +15,23 @@ import '../models/remediation_path.dart';
 import '../models/reward_badge.dart';
 import '../models/training.dart';
 import '../models/task_diversity.dart';
+import '../models/teacher_assignment.dart';
 import 'adaptive_engine.dart';
+import 'speech_service.dart';
 import 'storage_service.dart';
 
 class AppController extends ChangeNotifier {
-  AppController({StorageService? storage, AdaptiveEngine? engine})
-      : storage = storage ?? StorageService(),
-        engine = engine ?? AdaptiveEngine();
+  AppController({
+    StorageService? storage,
+    AdaptiveEngine? engine,
+    SpeechService? speech,
+  })  : storage = storage ?? StorageService(),
+        engine = engine ?? AdaptiveEngine(),
+        speech = speech ?? SpeechService();
 
   final StorageService storage;
   final AdaptiveEngine engine;
+  final SpeechService speech;
   List<MathFact> facts = [];
   List<TrainingSessionResult> history = [];
   List<DiagnosticAttempt> diagnostics = [];
@@ -30,6 +41,10 @@ class AppController extends ChangeNotifier {
   List<LearnerProfile> profiles = [];
   String activeProfileId = 'default';
   MethodPreferences methodPreferences = const MethodPreferences();
+  AccessibilityPreferences accessibilityPreferences =
+      const AccessibilityPreferences();
+  TeacherAssignment? activeTeacherAssignment;
+  List<BetaFeedbackEntry> betaFeedbackEntries = [];
   bool soundEnabled = false;
   bool hapticEnabled = true;
   bool loaded = false;
@@ -42,6 +57,31 @@ class AppController extends ChangeNotifier {
 
   int get maxValue => numberRange.maxValue;
 
+  GradeLevel get effectiveGradeLevel =>
+      activeTeacherAssignment?.gradeLevel ?? gradeLevel;
+
+  NumberRangeLevel get effectiveNumberRange =>
+      activeTeacherAssignment?.numberRange ?? numberRange;
+
+  MethodPreferences get effectiveMethodPreferences =>
+      activeTeacherAssignment?.methods ?? methodPreferences;
+
+  int get effectiveMaxValue => effectiveNumberRange.maxValue;
+
+  bool get hasTeacherAssignment => activeTeacherAssignment != null;
+
+  void beginTeacherAssignment(TeacherAssignment assignment) {
+    activeTeacherAssignment = assignment;
+    notifyListeners();
+  }
+
+  void endTeacherAssignment() {
+    activeTeacherAssignment = null;
+    notifyListeners();
+  }
+
+
+
   Future<void> load() async {
     profiles = await storage.initializeProfiles();
     activeProfileId = storage.activeProfileId;
@@ -52,6 +92,8 @@ class AppController extends ChangeNotifier {
     gradeLevel = profile.gradeLevel;
     soundEnabled = await storage.soundEnabled();
     hapticEnabled = await storage.hapticEnabled();
+    accessibilityPreferences = await storage.accessibilityPreferences();
+    betaFeedbackEntries = await storage.betaFeedback();
     await _loadActiveProfileData();
     loaded = true;
     notifyListeners();
@@ -152,6 +194,8 @@ class AppController extends ChangeNotifier {
     required int actual,
     MathFact? fact,
     bool usedHelp = false,
+    int helpLevel = 0,
+    String? methodKey,
     MicroEvidenceSource source = MicroEvidenceSource.practice,
   }) async {
     final pattern = ErrorClassifier.classify(
@@ -166,7 +210,9 @@ class AppController extends ChangeNotifier {
       taskKey: taskKey,
       correct: actual == expected,
       fact: fact,
-      usedHelp: usedHelp,
+      usedHelp: usedHelp || helpLevel > 0,
+      helpLevel: helpLevel,
+      methodKey: methodKey,
       source: source,
     );
     diagnostics.insert(
@@ -178,8 +224,8 @@ class AppController extends ChangeNotifier {
         expected: expected,
         actual: actual,
         correct: actual == expected,
-        gradeLevel: gradeLevel,
-        numberRange: numberRange,
+        gradeLevel: effectiveGradeLevel,
+        numberRange: effectiveNumberRange,
         pattern: pattern,
       ),
     );
@@ -827,12 +873,21 @@ class AppController extends ChangeNotifier {
     required String taskKey,
     required bool correct,
     required bool usedHelp,
+    required int helpLevel,
+    required String? methodKey,
     required MicroEvidenceSource source,
     MathFact? fact,
   }) {
     final sourceWeight =
         source == MicroEvidenceSource.remediation ? 0.65 : 1.0;
-    final helpWeight = correct && usedHelp ? 0.65 : 1.0;
+    final helpWeight = !correct
+        ? 1.0
+        : switch (helpLevel) {
+            >= 3 => 0.50,
+            2 => 0.65,
+            1 => 0.80,
+            _ => usedHelp ? 0.80 : 1.0,
+          };
     final now = DateTime.now();
 
     final observations = MicroCompetencyCatalog.tagsForTask(
@@ -848,6 +903,8 @@ class AppController extends ChangeNotifier {
             evidenceWeight: tag.weight * sourceWeight * helpWeight,
             source: source,
             usedHelp: usedHelp,
+            helpLevel: helpLevel,
+            methodKey: methodKey,
             mode: mode,
             gradeLevel: gradeLevel,
             numberRange: numberRange,
@@ -1162,6 +1219,7 @@ class AppController extends ChangeNotifier {
             ? 'Zum Schluss Wissen in einem anderen Zusammenhang anwenden.'
             : 'Zum Schluss einen neuen Lernschritt vorsichtig entdecken.',
         targetCompetency: transferTarget,
+        transferEmphasis: true,
       ),
     ];
   }
@@ -1458,6 +1516,15 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setMethodSelectionPreference(
+    MethodSelectionPreference value,
+  ) async {
+    methodPreferences =
+        methodPreferences.copyWith(selectionPreference: value);
+    notifyListeners();
+    await storage.setMethodPreferences(methodPreferences);
+  }
+
   Future<void> setSubtractionStrategy(SubtractionStrategy value) async {
     methodPreferences = methodPreferences.copyWith(subtraction: value);
     notifyListeners();
@@ -1581,6 +1648,93 @@ class AppController extends ChangeNotifier {
     numberRange = value;
     notifyListeners();
     await storage.setNumberRange(value);
+  }
+
+  Future<void> addBetaFeedback(BetaFeedbackEntry entry) async {
+    betaFeedbackEntries = [entry, ...betaFeedbackEntries].take(200).toList();
+    notifyListeners();
+    await storage.setBetaFeedback(betaFeedbackEntries);
+  }
+
+  Future<void> clearBetaFeedback() async {
+    betaFeedbackEntries = [];
+    notifyListeners();
+    await storage.setBetaFeedback(betaFeedbackEntries);
+  }
+
+  String betaFeedbackExport() => const JsonEncoder.withIndent('  ').convert({
+        'format': 'rechenblitz-beta-feedback-v1',
+        'attachesProfileOrLearningData': false,
+        'freeTextMayContainUserEnteredPersonalData': true,
+        'entries': betaFeedbackEntries.map((entry) => entry.toJson()).toList(),
+      });
+
+  Future<void> setAccessibilityPreferences(
+    AccessibilityPreferences value,
+  ) async {
+    accessibilityPreferences = value;
+    notifyListeners();
+    await storage.setAccessibilityPreferences(value);
+    if (!value.readAloud) await speech.stop();
+  }
+
+  Future<void> speak(String text) async {
+    if (!accessibilityPreferences.readAloud) return;
+    await speech.speak(
+      text,
+      rate: accessibilityPreferences.speechRate,
+    );
+  }
+
+  Future<void> speakOnDemand(String text) async {
+    await speech.speak(
+      text,
+      rate: accessibilityPreferences.speechRate,
+    );
+  }
+
+  String? methodSupportInsight(MicroCompetencyId id) {
+    final observations = microObservations
+        .where(
+          (entry) =>
+              entry.id == id &&
+              entry.gradeLevel == gradeLevel &&
+              entry.numberRange == numberRange &&
+              entry.methodKey != null,
+        )
+        .take(80)
+        .toList();
+    final grouped = <String, List<MicroCompetencyObservation>>{};
+    for (final entry in observations) {
+      grouped.putIfAbsent(entry.methodKey!, () => []).add(entry);
+    }
+    final eligible = grouped.entries
+        .where((entry) => entry.value.length >= 3)
+        .map((entry) {
+          final correct =
+              entry.value.where((observation) => observation.correct).length;
+          return (
+            key: entry.key,
+            total: entry.value.length,
+            accuracy: correct / entry.value.length,
+          );
+        })
+        .toList()
+      ..sort((a, b) => b.accuracy.compareTo(a.accuracy));
+    if (eligible.isEmpty) return null;
+    final best = eligible.first;
+    final label = best.key
+        .split(':')
+        .last
+        .replaceAll('bridgeToTen', 'Erst zum Zehner')
+        .replaceAll('takeAway', 'Schrittweise wegnehmen')
+        .replaceAll('complement', 'Ergänzen')
+        .replaceAll('groups', 'Gleich große Gruppen')
+        .replaceAll('decompose', 'Zerlegen')
+        .replaceAll('neighborFacts', 'Nachbaraufgaben');
+    return 'Mit „$label“ wurden ${(best.accuracy * 100).round()} % der '
+        '${best.total} beobachteten Aufgaben direkt richtig gelöst. '
+        'Das ist eine Lernbeobachtung und ändert die Schulmethode nicht automatisch.';
   }
 
   Future<void> setSound(bool value) async {

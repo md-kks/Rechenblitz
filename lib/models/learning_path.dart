@@ -32,12 +32,14 @@ class GuidedRoundSegment {
     required this.tasks,
     required this.reason,
     this.targetCompetency,
+    this.transferEmphasis = false,
   });
 
   final TrainingMode mode;
   final int tasks;
   final String reason;
   final MicroCompetencyId? targetCompetency;
+  final bool transferEmphasis;
 }
 
 class ParentLearningInsight {

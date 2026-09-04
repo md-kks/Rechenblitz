@@ -46,6 +46,53 @@ class _MethodScreenState extends State<MethodScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Wie soll Rechenblitz die Methode wählen?',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<MethodSelectionPreference>(
+                    initialValue: methods.selectionPreference,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Methodenwahl',
+                    ),
+                    items: MethodSelectionPreference.values
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        widget.controller
+                            .setMethodSelectionPreference(value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    methods.selectionPreference ==
+                            MethodSelectionPreference.schoolMethod
+                        ? 'Die gewählten Schulmethoden werden konsequent verwendet.'
+                        : 'Rechenblitz darf verschiedene schulübliche Darstellungen vergleichen. Die hinterlegte Schulmethode wird dabei niemals automatisch geändert.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _MethodCard(
             title: 'Subtraktion über den Zehner',
             icon: Icons.remove_circle_outline_rounded,
