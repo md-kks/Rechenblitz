@@ -3,6 +3,7 @@
 import 'dart:math';
 
 import 'training.dart';
+import 'task_diversity.dart';
 
 class CurriculumBar {
   const CurriculumBar(this.label, this.value);
@@ -48,35 +49,79 @@ class CurriculumExerciseGenerator {
     required TrainingMode mode,
     required GradeLevel gradeLevel,
     required int maxValue,
+    Iterable<String> recentKeys = const <String>[],
   }) {
     if (!mode.isUpperPrimary) {
       throw ArgumentError('$mode ist kein Lernbereich für Klasse 3/4.');
     }
-    return switch (mode) {
-      TrainingMode.largeNumbers => _largeNumbers(gradeLevel, maxValue),
-      TrainingMode.rounding => _rounding(gradeLevel, maxValue),
-      TrainingMode.mentalStrategies => _mentalStrategies(gradeLevel, maxValue),
-      TrainingMode.writtenAddSub => _writtenAddSub(gradeLevel, maxValue),
-      TrainingMode.writtenMultiply => _writtenMultiply(gradeLevel, maxValue),
-      TrainingMode.writtenDivide => _writtenDivide(gradeLevel, maxValue),
-      TrainingMode.estimation => _estimation(gradeLevel, maxValue),
-      TrainingMode.arithmeticLaws => _arithmeticLaws(gradeLevel),
-      TrainingMode.romanNumerals => _romanNumerals(gradeLevel),
-      TrainingMode.fractions => _fractions(gradeLevel, maxValue),
-      TrainingMode.advancedMeasures => _advancedMeasures(gradeLevel),
-      TrainingMode.timeDurations => _timeDurations(gradeLevel),
-      TrainingMode.dataCharts => _dataCharts(gradeLevel),
-      TrainingMode.probability => _probability(),
-      TrainingMode.combinatorics => _combinatorics(gradeLevel),
-      TrainingMode.proportionality => _proportionality(gradeLevel, maxValue),
-      TrainingMode.perimeterArea => _perimeterArea(gradeLevel),
-      TrainingMode.geometryBodies => _geometryBodies(),
-      TrainingMode.symmetry => _symmetry(),
-      TrainingMode.plansAndOrientation => _plansAndOrientation(gradeLevel),
-      TrainingMode.volumeCubes => _volumeCubes(gradeLevel),
-      _ => throw ArgumentError('$mode ist kein Lernbereich für Klasse 3/4.'),
-    };
+
+    final recent = recentKeys.toList();
+    final exactAvoid = recent
+        .take(
+          TaskDiversity.recentExactWindow(
+            mode: mode,
+            maxValue: maxValue,
+          ),
+        )
+        .toSet();
+    final familyAvoid = recent
+        .take(TaskDiversity.recentFamilyWindow(mode))
+        .map(TaskDiversity.familyForKey)
+        .toSet();
+
+    CurriculumExercise? firstExactNew;
+    CurriculumExercise? last;
+    for (var attempt = 0; attempt < 32; attempt++) {
+      final candidate = _generateOnce(
+        mode: mode,
+        gradeLevel: gradeLevel,
+        maxValue: maxValue,
+      );
+      last = candidate;
+      final exactNew = !exactAvoid.contains(candidate.key);
+      final familyNew =
+          !familyAvoid.contains(TaskDiversity.familyForKey(candidate.key));
+      if (exactNew && familyNew) return candidate;
+      if (exactNew && firstExactNew == null) firstExactNew = candidate;
+    }
+    return firstExactNew ??
+        last ??
+        _generateOnce(
+          mode: mode,
+          gradeLevel: gradeLevel,
+          maxValue: maxValue,
+        );
   }
+
+  CurriculumExercise _generateOnce({
+    required TrainingMode mode,
+    required GradeLevel gradeLevel,
+    required int maxValue,
+  }) =>
+      switch (mode) {
+        TrainingMode.largeNumbers => _largeNumbers(gradeLevel, maxValue),
+        TrainingMode.rounding => _rounding(gradeLevel, maxValue),
+        TrainingMode.mentalStrategies => _mentalStrategies(gradeLevel, maxValue),
+        TrainingMode.writtenAddSub => _writtenAddSub(gradeLevel, maxValue),
+        TrainingMode.writtenMultiply => _writtenMultiply(gradeLevel, maxValue),
+        TrainingMode.writtenDivide => _writtenDivide(gradeLevel, maxValue),
+        TrainingMode.estimation => _estimation(gradeLevel, maxValue),
+        TrainingMode.arithmeticLaws => _arithmeticLaws(gradeLevel),
+        TrainingMode.romanNumerals => _romanNumerals(gradeLevel),
+        TrainingMode.fractions => _fractions(gradeLevel, maxValue),
+        TrainingMode.advancedMeasures => _advancedMeasures(gradeLevel),
+        TrainingMode.timeDurations => _timeDurations(gradeLevel),
+        TrainingMode.dataCharts => _dataCharts(gradeLevel),
+        TrainingMode.probability => _probability(),
+        TrainingMode.combinatorics => _combinatorics(gradeLevel),
+        TrainingMode.proportionality => _proportionality(gradeLevel, maxValue),
+        TrainingMode.perimeterArea => _perimeterArea(gradeLevel),
+        TrainingMode.geometryBodies => _geometryBodies(),
+        TrainingMode.symmetry => _symmetry(),
+        TrainingMode.plansAndOrientation => _plansAndOrientation(gradeLevel),
+        TrainingMode.volumeCubes => _volumeCubes(gradeLevel),
+        _ => throw ArgumentError('$mode ist kein Lernbereich für Klasse 3/4.'),
+      };
 
   int _safeMax(int maxValue, GradeLevel grade) => max(maxValue, 100);
 
@@ -620,66 +665,94 @@ class CurriculumExerciseGenerator {
   CurriculumExercise _probability() {
     final kind = _random.nextInt(4);
     const choices = ['sicher', 'möglich', 'unmöglich'];
+
     if (kind == 0) {
-      return const CurriculumExercise(
+      final boundary = _between(7, 12);
+      return CurriculumExercise(
         mode: TrainingMode.probability,
-        prompt: 'Normaler Würfel: Es fällt eine Zahl von 1 bis 6.',
+        prompt:
+            'Normaler Würfel: Es fällt eine Zahl kleiner als $boundary.',
         answer: 0,
-        hint: 'Alle Würfelseiten liegen zwischen 1 und 6.',
-        key: 'prob:dice:range',
+        hint: 'Ein normaler Würfel zeigt nur die Zahlen 1 bis 6.',
+        key: 'prob:sure:below:$boundary',
         choices: choices,
         method: 'Sicher – möglich – unmöglich',
       );
     }
+
     if (kind == 1) {
-      return const CurriculumExercise(
+      final face = _between(1, 6);
+      return CurriculumExercise(
         mode: TrainingMode.probability,
-        prompt: 'Normaler Würfel: Es fällt eine 4.',
+        prompt: 'Normaler Würfel: Es fällt eine $face.',
         answer: 1,
-        hint: 'Die 4 kann fallen, muss aber nicht.',
-        key: 'prob:dice:4',
+        hint: 'Diese Zahl ist auf dem Würfel vorhanden, muss aber nicht fallen.',
+        key: 'prob:possible:face:$face',
         choices: choices,
         method: 'Sicher – möglich – unmöglich',
       );
     }
+
     if (kind == 2) {
-      return const CurriculumExercise(
+      final impossible = _between(7, 12);
+      return CurriculumExercise(
         mode: TrainingMode.probability,
-        prompt: 'Normaler Würfel: Es fällt eine 8.',
+        prompt: 'Normaler Würfel: Es fällt eine $impossible.',
         answer: 2,
-        hint: 'Ein normaler Würfel hat keine 8.',
-        key: 'prob:dice:8',
+        hint: 'Ein normaler Würfel hat nur die Zahlen 1 bis 6.',
+        key: 'prob:impossible:face:$impossible',
         choices: choices,
         method: 'Sicher – möglich – unmöglich',
       );
     }
-    final red = _between(1, 7);
-    final blue = _between(1, 7);
-    const compare = ['Rot wahrscheinlicher', 'Blau wahrscheinlicher', 'gleich wahrscheinlich'];
+
+    final red = _between(1, 9);
+    final blue = _between(1, 9);
+    final context = _random.nextBool() ? 'Kugeln' : 'Spielsteine';
+    const compare = [
+      'Rot wahrscheinlicher',
+      'Blau wahrscheinlicher',
+      'gleich wahrscheinlich',
+    ];
     return CurriculumExercise(
       mode: TrainingMode.probability,
-      prompt: 'Im Beutel liegen $red rote und $blue blaue Kugeln. Was stimmt?',
+      prompt:
+          'Im Beutel liegen $red rote und $blue blaue $context. Was stimmt?',
       answer: red == blue ? 2 : red > blue ? 0 : 1,
-      hint: 'Mehr Kugeln einer Farbe bedeuten eine größere Ziehchance.',
-      key: 'prob:bag:$red:$blue',
+      hint: 'Mehr Stücke einer Farbe bedeuten eine größere Ziehchance.',
+      key: 'prob:bag:${context.toLowerCase()}:$red:$blue',
       choices: compare,
       method: 'Chancen einschätzen',
     );
   }
 
   CurriculumExercise _combinatorics(GradeLevel grade) {
-    final shirts = _between(2, grade == GradeLevel.third ? 4 : 6);
-    final trousers = _between(2, grade == GradeLevel.third ? 4 : 5);
-    final extras = grade == GradeLevel.fourth && _random.nextBool() ? _between(2, 3) : 1;
+    final first = _between(2, grade == GradeLevel.third ? 4 : 6);
+    final second = _between(2, grade == GradeLevel.third ? 4 : 5);
+    final third =
+        grade == GradeLevel.fourth && _random.nextBool() ? _between(2, 3) : 1;
+    final kind = _random.nextInt(3);
+
+    final prompt = switch (kind) {
+      0 => third == 1
+          ? '$first T-Shirts und $second Hosen: Wie viele verschiedene Kombinationen gibt es?'
+          : '$first T-Shirts, $second Hosen und $third Mützen: Wie viele Kombinationen gibt es?',
+      1 => third == 1
+          ? 'Eine Eisdiele hat $first Eissorten und $second Soßen. Wie viele Kombinationen aus einer Sorte und einer Soße sind möglich?'
+          : 'Es gibt $first Eissorten, $second Soßen und $third Streuselarten. Wie viele Kombinationen sind möglich?',
+      _ => third == 1
+          ? 'Für ein Zeichen gibt es $first Symbole und $second Farben. Wie viele verschiedene Zeichen können entstehen?'
+          : 'Es gibt $first Symbole, $second Farben und $third Rahmen. Wie viele Varianten können entstehen?',
+    };
+    final family = ['clothes', 'icecream', 'symbols'][kind];
+
     return CurriculumExercise(
       mode: TrainingMode.combinatorics,
-      prompt: extras == 1
-          ? '$shirts T-Shirts und $trousers Hosen: Wie viele verschiedene Kombinationen gibt es?'
-          : '$shirts T-Shirts, $trousers Hosen und $extras Mützen: Wie viele Kombinationen gibt es?',
-      answer: shirts * trousers * extras,
+      prompt: prompt,
+      answer: first * second * third,
       hint: 'Verbinde jede Möglichkeit systematisch mit jeder anderen.',
-      key: 'combo:$shirts:$trousers:$extras',
-      maxAnswerValue: 200,
+      key: 'combo:$family:$first:$second:$third',
+      maxAnswerValue: 300,
       method: 'Systematisch kombinieren',
     );
   }
@@ -688,12 +761,23 @@ class CurriculumExerciseGenerator {
     final unit = _between(1, grade == GradeLevel.third ? 5 : 12);
     final first = _between(2, 5);
     final second = _between(2, grade == GradeLevel.third ? 8 : 12);
+    final kind = _random.nextInt(4);
+    final total = first * unit;
+
+    final prompt = switch (kind) {
+      0 => '$first Hefte kosten $total €. Was kosten $second Hefte?',
+      1 => '$first Eintrittskarten kosten zusammen $total €. Was kosten $second gleich teure Karten?',
+      2 => '$first gleiche Packungen kosten zusammen $total €. Was kosten $second Packungen?',
+      _ => '$first Meter Band kosten zusammen $total €. Was kosten $second Meter zum gleichen Meterpreis?',
+    };
+    final family = ['notebooks', 'tickets', 'packs', 'ribbon'][kind];
+
     return CurriculumExercise(
       mode: TrainingMode.proportionality,
-      prompt: '$first Hefte kosten ' + (first * unit).toString() + ' €. Was kosten $second Hefte?',
+      prompt: prompt,
       answer: second * unit,
-      hint: 'Bestimme zuerst den Preis für 1 Heft.',
-      key: 'proportion:$unit:$first:$second',
+      hint: 'Bestimme zuerst den Wert für 1 Einheit.',
+      key: 'proportion:$family:$unit:$first:$second',
       answerSuffix: '€',
       maxAnswerValue: max(100, maxValue),
       method: 'Einfache Zuordnung',
@@ -704,16 +788,20 @@ class CurriculumExerciseGenerator {
     final width = _between(2, grade == GradeLevel.third ? 12 : 25);
     final height = _between(2, grade == GradeLevel.third ? 12 : 25);
     final area = _random.nextBool();
+    final context = _random.nextInt(4);
+    final object = ['Rechteck', 'Bild', 'Beet', 'Spielteppich'][context];
+    final prompt = area
+        ? '$object: $width cm lang und $height cm breit. Wie groß ist die Fläche?'
+        : '$object: $width cm lang und $height cm breit. Wie groß ist der Umfang?';
     return CurriculumExercise(
       mode: TrainingMode.perimeterArea,
-      prompt: area
-          ? 'Rechteck: $width cm lang, $height cm breit. Wie groß ist der Flächeninhalt?'
-          : 'Rechteck: $width cm lang, $height cm breit. Wie groß ist der Umfang?',
+      prompt: prompt,
       answer: area ? width * height : 2 * (width + height),
       hint: area
           ? 'Fläche: Länge × Breite bzw. Einheitsquadrate zählen.'
           : 'Umfang: Addiere alle vier Seiten.',
-      key: 'rect:$width:$height:$area',
+      key:
+          'rect:${area ? 'area' : 'perimeter'}:${object.toLowerCase()}:$width:$height',
       answerSuffix: area ? 'cm²' : 'cm',
       maxAnswerValue: 2000,
       method: area ? 'Flächeninhalt' : 'Umfang',

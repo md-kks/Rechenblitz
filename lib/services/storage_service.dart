@@ -21,6 +21,7 @@ class StorageService {
   static const _methodsKey = 'method_preferences_v1';
   static const _diagnosticsKey = 'diagnostics_v1';
   static const _remediationKey = 'remediation_progress_v1';
+  static const _taskDiversityKey = 'task_diversity_v1';
 
   static const _profilesKey = 'learner_profiles_v1';
   static const _activeProfileKey = 'active_learner_profile_v1';
@@ -121,6 +122,7 @@ class StorageService {
       _methodsKey,
       _diagnosticsKey,
       _remediationKey,
+      _taskDiversityKey,
     ]) {
       await prefs.remove('profile:$id:$key');
     }
@@ -191,6 +193,33 @@ class StorageService {
     await prefs.setString(
       _profileKey(_remediationKey),
       jsonEncode(progress.map((entry) => entry.toJson()).toList()),
+    );
+  }
+
+  Future<Map<String, List<String>>> loadTaskDiversity() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_profileKey(_taskDiversityKey));
+    if (raw == null) return <String, List<String>>{};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map(
+        (key, value) => MapEntry(
+          key,
+          (value as List<dynamic>).map((entry) => entry as String).toList(),
+        ),
+      );
+    } catch (_) {
+      return <String, List<String>>{};
+    }
+  }
+
+  Future<void> saveTaskDiversity(
+    Map<String, List<String>> recentByMode,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _profileKey(_taskDiversityKey),
+      jsonEncode(recentByMode),
     );
   }
 
@@ -292,6 +321,7 @@ class StorageService {
     await prefs.remove(_profileKey(_recoveredWeakFactsKey));
     await prefs.remove(_profileKey(_diagnosticsKey));
     await prefs.remove(_profileKey(_remediationKey));
+    await prefs.remove(_profileKey(_taskDiversityKey));
   }
 
   List<LearnerProfile> _decodeProfiles(String raw) {

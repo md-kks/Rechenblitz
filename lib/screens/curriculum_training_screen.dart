@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/curriculum_exercise.dart';
+import '../models/error_diagnosis.dart';
 import '../models/learning_methods.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import '../widgets/learning_visual_aid.dart';
 import '../widgets/number_answer_pad.dart';
 
 class CurriculumTrainingScreen extends StatefulWidget {
@@ -51,6 +53,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         mode: widget.mode,
         gradeLevel: widget.controller.gradeLevel,
         maxValue: widget.controller.maxValue,
+        recentKeys: widget.controller.recentTaskKeys(widget.mode),
       );
 
   String get _effectiveHint {
@@ -67,6 +70,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     if (locked || finishing) return;
     final response = DateTime.now().difference(shownAt);
     if (wrongOnCurrent == 0) {
+      await widget.controller.rememberPresentedTask(
+        widget.mode,
+        current.key,
+      );
       await widget.controller.recordDiagnosticAttempt(
         mode: widget.mode,
         taskKey: current.key,
@@ -268,6 +275,18 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
             ),
             if (showHint) ...[
               const SizedBox(height: 12),
+              LearningVisualAid(
+                pattern: ErrorClassifier.classify(
+                      mode: widget.mode,
+                      taskKey: current.key,
+                      expected: current.answer,
+                      actual: current.answer,
+                    ) ??
+                    ErrorPattern.unknown,
+                taskKey: current.key,
+                expected: current.answer,
+              ),
+              const SizedBox(height: 10),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(14),

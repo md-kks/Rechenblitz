@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../models/math_fact.dart';
 import '../models/training.dart';
+import '../models/task_diversity.dart';
 
 class AdaptiveEngine {
   AdaptiveEngine({Random? random}) : _random = random ?? Random();
@@ -116,6 +117,7 @@ class AdaptiveEngine {
     required TrainingMode mode,
     int maxValue = 10,
     String? previousKey,
+    Iterable<String> recentKeys = const <String>[],
   }) {
     var candidates =
         facts.where((f) => isValid(f, maxValue: maxValue)).toList();
@@ -159,10 +161,38 @@ class AdaptiveEngine {
       if (progressive.isNotEmpty) candidates = progressive;
     }
 
+    final recent = recentKeys.toList();
+    final exactWindow = TaskDiversity.recentExactWindow(
+      mode: mode,
+      maxValue: maxValue,
+    );
+    final exactAvoid = recent.take(exactWindow).toSet();
+
     if (candidates.length > 1 && previousKey != null) {
-      final withoutPrevious =
-          candidates.where((f) => f.key != previousKey).toList();
-      if (withoutPrevious.isNotEmpty) candidates = withoutPrevious;
+      exactAvoid.add(previousKey);
+    }
+
+    if (exactAvoid.isNotEmpty && candidates.length > 1) {
+      final withoutRecent =
+          candidates.where((fact) => !exactAvoid.contains(fact.key)).toList();
+      if (withoutRecent.isNotEmpty) candidates = withoutRecent;
+    }
+
+    if (candidates.length > 4 && recent.isNotEmpty) {
+      final familyWindow = TaskDiversity.recentFamilyWindow(mode);
+      final familyAvoid = recent
+          .take(familyWindow)
+          .map((key) {
+            final match = facts.where((fact) => fact.key == key);
+            return match.isEmpty ? key : TaskDiversity.factFamily(match.first);
+          })
+          .toSet();
+      final withoutRecentFamily = candidates
+          .where((fact) => !familyAvoid.contains(TaskDiversity.factFamily(fact)))
+          .toList();
+      if (withoutRecentFamily.isNotEmpty) {
+        candidates = withoutRecentFamily;
+      }
     }
 
     if (mode == TrainingMode.practice ||

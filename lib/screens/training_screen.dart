@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/error_diagnosis.dart';
 import '../models/learning_methods.dart';
 import '../models/math_fact.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import '../widgets/learning_visual_aid.dart';
 import '../widgets/number_answer_pad.dart';
 
 class TrainingScreen extends StatefulWidget {
@@ -99,6 +101,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         mode: widget.mode,
         maxValue: widget.controller.maxValue,
         previousKey: completed == 0 ? null : current.key,
+        recentKeys: widget.controller.recentTaskKeys(widget.mode),
       );
 
   int get _expectedAnswer =>
@@ -109,6 +112,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
     final response = DateTime.now().difference(taskShownAt);
     final correct = answer == _expectedAnswer;
     if (wrongOnCurrent == 0) {
+      await widget.controller.rememberPresentedTask(
+        widget.mode,
+        current.key,
+      );
       await widget.controller.recordDiagnosticAttempt(
         mode: widget.mode,
         taskKey: current.key,
@@ -377,11 +384,24 @@ class _TrainingScreenState extends State<TrainingScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (showHelp)
+                  if (showHelp) ...[
+                    LearningVisualAid(
+                      pattern: ErrorClassifier.classify(
+                            mode: widget.mode,
+                            taskKey: current.key,
+                            expected: _expectedAnswer,
+                            actual: _expectedAnswer,
+                            fact: current,
+                          ) ??
+                          ErrorPattern.unknown,
+                      taskKey: current.key,
+                      expected: _expectedAnswer,
+                    ),
                     _FactHelp(
                       fact: current,
                       controller: widget.controller,
                     ),
+                  ],
                   if (!showHelp &&
                       widget.mode != TrainingMode.tempo &&
                       (current.isMinus || current.isMultiply || current.isDivide))

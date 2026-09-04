@@ -7,6 +7,7 @@ import '../models/error_diagnosis.dart';
 import '../models/remediation_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import '../widgets/learning_visual_aid.dart';
 import '../widgets/number_answer_pad.dart';
 
 class RemediationScreen extends StatefulWidget {
@@ -258,7 +259,15 @@ class _RemediationScreenState extends State<RemediationScreen> {
               ),
             ],
             const SizedBox(height: 18),
-            if (autoHint || showHint) _HintCard(text: current.hint),
+            if (autoHint || showHint) ...[
+              LearningVisualAid(
+                pattern: widget.pattern,
+                taskKey: current.taskKey,
+                expected: current.answer,
+              ),
+              const SizedBox(height: 10),
+              _HintCard(text: current.hint),
+            ],
             if (!autoHint && !showHint && stage != RemediationStage.check)
               TextButton.icon(
                 onPressed: () => setState(() => showHint = true),

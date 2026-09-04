@@ -148,6 +148,31 @@ Ein erfolgreicher Förderpfad setzt ein Muster zunächst auf „verbessert“. D
 
 Förderpfade zählen nicht als normale Meisterschaftsrunden und vergeben keine künstlichen Zusatzsterne. Ein stabil gemeistertes Muster kann jedoch das bestehende Abzeichen „Knacknuss geknackt“ auslösen.
 
+## Aufgabenvielfalt und visuelle Rechenhilfen
+
+Rechenblitz besitzt ein profilbezogenes Aufgaben-Gedächtnis. Es verhindert, dass identische Aufgaben oder sehr ähnliche Aufgabenfamilien in kurzen Abständen immer wieder auftauchen.
+
+- Grundrechenarten vermeiden zuletzt verwendete Fakten über mehrere Sitzungen hinweg.
+- Schwache Fakten bleiben lernwirksam und dürfen nach einem sinnvollen Abstand wiederkehren.
+- Strukturierte Aufgaben und Klasse-3/4-Generatoren erzeugen mehrere Kandidaten und bevorzugen neue Aufgaben sowie neue Aufgabenfamilien.
+- Sachaufgaben rotieren über zahlreiche Kontexte und Satzformen.
+- Geld, Größen, Wahrscheinlichkeit, Kombinatorik, Zuordnungen und Umfang/Fläche besitzen mehrere unterschiedliche Aufgabentypen und Kontexte.
+- Förderpfade vermeiden Dubletten innerhalb derselben Fördersequenz.
+- Das Aufgaben-Gedächtnis bleibt pro Kinderprofil getrennt und wird bei einem Lernstands-Reset mit gelöscht.
+
+Ein automatischer Varianz-Audit prüft unter anderem unmittelbare Dubletten, Wiederholungen innerhalb der letzten fünf Aufgaben, Anteil eindeutiger Aufgaben und Vielfalt der Aufgabenfamilien.
+
+Bei passenden Hinweisen zeigt Rechenblitz jetzt zusätzlich visuelle Rechenhilfen, zum Beispiel:
+
+- Zahlenstrahl beim Zehnerübergang
+- Punktefeld für Malaufgaben
+- Stellenwerttafel
+- Einheitenleiter
+- Bruchbild
+- Zeitlinie
+- Umfang-/Flächen-Darstellung
+- Entscheidungshilfe für die Rechenart in Sachaufgaben
+
 ## Adaptives Lernen
 
 Der bisherige adaptive Kern bleibt erhalten. Schwache oder langsame Grundaufgaben werden häufiger wiederholt. Für Klasse 3/4 ergänzt Rechenblitz dynamische Lehrplan-Aufgaben und empfiehlt zunächst noch nicht bearbeitete Lernbereiche, später die Bereiche mit der geringsten Sicherheit.

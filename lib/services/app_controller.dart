@@ -9,6 +9,7 @@ import '../models/math_fact.dart';
 import '../models/remediation_path.dart';
 import '../models/reward_badge.dart';
 import '../models/training.dart';
+import '../models/task_diversity.dart';
 import 'adaptive_engine.dart';
 import 'storage_service.dart';
 
@@ -23,6 +24,7 @@ class AppController extends ChangeNotifier {
   List<TrainingSessionResult> history = [];
   List<DiagnosticAttempt> diagnostics = [];
   List<RemediationProgress> remediationProgress = [];
+  Map<String, List<String>> recentTaskKeysByMode = <String, List<String>>{};
   List<LearnerProfile> profiles = [];
   String activeProfileId = 'default';
   MethodPreferences methodPreferences = const MethodPreferences();
@@ -60,6 +62,7 @@ class AppController extends ChangeNotifier {
     history = await storage.loadHistory();
     diagnostics = await storage.loadDiagnostics();
     remediationProgress = await storage.loadRemediationProgress();
+    recentTaskKeysByMode = await storage.loadTaskDiversity();
     numberRange =
         await storage.numberRange() ?? gradeLevel.recommendedRange;
     if (!availableRanges.contains(numberRange)) {
@@ -96,6 +99,48 @@ class AppController extends ChangeNotifier {
   String get activeProfileName => activeProfile.name;
 
   bool get needsOnboarding => !activeProfile.onboardingComplete;
+
+  List<String> recentTaskKeys(
+    TrainingMode mode, {
+    int? count,
+  }) {
+    final values = recentTaskKeysByMode[mode.name] ?? const <String>[];
+    if (count == null || values.length <= count) return List<String>.from(values);
+    return values.take(count).toList();
+  }
+
+  Set<String> recentTaskFamilies(
+    TrainingMode mode, {
+    int? count,
+  }) {
+    final window = count ?? TaskDiversity.recentFamilyWindow(mode);
+    return recentTaskKeys(mode, count: window)
+        .map(TaskDiversity.familyForKey)
+        .toSet();
+  }
+
+  Future<void> rememberPresentedTask(
+    TrainingMode mode,
+    String key,
+  ) async {
+    final current = List<String>.from(
+      recentTaskKeysByMode[mode.name] ?? const <String>[],
+    );
+    current.remove(key);
+    current.insert(0, key);
+    if (current.length > 40) current.removeRange(40, current.length);
+    recentTaskKeysByMode = {
+      ...recentTaskKeysByMode,
+      mode.name: current,
+    };
+    await storage.saveTaskDiversity(recentTaskKeysByMode);
+  }
+
+  TaskDiversityAudit diversityAuditFor(TrainingMode mode) {
+    return TaskDiversityAudit.analyze(
+      recentTaskKeysByMode[mode.name] ?? const <String>[],
+    );
+  }
 
   Future<void> recordDiagnosticAttempt({
     required TrainingMode mode,
@@ -1322,6 +1367,7 @@ class AppController extends ChangeNotifier {
     history = [];
     diagnostics = [];
     remediationProgress = [];
+    recentTaskKeysByMode = <String, List<String>>{};
     unlockedBadges = <String>{};
     recoveredWeakFacts = <String>{};
     _pendingBadgeIds.clear();

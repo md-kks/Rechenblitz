@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../models/training.dart';
+import '../models/task_diversity.dart';
 
 enum ExerciseShape { triangle, square, rectangle, circle }
 
@@ -51,7 +52,38 @@ class StructuredExerciseGenerator {
   StructuredExercise generate({
     required TrainingMode mode,
     required int maxValue,
-  }) => switch (mode) {
+    Iterable<String> recentKeys = const <String>[],
+  }) {
+    final recent = recentKeys.toList();
+    final exactWindow = TaskDiversity.recentExactWindow(
+      mode: mode,
+      maxValue: maxValue,
+    );
+    final exactAvoid = recent.take(exactWindow).toSet();
+    final familyAvoid = recent
+        .take(TaskDiversity.recentFamilyWindow(mode))
+        .map(TaskDiversity.familyForKey)
+        .toSet();
+
+    StructuredExercise? firstExactNew;
+    StructuredExercise? last;
+    for (var attempt = 0; attempt < 28; attempt++) {
+      final candidate = _generateOnce(mode: mode, maxValue: maxValue);
+      last = candidate;
+      final exactNew = !exactAvoid.contains(candidate.key);
+      final familyNew =
+          !familyAvoid.contains(TaskDiversity.familyForKey(candidate.key));
+      if (exactNew && familyNew) return candidate;
+      if (exactNew && firstExactNew == null) firstExactNew = candidate;
+    }
+    return firstExactNew ?? last ?? _generateOnce(mode: mode, maxValue: maxValue);
+  }
+
+  StructuredExercise _generateOnce({
+    required TrainingMode mode,
+    required int maxValue,
+  }) =>
+      switch (mode) {
         TrainingMode.numberWall => _numberWall(maxValue),
         TrainingMode.missingNumber => _missingNumber(maxValue),
         TrainingMode.neighbors => _neighbors(maxValue),
@@ -242,92 +274,172 @@ class StructuredExerciseGenerator {
   StructuredExercise _wordProblem(int maxValue) {
     final allowGroups = maxValue >= 20;
     final kind = _random.nextInt(allowGroups ? 4 : 2);
+
     if (kind == 0) {
       final a = 1 + _random.nextInt(maxValue);
       final b = _random.nextInt(maxValue - a + 1);
+      final templates = <(String, String)>[
+        ('pencils', 'In einem Mäppchen sind $a Buntstifte. $b kommen dazu. Wie viele sind es jetzt?'),
+        ('books', 'Im Regal stehen $a Bücher. $b weitere werden dazugestellt. Wie viele Bücher stehen nun im Regal?'),
+        ('playground', 'Auf dem Schulhof spielen $a Kinder. $b Kinder kommen dazu. Wie viele Kinder sind jetzt dort?'),
+        ('stickers', 'Eine Sammlung enthält $a Sticker. Es kommen $b neue Sticker hinzu. Wie groß ist die Sammlung jetzt?'),
+        ('bus', 'Im Bus sitzen $a Personen. An der nächsten Haltestelle steigen $b ein. Wie viele fahren danach mit?'),
+        ('craft', 'Für ein Bastelprojekt liegen $a Perlen bereit. $b weitere werden geholt. Wie viele Perlen sind es zusammen?'),
+      ];
+      final template = templates[_random.nextInt(templates.length)];
       return StructuredExercise(
         mode: TrainingMode.wordProblems,
-        prompt: 'In einer Schachtel liegen $a Buntstifte. $b kommen dazu. Wie viele Buntstifte sind es jetzt?',
+        prompt: template.$2,
         answer: a + b,
-        hint: '„Kommen dazu“ bedeutet Plus.',
-        key: 'story:+:$a:$b',
+        hint: 'Die Menge wird größer. Das passt zu Plus.',
+        key: 'story:+:${template.$1}:$a:$b',
       );
     }
+
     if (kind == 1) {
       final a = 1 + _random.nextInt(maxValue);
       final b = _random.nextInt(a + 1);
+      final templates = <(String, String)>[
+        ('cards', 'Auf einem Tisch liegen $a Karten. $b werden weggenommen. Wie viele bleiben liegen?'),
+        ('apples', 'In einem Korb sind $a Äpfel. $b werden verteilt. Wie viele bleiben im Korb?'),
+        ('library', 'Eine Kiste enthält $a Bücher. $b werden ausgeliehen. Wie viele Bücher bleiben in der Kiste?'),
+        ('blocks', 'Ein Turm besteht aus $a Bausteinen. $b Bausteine werden abgebaut. Wie viele bleiben?'),
+        ('marbles', 'In einem Beutel sind $a Murmeln. $b Murmeln werden herausgenommen. Wie viele sind noch im Beutel?'),
+        ('seats', 'In einer Reihe sind $a Plätze besetzt. $b Kinder gehen weg. Wie viele Plätze bleiben besetzt?'),
+      ];
+      final template = templates[_random.nextInt(templates.length)];
       return StructuredExercise(
         mode: TrainingMode.wordProblems,
-        prompt: 'Auf einem Tisch liegen $a Karten. $b werden weggenommen. Wie viele Karten bleiben liegen?',
+        prompt: template.$2,
         answer: a - b,
-        hint: '„Werden weggenommen“ bedeutet Minus.',
-        key: 'story:-:$a:$b',
+        hint: 'Die Menge wird kleiner. Das passt zu Minus.',
+        key: 'story:-:${template.$1}:$a:$b',
       );
     }
+
     if (kind == 2) {
-      final groups = 2 + _random.nextInt(4);
+      final groups = 2 + _random.nextInt(7);
       final maxEach = max(1, min(10, maxValue ~/ groups));
       final each = 1 + _random.nextInt(maxEach);
+      final templates = <(String, String)>[
+        ('bags', '$groups Tüten enthalten jeweils $each Murmeln. Wie viele Murmeln sind es zusammen?'),
+        ('tables', 'An $groups Tischen sitzen jeweils $each Kinder. Wie viele Kinder sitzen insgesamt an den Tischen?'),
+        ('boxes', '$groups Schachteln enthalten jeweils $each Stifte. Wie viele Stifte sind es insgesamt?'),
+        ('rows', 'Es gibt $groups Reihen mit jeweils $each Stühlen. Wie viele Stühle sind das zusammen?'),
+        ('packs', '$groups Päckchen enthalten jeweils $each Karten. Wie viele Karten sind in allen Päckchen?'),
+      ];
+      final template = templates[_random.nextInt(templates.length)];
       return StructuredExercise(
         mode: TrainingMode.wordProblems,
-        prompt: '$groups Tüten enthalten jeweils $each Murmeln. Wie viele Murmeln sind es zusammen?',
+        prompt: template.$2,
         answer: groups * each,
-        hint: 'Gleich große Gruppen kann man malnehmen.',
-        key: 'story:x:$groups:$each',
+        hint: 'Gleich große Gruppen kann man mit Mal rechnen.',
+        key: 'story:x:${template.$1}:$groups:$each',
       );
     }
-    final groups = 2 + _random.nextInt(4);
+
+    final groups = 2 + _random.nextInt(7);
     final maxEach = max(1, min(10, maxValue ~/ groups));
     final each = 1 + _random.nextInt(maxEach);
     final total = groups * each;
+    final templates = <(String, String)>[
+      ('children', '$total Bausteine werden gleichmäßig auf $groups Kinder verteilt. Wie viele bekommt jedes Kind?'),
+      ('bags', '$total Bonbons werden gleichmäßig auf $groups Tüten verteilt. Wie viele Bonbons kommen in jede Tüte?'),
+      ('teams', '$total Kinder werden gleichmäßig auf $groups Teams verteilt. Wie viele Kinder sind in jedem Team?'),
+      ('boxes', '$total Stifte werden gleichmäßig auf $groups Schachteln verteilt. Wie viele Stifte liegen in jeder Schachtel?'),
+      ('plates', '$total Kekse werden gleichmäßig auf $groups Teller verteilt. Wie viele Kekse liegen auf jedem Teller?'),
+    ];
+    final template = templates[_random.nextInt(templates.length)];
     return StructuredExercise(
       mode: TrainingMode.wordProblems,
-      prompt: '$total Bausteine werden gleichmäßig auf $groups Kinder verteilt. Wie viele Bausteine bekommt jedes Kind?',
+      prompt: template.$2,
       answer: each,
-      hint: 'Gleichmäßig verteilen bedeutet Teilen.',
-      key: 'story:divide:$total:$groups',
+      hint: 'Gleichmäßig verteilen passt zu Teilen.',
+      key: 'story:divide:${template.$1}:$total:$groups',
     );
   }
 
   StructuredExercise _money(int maxValue) {
-    if (maxValue >= 100 && _random.nextDouble() < 0.25) {
-      return const StructuredExercise(
-        mode: TrainingMode.money,
-        prompt: '1 Euro sind wie viele Cent?',
-        answer: 100,
-        hint: '1 € = 100 ct.',
-        key: 'money:euro-cent',
-        answerSuffix: 'ct',
-        maxAnswerValue: 100,
-        moneyPartsCents: [100],
-      );
-    }
-
     final budget = max(2, maxValue);
-    final paid = 1 + _random.nextInt(budget);
-    final price = _random.nextInt(paid + 1);
-    if (_random.nextBool()) {
+    final kind = _random.nextInt(maxValue >= 100 ? 5 : 4);
+
+    if (kind == 0) {
+      final paid = 1 + _random.nextInt(budget);
+      final price = _random.nextInt(paid + 1);
+      final contexts = <(String, String)>[
+        ('kiosk', 'Du hast $paid €. Am Kiosk gibst du $price € aus. Wie viele Euro bleiben?'),
+        ('bookshop', 'Du hast $paid €. Ein Buch kostet $price €. Wie viel Geld bleibt übrig?'),
+        ('market', 'Du hast $paid €. Auf dem Markt bezahlst du $price €. Wie viel bleibt?'),
+      ];
+      final context = contexts[_random.nextInt(contexts.length)];
       return StructuredExercise(
         mode: TrainingMode.money,
-        prompt: 'Du hast $paid €. Etwas kostet $price €. Wie viele Euro bleiben übrig?',
+        prompt: context.$2,
         answer: paid - price,
         hint: 'Vom vorhandenen Geld wird der Preis abgezogen.',
-        key: 'money:change:$paid:$price',
+        key: 'money:change:${context.$1}:$paid:$price',
         answerSuffix: '€',
         moneyPartsCents: _moneyPartsForEuros(paid),
       );
     }
 
-    final first = _random.nextInt(budget + 1);
-    final second = _random.nextInt(budget - first + 1);
+    if (kind == 1) {
+      final first = _random.nextInt(budget + 1);
+      final second = _random.nextInt(budget - first + 1);
+      final contexts = <(String, String)>[
+        ('school', 'Ein Heft kostet $first € und ein Buch $second €. Wie viel kosten beide zusammen?'),
+        ('toys', 'Ein Ball kostet $first € und ein Springseil $second €. Wie viel kosten beide zusammen?'),
+        ('craft', 'Bastelpapier kostet $first € und Stifte kosten $second €. Wie hoch ist der Gesamtpreis?'),
+      ];
+      final context = contexts[_random.nextInt(contexts.length)];
+      return StructuredExercise(
+        mode: TrainingMode.money,
+        prompt: context.$2,
+        answer: first + second,
+        hint: 'Für den Gesamtpreis werden beide Beträge addiert.',
+        key: 'money:add:${context.$1}:$first:$second',
+        answerSuffix: '€',
+        moneyPartsCents: _moneyPartsForEuros(first + second),
+      );
+    }
+
+    if (kind == 2) {
+      final total = 2 + _random.nextInt(max(1, budget - 1));
+      final known = _random.nextInt(total + 1);
+      return StructuredExercise(
+        mode: TrainingMode.money,
+        prompt:
+            'Zwei Dinge kosten zusammen $total €. Eines kostet $known €. Wie viel kostet das andere?',
+        answer: total - known,
+        hint: 'Vom Gesamtpreis wird der bekannte Preis abgezogen.',
+        key: 'money:missing:item:$total:$known',
+        answerSuffix: '€',
+      );
+    }
+
+    if (kind == 3) {
+      final value = 1 + _random.nextInt(min(20, budget));
+      return StructuredExercise(
+        mode: TrainingMode.money,
+        prompt: 'Du legst $value Münzen zu je 1 € hin. Wie viel Geld ist das?',
+        answer: value,
+        hint: 'Jede Münze ist genau 1 € wert.',
+        key: 'money:coins:one:$value',
+        answerSuffix: '€',
+        moneyPartsCents: List<int>.filled(min(value, 8), 100),
+      );
+    }
+
+    final euros = 1 + _random.nextInt(min(9, max(1, budget ~/ 10)));
     return StructuredExercise(
       mode: TrainingMode.money,
-      prompt: 'Ein Heft kostet $first € und ein Buch $second €. Wie viel kosten beide zusammen?',
-      answer: first + second,
-      hint: 'Die beiden Preise werden addiert.',
-      key: 'money:add:$first:$second',
-      answerSuffix: '€',
-      moneyPartsCents: _moneyPartsForEuros(first + second),
+      prompt: '$euros € sind wie viele Cent?',
+      answer: euros * 100,
+      hint: '1 € = 100 ct.',
+      key: 'money:convert:euro-cent:$euros',
+      answerSuffix: 'ct',
+      maxAnswerValue: euros * 100,
+      moneyPartsCents: _moneyPartsForEuros(euros),
     );
   }
 
@@ -371,39 +483,90 @@ class StructuredExerciseGenerator {
       '$hour:${minute.toString().padLeft(2, '0')} Uhr';
 
   StructuredExercise _measures(int maxValue) {
-    if (maxValue >= 100 && _random.nextDouble() < 0.45) {
-      if (_random.nextBool()) {
-        final dm = 1 + _random.nextInt(10);
-        return StructuredExercise(
-          mode: TrainingMode.measures,
-          prompt: '$dm dm sind wie viele cm?',
-          answer: dm * 10,
-          hint: '1 dm = 10 cm.',
-          key: 'measure:dm-cm:$dm',
-          answerSuffix: 'cm',
-          maxAnswerValue: 100,
-        );
-      }
-      return const StructuredExercise(
+    final kind = _random.nextInt(maxValue >= 100 ? 6 : 3);
+
+    if (kind == 0) {
+      final first = _random.nextInt(maxValue + 1);
+      final second = _random.nextInt(maxValue - first + 1);
+      final contexts = <(String, String)>[
+        ('ribbon', 'Ein Band ist $first cm lang. Ein zweites Stück ist $second cm lang. Wie lang sind beide zusammen?'),
+        ('string', 'Eine Schnur misst $first cm, eine zweite $second cm. Wie lang sind beide zusammen?'),
+        ('track', 'Ein Wegstück ist $first cm lang, das nächste $second cm. Wie lang sind beide Stücke zusammen?'),
+      ];
+      final context = contexts[_random.nextInt(contexts.length)];
+      return StructuredExercise(
         mode: TrainingMode.measures,
-        prompt: '1 m sind wie viele cm?',
-        answer: 100,
-        hint: '1 m = 100 cm.',
-        key: 'measure:m-cm',
+        prompt: context.$2,
+        answer: first + second,
+        hint: 'Längen mit derselben Einheit können direkt addiert werden.',
+        key: 'measure:add:${context.$1}:$first:$second',
         answerSuffix: 'cm',
-        maxAnswerValue: 100,
       );
     }
 
-    final first = _random.nextInt(maxValue + 1);
-    final second = _random.nextInt(maxValue - first + 1);
+    if (kind == 1) {
+      final whole = 1 + _random.nextInt(max(1, maxValue));
+      final cut = _random.nextInt(whole + 1);
+      return StructuredExercise(
+        mode: TrainingMode.measures,
+        prompt: 'Ein Seil ist $whole cm lang. $cut cm werden abgeschnitten. Wie viele cm bleiben?',
+        answer: whole - cut,
+        hint: 'Die abgeschnittene Länge wird von der ganzen Länge abgezogen.',
+        key: 'measure:subtract:rope:$whole:$cut',
+        answerSuffix: 'cm',
+      );
+    }
+
+    if (kind == 2) {
+      final dm = 1 + _random.nextInt(min(10, max(1, maxValue ~/ 10)));
+      return StructuredExercise(
+        mode: TrainingMode.measures,
+        prompt: '$dm dm sind wie viele cm?',
+        answer: dm * 10,
+        hint: '1 dm = 10 cm.',
+        key: 'measure:convert:dm-cm:$dm',
+        answerSuffix: 'cm',
+        maxAnswerValue: dm * 10,
+      );
+    }
+
+    if (kind == 3) {
+      final meters = 1 + _random.nextInt(min(9, max(1, maxValue ~/ 10)));
+      return StructuredExercise(
+        mode: TrainingMode.measures,
+        prompt: '$meters m sind wie viele cm?',
+        answer: meters * 100,
+        hint: '1 m = 100 cm.',
+        key: 'measure:convert:m-cm:$meters',
+        answerSuffix: 'cm',
+        maxAnswerValue: meters * 100,
+      );
+    }
+
+    if (kind == 4) {
+      final cm = 1 + _random.nextInt(9);
+      return StructuredExercise(
+        mode: TrainingMode.measures,
+        prompt: '$cm cm sind wie viele mm?',
+        answer: cm * 10,
+        hint: '1 cm = 10 mm.',
+        key: 'measure:convert:cm-mm:$cm',
+        answerSuffix: 'mm',
+        maxAnswerValue: cm * 10,
+      );
+    }
+
+    final meters = 1 + _random.nextInt(9);
+    final centimeters = meters * 100;
     return StructuredExercise(
       mode: TrainingMode.measures,
-      prompt: 'Ein Band ist $first cm lang. Ein zweites Stück ist $second cm lang. Wie lang sind beide zusammen?',
-      answer: first + second,
-      hint: 'Längen mit derselben Einheit können addiert werden.',
-      key: 'measure:add:$first:$second',
-      answerSuffix: 'cm',
+      prompt:
+          'Ein Weg ist $centimeters cm lang. Wie viele ganze Meter sind das?',
+      answer: meters,
+      hint: '100 cm ergeben 1 m.',
+      key: 'measure:convert:cm-m:$centimeters',
+      answerSuffix: 'm',
+      maxAnswerValue: meters,
     );
   }
 

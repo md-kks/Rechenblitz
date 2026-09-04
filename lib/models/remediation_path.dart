@@ -182,21 +182,29 @@ class RemediationGenerator {
     bool reviewOnly = false,
   }) {
     final tasks = <RemediationTask>[];
+    final usedKeys = <String>{};
     final stages = reviewOnly
         ? const [RemediationStage.check]
         : RemediationStage.values;
     for (final stage in stages) {
       for (var i = 0; i < 2; i++) {
-        tasks.add(
-          _task(
+        RemediationTask? chosen;
+        for (var attempt = 0; attempt < 24; attempt++) {
+          final candidate = _task(
             pattern: pattern,
             stage: stage,
             preferredMode: preferredMode,
             grade: grade,
             range: range,
             methods: methods,
-          ),
-        );
+          );
+          chosen ??= candidate;
+          if (usedKeys.add(candidate.taskKey)) {
+            chosen = candidate;
+            break;
+          }
+        }
+        tasks.add(chosen!);
       }
     }
     return RemediationPlan(

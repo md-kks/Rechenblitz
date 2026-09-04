@@ -186,4 +186,39 @@ void main() {
     expect(first.single.status, RemediationStatus.improved);
   });
 
+
+  test('Aufgaben-Gedächtnis bleibt zwischen Profilen getrennt', () async {
+    final storage = StorageService();
+    var profiles = await storage.initializeProfiles();
+
+    await storage.saveTaskDiversity({
+      TrainingMode.wordProblems.name: [
+        'story:+:books:12:7',
+        'story:-:cards:18:6',
+      ],
+    });
+
+    final second = LearnerProfile(
+      id: 'diversity-second',
+      name: 'Zweites Varianzprofil',
+      gradeLevel: GradeLevel.second,
+      createdAt: DateTime(2026, 9, 5),
+    );
+    profiles = [...profiles, second];
+    await storage.saveProfiles(profiles);
+    await storage.setActiveProfileId(second.id);
+
+    expect(await storage.loadTaskDiversity(), isEmpty);
+
+    await storage.setActiveProfileId('default');
+    final first = await storage.loadTaskDiversity();
+    expect(
+      first[TrainingMode.wordProblems.name],
+      [
+        'story:+:books:12:7',
+        'story:-:cards:18:6',
+      ],
+    );
+  });
+
 }
