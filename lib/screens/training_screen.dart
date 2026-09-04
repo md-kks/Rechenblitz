@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/learning_methods.dart';
 import '../models/math_fact.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
@@ -367,7 +368,11 @@ class _TrainingScreenState extends State<TrainingScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (showHelp) _FactHelp(fact: current),
+                  if (showHelp)
+                    _FactHelp(
+                      fact: current,
+                      controller: widget.controller,
+                    ),
                   if (!showHelp &&
                       widget.mode != TrainingMode.tempo &&
                       (current.isMinus || current.isMultiply || current.isDivide))
@@ -396,8 +401,13 @@ class _TrainingScreenState extends State<TrainingScreen> {
 }
 
 class _FactHelp extends StatelessWidget {
-  const _FactHelp({required this.fact});
+  const _FactHelp({
+    required this.fact,
+    required this.controller,
+  });
+
   final MathFact fact;
+  final AppController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -416,46 +426,156 @@ class _FactHelp extends StatelessWidget {
   }
 
   Widget _minusHelp() {
-    if (fact.a <= 20) {
-      return Column(
-        children: [
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 6,
-            runSpacing: 6,
-            children: List.generate(
-              fact.a,
-              (i) => Icon(
-                i < fact.result ? Icons.circle : Icons.circle_outlined,
-                size: 20,
+    final strategy = controller.methodPreferences.subtraction;
+    switch (strategy) {
+      case SubtractionStrategy.bridgeToTen:
+        final toTen = fact.a % 10;
+        if (toTen > 0 && fact.b > toTen) {
+          final rest = fact.b - toTen;
+          final ten = fact.a - toTen;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Schulmethode: ${strategy.label}',
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
+              const SizedBox(height: 8),
+              Text('${fact.a} − $toTen = $ten'),
+              Text('$ten − $rest = ${fact.result}'),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Schulmethode: ${strategy.label}',
+              style: const TextStyle(fontWeight: FontWeight.w900),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text('${fact.a} minus ${fact.b}: Von ${fact.a} nehmen wir ${fact.b} weg.'),
-          const SizedBox(height: 5),
-          Text('Du kannst auch denken: ${fact.b} + ? = ${fact.a}'),
-        ],
-      );
+            const SizedBox(height: 8),
+            Text(
+              'Zerlege ${fact.b} so, dass du zuerst einen glatten Zehner erreichst.',
+            ),
+          ],
+        );
+
+      case SubtractionStrategy.takeAway:
+        final first = fact.b <= 1 ? fact.b : (fact.b / 2).ceil();
+        final rest = fact.b - first;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Schulmethode: ${strategy.label}',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text('${fact.b} = $first + $rest'),
+            Text('${fact.a} − $first = ${fact.a - first}'),
+            if (rest > 0)
+              Text('${fact.a - first} − $rest = ${fact.result}'),
+          ],
+        );
+
+      case SubtractionStrategy.complement:
+        final nextTen = ((fact.b + 9) ~/ 10) * 10;
+        final firstStep =
+            nextTen <= fact.a ? nextTen - fact.b : fact.a - fact.b;
+        final secondStep =
+            nextTen <= fact.a ? fact.a - nextTen : 0;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Schulmethode: ${strategy.label}',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text('Starte bei ${fact.b} und ergänze bis ${fact.a}.'),
+            if (firstStep > 0) Text('Bis $nextTen fehlen $firstStep.'),
+            if (secondStep > 0)
+              Text('Von $nextTen bis ${fact.a} fehlen $secondStep.'),
+            Text('Zusammen fehlen ${fact.result}.'),
+          ],
+        );
     }
-    return Column(
-      children: [
-        Text('${fact.a} = ${fact.a ~/ 10} Zehner und ${fact.a % 10} Einer'),
-        const SizedBox(height: 8),
-        Text('Denke auch rückwärts: ${fact.b} + ? = ${fact.a}'),
-      ],
-    );
   }
 
-  Widget _multiplyHelp() => Column(
-        children: [
-          Text('${fact.a} × ${fact.b} bedeutet ${fact.a} Gruppen mit je ${fact.b}.'),
-          const SizedBox(height: 6),
-          Text(List.filled(fact.a.clamp(0, 10).toInt(), '${fact.b}').join(' + ')),
-        ],
-      );
+  Widget _multiplyHelp() {
+    final strategy = controller.methodPreferences.multiplication;
+    switch (strategy) {
+      case MultiplicationStrategy.groups:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Schulmethode: ${strategy.label}',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${fact.a} × ${fact.b} bedeutet ${fact.a} Gruppen mit je ${fact.b}.',
+            ),
+            const SizedBox(height: 6),
+            Text(
+              List.filled(
+                fact.a.clamp(0, 10).toInt(),
+                '${fact.b}',
+              ).join(' + '),
+            ),
+          ],
+        );
+
+      case MultiplicationStrategy.decompose:
+        final first = fact.b > 5 ? 5 : (fact.b / 2).ceil();
+        final rest = fact.b - first;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Schulmethode: ${strategy.label}',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text('${fact.b} = $first + $rest'),
+            Text(
+              '${fact.a} × $first = ${fact.a * first}',
+            ),
+            if (rest > 0)
+              Text('${fact.a} × $rest = ${fact.a * rest}'),
+            Text(
+              'Teilprodukte zusammen: ${fact.result}',
+            ),
+          ],
+        );
+
+      case MultiplicationStrategy.neighborFacts:
+        final base = fact.b >= 6 ? 10 : 5;
+        final difference = fact.b - base;
+        final sign = difference >= 0 ? '+' : '−';
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Schulmethode: ${strategy.label}',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Nutze ${fact.a} × $base = ${fact.a * base}.',
+            ),
+            if (difference != 0)
+              Text(
+                'Dann $sign ${fact.a * difference.abs()} = ${fact.result}.',
+              ),
+          ],
+        );
+    }
+  }
 
   Widget _divideHelp() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('${fact.a} ÷ ${fact.b}: Wie oft passt ${fact.b} in ${fact.a}?'),
           const SizedBox(height: 6),

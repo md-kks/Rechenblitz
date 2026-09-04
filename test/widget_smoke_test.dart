@@ -32,6 +32,29 @@ void main() {
     }
   });
 
+  testWidgets('Meine Runde und Lernlandkarte sind direkt erreichbar', (tester) async {
+    final controller = AppController();
+    controller.facts = const [];
+    controller.loaded = true;
+    await tester.pumpWidget(RechenblitzApp(controller: controller));
+
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('my-round-button')),
+      300,
+      scrollable: scrollable,
+    );
+
+    expect(find.text('Meine Runde'), findsOneWidget);
+    expect(find.text('Meine Lernlandkarte'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('my-round-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Etwa 5 Minuten Mathe.'), findsOneWidget);
+    expect(find.textContaining('von 10 Aufgaben'), findsOneWidget);
+  });
+
   testWidgets('Erfolgsseite ist für das Kind direkt erreichbar', (tester) async {
     final controller = AppController();
     controller.facts = const [];

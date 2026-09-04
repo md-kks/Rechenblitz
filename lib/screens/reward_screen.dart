@@ -154,6 +154,7 @@ class _BadgeCard extends StatelessWidget {
         'range' => Icons.pin_rounded,
         'operation' => Icons.calculate_rounded,
         'mastery' => Icons.workspace_premium_rounded,
+        'grade' => Icons.school_rounded,
         _ => Icons.star_rounded,
       };
 

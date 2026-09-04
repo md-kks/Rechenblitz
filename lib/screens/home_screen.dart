@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import 'competency_map_screen.dart';
 import 'curriculum_training_screen.dart';
+import 'my_round_screen.dart';
 import 'parent_screen.dart';
+import 'profile_screen.dart';
 import 'reward_screen.dart';
 import 'settings_screen.dart';
 import 'structured_training_screen.dart';
@@ -169,7 +172,9 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(18, 10, 18, 36),
           children: [
             Text(
-              'Hallo!',
+              controller.activeProfileName == 'Lernprofil'
+                  ? 'Hallo!'
+                  : 'Hallo, ${controller.activeProfileName}!',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -180,6 +185,31 @@ class _HomeScreenState extends State<HomeScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 18),
+            Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  child: Text(
+                    controller.activeProfileName.isEmpty
+                        ? '?'
+                        : controller.activeProfileName.substring(0, 1).toUpperCase(),
+                  ),
+                ),
+                title: Text(
+                  controller.activeProfileName,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                subtitle: Text(
+                  '${controller.gradeLevel.label} · ${controller.numberRange.label} · nur auf diesem Gerät',
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ProfileScreen(controller: controller),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -305,30 +335,53 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 14),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.auto_awesome_rounded),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Empfohlene Runde',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                        const Icon(Icons.auto_awesome_rounded, size: 28),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Meine Runde',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
                         ),
+                        const Chip(label: Text('ca. 5 Min')),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Text(recommendation),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
+                    const Text(
+                      '10 Aufgaben: ruhig ankommen, aktuelles Lernziel üben und Wissen übertragen.',
+                    ),
+                    const SizedBox(height: 14),
                     FilledButton.icon(
-                      onPressed: () => _openMode(controller.recommendedMode()),
+                      key: const ValueKey('my-round-button'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MyRoundScreen(controller: controller),
+                        ),
+                      ),
                       icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text('Passende Runde starten'),
+                      label: const Text('Meine Runde starten'),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              CompetencyMapScreen(controller: controller),
+                        ),
+                      ),
+                      icon: const Icon(Icons.route_rounded),
+                      label: const Text('Meine Lernlandkarte'),
                     ),
                   ],
                 ),

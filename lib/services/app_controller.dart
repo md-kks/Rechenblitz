@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import '../models/learner_profile.dart';
+import '../models/learning_methods.dart';
+import '../models/learning_path.dart';
 import '../models/math_fact.dart';
 import '../models/reward_badge.dart';
 import '../models/training.dart';
@@ -15,6 +18,9 @@ class AppController extends ChangeNotifier {
   final AdaptiveEngine engine;
   List<MathFact> facts = [];
   List<TrainingSessionResult> history = [];
+  List<LearnerProfile> profiles = [];
+  String activeProfileId = 'default';
+  MethodPreferences methodPreferences = const MethodPreferences();
   bool soundEnabled = false;
   bool hapticEnabled = true;
   bool loaded = false;
@@ -28,27 +34,59 @@ class AppController extends ChangeNotifier {
   int get maxValue => numberRange.maxValue;
 
   Future<void> load() async {
+    profiles = await storage.initializeProfiles();
+    activeProfileId = storage.activeProfileId;
+    final profile = profiles.firstWhere(
+      (value) => value.id == activeProfileId,
+      orElse: () => profiles.first,
+    );
+    gradeLevel = profile.gradeLevel;
+    soundEnabled = await storage.soundEnabled();
+    hapticEnabled = await storage.hapticEnabled();
+    await _loadActiveProfileData();
+    loaded = true;
+    notifyListeners();
+  }
+
+  Future<void> _loadActiveProfileData() async {
     final pool = AdaptiveEngine.buildFactPool(maxValue: 100);
     final saved = await storage.loadFacts();
     facts = pool.map((fresh) => saved[fresh.key] ?? fresh).toList();
     history = await storage.loadHistory();
-    soundEnabled = await storage.soundEnabled();
-    hapticEnabled = await storage.hapticEnabled();
-    numberRange = await storage.numberRange();
-    gradeLevel = await storage.gradeLevel();
+    numberRange =
+        await storage.numberRange() ?? gradeLevel.recommendedRange;
     if (!availableRanges.contains(numberRange)) {
       numberRange = gradeLevel.recommendedRange;
+      await storage.setNumberRange(numberRange);
     }
+    methodPreferences = await storage.methodPreferences();
     unlockedBadges = await storage.rewardBadges();
     recoveredWeakFacts = await storage.recoveredWeakFacts();
+    _pendingBadgeIds.clear();
+    lastSessionNewBadges = const [];
     final discovered = <String>{};
     _evaluateAchievements(discovered);
     if (discovered.isNotEmpty) {
       await storage.setRewardBadges(unlockedBadges);
     }
-    loaded = true;
-    notifyListeners();
   }
+
+  LearnerProfile get activeProfile {
+    if (profiles.isEmpty) {
+      return LearnerProfile(
+        id: activeProfileId,
+        name: 'Lernprofil',
+        gradeLevel: gradeLevel,
+        createdAt: DateTime(2026, 1, 1),
+      );
+    }
+    return profiles.firstWhere(
+      (value) => value.id == activeProfileId,
+      orElse: () => profiles.first,
+    );
+  }
+
+  String get activeProfileName => activeProfile.name;
 
   Future<void> recordAttempt(
     MathFact fact, {
@@ -384,6 +422,225 @@ class AppController extends ChangeNotifier {
     return common;
   }
 
+  List<TrainingMode> learningModesForGrade(GradeLevel grade) {
+    if (grade == GradeLevel.first) {
+      return const [
+        TrainingMode.practice,
+        TrainingMode.minus,
+        TrainingMode.numberFriends,
+        TrainingMode.missingNumber,
+        TrainingMode.neighbors,
+        TrainingMode.doublesHalves,
+        TrainingMode.sequences,
+        TrainingMode.money,
+        TrainingMode.clock,
+        TrainingMode.geometry,
+      ];
+    }
+    if (grade == GradeLevel.second) {
+      return const [
+        TrainingMode.practice,
+        TrainingMode.minus,
+        TrainingMode.multiply,
+        TrainingMode.divide,
+        TrainingMode.numberWall,
+        TrainingMode.missingNumber,
+        TrainingMode.placeValue,
+        TrainingMode.doublesHalves,
+        TrainingMode.sequences,
+        TrainingMode.factFamilies,
+        TrainingMode.wordProblems,
+        TrainingMode.money,
+        TrainingMode.clock,
+        TrainingMode.measures,
+        TrainingMode.geometry,
+      ];
+    }
+    return [
+      TrainingMode.multiply,
+      TrainingMode.divide,
+      TrainingMode.wordProblems,
+      ...curriculumModesForGrade(grade),
+    ];
+  }
+
+  CompetencyProgress competencyProgress(TrainingMode mode) {
+    final sessions = history
+        .where((entry) =>
+            entry.gradeLevel == gradeLevel &&
+            entry.mode == mode &&
+            entry.total > 0)
+        .take(8)
+        .toList();
+    final tasks = sessions.fold<int>(0, (sum, entry) => sum + entry.total);
+    final correct =
+        sessions.fold<int>(0, (sum, entry) => sum + entry.correctFirstTry);
+    final accuracy = tasks == 0 ? 0.0 : correct / tasks;
+    final state = tasks == 0
+        ? CompetencyState.newSkill
+        : sessions.length >= 3 && tasks >= 15 && accuracy >= 0.85
+            ? CompetencyState.mastered
+            : tasks >= 8 && accuracy >= 0.78
+                ? CompetencyState.secure
+                : CompetencyState.learning;
+    return CompetencyProgress(
+      mode: mode,
+      state: state,
+      accuracy: accuracy,
+      tasks: tasks,
+    );
+  }
+
+  List<GuidedRoundSegment> buildMyRound() {
+    var focus = recommendedMode();
+    final warmUp = gradeLevel.index >= GradeLevel.third.index
+        ? TrainingMode.mixed
+        : TrainingMode.practice;
+    if (focus == warmUp ||
+        focus == TrainingMode.speed ||
+        focus == TrainingMode.tempo ||
+        focus == TrainingMode.blitz) {
+      for (final candidate in learningModesForGrade(gradeLevel)) {
+        if (candidate == warmUp) continue;
+        final alreadyTried = history.any(
+          (entry) =>
+              entry.gradeLevel == gradeLevel && entry.mode == candidate,
+        );
+        if (!alreadyTried) {
+          focus = candidate;
+          break;
+        }
+      }
+    }
+
+    final transferCandidates = gradeLevel.index >= GradeLevel.third.index
+        ? <TrainingMode>[
+            TrainingMode.wordProblems,
+            TrainingMode.dataCharts,
+            TrainingMode.advancedMeasures,
+            TrainingMode.perimeterArea,
+            TrainingMode.probability,
+          ]
+        : <TrainingMode>[
+            TrainingMode.wordProblems,
+            TrainingMode.numberWall,
+            TrainingMode.money,
+            TrainingMode.geometry,
+            TrainingMode.factFamilies,
+          ];
+
+    TrainingMode transfer = transferCandidates.first;
+    var lowestScore = 2.0;
+    for (final mode in transferCandidates) {
+      if (mode == focus || mode == warmUp) continue;
+      final progress = competencyProgress(mode);
+      final score = progress.tasks == 0 ? -1.0 : progress.accuracy;
+      if (score < lowestScore) {
+        lowestScore = score;
+        transfer = mode;
+      }
+    }
+
+    return [
+      GuidedRoundSegment(
+        mode: warmUp,
+        tasks: 3,
+        reason: 'Mit vertrauten Grundlagen ruhig ankommen.',
+      ),
+      GuidedRoundSegment(
+        mode: focus,
+        tasks: 4,
+        reason: 'Das ist heute das wichtigste Lernziel.',
+      ),
+      GuidedRoundSegment(
+        mode: transfer,
+        tasks: 3,
+        reason: 'Zum Schluss Wissen in einem anderen Zusammenhang anwenden.',
+      ),
+    ];
+  }
+
+  ParentLearningInsight parentInsight() {
+    final modes = learningModesForGrade(gradeLevel);
+    final progress = modes.map(competencyProgress).toList();
+    final attempted = progress.where((item) => item.tasks > 0).toList();
+
+    CompetencyProgress? strongest;
+    CompetencyProgress? weakest;
+    for (final item in attempted) {
+      if (strongest == null || item.accuracy > strongest.accuracy) {
+        strongest = item;
+      }
+      if (weakest == null || item.accuracy < weakest.accuracy) {
+        weakest = item;
+      }
+    }
+
+    final focus = weakest ?? competencyProgress(recommendedMode());
+    final good = strongest == null
+        ? 'Noch nicht genug Daten – die ersten kurzen Runden bauen die Lernkarte auf.'
+        : '${strongest.mode.title} klappt aktuell am sichersten '
+            '(${(strongest.accuracy * 100).round()} % direkt richtig).';
+
+    final focusText = focus.tasks == 0
+        ? '${focus.mode.title} wurde noch nicht geübt und ist ein sinnvoller nächster Bereich.'
+        : '${focus.mode.title} ist aktuell noch unsicher '
+            '(${(focus.accuracy * 100).round()} % direkt richtig).';
+
+    final action = focus.tasks == 0
+        ? 'Eine kurze Runde „${focus.mode.title}“ reicht als Einstieg.'
+        : focus.accuracy < 0.70
+            ? '3–5 Minuten gezielt „${focus.mode.title}“ üben und dabei den gewählten Schul-Rechenweg nutzen.'
+            : 'Den Bereich in kurzen Abständen wiederholen, bis er über mehrere Runden stabil bleibt.';
+
+    final notYet = focus.tasks > 0 && focus.accuracy < 0.75
+        ? 'Noch nicht nötig: auf Tempo trainieren. Zuerst sollte der Rechenweg sicher werden.'
+        : 'Tempo bleibt zweitrangig; als Nächstes zählt sichere Anwendung in unterschiedlichen Aufgaben.';
+
+    return ParentLearningInsight(
+      good: good,
+      focus: focusText,
+      action: action,
+      notYet: notYet,
+      trend: _weeklyTrendText(),
+    );
+  }
+
+  String _weeklyTrendText() {
+    final now = DateTime.now();
+    final sevenDaysAgo = now.subtract(const Duration(days: 7));
+    final fourteenDaysAgo = now.subtract(const Duration(days: 14));
+
+    double accuracyBetween(DateTime start, DateTime end) {
+      final sessions = history.where(
+        (entry) =>
+            !entry.finishedAt.isBefore(start) &&
+            entry.finishedAt.isBefore(end) &&
+            entry.total > 0,
+      );
+      final total = sessions.fold<int>(0, (sum, entry) => sum + entry.total);
+      final correct = sessions.fold<int>(
+        0,
+        (sum, entry) => sum + entry.correctFirstTry,
+      );
+      return total == 0 ? -1 : correct / total;
+    }
+
+    final recent = accuracyBetween(sevenDaysAgo, now.add(const Duration(days: 1)));
+    final previous = accuracyBetween(fourteenDaysAgo, sevenDaysAgo);
+    if (recent < 0) return 'Diese Woche liegen noch nicht genug Übungsdaten vor.';
+    if (previous < 0) {
+      return 'Diese Woche: ${(recent * 100).round()} % der Aufgaben direkt richtig.';
+    }
+    final delta = ((recent - previous) * 100).round();
+    if (delta.abs() < 3) {
+      return 'Die Sicherheit ist gegenüber der Vorwoche weitgehend stabil.';
+    }
+    return delta > 0
+        ? 'Gegenüber der Vorwoche ist die Trefferquote um etwa $delta Prozentpunkte gestiegen.'
+        : 'Die Trefferquote liegt etwa ${delta.abs()} Prozentpunkte unter der Vorwoche – kurze Wiederholungen sind sinnvoll.';
+  }
+
   TrainingMode _upperPrimaryRecommendation() {
     final modes = curriculumModesForGrade(gradeLevel);
     for (final mode in modes) {
@@ -416,8 +673,8 @@ class AppController extends ChangeNotifier {
   }
 
   String recommendationText() {
+    final mode = recommendedMode();
     if (gradeLevel.index >= GradeLevel.third.index) {
-      final mode = _upperPrimaryRecommendation();
       final accuracy = modeAccuracy(mode);
       if (accuracy == 0) {
         return 'Für ${gradeLevel.label} passt als Nächstes „${mode.title}“. '
@@ -426,6 +683,13 @@ class AppController extends ChangeNotifier {
       return 'Im Bereich „${mode.title}“ liegt aktuell noch das größte '
           'Übungspotenzial. Eine kurze Runde dazu passt gut.';
     }
+    if (mode != TrainingMode.practice &&
+        mode != TrainingMode.minus &&
+        mode != TrainingMode.speed &&
+        mode != TrainingMode.tempo) {
+      return 'Als nächster Lernschritt passt „${mode.title}“. '
+          'Die Grundaufgaben bleiben dabei weiterhin in der Wiederholung.';
+    }
     return engine.recommendation(facts, maxValue: maxValue);
   }
 
@@ -433,19 +697,119 @@ class AppController extends ChangeNotifier {
     if (gradeLevel.index >= GradeLevel.third.index) {
       return _upperPrimaryRecommendation();
     }
-    final text = engine.recommendation(facts, maxValue: maxValue);
-    if (text.contains('Minus-Runde')) return TrainingMode.minus;
-    if (text.contains('Schnell rechnen')) return TrainingMode.speed;
-    if (text.contains('Rechencheck')) return TrainingMode.tempo;
+
+    final coreText = engine.recommendation(facts, maxValue: maxValue);
+    if (coreText.contains('Minus-Runde')) return TrainingMode.minus;
+
+    final modes = learningModesForGrade(gradeLevel);
+    final untried = modes.where(
+      (mode) => !history.any(
+        (entry) => entry.gradeLevel == gradeLevel && entry.mode == mode,
+      ),
+    );
+    if (history.length >= 2 && untried.isNotEmpty) return untried.first;
+
+    if (coreText.contains('Schnell rechnen')) return TrainingMode.speed;
+    if (coreText.contains('Rechencheck')) return TrainingMode.tempo;
     return TrainingMode.practice;
   }
 
   Future<void> setGradeLevel(GradeLevel value) async {
     gradeLevel = value;
     numberRange = value.recommendedRange;
+    if (profiles.isNotEmpty) {
+      profiles = profiles
+          .map(
+            (profile) => profile.id == activeProfileId
+                ? profile.copyWith(gradeLevel: value)
+                : profile,
+          )
+          .toList();
+      await storage.saveProfiles(profiles);
+    }
     notifyListeners();
     await storage.setGradeLevel(value);
     await storage.setNumberRange(numberRange);
+  }
+
+  Future<void> createProfile({
+    required String name,
+    required GradeLevel grade,
+  }) async {
+    final cleanName = name.trim().isEmpty ? 'Lernprofil' : name.trim();
+    final id = 'p_${DateTime.now().microsecondsSinceEpoch}';
+    final profile = LearnerProfile(
+      id: id,
+      name: cleanName,
+      gradeLevel: grade,
+      createdAt: DateTime.now(),
+    );
+    profiles = [...profiles, profile];
+    await storage.saveProfiles(profiles);
+    await switchProfile(id);
+    await setGradeLevel(grade);
+  }
+
+  Future<void> renameActiveProfile(String name) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty || profiles.isEmpty) return;
+    profiles = profiles
+        .map(
+          (profile) => profile.id == activeProfileId
+              ? profile.copyWith(name: cleanName)
+              : profile,
+        )
+        .toList();
+    await storage.saveProfiles(profiles);
+    notifyListeners();
+  }
+
+  Future<void> switchProfile(String id) async {
+    if (id == activeProfileId && profiles.isNotEmpty) return;
+    final matches = profiles.where((profile) => profile.id == id).toList();
+    if (matches.isEmpty) return;
+    activeProfileId = id;
+    gradeLevel = matches.first.gradeLevel;
+    await storage.setActiveProfileId(id);
+    await _loadActiveProfileData();
+    notifyListeners();
+  }
+
+  Future<void> deleteProfile(String id) async {
+    if (profiles.length <= 1) return;
+    final wasActive = id == activeProfileId;
+    final remaining = profiles.where((profile) => profile.id != id).toList();
+    profiles = remaining;
+    await storage.saveProfiles(profiles);
+    await storage.deleteProfileData(id);
+    if (wasActive) {
+      activeProfileId = remaining.first.id;
+      gradeLevel = remaining.first.gradeLevel;
+      await storage.setActiveProfileId(activeProfileId);
+      await _loadActiveProfileData();
+    }
+    notifyListeners();
+  }
+
+  Future<void> setSubtractionStrategy(SubtractionStrategy value) async {
+    methodPreferences = methodPreferences.copyWith(subtraction: value);
+    notifyListeners();
+    await storage.setMethodPreferences(methodPreferences);
+  }
+
+  Future<void> setMultiplicationStrategy(MultiplicationStrategy value) async {
+    methodPreferences = methodPreferences.copyWith(multiplication: value);
+    notifyListeners();
+    await storage.setMethodPreferences(methodPreferences);
+  }
+
+  Future<void> setWrittenSubtractionStrategy(
+    WrittenSubtractionStrategy value,
+  ) async {
+    methodPreferences =
+        methodPreferences.copyWith(writtenSubtraction: value);
+    notifyListeners();
+    await storage.setMethodPreferences(methodPreferences);
   }
 
   Future<void> setNumberRange(NumberRangeLevel value) async {

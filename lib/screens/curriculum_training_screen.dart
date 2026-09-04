@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/curriculum_exercise.dart';
+import '../models/learning_methods.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../widgets/number_answer_pad.dart';
@@ -51,6 +52,16 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         gradeLevel: widget.controller.gradeLevel,
         maxValue: widget.controller.maxValue,
       );
+
+  String get _effectiveHint {
+    if (widget.mode == TrainingMode.writtenAddSub &&
+        current.key.startsWith('written:-')) {
+      final strategy =
+          widget.controller.methodPreferences.writtenSubtraction;
+      return '${strategy.label}: ${strategy.description}';
+    }
+    return current.hint;
+  }
 
   Future<void> _answer(int answer) async {
     if (locked || finishing) return;
@@ -257,7 +268,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                     children: [
                       const Icon(Icons.lightbulb_outline_rounded),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(current.hint)),
+                      Expanded(child: Text(_effectiveHint)),
                     ],
                   ),
                 ),

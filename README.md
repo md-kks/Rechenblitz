@@ -78,6 +78,17 @@ Der adaptive Grundaufgaben-Pool bleibt bewusst kompakt bis 100. Aufgaben mit gro
 - einfache Gewinnchancen
 - Kombinatorik und systematisches Finden von Möglichkeiten
 
+## Persönlicher Lernpfad
+
+Für eine Veröffentlichung ist Rechenblitz nicht nur eine Aufgabensammlung, sondern ein lokaler Mathe-Lernbegleiter:
+
+- mehrere getrennte Kinderprofile ohne Konto oder Cloud
+- Kompetenzkarte mit **Neu / wird geübt / sicher / gemeistert**
+- **Meine Runde**: automatisch 10 Aufgaben aus Grundlagen, aktuellem Lernziel und Transfer
+- **So rechnen wir**: auswählbare schulische Rechenwege für Minus, Einmaleins und schriftliche Subtraktion
+- Elternhinweise mit **Das klappt / Hier üben / Was hilft / Noch nicht nötig**
+- alle Lernstände und Methoden bleiben local first auf dem Gerät
+
 ## Adaptives Lernen
 
 Der bisherige adaptive Kern bleibt erhalten. Schwache oder langsame Grundaufgaben werden häufiger wiederholt. Für Klasse 3/4 ergänzt Rechenblitz dynamische Lehrplan-Aufgaben und empfiehlt zunächst noch nicht bearbeitete Lernbereiche, später die Bereiche mit der geringsten Sicherheit.

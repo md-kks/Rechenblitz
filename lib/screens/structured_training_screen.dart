@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/learning_methods.dart';
 import '../models/structured_exercise.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
@@ -52,6 +53,19 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         mode: widget.mode,
         maxValue: widget.controller.maxValue,
       );
+
+  String get _effectiveHint {
+    final key = current.key;
+    if (key.startsWith('gap:-') || key.startsWith('story:-')) {
+      final strategy = widget.controller.methodPreferences.subtraction;
+      return '${strategy.label}: ${strategy.description}';
+    }
+    if (key.startsWith('story:x')) {
+      final strategy = widget.controller.methodPreferences.multiplication;
+      return '${strategy.label}: ${strategy.description}';
+    }
+    return current.hint;
+  }
 
   Future<void> _answer(int answer) async {
     if (locked || finishing) return;
@@ -278,7 +292,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                       children: [
                         const Icon(Icons.lightbulb_outline_rounded),
                         const SizedBox(width: 10),
-                        Expanded(child: Text(current.hint)),
+                        Expanded(child: Text(_effectiveHint)),
                       ],
                     ),
                   ),

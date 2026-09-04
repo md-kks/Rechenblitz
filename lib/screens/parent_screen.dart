@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../models/learning_methods.dart';
 import '../models/math_fact.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import 'competency_map_screen.dart';
 import 'curriculum_training_screen.dart';
+import 'method_screen.dart';
 import 'reward_screen.dart';
 import 'structured_training_screen.dart';
 import 'training_screen.dart';
@@ -78,6 +81,7 @@ class _ParentScreenState extends State<ParentScreen> {
   Widget build(BuildContext context) {
     final c = widget.controller;
     final recommendation = c.recommendationText();
+    final insight = c.parentInsight();
     final today = c.todayHistory.toList();
     final todayCorrect =
         today.fold<int>(0, (s, e) => s + e.correctFirstTry);
@@ -101,7 +105,7 @@ class _ParentScreenState extends State<ParentScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    '${c.gradeLevel.label} · Zahlenraum ${c.numberRange.label}',
+                    '${c.activeProfileName} · ${c.gradeLevel.label} · Zahlenraum ${c.numberRange.label}',
                     style: Theme.of(context)
                         .textTheme
                         .titleMedium
@@ -139,6 +143,50 @@ class _ParentScreenState extends State<ParentScreen> {
                     ),
                   )
                   .toList(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Was jetzt?',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _InsightLine(
+                  icon: Icons.check_circle_outline_rounded,
+                  title: 'Das klappt gut',
+                  text: insight.good,
+                ),
+                _InsightLine(
+                  icon: Icons.track_changes_rounded,
+                  title: 'Hier lohnt sich Üben',
+                  text: insight.focus,
+                ),
+                _InsightLine(
+                  icon: Icons.playlist_add_check_circle_outlined,
+                  title: 'Was hilft',
+                  text: insight.action,
+                ),
+                _InsightLine(
+                  icon: Icons.speed_rounded,
+                  title: 'Noch nicht nötig',
+                  text: insight.notYet,
+                ),
+                _InsightLine(
+                  icon: Icons.trending_up_rounded,
+                  title: 'Entwicklung',
+                  text: insight.trend,
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CompetencyMapScreen(controller: c),
+                    ),
+                  ),
+                  icon: const Icon(Icons.route_rounded),
+                  label: const Text('Lernlandkarte öffnen'),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 14),
@@ -258,6 +306,37 @@ class _ParentScreenState extends State<ParentScreen> {
           _FactList(title: 'Aktuell sicherste Aufgaben', facts: c.safest()),
           const SizedBox(height: 14),
           _Section(
+            title: 'So rechnet die Schule',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Minus: ${c.methodPreferences.subtraction.label}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Einmaleins: ${c.methodPreferences.multiplication.label}',
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Schriftliche Subtraktion: ${c.methodPreferences.writtenSubtraction.label}',
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MethodScreen(controller: c),
+                    ),
+                  ),
+                  icon: const Icon(Icons.school_outlined),
+                  label: const Text('Rechenwege anpassen'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
             title: 'Belohnungssystem',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -339,6 +418,43 @@ class _Section extends StatelessWidget {
               child,
             ],
           ),
+        ),
+      );
+}
+
+class _InsightLine extends StatelessWidget {
+  const _InsightLine({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 13),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(text),
+                ],
+              ),
+            ),
+          ],
         ),
       );
 }
