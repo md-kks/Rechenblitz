@@ -1,18 +1,21 @@
 import 'package:flutter_tts/flutter_tts.dart';
 
 class SpeechService {
-  SpeechService() : _tts = FlutterTts();
+  SpeechService();
 
-  final FlutterTts _tts;
+  FlutterTts? _tts;
   bool _configured = false;
 
+  FlutterTts get _engine => _tts ??= FlutterTts();
+
   Future<void> _ensureConfigured(double rate) async {
+    final tts = _engine;
     if (!_configured) {
-      await _tts.setLanguage('de-DE');
-      await _tts.setPitch(1.0);
+      await tts.setLanguage('de-DE');
+      await tts.setPitch(1.0);
       _configured = true;
     }
-    await _tts.setSpeechRate(rate);
+    await tts.setSpeechRate(rate);
   }
 
   Future<void> speak(
@@ -22,9 +25,14 @@ class SpeechService {
     final cleaned = text.trim();
     if (cleaned.isEmpty) return;
     await _ensureConfigured(rate);
-    await _tts.stop();
-    await _tts.speak(cleaned);
+    final tts = _engine;
+    await tts.stop();
+    await tts.speak(cleaned);
   }
 
-  Future<void> stop() => _tts.stop();
+  Future<void> stop() async {
+    final tts = _tts;
+    if (tts == null) return;
+    await tts.stop();
+  }
 }
