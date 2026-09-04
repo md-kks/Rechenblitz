@@ -835,27 +835,27 @@ class AppController extends ChangeNotifier {
     final helpWeight = correct && usedHelp ? 0.65 : 1.0;
     final now = DateTime.now();
 
-    for (final tag in MicroCompetencyCatalog.tagsForTask(
+    final observations = MicroCompetencyCatalog.tagsForTask(
       mode: mode,
       taskKey: taskKey,
       fact: fact,
-    )) {
-      microObservations.insert(
-        0,
-        MicroCompetencyObservation(
-          id: tag.id,
-          occurredAt: now,
-          correct: correct,
-          evidenceWeight: tag.weight * sourceWeight * helpWeight,
-          source: source,
-          usedHelp: usedHelp,
-          mode: mode,
-          gradeLevel: gradeLevel,
-          numberRange: numberRange,
-          taskKey: taskKey,
-        ),
-      );
-    }
+    )
+        .map(
+          (tag) => MicroCompetencyObservation(
+            id: tag.id,
+            occurredAt: now,
+            correct: correct,
+            evidenceWeight: tag.weight * sourceWeight * helpWeight,
+            source: source,
+            usedHelp: usedHelp,
+            mode: mode,
+            gradeLevel: gradeLevel,
+            numberRange: numberRange,
+            taskKey: taskKey,
+          ),
+        )
+        .toList();
+    microObservations.insertAll(0, observations);
 
     if (microObservations.length > 1200) {
       microObservations = microObservations.take(1200).toList();
