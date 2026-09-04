@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/learning_path.dart';
+import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'curriculum_training_screen.dart';
 import 'structured_training_screen.dart';
