@@ -25,7 +25,7 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.writtenRegrouping ||
       ErrorPattern.writtenProcedure => _placeValueAid(),
       ErrorPattern.unitConversion => const _UnitLadderAid(),
-      ErrorPattern.fractionPart => _fractionAid(),
+      ErrorPattern.fractionPart => _fractionAid(context),
       ErrorPattern.timeDuration => const _TimelineAid(),
       ErrorPattern.perimeterArea => const _RectangleAid(),
       ErrorPattern.operationChoice ||
@@ -175,7 +175,7 @@ class LearningVisualAid extends StatelessWidget {
     );
   }
 
-  Widget _fractionAid() {
+  Widget _fractionAid(BuildContext context) {
     final numbers = _numbers(taskKey);
     var denominator = 4;
     if (taskKey.contains('half') || taskKey.contains(':2:')) denominator = 2;
