@@ -48,7 +48,10 @@ void main() {
     expect(find.text('Meine Runde'), findsOneWidget);
     expect(find.text('Meine Lernlandkarte'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('my-round-button')));
+    final myRoundButton = find.byKey(const ValueKey('my-round-button'));
+    await tester.ensureVisible(myRoundButton);
+    await tester.pumpAndSettle();
+    await tester.tap(myRoundButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Etwa 5 Minuten Mathe.'), findsOneWidget);
