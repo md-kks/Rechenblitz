@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/error_diagnosis.dart';
 import '../models/learning_path.dart';
+import '../models/remediation_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'curriculum_training_screen.dart';
@@ -203,6 +204,10 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                 final progress = widget.controller.competencyProgress(mode);
                 final diagnostic =
                     widget.controller.topDiagnosticForMode(mode);
+                final remediationStatus = diagnostic == null
+                    ? null
+                    : widget.controller
+                        .remediationStatusFor(diagnostic.pattern);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Card(
@@ -224,9 +229,16 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                           if (diagnostic != null) ...[
                             const SizedBox(height: 3),
                             Text(
-                              'Auffällig: ${diagnostic.pattern.label} · ${diagnostic.confidenceLabel}',
+                              remediationStatus == null
+                                  ? 'Auffällig: ${diagnostic.pattern.label} · ${diagnostic.confidenceLabel}'
+                                  : 'Knacknuss: ${diagnostic.pattern.label} · ${remediationStatus.label}',
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
+                                color: remediationStatus ==
+                                            RemediationStatus.improved ||
+                                        remediationStatus ==
+                                            RemediationStatus.stable
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.error,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

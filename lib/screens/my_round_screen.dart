@@ -4,6 +4,7 @@ import '../models/learning_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'curriculum_training_screen.dart';
+import 'remediation_screen.dart';
 import 'structured_training_screen.dart';
 import 'training_screen.dart';
 
@@ -70,6 +71,10 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final remediation = widget.controller.remediationCandidate();
+    final reviewOnly = remediation == null
+        ? false
+        : widget.controller.remediationReviewOnly(remediation.pattern);
     final doneTasks = [
       for (var i = 0; i < plan.length; i++)
         if (completed.contains(i)) plan[i].tasks,
@@ -114,6 +119,72 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
               ),
             ),
           ),
+          if (remediation != null && remediation.modes.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.healing_rounded),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            reviewOnly
+                                ? 'Kurze Kontrolle fällig'
+                                : 'Knacknuss zuerst',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      reviewOnly
+                          ? '„${remediation.pattern.label}“ wurde bereits besser. Zwei Kontrollaufgaben prüfen jetzt, ob der Rechenweg stabil geblieben ist.'
+                          : '„${remediation.pattern.label}“ ist wiederholt aufgefallen. Ein kurzer Förderpfad führt von Hilfe über selbstständiges Anwenden bis zur Kontrolle.',
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      key: const ValueKey('remediation-button'),
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => RemediationScreen(
+                              controller: widget.controller,
+                              pattern: remediation.pattern,
+                              preferredMode: remediation.modes.first,
+                            ),
+                          ),
+                        );
+                        if (mounted) {
+                          setState(() {
+                            plan = widget.controller.buildMyRound();
+                          });
+                        }
+                      },
+                      icon: Icon(
+                        reviewOnly
+                            ? Icons.fact_check_outlined
+                            : Icons.route_rounded,
+                      ),
+                      label: Text(
+                        reviewOnly
+                            ? 'Kontrollrunde starten'
+                            : 'Förderpfad starten',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           ...List.generate(plan.length, (index) {
             final segment = plan[index];

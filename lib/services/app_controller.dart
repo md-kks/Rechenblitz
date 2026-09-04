@@ -6,6 +6,7 @@ import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
 import '../models/learning_path.dart';
 import '../models/math_fact.dart';
+import '../models/remediation_path.dart';
 import '../models/reward_badge.dart';
 import '../models/training.dart';
 import 'adaptive_engine.dart';
@@ -21,6 +22,7 @@ class AppController extends ChangeNotifier {
   List<MathFact> facts = [];
   List<TrainingSessionResult> history = [];
   List<DiagnosticAttempt> diagnostics = [];
+  List<RemediationProgress> remediationProgress = [];
   List<LearnerProfile> profiles = [];
   String activeProfileId = 'default';
   MethodPreferences methodPreferences = const MethodPreferences();
@@ -57,6 +59,7 @@ class AppController extends ChangeNotifier {
     facts = pool.map((fresh) => saved[fresh.key] ?? fresh).toList();
     history = await storage.loadHistory();
     diagnostics = await storage.loadDiagnostics();
+    remediationProgress = await storage.loadRemediationProgress();
     numberRange =
         await storage.numberRange() ?? gradeLevel.recommendedRange;
     if (!availableRanges.contains(numberRange)) {
@@ -125,8 +128,20 @@ class AppController extends ChangeNotifier {
     if (diagnostics.length > 500) {
       diagnostics = diagnostics.take(500).toList();
     }
+    var becameStable = false;
+    if (pattern != null) {
+      becameStable = _updateRemediationRecovery(
+        pattern,
+        correct: actual == expected,
+      );
+      if (becameStable &&
+          _unlockBadge('weak_spot', _pendingBadgeIds)) {
+        await storage.setRewardBadges(unlockedBadges);
+      }
+    }
     notifyListeners();
     await storage.saveDiagnostics(diagnostics);
+    await storage.saveRemediationProgress(remediationProgress);
   }
 
   Future<void> recordAttempt(
@@ -408,6 +423,169 @@ class AppController extends ChangeNotifier {
     final correct =
         sessions.fold<int>(0, (sum, e) => sum + e.correctFirstTry);
     return total == 0 ? 0 : correct / total;
+  }
+
+  RemediationProgress? remediationProgressFor(ErrorPattern pattern) {
+    for (final progress in remediationProgress) {
+      if (progress.pattern == pattern &&
+          progress.gradeLevel == gradeLevel &&
+          progress.numberRange == numberRange) {
+        return progress;
+      }
+    }
+    return null;
+  }
+
+  RemediationStatus? remediationStatusFor(ErrorPattern pattern) {
+    final progress = remediationProgressFor(pattern);
+    if (progress != null) return progress.status;
+    final recurring = diagnosticSummaries(recurringOnly: true)
+        .any((summary) => summary.pattern == pattern);
+    return recurring ? RemediationStatus.recurring : null;
+  }
+
+  DiagnosticSummary? remediationCandidate({DateTime? now}) {
+    final currentTime = now ?? DateTime.now();
+    for (final summary in diagnosticSummaries(recurringOnly: true)) {
+      final progress = remediationProgressFor(summary.pattern);
+      if (progress == null ||
+          progress.status == RemediationStatus.recurring ||
+          progress.status == RemediationStatus.inProgress) {
+        return summary;
+      }
+      if (progress.status == RemediationStatus.improved &&
+          progress.nextReviewAt != null &&
+          !progress.nextReviewAt!.isAfter(currentTime)) {
+        return summary;
+      }
+    }
+    return null;
+  }
+
+  bool remediationReviewOnly(ErrorPattern pattern, {DateTime? now}) {
+    final progress = remediationProgressFor(pattern);
+    if (progress == null || progress.status != RemediationStatus.improved) {
+      return false;
+    }
+    final currentTime = now ?? DateTime.now();
+    return progress.nextReviewAt != null &&
+        !progress.nextReviewAt!.isAfter(currentTime);
+  }
+
+  Future<void> startRemediation(
+    ErrorPattern pattern, {
+    bool reviewOnly = false,
+  }) async {
+    final existing = remediationProgressFor(pattern);
+    if (reviewOnly && existing != null) {
+      return;
+    }
+    final next = RemediationProgress(
+      pattern: pattern,
+      gradeLevel: gradeLevel,
+      numberRange: numberRange,
+      status: RemediationStatus.inProgress,
+      startedAt: existing?.startedAt ?? DateTime.now(),
+      completedAt: existing?.completedAt,
+      nextReviewAt: existing?.nextReviewAt,
+      checkCorrect: 0,
+      checkTotal: 0,
+      stabilityCorrect: reviewOnly ? existing?.stabilityCorrect ?? 0 : 0,
+    );
+    _replaceRemediation(next);
+    notifyListeners();
+    await storage.saveRemediationProgress(remediationProgress);
+  }
+
+  Future<RemediationProgress> completeRemediation(
+    ErrorPattern pattern, {
+    required int checkCorrect,
+    required int checkTotal,
+    bool reviewOnly = false,
+  }) async {
+    final existing = remediationProgressFor(pattern);
+    final accuracy = checkTotal == 0 ? 0.0 : checkCorrect / checkTotal;
+    final passed = accuracy >= 0.75;
+    final now = DateTime.now();
+
+    final status = reviewOnly && passed
+        ? RemediationStatus.stable
+        : passed
+            ? RemediationStatus.improved
+            : RemediationStatus.recurring;
+
+    final next = RemediationProgress(
+      pattern: pattern,
+      gradeLevel: gradeLevel,
+      numberRange: numberRange,
+      status: status,
+      startedAt: existing?.startedAt ?? now,
+      completedAt: now,
+      nextReviewAt: status == RemediationStatus.improved
+          ? now.add(const Duration(days: 3))
+          : null,
+      checkCorrect: checkCorrect,
+      checkTotal: checkTotal,
+      stabilityCorrect:
+          status == RemediationStatus.stable ? 3 : 0,
+    );
+    _replaceRemediation(next);
+    if (status == RemediationStatus.stable) {
+      if (_unlockBadge('weak_spot', _pendingBadgeIds)) {
+        await storage.setRewardBadges(unlockedBadges);
+      }
+    }
+    notifyListeners();
+    await storage.saveRemediationProgress(remediationProgress);
+    return next;
+  }
+
+  bool _updateRemediationRecovery(
+    ErrorPattern pattern, {
+    required bool correct,
+  }) {
+    final progress = remediationProgressFor(pattern);
+    if (progress == null ||
+        (progress.status != RemediationStatus.improved &&
+            progress.status != RemediationStatus.stable)) {
+      return false;
+    }
+
+    if (!correct) {
+      _replaceRemediation(
+        progress.copyWith(
+          status: RemediationStatus.recurring,
+          stabilityCorrect: 0,
+        ),
+      );
+      return false;
+    }
+
+    if (progress.status == RemediationStatus.stable) return false;
+
+    final stableCorrect = progress.stabilityCorrect + 1;
+    final becameStable = stableCorrect >= 3;
+    _replaceRemediation(
+      progress.copyWith(
+        status: becameStable
+            ? RemediationStatus.stable
+            : RemediationStatus.improved,
+        stabilityCorrect: stableCorrect,
+      ),
+    );
+    return becameStable;
+  }
+
+  void _replaceRemediation(RemediationProgress value) {
+    remediationProgress = [
+      value,
+      ...remediationProgress.where(
+        (entry) =>
+            entry.pattern != value.pattern ||
+            entry.gradeLevel != value.gradeLevel ||
+            entry.numberRange != value.numberRange,
+      ),
+    ];
   }
 
   List<DiagnosticSummary> diagnosticSummaries({
@@ -737,7 +915,13 @@ class AppController extends ChangeNotifier {
             '(${(focus.accuracy * 100).round()} % direkt richtig).';
 
     final diagnostic = topDiagnosticForMode(focus.mode);
-    final action = diagnostic != null
+    final diagnosticStatus = diagnostic == null
+        ? null
+        : remediationStatusFor(diagnostic.pattern);
+    final diagnosticIsActive = diagnostic != null &&
+        diagnosticStatus != RemediationStatus.improved &&
+        diagnosticStatus != RemediationStatus.stable;
+    final action = diagnosticIsActive
         ? '${diagnostic.pattern.label}: ${diagnostic.pattern.action}'
         : focus.tasks == 0
             ? 'Eine kurze Runde „${focus.mode.title}“ reicht als Einstieg.'
@@ -877,6 +1061,11 @@ class AppController extends ChangeNotifier {
   }
 
   TrainingMode recommendedMode() {
+    final remediation = remediationCandidate();
+    if (remediation != null && remediation.modes.isNotEmpty) {
+      return remediation.modes.first;
+    }
+
     if (gradeLevel.index >= GradeLevel.third.index) {
       return _upperPrimaryRecommendation();
     }
@@ -1132,6 +1321,7 @@ class AppController extends ChangeNotifier {
     facts = AdaptiveEngine.buildFactPool(maxValue: 100);
     history = [];
     diagnostics = [];
+    remediationProgress = [];
     unlockedBadges = <String>{};
     recoveredWeakFacts = <String>{};
     _pendingBadgeIds.clear();

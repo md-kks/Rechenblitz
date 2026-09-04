@@ -126,6 +126,28 @@ Beispiele für erkannte Muster:
 
 Erst wenn ein ähnliches Muster mindestens zweimal auftritt, erscheint es als vorsichtiger Hinweis im Elternbereich und in der Lernlandkarte. Die Diagnose ist regelbasiert und erklärbar; sie behauptet keine medizinische oder lerntherapeutische Diagnose. Diagnosebeobachtungen sind pro Profil, Klassenstufe und Zahlenraum getrennt und bleiben ausschließlich lokal auf dem Gerät.
 
+## Förderpfade und Recovery
+
+Wiederkehrende Fehlermuster können jetzt direkt in einen gezielten Förderpfad überführt werden. Ein Förderpfad besteht standardmäßig aus acht Aufgaben in vier Stufen:
+
+- **Mit Hilfe** – der Rechenweg wird sichtbar begleitet
+- **Weniger Hilfe** – nur noch ein kurzer Hinweis bleibt
+- **Selbst anwenden** – der Rechenweg wird übertragen
+- **Kontrolle** – zwei Aufgaben ohne Starthilfe prüfen die neue Sicherheit
+
+Der gewählte Schul-Rechenweg wird berücksichtigt, z. B. beim Zehnerübergang, Einmaleins oder schriftlichen Entbündeln.
+
+Status eines Fehlermusters:
+
+- **wiederkehrend**
+- **wird gefördert**
+- **verbessert**
+- **stabil**
+
+Ein erfolgreicher Förderpfad setzt ein Muster zunächst auf „verbessert“. Drei weitere passende Erstversuche ohne Rückfall machen es „stabil“. Alternativ wird nach drei Tagen eine kurze Kontrollrunde mit zwei Aufgaben fällig. Ein erneuter gleicher Fehler setzt das Muster wieder auf „wiederkehrend“.
+
+Förderpfade zählen nicht als normale Meisterschaftsrunden und vergeben keine künstlichen Zusatzsterne. Ein stabil gemeistertes Muster kann jedoch das bestehende Abzeichen „Knacknuss geknackt“ auslösen.
+
 ## Adaptives Lernen
 
 Der bisherige adaptive Kern bleibt erhalten. Schwache oder langsame Grundaufgaben werden häufiger wiederholt. Für Klasse 3/4 ergänzt Rechenblitz dynamische Lehrplan-Aufgaben und empfiehlt zunächst noch nicht bearbeitete Lernbereiche, später die Bereiche mit der geringsten Sicherheit.

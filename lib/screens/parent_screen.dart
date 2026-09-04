@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../models/error_diagnosis.dart';
 import '../models/learning_methods.dart';
 import '../models/math_fact.dart';
+import '../models/remediation_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'competency_map_screen.dart';
 import 'curriculum_training_screen.dart';
 import 'method_screen.dart';
+import 'remediation_screen.dart';
 import 'reward_screen.dart';
 import 'structured_training_screen.dart';
 import 'training_screen.dart';
@@ -83,8 +85,15 @@ class _ParentScreenState extends State<ParentScreen> {
     final c = widget.controller;
     final recommendation = c.recommendationText();
     final insight = c.parentInsight();
-    final diagnosticPatterns =
-        c.diagnosticSummaries(recurringOnly: true).take(4).toList();
+    final diagnosticPatterns = c
+        .diagnosticSummaries(recurringOnly: true)
+        .where(
+          (summary) =>
+              c.remediationStatusFor(summary.pattern) !=
+              RemediationStatus.stable,
+        )
+        .take(4)
+        .toList();
     final today = c.todayHistory.toList();
     final todayCorrect =
         today.fold<int>(0, (s, e) => s + e.correctFirstTry);
@@ -194,7 +203,7 @@ class _ParentScreenState extends State<ParentScreen> {
           ),
           const SizedBox(height: 14),
           _Section(
-            title: 'Mögliche Fehlermuster',
+            title: 'Förderbedarf & Fehlermuster',
             child: diagnosticPatterns.isEmpty
                 ? const Text(
                     'Noch kein wiederkehrendes Fehlermuster. Rechenblitz zeigt hier erst etwas an, wenn ein ähnlicher Fehler mindestens zweimal aufgefallen ist.',
@@ -202,36 +211,91 @@ class _ParentScreenState extends State<ParentScreen> {
                 : Column(
                     children: diagnosticPatterns
                         .map(
-                          (summary) => Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.search_rounded, size: 22),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        summary.pattern.label,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w900,
+                          (summary) {
+                            final status =
+                                c.remediationStatusFor(summary.pattern) ??
+                                    RemediationStatus.recurring;
+                            final reviewOnly =
+                                c.remediationReviewOnly(summary.pattern);
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.search_rounded, size: 22),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                summary.pattern.label,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                            ),
+                                            Chip(
+                                              label: Text(status.label),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '${summary.confidenceLabel} · ${summary.errors} Beobachtungen',
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Text(summary.pattern.action),
-                                    ],
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${summary.confidenceLabel} · ${summary.errors} Beobachtungen',
+                                        ),
+                                        const SizedBox(height: 5),
+                                        Text(summary.pattern.action),
+                                        if (status ==
+                                                RemediationStatus.recurring ||
+                                            status ==
+                                                RemediationStatus.inProgress ||
+                                            reviewOnly) ...[
+                                          const SizedBox(height: 10),
+                                          OutlinedButton.icon(
+                                            onPressed: summary.modes.isEmpty
+                                                ? null
+                                                : () async {
+                                                    await Navigator.of(context)
+                                                        .push(
+                                                      MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            RemediationScreen(
+                                                          controller: c,
+                                                          pattern:
+                                                              summary.pattern,
+                                                          preferredMode:
+                                                              summary
+                                                                  .modes.first,
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                            icon: Icon(
+                                              reviewOnly
+                                                  ? Icons.fact_check_outlined
+                                                  : Icons.route_rounded,
+                                            ),
+                                            label: Text(
+                                              reviewOnly
+                                                  ? 'Kontrollrunde starten'
+                                                  : 'Förderpfad starten',
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
+                                ],
+                              ),
+                            );
+                          },
                         )
                         .toList(),
                   ),

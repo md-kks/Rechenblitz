@@ -246,8 +246,6 @@ class ErrorClassifier {
     required int actual,
     MathFact? fact,
   }) {
-    if (actual == expected) return null;
-
     if (fact != null) {
       return _classifyFact(
         mode: mode,
@@ -257,6 +255,14 @@ class ErrorClassifier {
       );
     }
 
+    if (taskKey.startsWith('remediation:')) {
+      final parts = taskKey.split(':');
+      if (parts.length > 1) {
+        for (final value in ErrorPattern.values) {
+          if (value.name == parts[1]) return value;
+        }
+      }
+    }
     if (taskKey.startsWith('wall:')) return ErrorPattern.numberRelations;
     if (taskKey.startsWith('gap:')) return ErrorPattern.inverseOperation;
     if (taskKey.startsWith('neighbor:')) return ErrorPattern.countingStep;

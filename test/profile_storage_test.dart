@@ -5,6 +5,7 @@ import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/learner_profile.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/math_fact.dart';
+import 'package:rechenblitz/models/remediation_path.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -148,6 +149,41 @@ void main() {
     final first = await storage.loadDiagnostics();
     expect(first, hasLength(1));
     expect(first.single.pattern, ErrorPattern.tenBridge);
+  });
+
+
+  test('Förderpfad-Status bleibt zwischen Profilen getrennt', () async {
+    final storage = StorageService();
+    var profiles = await storage.initializeProfiles();
+
+    await storage.saveRemediationProgress([
+      RemediationProgress(
+        pattern: ErrorPattern.tenBridge,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        status: RemediationStatus.improved,
+        startedAt: DateTime(2026, 9, 4),
+        completedAt: DateTime(2026, 9, 4),
+        nextReviewAt: DateTime(2026, 9, 7),
+      ),
+    ]);
+
+    final second = LearnerProfile(
+      id: 'remediation-second',
+      name: 'Zweites Förderprofil',
+      gradeLevel: GradeLevel.second,
+      createdAt: DateTime(2026, 9, 4),
+    );
+    profiles = [...profiles, second];
+    await storage.saveProfiles(profiles);
+    await storage.setActiveProfileId(second.id);
+
+    expect(await storage.loadRemediationProgress(), isEmpty);
+
+    await storage.setActiveProfileId('default');
+    final first = await storage.loadRemediationProgress();
+    expect(first, hasLength(1));
+    expect(first.single.status, RemediationStatus.improved);
   });
 
 }

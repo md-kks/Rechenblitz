@@ -214,4 +214,17 @@ void main() {
     expect(reloaded.diagnostics, hasLength(1));
     expect(reloaded.diagnostics.single.pattern, ErrorPattern.tenBridge);
   });
+
+  test('korrekte Antwort trägt Musterkategorie für Recovery weiter', () {
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.minus,
+        taskKey: 'remediation:tenBridge:-:13:5',
+        expected: 8,
+        actual: 8,
+      ),
+      ErrorPattern.tenBridge,
+    );
+  });
+
 }
