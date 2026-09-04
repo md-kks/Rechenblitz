@@ -41,7 +41,6 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             mode: segment.mode,
             targetTasks: segment.tasks,
             targetCompetency: segment.targetCompetency,
-            transferEmphasis: segment.transferEmphasis,
           ),
         ),
       );
@@ -53,6 +52,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             mode: segment.mode,
             targetTasks: segment.tasks,
             targetCompetency: segment.targetCompetency,
+            transferEmphasis: segment.transferEmphasis,
           ),
         ),
       );

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../models/teacher_assignment.dart';
+import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../services/assignment_launcher.dart';
 

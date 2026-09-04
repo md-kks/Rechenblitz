@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/teacher_assignment.dart';
+import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../screens/curriculum_training_screen.dart';
 import '../screens/structured_training_screen.dart';
