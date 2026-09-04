@@ -113,6 +113,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       minusTotal: 0,
       averageResponseMs: avg,
       numberRange: widget.controller.numberRange,
+      gradeLevel: widget.controller.gradeLevel,
       starsEarned: 0,
     );
     final rewardReason = widget.controller.rewardReasonForSession(result);

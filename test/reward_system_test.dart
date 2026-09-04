@@ -10,6 +10,7 @@ TrainingSessionResult session({
   int total = 10,
   int correct = 8,
   int errors = 0,
+  GradeLevel grade = GradeLevel.second,
 }) =>
     TrainingSessionResult(
       mode: mode,
@@ -24,6 +25,7 @@ TrainingSessionResult session({
       minusTotal: 0,
       averageResponseMs: 3000,
       numberRange: range,
+      gradeLevel: grade,
       starsEarned: 1,
     );
 
@@ -173,4 +175,28 @@ void main() {
     expect(controller.recoveredWeakFacts, contains(fact.key));
     expect(controller.unlockedBadges, contains('weak_spot'));
   });
+
+  test('vielfältige sichere Arbeit schaltet Klassenstufen-Abzeichen frei', () async {
+    final controller = AppController();
+    for (final mode in [
+      TrainingMode.largeNumbers,
+      TrainingMode.rounding,
+      TrainingMode.writtenAddSub,
+      TrainingMode.advancedMeasures,
+      TrainingMode.dataCharts,
+      TrainingMode.geometryBodies,
+    ]) {
+      await controller.addSession(
+        session(
+          mode: mode,
+          range: NumberRangeLevel.thousand,
+          total: 10,
+          correct: 9,
+          grade: GradeLevel.third,
+        ),
+      );
+    }
+    expect(controller.unlockedBadges, contains('grade:third'));
+  });
+
 }

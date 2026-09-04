@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import 'curriculum_training_screen.dart';
 import 'parent_screen.dart';
 import 'reward_screen.dart';
 import 'settings_screen.dart';
@@ -58,6 +59,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openMode(TrainingMode mode) async {
+    if (mode.isUpperPrimary) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CurriculumTrainingScreen(
+            controller: widget.controller,
+            mode: mode,
+          ),
+        ),
+      );
+      return;
+    }
+
     if (mode.isStructured) {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -110,10 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
         today.fold<int>(0, (sum, e) => sum + e.correctFirstTry);
     final todayTotal = today.fold<int>(0, (sum, e) => sum + e.total);
     final todayAccuracy = todayTotal == 0 ? 0.0 : todayCorrect / todayTotal;
-    final recommendation = controller.engine.recommendation(
-      controller.facts,
-      maxValue: controller.maxValue,
-    );
+    final recommendation = controller.recommendationText();
 
     return Scaffold(
       appBar: AppBar(
@@ -177,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Zahlenraum',
+                      'Klassenstufe',
                       style: Theme.of(context)
                           .textTheme
                           .titleMedium
@@ -186,32 +196,65 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
-                      child: SegmentedButton<NumberRangeLevel>(
+                      child: SegmentedButton<GradeLevel>(
                         showSelectedIcon: false,
                         segments: const [
                           ButtonSegment(
-                            value: NumberRangeLevel.ten,
-                            label: Text('bis 10'),
+                            value: GradeLevel.first,
+                            label: Text('1'),
                           ),
                           ButtonSegment(
-                            value: NumberRangeLevel.twenty,
-                            label: Text('bis 20'),
+                            value: GradeLevel.second,
+                            label: Text('2'),
                           ),
                           ButtonSegment(
-                            value: NumberRangeLevel.hundred,
-                            label: Text('bis 100'),
+                            value: GradeLevel.third,
+                            label: Text('3'),
+                          ),
+                          ButtonSegment(
+                            value: GradeLevel.fourth,
+                            label: Text('4'),
                           ),
                         ],
-                        selected: {controller.numberRange},
+                        selected: {controller.gradeLevel},
                         onSelectionChanged: (values) =>
-                            controller.setNumberRange(values.first),
+                            controller.setGradeLevel(values.first),
                       ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(controller.gradeLevel.description),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Zahlenraum',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<NumberRangeLevel>(
+                      initialValue: controller.numberRange,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.numbers_rounded),
+                      ),
+                      items: controller.availableRanges
+                          .map(
+                            (range) => DropdownMenuItem(
+                              value: range,
+                              child: Text(range.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) controller.setNumberRange(value);
+                      },
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      controller.numberRange == NumberRangeLevel.hundred
-                          ? 'Aufgaben bauen weiterhin auf den Grundlagen bis 10 und 20 auf.'
-                          : 'Die Aufgaben passen sich innerhalb dieses Zahlenraums an den Lernstand an.',
+                      controller.gradeLevel.index >= GradeLevel.third.index
+                          ? 'Die Klassenstufe bestimmt die Lernmethoden. Der Zahlenraum kann für Wiederholung und Förderung kleiner gewählt werden.'
+                          : 'Die Aufgaben passen sich innerhalb des gewählten Zahlenraums an den Lernstand an.',
                     ),
                   ],
                 ),
@@ -452,6 +495,164 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+            if (controller.gradeLevel.index >= GradeLevel.third.index) ...[
+              const SizedBox(height: 28),
+              _SectionTitle(
+                title: '${controller.gradeLevel.label} · Zahlen & Rechnen',
+              ),
+              const SizedBox(height: 10),
+              _LearningGrid(
+                children: [
+                  _LearningTile(
+                    icon: Icons.format_list_numbered_rounded,
+                    title: 'Große Zahlen',
+                    subtitle: 'Stellenwert & Orientierung',
+                    onTap: () => _openMode(TrainingMode.largeNumbers),
+                  ),
+                  _LearningTile(
+                    icon: Icons.adjust_rounded,
+                    title: 'Runden',
+                    subtitle: 'sinnvoll annähern',
+                    onTap: () => _openMode(TrainingMode.rounding),
+                  ),
+                  _LearningTile(
+                    icon: Icons.psychology_alt_rounded,
+                    title: 'Halbschriftlich',
+                    subtitle: 'geschickt zerlegen',
+                    onTap: () => _openMode(TrainingMode.mentalStrategies),
+                  ),
+                  _LearningTile(
+                    icon: Icons.add_box_outlined,
+                    title: 'Schriftlich + / −',
+                    subtitle: 'mit Überträgen',
+                    onTap: () => _openMode(TrainingMode.writtenAddSub),
+                  ),
+                  _LearningTile(
+                    icon: Icons.close_rounded,
+                    title: 'Schriftlich mal',
+                    subtitle: 'Stelle für Stelle',
+                    onTap: () => _openMode(TrainingMode.writtenMultiply),
+                  ),
+                  _LearningTile(
+                    icon: Icons.horizontal_rule_rounded,
+                    title: 'Schriftlich teilen',
+                    subtitle: 'mit Probe',
+                    onTap: () => _openMode(TrainingMode.writtenDivide),
+                  ),
+                  _LearningTile(
+                    icon: Icons.calculate_outlined,
+                    title: 'Überschlag',
+                    subtitle: 'Ergebnisse prüfen',
+                    onTap: () => _openMode(TrainingMode.estimation),
+                  ),
+                  _LearningTile(
+                    icon: Icons.lightbulb_circle_outlined,
+                    title: 'Rechenvorteile',
+                    subtitle: 'Gesetze nutzen',
+                    onTap: () => _openMode(TrainingMode.arithmeticLaws),
+                  ),
+                  _LearningTile(
+                      icon: Icons.history_edu_rounded,
+                      title: 'Römische Zahlen',
+                      subtitle: 'lesen & schreiben',
+                      onTap: () => _openMode(TrainingMode.romanNumerals),
+                    ),
+                  _LearningTile(
+                      icon: Icons.pie_chart_outline_rounded,
+                      title: 'Bruchteile',
+                      subtitle: '1/2, 1/4 und Größen',
+                      onTap: () => _openMode(TrainingMode.fractions),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              const _SectionTitle(title: 'Größen, Zeit & Sachrechnen'),
+              const SizedBox(height: 10),
+              _LearningGrid(
+                children: [
+                  _LearningTile(
+                    icon: Icons.straighten_rounded,
+                    title: 'Größen umwandeln',
+                    subtitle: 'Länge, Masse, Volumen',
+                    onTap: () => _openMode(TrainingMode.advancedMeasures),
+                  ),
+                  _LearningTile(
+                    icon: Icons.timer_outlined,
+                    title: 'Zeitspannen',
+                    subtitle: 'Dauer berechnen',
+                    onTap: () => _openMode(TrainingMode.timeDurations),
+                  ),
+                  _LearningTile(
+                      icon: Icons.swap_vert_circle_outlined,
+                      title: 'Zuordnungen',
+                      subtitle: 'proportional denken',
+                      onTap: () => _openMode(TrainingMode.proportionality),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              const _SectionTitle(title: 'Geometrie & Raum'),
+              const SizedBox(height: 10),
+              _LearningGrid(
+                children: [
+                  _LearningTile(
+                    icon: Icons.crop_square_rounded,
+                    title: 'Umfang & Fläche',
+                    subtitle: 'Rechtecke untersuchen',
+                    onTap: () => _openMode(TrainingMode.perimeterArea),
+                  ),
+                  _LearningTile(
+                    icon: Icons.view_in_ar_rounded,
+                    title: 'Körper & Netze',
+                    subtitle: 'Ecken, Kanten, Flächen',
+                    onTap: () => _openMode(TrainingMode.geometryBodies),
+                  ),
+                  _LearningTile(
+                    icon: Icons.vertical_align_center_rounded,
+                    title: 'Symmetrie',
+                    subtitle: 'Achsen erkennen',
+                    onTap: () => _openMode(TrainingMode.symmetry),
+                  ),
+                  _LearningTile(
+                    icon: Icons.map_outlined,
+                    title: 'Pläne & Wege',
+                    subtitle: 'Orientierung & Maßstab',
+                    onTap: () => _openMode(TrainingMode.plansAndOrientation),
+                  ),
+                  _LearningTile(
+                      icon: Icons.grid_4x4_rounded,
+                      title: 'Rauminhalt',
+                      subtitle: 'mit Einheitswürfeln',
+                      onTap: () => _openMode(TrainingMode.volumeCubes),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              const _SectionTitle(title: 'Daten, Muster & Zufall'),
+              const SizedBox(height: 10),
+              _LearningGrid(
+                children: [
+                  _LearningTile(
+                    icon: Icons.bar_chart_rounded,
+                    title: 'Daten & Diagramme',
+                    subtitle: 'lesen & auswerten',
+                    onTap: () => _openMode(TrainingMode.dataCharts),
+                  ),
+                  _LearningTile(
+                    icon: Icons.casino_outlined,
+                    title: 'Wahrscheinlichkeit',
+                    subtitle: 'Chancen einschätzen',
+                    onTap: () => _openMode(TrainingMode.probability),
+                  ),
+                  _LearningTile(
+                    icon: Icons.account_tree_outlined,
+                    title: 'Kombinatorik',
+                    subtitle: 'Möglichkeiten finden',
+                    onTap: () => _openMode(TrainingMode.combinatorics),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 26),
             const _SectionTitle(title: 'Heute'),
             const SizedBox(height: 10),

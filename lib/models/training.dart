@@ -1,13 +1,50 @@
-enum NumberRangeLevel { ten, twenty, hundred }
+enum NumberRangeLevel { ten, twenty, hundred, thousand, tenThousand, million }
 
 extension NumberRangeLevelX on NumberRangeLevel {
   int get maxValue => switch (this) {
         NumberRangeLevel.ten => 10,
         NumberRangeLevel.twenty => 20,
         NumberRangeLevel.hundred => 100,
+        NumberRangeLevel.thousand => 1000,
+        NumberRangeLevel.tenThousand => 10000,
+        NumberRangeLevel.million => 1000000,
       };
 
-  String get label => 'bis $maxValue';
+  String get label => switch (this) {
+        NumberRangeLevel.ten => 'bis 10',
+        NumberRangeLevel.twenty => 'bis 20',
+        NumberRangeLevel.hundred => 'bis 100',
+        NumberRangeLevel.thousand => 'bis 1.000',
+        NumberRangeLevel.tenThousand => 'bis 10.000',
+        NumberRangeLevel.million => 'bis 1.000.000',
+      };
+}
+
+enum GradeLevel { first, second, third, fourth }
+
+extension GradeLevelX on GradeLevel {
+  int get number => index + 1;
+
+  String get label => 'Klasse $number';
+
+  String get shortLabel => '$number';
+
+  String get description => switch (this) {
+        GradeLevel.first => 'Zahlvorstellungen und sichere Grundaufgaben aufbauen.',
+        GradeLevel.second =>
+          'Zahlenraum bis 100, Grundrechenarten und erste Sach- und Größenaufgaben.',
+        GradeLevel.third =>
+          'Zahlen erweitern, Rechenstrategien, schriftliche Verfahren und neue Sachbereiche.',
+        GradeLevel.fourth =>
+          'Sicher bis 1 Million arbeiten und Grundschulwissen vernetzen und anwenden.',
+      };
+
+  NumberRangeLevel get recommendedRange => switch (this) {
+        GradeLevel.first => NumberRangeLevel.twenty,
+        GradeLevel.second => NumberRangeLevel.hundred,
+        GradeLevel.third => NumberRangeLevel.thousand,
+        GradeLevel.fourth => NumberRangeLevel.million,
+      };
 }
 
 enum TrainingMode {
@@ -32,6 +69,29 @@ enum TrainingMode {
   clock,
   measures,
   geometry,
+
+  // Klassen 3/4 – Thüringer Grundschulcurriculum.
+  largeNumbers,
+  rounding,
+  mentalStrategies,
+  writtenAddSub,
+  writtenMultiply,
+  writtenDivide,
+  estimation,
+  arithmeticLaws,
+  romanNumerals,
+  fractions,
+  advancedMeasures,
+  timeDurations,
+  dataCharts,
+  probability,
+  combinatorics,
+  proportionality,
+  perimeterArea,
+  geometryBodies,
+  symmetry,
+  plansAndOrientation,
+  volumeCubes,
 }
 
 extension TrainingModeX on TrainingMode {
@@ -57,6 +117,27 @@ extension TrainingModeX on TrainingMode {
         TrainingMode.clock => 'Uhrzeit',
         TrainingMode.measures => 'Längen & Größen',
         TrainingMode.geometry => 'Geometrie',
+        TrainingMode.largeNumbers => 'Große Zahlen',
+        TrainingMode.rounding => 'Runden',
+        TrainingMode.mentalStrategies => 'Halbschriftlich rechnen',
+        TrainingMode.writtenAddSub => 'Schriftlich + / −',
+        TrainingMode.writtenMultiply => 'Schriftlich mal',
+        TrainingMode.writtenDivide => 'Schriftlich teilen',
+        TrainingMode.estimation => 'Überschlag',
+        TrainingMode.arithmeticLaws => 'Rechenvorteile',
+        TrainingMode.romanNumerals => 'Römische Zahlen',
+        TrainingMode.fractions => 'Bruchteile',
+        TrainingMode.advancedMeasures => 'Größen umwandeln',
+        TrainingMode.timeDurations => 'Zeitspannen',
+        TrainingMode.dataCharts => 'Daten & Diagramme',
+        TrainingMode.probability => 'Wahrscheinlichkeit',
+        TrainingMode.combinatorics => 'Kombinatorik',
+        TrainingMode.proportionality => 'Zuordnungen',
+        TrainingMode.perimeterArea => 'Umfang & Fläche',
+        TrainingMode.geometryBodies => 'Körper & Netze',
+        TrainingMode.symmetry => 'Symmetrie',
+        TrainingMode.plansAndOrientation => 'Pläne & Wege',
+        TrainingMode.volumeCubes => 'Rauminhalt',
       };
 
   bool get isStructured =>
@@ -73,12 +154,39 @@ extension TrainingModeX on TrainingMode {
       this == TrainingMode.measures ||
       this == TrainingMode.geometry;
 
+  bool get isUpperPrimary =>
+      this == TrainingMode.largeNumbers ||
+      this == TrainingMode.rounding ||
+      this == TrainingMode.mentalStrategies ||
+      this == TrainingMode.writtenAddSub ||
+      this == TrainingMode.writtenMultiply ||
+      this == TrainingMode.writtenDivide ||
+      this == TrainingMode.estimation ||
+      this == TrainingMode.arithmeticLaws ||
+      this == TrainingMode.romanNumerals ||
+      this == TrainingMode.fractions ||
+      this == TrainingMode.advancedMeasures ||
+      this == TrainingMode.timeDurations ||
+      this == TrainingMode.dataCharts ||
+      this == TrainingMode.probability ||
+      this == TrainingMode.combinatorics ||
+      this == TrainingMode.proportionality ||
+      this == TrainingMode.perimeterArea ||
+      this == TrainingMode.geometryBodies ||
+      this == TrainingMode.symmetry ||
+      this == TrainingMode.plansAndOrientation ||
+      this == TrainingMode.volumeCubes;
+
   bool get isEverydayMath =>
       this == TrainingMode.wordProblems ||
       this == TrainingMode.money ||
       this == TrainingMode.clock ||
       this == TrainingMode.measures ||
-      this == TrainingMode.geometry;
+      this == TrainingMode.geometry ||
+      this == TrainingMode.advancedMeasures ||
+      this == TrainingMode.timeDurations ||
+      this == TrainingMode.proportionality ||
+      this == TrainingMode.perimeterArea;
 }
 
 class TrainingSessionResult {
@@ -99,6 +207,7 @@ class TrainingSessionResult {
     this.divideCorrect = 0,
     this.divideTotal = 0,
     this.numberRange = NumberRangeLevel.ten,
+    this.gradeLevel = GradeLevel.second,
     this.starsEarned = 1,
   });
 
@@ -118,6 +227,7 @@ class TrainingSessionResult {
   final int divideTotal;
   final double averageResponseMs;
   final NumberRangeLevel numberRange;
+  final GradeLevel gradeLevel;
   final int starsEarned;
 
   double get accuracy => total == 0 ? 0 : correctFirstTry / total;
@@ -139,6 +249,7 @@ class TrainingSessionResult {
         divideTotal: divideTotal,
         averageResponseMs: averageResponseMs,
         numberRange: numberRange,
+        gradeLevel: gradeLevel,
         starsEarned: starsEarned ?? this.starsEarned,
       );
 
@@ -159,6 +270,7 @@ class TrainingSessionResult {
         'divideTotal': divideTotal,
         'averageResponseMs': averageResponseMs,
         'numberRange': numberRange.name,
+        'gradeLevel': gradeLevel.name,
         'starsEarned': starsEarned,
       };
 
@@ -183,6 +295,9 @@ class TrainingSessionResult {
         numberRange: json['numberRange'] == null
             ? NumberRangeLevel.ten
             : NumberRangeLevel.values.byName(json['numberRange'] as String),
+        gradeLevel: json['gradeLevel'] == null
+            ? GradeLevel.second
+            : GradeLevel.values.byName(json['gradeLevel'] as String),
         starsEarned: json['starsEarned'] as int? ?? 1,
       );
 }

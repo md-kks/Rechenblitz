@@ -47,6 +47,27 @@ class RewardCatalog {
         iconKey: 'weak_spot',
       );
     }
+    if (id.startsWith('grade:')) {
+      final name = id.substring('grade:'.length);
+      final grade = GradeLevel.values.firstWhere(
+        (value) => value.name == name,
+        orElse: () => GradeLevel.second,
+      );
+      final stars = switch (grade) {
+        GradeLevel.first => 4,
+        GradeLevel.second => 5,
+        GradeLevel.third => 7,
+        GradeLevel.fourth => 9,
+      };
+      return RewardBadge(
+        id: id,
+        title: '${grade.label} gemeistert',
+        description:
+            'In ${grade.label} wurden mehrere Lehrplanbereiche sicher bearbeitet.',
+        stars: stars,
+        iconKey: 'grade',
+      );
+    }
     if (id.startsWith('range:')) {
       final name = id.substring('range:'.length);
       final range = NumberRangeLevel.values.firstWhere(
@@ -57,7 +78,14 @@ class RewardCatalog {
         id: id,
         title: 'Zahlenraum ${range.label}',
         description: 'Im Zahlenraum ${range.label} über mehrere Runden sicher gerechnet.',
-        stars: range == NumberRangeLevel.hundred ? 5 : 3,
+        stars: switch (range) {
+          NumberRangeLevel.ten => 3,
+          NumberRangeLevel.twenty => 3,
+          NumberRangeLevel.hundred => 5,
+          NumberRangeLevel.thousand => 6,
+          NumberRangeLevel.tenThousand => 7,
+          NumberRangeLevel.million => 8,
+        },
         iconKey: 'range',
       );
     }

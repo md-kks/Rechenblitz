@@ -10,29 +10,19 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('Startseite zeigt Lernwelten bis Klasse zwei', (tester) async {
+  testWidgets('Startseite zeigt Grundschulstruktur und Lernwelten', (tester) async {
     final controller = AppController();
     controller.facts = const [];
     controller.loaded = true;
     await tester.pumpWidget(RechenblitzApp(controller: controller));
 
     expect(find.text('Hallo!'), findsOneWidget);
-    expect(find.text('bis 10'), findsOneWidget);
-    expect(find.text('bis 20'), findsOneWidget);
-    expect(find.text('bis 100'), findsOneWidget);
+    expect(find.text('Klassenstufe'), findsOneWidget);
+    expect(find.text('Zahlenraum'), findsOneWidget);
     expect(find.byIcon(Icons.emoji_events_rounded), findsOneWidget);
 
     final scrollable = find.byType(Scrollable).first;
-    for (final label in [
-      'Plus & Minus',
-      'Malnehmen',
-      'Zahlenmauern',
-      'Sachaufgaben',
-      'Geld',
-      'Uhrzeit',
-      'Längen & Größen',
-      'Geometrie',
-    ]) {
+    for (final label in ['Plus & Minus', 'Malnehmen', 'Zahlenmauern']) {
       await tester.scrollUntilVisible(
         find.text(label),
         250,
@@ -54,15 +44,27 @@ void main() {
     expect(find.text('So entstehen Erfolge'), findsOneWidget);
   });
 
-  testWidgets('Zahlenraum kann auf 100 umgeschaltet werden', (tester) async {
+  testWidgets('Klasse 3 aktiviert neue Lehrplanbereiche', (tester) async {
     final controller = AppController();
     controller.facts = const [];
     controller.loaded = true;
     await tester.pumpWidget(RechenblitzApp(controller: controller));
 
-    await tester.tap(find.text('bis 100').first);
+    await tester.tap(find.text('3').first);
     await tester.pumpAndSettle();
-    expect(controller.numberRange, NumberRangeLevel.hundred);
+
+    expect(controller.gradeLevel, GradeLevel.third);
+    expect(controller.numberRange, NumberRangeLevel.thousand);
+    expect(find.text('bis 1.000'), findsOneWidget);
+
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.text('Große Zahlen'),
+      450,
+      scrollable: scrollable,
+    );
+    expect(find.text('Große Zahlen'), findsOneWidget);
+    expect(find.text('Runden'), findsOneWidget);
   });
 
   testWidgets('Elternbereich öffnet nach zwei Sekunden Halten', (tester) async {

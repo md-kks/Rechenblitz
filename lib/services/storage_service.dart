@@ -11,6 +11,7 @@ class StorageService {
   static const _soundKey = 'sound_enabled';
   static const _hapticKey = 'haptic_enabled';
   static const _numberRangeKey = 'number_range_v1';
+  static const _gradeLevelKey = 'grade_level_v1';
   static const _badgesKey = 'reward_badges_v1';
   static const _recoveredWeakFactsKey = 'recovered_weak_facts_v1';
 
@@ -69,6 +70,16 @@ class StorageService {
     return NumberRangeLevel.twenty;
   }
 
+  Future<GradeLevel> gradeLevel() async {
+    final raw =
+        (await SharedPreferences.getInstance()).getString(_gradeLevelKey);
+    if (raw == null) return GradeLevel.second;
+    for (final value in GradeLevel.values) {
+      if (value.name == raw) return value;
+    }
+    return GradeLevel.second;
+  }
+
   Future<Set<String>> rewardBadges() async =>
       (await SharedPreferences.getInstance()).getStringList(_badgesKey)?.toSet() ??
       <String>{};
@@ -78,6 +89,10 @@ class StorageService {
           .getStringList(_recoveredWeakFactsKey)
           ?.toSet() ??
       <String>{};
+
+  Future<void> setGradeLevel(GradeLevel value) async =>
+      (await SharedPreferences.getInstance())
+          .setString(_gradeLevelKey, value.name);
 
   Future<void> setSoundEnabled(bool value) async =>
       (await SharedPreferences.getInstance()).setBool(_soundKey, value);

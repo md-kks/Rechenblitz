@@ -1,77 +1,108 @@
 # Rechenblitz
 
-Kindgerechte, adaptive Flutter-Lernapp für Mathematik in der Grundschule. Rechenblitz unterstützt die Zahlenräume **bis 10, bis 20 und bis 100** und baut neue Inhalte auf bereits sicheren Grundlagen auf.
+**Rechenblitz** ist eine offline arbeitende Flutter-Lernapp für den Mathematikunterricht der **Grundschule Klasse 1–4**. Der Aufbau orientiert sich am Thüringer Lehrplan Mathematik für die Primarstufe und verbindet kurze Übungsrunden mit adaptiver Wiederholung, Lernstandsübersicht und einem druckfreien Belohnungssystem.
 
-## Lernbereiche
+## Grundprinzip
 
-- Addition und Subtraktion
-- Multiplikation und Division
-- adaptives Plus-/Minus-Training
-- Minus-Trainer mit visuellen und rückwärts gerichteten Rechenhilfen
-- Zahlenfreunde und Zahlzerlegungen
+Rechenblitz priorisiert Verstehen, richtiges Rechnen, Sicherheit und Automatisierung vor Geschwindigkeit. Bereits vorhandene Lernstände bleiben beim Wechsel der Klassenstufe erhalten. Klassenstufe und Zahlenraum können getrennt gewählt werden, sodass Wiederholung und Förderung mit kleineren Zahlenräumen möglich bleiben.
+
+## Klassenstufen und Zahlenräume
+
+- **Klasse 1:** bis 10 / bis 20
+- **Klasse 2:** bis 10 / 20 / 100
+- **Klasse 3:** zusätzlich bis 1.000 und 10.000
+- **Klasse 4:** zusätzlich bis 1.000.000
+
+Standard beim Wechsel: Klasse 1 → bis 20, Klasse 2 → bis 100, Klasse 3 → bis 1.000, Klasse 4 → bis 1.000.000.
+
+Der adaptive Grundaufgaben-Pool bleibt bewusst kompakt bis 100. Aufgaben mit großen Zahlen werden dynamisch erzeugt, damit kein riesiger Millionen-Aufgabenpool im Speicher aufgebaut werden muss.
+
+## Lernwelten Klasse 1/2
+
+- Plus und Minus
+- eigener Minus-Trainer
+- Malnehmen und Teilen
+- gemischte Grundrechenarten
+- Zahlenfreunde
 - Zahlenmauern
 - Lückenaufgaben
 - Nachbarzahlen
-- Stellenwert: Zehner und Einer
+- Stellenwert / Zehner und Einer
 - Verdoppeln und Halbieren
 - Zahlenfolgen
-- Rechenfamilien und Umkehraufgaben
-- gemischte Grundrechenarten
-- kurze Blitzrunden, Schnellrechnen und konfigurierbarer Rechencheck
+- Rechenfamilien / Umkehraufgaben
+- Sachaufgaben
+- Geld
+- Uhrzeit
+- Längen und Größen
+- Grundformen und Geometrie
+- Blitzrunden, Schnellrechnen und Rechencheck
 
-## Zahlenräume
+## Erweiterung Klasse 3/4
 
-Der aktive Zahlenraum kann jederzeit zwischen **bis 10**, **bis 20** und **bis 100** gewechselt werden. Im größeren Zahlenraum bleiben die Grundlagen erhalten: Die adaptive Progression beginnt mit sicheren Beziehungen bis 10, erweitert auf bis 20 und öffnet anschließend Aufgaben bis 100.
+### Zahlen und Operationen
+- Orientierung in großen Zahlenräumen bis 1 Million
+- Stellenwerttafel, Zerlegung, Vergleichen, Vorgänger/Nachfolger
+- Runden
+- halbschriftliches Addieren und Subtrahieren
+- schriftliche Addition und Subtraktion
+- schriftliche Multiplikation
+- schriftliche Division ohne Rest sowie in Klasse 4 auch mit Rest
+- Überschlagsrechnung
+- Rechenvorteile und Rechengesetze
+- römische Zahlen
+- einfache Bruchteile von Mengen und Größen
 
-## Lernlogik
+### Größen, Messen und Sachrechnen
+- Längen: mm, cm, m, km
+- Massen: g, kg, t
+- Volumen: ml, l
+- Geld: ct, €
+- Zeit: Minuten, Stunden, Tage und Wochen
+- Zeitspannen
+- einfache proportionale Zuordnungen
+- weiterführende Sachaufgaben
 
-Die App priorisiert **Sicherheit vor Tempo**. Aufgaben mit niedriger Trefferquote, langen Antwortzeiten oder Hilfebedarf werden häufiger ausgewählt. Bereits sichere Aufgaben bleiben im Mix, erscheinen aber seltener.
+### Raum und Form
+- Umfang und Flächeninhalt
+- geometrische Körper und ihre Eigenschaften
+- Würfelnetze
+- Achsensymmetrie
+- Pläne, Wege und einfache Maßstabsbeziehungen
+- Rauminhalt mit Einheitswürfeln
 
-Antwortzeiten über 30 Sekunden werden für die Statistik begrenzt, damit Unterbrechungen keine Durchschnittswerte zerstören.
+### Muster, Daten und Zufall
+- Daten aus Tabellen und Balkendiagrammen lesen und auswerten
+- Häufigkeiten vergleichen
+- sicher / möglich / unmöglich
+- einfache Gewinnchancen
+- Kombinatorik und systematisches Finden von Möglichkeiten
 
-## Elternbereich
+## Adaptives Lernen
 
-Der Elternbereich öffnet durch zweisekündiges Halten des Elternsymbols. Er zeigt unter anderem:
-
-- Trefferquoten der vier Grundrechenarten
-- Trefferquoten weiterer Lernwelten
-- schwierigste und sicherste Rechenfakten
-- Lernempfehlungen
-- Verlauf der Trefferquote als Diagramm
-- gesammelte Sterne und die Logik des Belohnungssystems
+Der bisherige adaptive Kern bleibt erhalten. Schwache oder langsame Grundaufgaben werden häufiger wiederholt. Für Klasse 3/4 ergänzt Rechenblitz dynamische Lehrplan-Aufgaben und empfiehlt zunächst noch nicht bearbeitete Lernbereiche, später die Bereiche mit der geringsten Sicherheit.
 
 ## Belohnungssystem
 
-Sterne belohnen nicht bloß Geschwindigkeit. Eine abgeschlossene Runde gibt einen Basisstern. Zusätzliche Sterne können für eine sichere Runde und beim ersten Abschluss einer neuen Lernwelt entstehen.
+Belohnt werden nicht bloß schnelle Antworten, sondern abgeschlossene Runden, sicheres Rechnen, deutliche Verbesserung, Dranbleiben, neue Lernwelten, sichere Zahlenräume und Rechenarten, gemeisterte Schwachstellen sowie die sichere Bearbeitung mehrerer Lehrplanbereiche einer Klassenstufe. Sterne und Abzeichen werden lokal gespeichert. Es gibt keine verlierbare Daily-Streak.
+
+## Elternbereich
+
+Der Elternbereich zeigt Trefferquoten, Entwicklungen über mehrere Runden, Grundrechenarten, Zahlenräume, Klassenstufen, einzelne Lernwelten, Lehrplanbereiche Klasse 3/4, schwierige und sichere Grundaufgaben, Sterne, Abzeichen und die Empfehlung für die nächste Runde.
 
 ## Datenschutz
 
 - vollständig offline
-- kein Konto
-- keine Werbung
+- kein Benutzerkonto
 - kein Backend
-- Lernfortschritt bleibt lokal auf dem Gerät
+- keine Werbung
+- keine Analyse-Dienste
+- Lernfortschritt ausschließlich lokal auf dem Gerät
 
-## Starten
+## Entwicklung
 
-Voraussetzung: aktuelles Flutter Stable.
+Voraussetzung: aktuelles Flutter Stable mit Dart 3.9 oder neuer.
 
-```bash
-flutter pub get
-flutter run
-```
+Zum Starten: flutter pub get, danach flutter run.
 
-Web:
-
-```bash
-flutter run -d chrome
-```
-
-## Qualität
-
-```bash
-flutter analyze
-flutter test
-```
-
-Dieselben Prüfungen laufen per GitHub Actions bei Pushes und Pull Requests.
+Qualitätsprüfung: flutter analyze und flutter test. Dieselben Prüfungen laufen auf GitHub Actions bei Pushes und Pull Requests.

@@ -232,6 +232,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       divideTotal: divideTotal,
       averageResponseMs: avg,
       numberRange: widget.controller.numberRange,
+      gradeLevel: widget.controller.gradeLevel,
       starsEarned: 0,
     );
     final rewardReason = widget.controller.rewardReasonForSession(result);

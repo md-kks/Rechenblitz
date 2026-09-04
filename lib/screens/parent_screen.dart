@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/math_fact.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import 'curriculum_training_screen.dart';
 import 'reward_screen.dart';
 import 'structured_training_screen.dart';
 import 'training_screen.dart';
@@ -38,6 +39,17 @@ class _ParentScreenState extends State<ParentScreen> {
 
   Future<void> _startRecommended() async {
     final mode = widget.controller.recommendedMode();
+    if (mode.isUpperPrimary) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CurriculumTrainingScreen(
+            controller: widget.controller,
+            mode: mode,
+          ),
+        ),
+      );
+      return;
+    }
     if (mode.isStructured) {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -65,8 +77,7 @@ class _ParentScreenState extends State<ParentScreen> {
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
-    final recommendation =
-        c.engine.recommendation(c.facts, maxValue: c.maxValue);
+    final recommendation = c.recommendationText();
     final today = c.todayHistory.toList();
     final todayCorrect =
         today.fold<int>(0, (s, e) => s + e.correctFirstTry);
@@ -90,7 +101,7 @@ class _ParentScreenState extends State<ParentScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Zahlenraum ${c.numberRange.label}',
+                    '${c.gradeLevel.label} · Zahlenraum ${c.numberRange.label}',
                     style: Theme.of(context)
                         .textTheme
                         .titleMedium
@@ -114,6 +125,20 @@ class _ParentScreenState extends State<ParentScreen> {
                 _Metric('Fehlversuche', '$todayErrors'),
                 _Metric('Ø Antwort', _seconds(todayAvg)),
               ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Klassenstufen',
+            child: Column(
+              children: GradeLevel.values
+                  .map(
+                    (grade) => _PercentBar(
+                      label: grade.label,
+                      value: c.gradeAccuracy(grade),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
           const SizedBox(height: 14),
@@ -188,6 +213,23 @@ class _ParentScreenState extends State<ParentScreen> {
                   .toList(),
             ),
           ),
+          if (c.gradeLevel.index >= GradeLevel.third.index) ...[
+            const SizedBox(height: 14),
+            _Section(
+              title: '${c.gradeLevel.label} · Lehrplanbereiche',
+              child: Column(
+                children: c
+                    .curriculumModesForGrade(c.gradeLevel)
+                    .map(
+                      (mode) => _PercentBar(
+                        label: mode.title,
+                        value: c.modeAccuracy(mode),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           _Section(
             title: 'Entwicklung',

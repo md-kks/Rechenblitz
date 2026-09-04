@@ -19,6 +19,7 @@ class AppController extends ChangeNotifier {
   bool hapticEnabled = true;
   bool loaded = false;
   NumberRangeLevel numberRange = NumberRangeLevel.twenty;
+  GradeLevel gradeLevel = GradeLevel.second;
   Set<String> unlockedBadges = <String>{};
   Set<String> recoveredWeakFacts = <String>{};
   final Set<String> _pendingBadgeIds = <String>{};
@@ -34,6 +35,10 @@ class AppController extends ChangeNotifier {
     soundEnabled = await storage.soundEnabled();
     hapticEnabled = await storage.hapticEnabled();
     numberRange = await storage.numberRange();
+    gradeLevel = await storage.gradeLevel();
+    if (!availableRanges.contains(numberRange)) {
+      numberRange = gradeLevel.recommendedRange;
+    }
     unlockedBadges = await storage.rewardBadges();
     recoveredWeakFacts = await storage.recoveredWeakFacts();
     final discovered = <String>{};
@@ -140,6 +145,7 @@ class AppController extends ChangeNotifier {
         .where((entry) =>
             entry.mode == result.mode &&
             entry.numberRange == result.numberRange &&
+            entry.gradeLevel == result.gradeLevel &&
             entry.total > 0)
         .take(3)
         .toList();
@@ -177,6 +183,24 @@ class AppController extends ChangeNotifier {
 
     if (history.any(_isCourageRound)) {
       _unlockBadge('courage', newlyUnlocked);
+    }
+
+    for (final grade in GradeLevel.values) {
+      final sessions = history
+          .where((entry) => entry.gradeLevel == grade && entry.total > 0)
+          .toList();
+      final total = sessions.fold<int>(0, (sum, entry) => sum + entry.total);
+      final correct = sessions.fold<int>(
+          0, (sum, entry) => sum + entry.correctFirstTry);
+      final distinctModes = sessions.map((entry) => entry.mode).toSet().length;
+      final accuracy = total == 0 ? 0.0 : correct / total;
+      final requiredModes = grade.index < GradeLevel.third.index ? 4 : 6;
+      final requiredTasks = grade.index < GradeLevel.third.index ? 30 : 50;
+      if (total >= requiredTasks &&
+          distinctModes >= requiredModes &&
+          accuracy >= 0.82) {
+        _unlockBadge('grade:${grade.name}', newlyUnlocked);
+      }
     }
 
     for (final range in NumberRangeLevel.values) {
@@ -260,8 +284,21 @@ class AppController extends ChangeNotifier {
   double modeAccuracy(TrainingMode mode) {
     final sessions = history
         .where((h) =>
-            h.mode == mode && h.total > 0 && h.numberRange == numberRange)
+            h.mode == mode &&
+            h.total > 0 &&
+            h.numberRange == numberRange &&
+            h.gradeLevel == gradeLevel)
         .take(12);
+    final total = sessions.fold<int>(0, (sum, e) => sum + e.total);
+    final correct =
+        sessions.fold<int>(0, (sum, e) => sum + e.correctFirstTry);
+    return total == 0 ? 0 : correct / total;
+  }
+
+  double gradeAccuracy(GradeLevel grade) {
+    final sessions = history
+        .where((h) => h.total > 0 && h.gradeLevel == grade)
+        .take(50);
     final total = sessions.fold<int>(0, (sum, e) => sum + e.total);
     final correct =
         sessions.fold<int>(0, (sum, e) => sum + e.correctFirstTry);
@@ -270,7 +307,10 @@ class AppController extends ChangeNotifier {
 
   double rangeAccuracy(NumberRangeLevel range) {
     final sessions = history
-        .where((h) => h.total > 0 && h.numberRange == range)
+        .where((h) =>
+            h.total > 0 &&
+            h.numberRange == range &&
+            h.gradeLevel == gradeLevel)
         .take(30);
     final total = sessions.fold<int>(0, (sum, e) => sum + e.total);
     final correct =
@@ -296,12 +336,116 @@ class AppController extends ChangeNotifier {
     return tried.take(count).toList();
   }
 
+  List<NumberRangeLevel> get availableRanges => switch (gradeLevel) {
+        GradeLevel.first => const [
+            NumberRangeLevel.ten,
+            NumberRangeLevel.twenty,
+          ],
+        GradeLevel.second => const [
+            NumberRangeLevel.ten,
+            NumberRangeLevel.twenty,
+            NumberRangeLevel.hundred,
+          ],
+        GradeLevel.third => const [
+            NumberRangeLevel.ten,
+            NumberRangeLevel.twenty,
+            NumberRangeLevel.hundred,
+            NumberRangeLevel.thousand,
+            NumberRangeLevel.tenThousand,
+          ],
+        GradeLevel.fourth => NumberRangeLevel.values,
+      };
+
+  List<TrainingMode> curriculumModesForGrade(GradeLevel grade) {
+    if (grade.index < GradeLevel.third.index) return const [];
+    final common = <TrainingMode>[
+      TrainingMode.largeNumbers,
+      TrainingMode.rounding,
+      TrainingMode.mentalStrategies,
+      TrainingMode.writtenAddSub,
+      TrainingMode.writtenMultiply,
+      TrainingMode.writtenDivide,
+      TrainingMode.estimation,
+      TrainingMode.arithmeticLaws,
+      TrainingMode.advancedMeasures,
+      TrainingMode.timeDurations,
+      TrainingMode.dataCharts,
+      TrainingMode.probability,
+      TrainingMode.combinatorics,
+      TrainingMode.perimeterArea,
+      TrainingMode.geometryBodies,
+      TrainingMode.symmetry,
+      TrainingMode.plansAndOrientation,
+      TrainingMode.romanNumerals,
+      TrainingMode.fractions,
+      TrainingMode.proportionality,
+      TrainingMode.volumeCubes,
+    ];
+    return common;
+  }
+
+  TrainingMode _upperPrimaryRecommendation() {
+    final modes = curriculumModesForGrade(gradeLevel);
+    for (final mode in modes) {
+      final attempted = history.any(
+        (entry) => entry.gradeLevel == gradeLevel && entry.mode == mode,
+      );
+      if (!attempted) return mode;
+    }
+    var best = modes.first;
+    var lowest = 2.0;
+    for (final mode in modes) {
+      final sessions = history
+          .where((entry) =>
+              entry.gradeLevel == gradeLevel &&
+              entry.mode == mode &&
+              entry.total > 0)
+          .take(5)
+          .toList();
+      if (sessions.isEmpty) return mode;
+      final total = sessions.fold<int>(0, (sum, e) => sum + e.total);
+      final correct =
+          sessions.fold<int>(0, (sum, e) => sum + e.correctFirstTry);
+      final accuracy = total == 0 ? 0.0 : correct / total;
+      if (accuracy < lowest) {
+        lowest = accuracy;
+        best = mode;
+      }
+    }
+    return best;
+  }
+
+  String recommendationText() {
+    if (gradeLevel.index >= GradeLevel.third.index) {
+      final mode = _upperPrimaryRecommendation();
+      final accuracy = modeAccuracy(mode);
+      if (accuracy == 0) {
+        return 'Für ${gradeLevel.label} passt als Nächstes „${mode.title}“. '
+            'Damit wird ein weiterer Lehrplanbereich erschlossen.';
+      }
+      return 'Im Bereich „${mode.title}“ liegt aktuell noch das größte '
+          'Übungspotenzial. Eine kurze Runde dazu passt gut.';
+    }
+    return engine.recommendation(facts, maxValue: maxValue);
+  }
+
   TrainingMode recommendedMode() {
+    if (gradeLevel.index >= GradeLevel.third.index) {
+      return _upperPrimaryRecommendation();
+    }
     final text = engine.recommendation(facts, maxValue: maxValue);
     if (text.contains('Minus-Runde')) return TrainingMode.minus;
     if (text.contains('Schnell rechnen')) return TrainingMode.speed;
     if (text.contains('Rechencheck')) return TrainingMode.tempo;
     return TrainingMode.practice;
+  }
+
+  Future<void> setGradeLevel(GradeLevel value) async {
+    gradeLevel = value;
+    numberRange = value.recommendedRange;
+    notifyListeners();
+    await storage.setGradeLevel(value);
+    await storage.setNumberRange(numberRange);
   }
 
   Future<void> setNumberRange(NumberRangeLevel value) async {
