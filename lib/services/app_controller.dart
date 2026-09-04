@@ -165,7 +165,9 @@ class AppController extends ChangeNotifier {
     var value = 1;
     if (result.total >= 5 && result.accuracy >= 0.80) value += 1;
     if (!history.any((entry) =>
-        !entry.isAssessment && entry.mode == result.mode)) value += 1;
+        !entry.isAssessment && entry.mode == result.mode)) {
+      value += 1;
+    }
     if (_isMeaningfulProgress(result)) value += 1;
     if (_isCourageRound(result)) value += 1;
     return value.clamp(1, 5).toInt();
