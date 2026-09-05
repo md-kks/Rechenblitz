@@ -1800,12 +1800,19 @@ class AppController extends ChangeNotifier {
         .toList();
     final relevant = <MicroCompetencyObservation>[
       ...matching
-          .where((entry) => entry.source != MicroEvidenceSource.guidedStep)
+          .where(
+            (entry) =>
+                entry.source != MicroEvidenceSource.independentStep &&
+                entry.source != MicroEvidenceSource.guidedStep,
+          )
           .take(24),
+      ...matching
+          .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+          .take(12),
       ...matching
           .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
           .take(12),
-    ];
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     if (relevant.isEmpty) {
       return 'Zu diesem Teilschritt liegen noch keine passenden Beobachtungen vor.';
     }
@@ -1818,6 +1825,9 @@ class AppController extends ChangeNotifier {
         .length;
     final transferCount = relevant
         .where((entry) => entry.source == MicroEvidenceSource.transfer)
+        .length;
+    final independentStepCount = relevant
+        .where((entry) => entry.source == MicroEvidenceSource.independentStep)
         .length;
     final guidedStepCount = relevant
         .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
@@ -1838,6 +1848,9 @@ class AppController extends ChangeNotifier {
     }
     if (transferCount > 0) {
       parts.add('$transferCount im Transfer');
+    }
+    if (independentStepCount > 0) {
+      parts.add('$independentStepCount eigenständige Teilfragen');
     }
     if (guidedStepCount > 0) {
       parts.add('$guidedStepCount geführte Zwischenschritte');
