@@ -1,10 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/app_controller.dart';
+import 'package:rechenblitz/widgets/guided_method_panel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -161,5 +164,171 @@ void main() {
     expect(remediation.methodLabel, 'Stellenwerte lesen');
     expect(remediation.steps[1].instruction, contains('407'));
   });
+
+  test('Minus über den Zehner markiert echte Zwischenschritte', () {
+    const preferences = MethodPreferences(
+      subtraction: SubtractionStrategy.bridgeToTen,
+      selectionPreference: MethodSelectionPreference.schoolMethod,
+    );
+    final fact = MathFact(
+      a: 13,
+      b: 5,
+      operation: MathOperation.minus,
+    );
+
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.minus,
+      taskKey: fact.key,
+      expected: 8,
+      preferences: preferences,
+      fact: fact,
+    );
+
+    expect(guide.steps[0].recordsIntermediateEvidence, isTrue);
+    expect(
+      guide.steps[0].evidenceCompetency,
+      MicroCompetencyId.subtractionTenBridge,
+    );
+    expect(guide.steps[0].evidenceKey, 'bridgeAmount');
+    expect(guide.steps[1].recordsIntermediateEvidence, isTrue);
+    expect(
+      guide.steps[1].evidenceCompetency,
+      MicroCompetencyId.numberDecomposition,
+    );
+    expect(guide.steps.last.recordsIntermediateEvidence, isFalse);
+  });
+
+  test('Darstellungswechsel zerlegt Gruppenlesen in beobachtbare Teilfragen', () {
+    const preferences = MethodPreferences();
+
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'process:representation:groups:3:4',
+      expected: 0,
+      preferences: preferences,
+      targetCompetency: MicroCompetencyId.representationTranslation,
+    );
+
+    expect(guide.steps[0].question, contains('Gruppen'));
+    expect(guide.steps[0].recordsIntermediateEvidence, isTrue);
+    expect(
+      guide.steps[0].evidenceCompetency,
+      MicroCompetencyId.multiplicationGroups,
+    );
+    expect(guide.steps[1].recordsIntermediateEvidence, isTrue);
+    expect(
+      guide.steps[1].evidenceCompetency,
+      MicroCompetencyId.multiplicationGroups,
+    );
+    expect(guide.steps[2].recordsIntermediateEvidence, isFalse);
+  });
+
+  test('Schriftliches Minus beobachtet Ausrichtung und Entbündelentscheidung',
+      () {
+    const preferences = MethodPreferences(
+      writtenSubtraction: WrittenSubtractionStrategy.regroup,
+    );
+
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'written:-:402:187',
+      expected: 215,
+      preferences: preferences,
+    );
+
+    expect(guide.steps[0].recordsIntermediateEvidence, isTrue);
+    expect(
+      guide.steps[0].evidenceCompetency,
+      MicroCompetencyId.writtenAlignment,
+    );
+    expect(guide.steps[1].recordsIntermediateEvidence, isTrue);
+    expect(
+      guide.steps[1].evidenceCompetency,
+      MicroCompetencyId.writtenRegrouping,
+    );
+    expect(guide.steps[1].choices[guide.steps[1].correctChoice!], 'Ja');
+  });
+
+  test('Zerlegte Multiplikation beobachtet Teilprodukte statt nur Endergebnis',
+      () {
+    const preferences = MethodPreferences(
+      multiplication: MultiplicationStrategy.decompose,
+    );
+    final fact = MathFact(
+      a: 6,
+      b: 7,
+      operation: MathOperation.multiply,
+    );
+
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.multiply,
+      taskKey: fact.key,
+      expected: 42,
+      preferences: preferences,
+      fact: fact,
+    );
+
+    expect(guide.steps[0].recordsIntermediateEvidence, isTrue);
+    expect(guide.steps[1].recordsIntermediateEvidence, isTrue);
+    expect(
+      guide.steps.take(2).every(
+            (step) =>
+                step.evidenceCompetency ==
+                MicroCompetencyId.multiplicationFacts,
+          ),
+      isTrue,
+    );
+    expect(guide.steps.last.recordsIntermediateEvidence, isFalse);
+  });
+
+  testWidgets('Geführtes Panel meldet nur den ersten Versuch eines Schritts',
+      (tester) async {
+    const step = GuidedMethodStep(
+      title: 'Teilfrage',
+      instruction: 'Löse zuerst diesen Zwischenschritt.',
+      question: 'Was ist richtig?',
+      choices: ['3', '4'],
+      correctChoice: 1,
+      evidenceKey: 'firstStep',
+      evidenceCompetency: MicroCompetencyId.numberDecomposition,
+    );
+    const guide = GuidedMethodGuide(
+      methodKey: 'test:guided',
+      methodLabel: 'Testweg',
+      nudge: 'Ein kleiner Hinweis.',
+      steps: [step],
+    );
+    final attempts = <bool>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuidedMethodPanel(
+            guide: guide,
+            pattern: ErrorPattern.numberBond,
+            taskKey: 'test:task',
+            expected: 4,
+            onHelpLevelChanged: (_) {},
+            onStepAttempt: (_, correct) async {
+              attempts.add(correct);
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('3 Gemeinsam lösen'));
+    await tester.pump();
+
+    await tester.tap(find.widgetWithText(ChoiceChip, '3'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(ChoiceChip, '4'));
+    await tester.pump();
+
+    expect(attempts, [false]);
+    expect(find.text('Genau. Dieser Schritt stimmt.'), findsOneWidget);
+  });
+
 
 }
