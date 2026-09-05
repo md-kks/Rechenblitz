@@ -379,12 +379,18 @@ void main() {
     );
     expect(plan[2].reason, contains('zeitlichem Abstand'));
     expect(
-      plan.where((segment) => segment.transferEmphasis).every(
-            (segment) =>
-                segment.targetCompetency !=
-                MicroCompetencyId.subtractionTenBridge,
-          ),
+      [
+        plan[0],
+        plan[1],
+        plan[3],
+      ].every(
+        (segment) =>
+            segment.targetCompetency !=
+            MicroCompetencyId.subtractionTenBridge,
+      ),
       isTrue,
+      reason:
+          'Das Abstandsziel darf in derselben Runde nicht vorgeübt werden.',
     );
   });
 
