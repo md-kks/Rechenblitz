@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -60,6 +61,15 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   String feedback = '';
   ErrorPattern? currentErrorPattern;
   final List<int> responseTimes = [];
+  int checkpointIndex = 0;
+  final Set<int> checkpointAttempted = <int>{};
+  final Map<int, int> checkpointWrongAttempts = <int, int>{};
+  bool checkpointLocked = false;
+  bool hadCheckpointError = false;
+  String checkpointFeedback = '';
+
+  bool get _checkpointsComplete =>
+      checkpointIndex >= current.checkpoints.length;
 
   @override
   void initState() {
@@ -74,6 +84,13 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   }
 
   void _prepareHelpForCurrent() {
+    checkpointIndex = 0;
+    checkpointAttempted.clear();
+    checkpointWrongAttempts.clear();
+    checkpointLocked = false;
+    hadCheckpointError = false;
+    checkpointFeedback = '';
+
     final fadingLevel = ScaffoldFadingPolicy.initialLevelForTask(
       completed,
       enabled: widget.scaffoldFading,
@@ -112,8 +129,74 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
 
 
 
+  Future<void> _answerCheckpoint(int choice) async {
+    if (locked ||
+        finishing ||
+        checkpointLocked ||
+        _checkpointsComplete) {
+      return;
+    }
+
+    final index = checkpointIndex;
+    final checkpoint = current.checkpoints[index];
+    final correct = choice == checkpoint.correctChoice;
+    final firstAttempt = checkpointAttempted.add(index);
+
+    if (firstAttempt) {
+      unawaited(
+        widget.controller.recordIndependentStepAttempt(
+          mode: widget.mode,
+          taskKey: current.key,
+          stepKey: checkpoint.key,
+          competencyId: checkpoint.competencyId,
+          correct: correct,
+          usedHelp: showHint,
+          helpLevel: helpLevel,
+          methodKey: activeMethodKey,
+          evidenceWeight: checkpoint.evidenceWeight,
+        ),
+      );
+    }
+
+    if (!correct) {
+      hadCheckpointError = true;
+      final attempts = (checkpointWrongAttempts[index] ?? 0) + 1;
+      checkpointWrongAttempts[index] = attempts;
+      setState(() {
+        checkpointFeedback = attempts >= 2
+            ? 'Nutze bei Bedarf den Hinweis und prüfe diesen Schritt noch einmal.'
+            : 'Noch nicht. Schau genau auf die Darstellung.';
+        if (attempts >= 2) {
+          showHint = true;
+          if (helpLevel < HelpLevel.nudge.value) {
+            helpLevel = HelpLevel.nudge.value;
+            activeMethodKey = _guide.methodKey;
+          }
+        }
+      });
+      return;
+    }
+
+    setState(() {
+      checkpointLocked = true;
+      checkpointFeedback = 'Genau. Dieser Schritt stimmt.';
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!mounted ||
+        finishing ||
+        checkpointIndex != index ||
+        current.checkpoints.length <= index) {
+      return;
+    }
+    setState(() {
+      checkpointIndex += 1;
+      checkpointLocked = false;
+      checkpointFeedback = '';
+    });
+  }
+
   Future<void> _answer(int answer) async {
-    if (locked || finishing) return;
+    if (locked || finishing || !_checkpointsComplete) return;
     final response = DateTime.now().difference(shownAt);
     final diagnosedPattern = answer == current.answer
         ? null
@@ -171,7 +254,9 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     locked = true;
     completed += 1;
     responseTimes.add(response.inMilliseconds.clamp(0, 30000).toInt());
-    if (wrongOnCurrent == 0) correctFirstTry += 1;
+    if (wrongOnCurrent == 0 && !hadCheckpointError) {
+      correctFirstTry += 1;
+    }
     if (widget.controller.hapticEnabled) HapticFeedback.lightImpact();
     if (widget.controller.soundEnabled) {
       SystemSound.play(SystemSoundType.click);
