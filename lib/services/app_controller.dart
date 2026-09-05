@@ -1016,6 +1016,7 @@ class AppController extends ChangeNotifier {
             }
           }
           lastReviewSeen ??= observation.occurredAt;
+          break;
         case MicroEvidenceSource.transfer:
           transferEvidence += observation.evidenceWeight;
           transferObservations += 1;
@@ -1030,6 +1031,7 @@ class AppController extends ChangeNotifier {
             }
           }
           lastTransferSeen ??= observation.occurredAt;
+          break;
         case MicroEvidenceSource.practice:
         case MicroEvidenceSource.remediation:
           baseEvidence += observation.evidenceWeight;
@@ -1042,6 +1044,7 @@ class AppController extends ChangeNotifier {
               independentCorrectEvidence += observation.evidenceWeight;
             }
           }
+          break;
       }
     }
 
