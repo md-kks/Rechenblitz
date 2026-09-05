@@ -1280,9 +1280,13 @@ class AppController extends ChangeNotifier {
               entry.id == competencyId &&
               entry.gradeLevel == gradeLevel &&
               entry.numberRange == numberRange &&
-              entry.source == MicroEvidenceSource.practice &&
+              (entry.source == MicroEvidenceSource.practice ||
+                  entry.source == MicroEvidenceSource.independentStep) &&
               !entry.usedHelp &&
-              entry.evidenceWeight >= 0.80 &&
+              ((entry.source == MicroEvidenceSource.practice &&
+                      entry.evidenceWeight >= 0.80) ||
+                  (entry.source == MicroEvidenceSource.independentStep &&
+                      entry.evidenceWeight >= 0.25)) &&
               entry.occurredAt.isAfter(after),
         )
         .toList()
