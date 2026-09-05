@@ -117,6 +117,49 @@ void main() {
     }
   });
 
+  test('Geraden-Winkel-Lernziele sind gezielt generierbar und getaggt', () {
+    final generator = CurriculumExerciseGenerator(random: Random(8804));
+    const cases = [
+      (
+        id: MicroCompetencyId.lineRelations,
+        prefix: 'geomrel:lines:',
+      ),
+      (
+        id: MicroCompetencyId.rightAngle,
+        prefix: 'geomrel:angle:',
+      ),
+      (
+        id: MicroCompetencyId.figureClassification,
+        prefix: 'geomrel:figure:',
+      ),
+      (
+        id: MicroCompetencyId.circleParts,
+        prefix: 'geomrel:circle:',
+      ),
+    ];
+
+    for (final item in cases) {
+      final exercise = generator.generate(
+        mode: TrainingMode.geometryRelations,
+        gradeLevel: GradeLevel.third,
+        maxValue: 1000,
+        targetCompetency: item.id,
+      );
+      final tags = MicroCompetencyCatalog.tagsForTask(
+        mode: TrainingMode.geometryRelations,
+        taskKey: exercise.key,
+      );
+
+      expect(exercise.key, startsWith(item.prefix));
+      expect(exercise.usesChoices, isTrue);
+      expect(tags.map((tag) => tag.id), contains(item.id));
+      expect(
+        exercise.answer,
+        inInclusiveRange(0, exercise.choices!.length - 1),
+      );
+    }
+  });
+
   test('automatischer Oberstufen-Generator-Audit prüft tausende Aufgaben', () {
     final generator = CurriculumExerciseGenerator(random: Random(123456));
     var generated = 0;
