@@ -86,4 +86,25 @@ void main() {
       SubtractionStrategy.complement,
     );
   });
+  test('Transferplanung verschiebt Grundrechenarten in Anwendungskontexte', () {
+    final controller = AppController();
+
+    expect(
+      controller.transferModeFor(MicroCompetencyId.additionTenBridge),
+      TrainingMode.wordProblems,
+    );
+    expect(
+      controller.transferModeFor(MicroCompetencyId.multiplicationFacts),
+      TrainingMode.wordProblems,
+    );
+    expect(
+      controller.transferModeFor(MicroCompetencyId.representationTranslation),
+      TrainingMode.wordProblems,
+    );
+    expect(
+      controller.transferModeFor(MicroCompetencyId.roundingPlace),
+      TrainingMode.rounding,
+    );
+  });
+
 }
