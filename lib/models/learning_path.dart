@@ -34,6 +34,7 @@ class GuidedRoundSegment {
     this.targetCompetency,
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
+    this.scaffoldFading = false,
   });
 
   final TrainingMode mode;
@@ -42,6 +43,7 @@ class GuidedRoundSegment {
   final MicroCompetencyId? targetCompetency;
   final bool reviewEmphasis;
   final bool transferEmphasis;
+  final bool scaffoldFading;
 }
 
 class GuidedStepFocus {
