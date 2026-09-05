@@ -93,6 +93,7 @@ Future<void> _openAssignmentTraining(
           mode: assignment.mode,
           targetTasks: assignment.tasks,
           targetCompetency: assignment.targetCompetency,
+          transferEmphasis: assignment.transferEmphasis,
         ),
       ),
     );
@@ -121,6 +122,7 @@ Future<void> _openAssignmentTraining(
         mode: assignment.mode,
         targetTasks: assignment.tasks,
         targetCompetency: assignment.targetCompetency,
+        transferEmphasis: assignment.transferEmphasis,
       ),
     ),
   );
