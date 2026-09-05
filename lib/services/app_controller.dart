@@ -33,6 +33,7 @@ class AppController extends ChangeNotifier {
   static const int _guidedStepWindow = 8;
   static const int _guidedStepMinIncorrect = 2;
   static const double _guidedStepFocusMaxAccuracy = 0.60;
+  static const int _guidedStepIndependentConfirmations = 2;
 
   AppController({
     StorageService? storage,
@@ -1192,6 +1193,29 @@ class AppController extends ChangeNotifier {
           .map((definition) => microCompetencyProgress(definition.id))
           .toList();
 
+  bool _guidedStepRecoveredIndependently(
+    MicroCompetencyId competencyId,
+    DateTime after,
+  ) {
+    final independent = microObservations
+        .where(
+          (entry) =>
+              entry.id == competencyId &&
+              entry.gradeLevel == gradeLevel &&
+              entry.numberRange == numberRange &&
+              entry.source == MicroEvidenceSource.practice &&
+              !entry.usedHelp &&
+              entry.evidenceWeight >= 0.80 &&
+              entry.occurredAt.isAfter(after),
+        )
+        .toList()
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final latest =
+        independent.take(_guidedStepIndependentConfirmations).toList();
+    return latest.length >= _guidedStepIndependentConfirmations &&
+        latest.every((entry) => entry.correct);
+  }
+
   GuidedStepFocus? guidedStepFocus() {
     final grouped = <String, List<MicroCompetencyObservation>>{};
 
@@ -1224,7 +1248,11 @@ class AppController extends ChangeNotifier {
       if (incorrect < _guidedStepMinIncorrect ||
           accuracy >= _guidedStepFocusMaxAccuracy ||
           progress.state == MicroCompetencyState.secure ||
-          progress.state == MicroCompetencyState.mastered) {
+          progress.state == MicroCompetencyState.mastered ||
+          _guidedStepRecoveredIndependently(
+            competencyId,
+            recent.first.occurredAt,
+          )) {
         continue;
       }
 
@@ -1574,9 +1602,12 @@ class AppController extends ChangeNotifier {
             ? 'Das ist heute das wichtigste Lernziel.'
             : guidedFocus != null &&
                     guidedFocus.competencyId == microFocus.definition.id
-                ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt: ${microFocus.definition.label}.'
+                ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt „${microFocus.definition.label}“ und nehmen die Hilfe schrittweise zurück.'
                 : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
         targetCompetency: microFocus?.definition.id,
+        scaffoldFading: guidedFocus != null &&
+            microFocus != null &&
+            guidedFocus.competencyId == microFocus.definition.id,
       ),
       GuidedRoundSegment(
         mode: reviewTarget == null
