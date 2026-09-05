@@ -19,6 +19,7 @@ class StructuredTrainingScreen extends StatefulWidget {
     required this.mode,
     this.targetTasks = 10,
     this.targetCompetency,
+    this.reviewEmphasis = false,
     this.transferEmphasis = false,
   });
 
@@ -26,6 +27,7 @@ class StructuredTrainingScreen extends StatefulWidget {
   final TrainingMode mode;
   final int targetTasks;
   final MicroCompetencyId? targetCompetency;
+  final bool reviewEmphasis;
   final bool transferEmphasis;
 
   @override
@@ -34,6 +36,12 @@ class StructuredTrainingScreen extends StatefulWidget {
 }
 
 class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
+  MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
+      ? MicroEvidenceSource.transfer
+      : widget.reviewEmphasis
+          ? MicroEvidenceSource.review
+          : MicroEvidenceSource.practice;
+
   final StructuredExerciseGenerator generator = StructuredExerciseGenerator();
   late StructuredExercise current;
   late DateTime startedAt;
@@ -115,9 +123,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         usedHelp: showHint,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
-        source: widget.transferEmphasis
-            ? MicroEvidenceSource.transfer
-            : MicroEvidenceSource.practice,
+        source: _evidenceSource,
       );
     }
     if (answer != current.answer) {
@@ -140,9 +146,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         taskKey: current.key,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
-        source: widget.transferEmphasis
-            ? MicroEvidenceSource.transfer
-            : MicroEvidenceSource.practice,
+        source: _evidenceSource,
       );
       if (!mounted || finishing) return;
     }
