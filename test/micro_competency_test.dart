@@ -988,4 +988,55 @@ void main() {
   });
 
 
+  test('guidedStep stuft sichere Kompetenz nicht zurück', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          occurredAt: DateTime(2026, 9, 5, 13, index),
+          correct: false,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.guidedStep,
+          usedHelp: true,
+          helpLevel: HelpLevel.guided.value,
+          methodKey: 'subtraction:bridgeToTen',
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'guided:subtraction:bridgeToTen:remainingSubtrahend:minus:13:5:$index',
+        ),
+      ),
+      ...List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          occurredAt: DateTime(2026, 9, 4, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.numberFriends,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'friends:10:$index',
+        ),
+      ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.numberDecomposition,
+    );
+
+    expect(progress.state, MicroCompetencyState.secure);
+    expect(progress.guidedStepAccuracy, 0);
+    expect(controller.guidedStepFocus(), isNull);
+    expect(controller.currentMicroFocus(), isNull);
+  });
+
+
 }
