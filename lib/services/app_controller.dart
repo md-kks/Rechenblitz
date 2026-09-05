@@ -1589,8 +1589,14 @@ class AppController extends ChangeNotifier {
   }) {
     final priority = parentPriorityMicroCompetency(now: now);
     final strongestMicro = strongestMicroCompetency();
+    final hasCurrentMicroEvidence = microObservations.any(
+      (entry) =>
+          entry.gradeLevel == gradeLevel &&
+          entry.numberRange == numberRange,
+    );
 
-    if (priority != null) {
+    if (priority != null &&
+        (hasCurrentMicroEvidence || history.isEmpty)) {
       final currentFocus = currentMicroFocus();
       final dueReview = dueReviewMicroCompetency(now: now);
       final transfer = transferCandidateMicroCompetency(
