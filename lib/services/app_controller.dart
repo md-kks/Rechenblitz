@@ -1188,8 +1188,9 @@ class AppController extends ChangeNotifier {
               return false;
             }
             final hasStableDelayedEvidence =
-                progress.reviewIndependentEvidence >= 1.5 &&
-                    progress.reviewIndependentAccuracy >= 0.80;
+                progress.reviewIndependentEvidence >= _masteredReviewEvidence &&
+                    progress.reviewIndependentAccuracy >=
+                        _masteredReviewAccuracy;
             final requiredGap = hasStableDelayedEvidence
                 ? const Duration(days: 7)
                 : const Duration(days: 2);
