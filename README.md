@@ -269,8 +269,11 @@ Klasse 3/4 enthält zusätzlich eigene Mikro-Lernziele für mathematisches Denke
 - **günstigen Rechenweg auswählen**
 - **Rechenfehler erkennen**
 - **Ergebnisse per Überschlag auf Plausibilität prüfen**
+- **Rechenbeziehungen mathematisch begründen**
 
-Diese Aufgaben sind nicht nur Multiple-Choice-Zusätze: Sie erhalten eigene Mikro-Evidenz, eigene Hilfestufen und eigene visuelle Darstellungen. Wenn ein Kind nach einem ersten Fehler eine Hilfe nutzt und anschließend löst, wird diese Unterstützungs-Evidenz separat und schwächer gewichtet gespeichert, ohne die Direkt-richtig-Quote zu erhöhen.
+Auch Begründungsaufgaben erhalten ein eigenes Mikro-Lernziel. Rechenblitz kann dabei digital prüfen, ob ein Kind eine passende mathematische Begründung erkennt und nachvollzieht. Das freie Formulieren, Austauschen und Verteidigen eigener Begründungen bleibt bewusst als praktisch zu ergänzende Unterrichtskompetenz gekennzeichnet.
+
+Diese Aufgaben sind nicht nur Multiple-Choice-Zusätze: Sie erhalten eigene Mikro-Evidenz, eigene Hilfestufen und – wo passend – konkrete visuelle Darstellungen. Wenn ein Kind nach einem ersten Fehler eine Hilfe nutzt und anschließend löst, wird diese Unterstützungs-Evidenz separat und schwächer gewichtet gespeichert, ohne die Direkt-richtig-Quote zu erhöhen.
 
 ### Visuelle Rechenwege
 
