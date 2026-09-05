@@ -8,6 +8,24 @@ enum ExerciseShape { triangle, square, rectangle, circle }
 
 enum ExerciseRepresentation { placeValue, equalGroups }
 
+class ExerciseCheckpoint {
+  const ExerciseCheckpoint({
+    required this.key,
+    required this.question,
+    required this.choices,
+    required this.correctChoice,
+    required this.competencyId,
+    this.evidenceWeight = 0.35,
+  });
+
+  final String key;
+  final String question;
+  final List<String> choices;
+  final int correctChoice;
+  final MicroCompetencyId competencyId;
+  final double evidenceWeight;
+}
+
 class StructuredExercise {
   const StructuredExercise({
     required this.mode,
@@ -27,6 +45,7 @@ class StructuredExercise {
     this.representation,
     this.representationA,
     this.representationB,
+    this.checkpoints = const <ExerciseCheckpoint>[],
   });
 
   final TrainingMode mode;
@@ -46,12 +65,14 @@ class StructuredExercise {
   final ExerciseRepresentation? representation;
   final int? representationA;
   final int? representationB;
+  final List<ExerciseCheckpoint> checkpoints;
 
   bool get isNumberWall => wallValues != null && hiddenWallIndex != null;
   bool get usesChoices => choices != null && choices!.isNotEmpty;
   bool get hasClock => clockHour != null && clockMinute != null;
   bool get hasMoneyVisual =>
       moneyPartsCents != null && moneyPartsCents!.isNotEmpty;
+  bool get hasCheckpoints => checkpoints.isNotEmpty;
   bool get hasRepresentationVisual => switch (representation) {
         ExerciseRepresentation.placeValue => representationA != null,
         ExerciseRepresentation.equalGroups =>
