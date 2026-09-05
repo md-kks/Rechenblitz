@@ -238,7 +238,8 @@ class RemediationGenerator {
           _partialOperand(stage, preferredMode, range),
         ErrorPattern.numberBond => _numberBond(stage, range),
         ErrorPattern.countingStep => _countingStep(stage, range),
-        ErrorPattern.operationChoice => _operationChoice(stage, range),
+        ErrorPattern.operationChoice =>
+          _operationChoice(stage, range, grade),
         ErrorPattern.placeValue => _placeValue(stage, range),
         ErrorPattern.multiplicationFact ||
         ErrorPattern.multiplicationAsAddition =>
@@ -333,9 +334,21 @@ class RemediationGenerator {
       );
     }
 
-    final a = _between(2, min(49, max(2, limit - 10)));
-    final needed = 10 - (a % 10);
-    final b = _between(max(needed, 1), min(9, max(needed, limit - a)));
+    var a = 2;
+    var needed = 8;
+    for (var attempt = 0; attempt < 40; attempt++) {
+      final candidate = _between(2, min(49, max(2, limit - 1)));
+      final candidateNeeded = 10 - (candidate % 10);
+      if (candidate % 10 == 0 ||
+          candidateNeeded > 9 ||
+          candidate + candidateNeeded > limit) {
+        continue;
+      }
+      a = candidate;
+      needed = candidateNeeded;
+      break;
+    }
+    final b = _between(needed, min(9, limit - a));
     return _numeric(
       stage: stage,
       mode: TrainingMode.practice,
@@ -433,12 +446,15 @@ class RemediationGenerator {
   RemediationTask _operationChoice(
     RemediationStage stage,
     NumberRangeLevel range,
+    GradeLevel grade,
   ) {
     final limit = min(range.maxValue, 100);
     final a = _between(5, max(5, limit ~/ 2));
     final b = _between(1, min(a - 1, 9));
     final plus = _random.nextBool();
-    const choices = ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'];
+    final choices = grade == GradeLevel.first
+        ? const ['Plus (+)', 'Minus (−)']
+        : const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'];
     return RemediationTask(
       stage: stage,
       mode: TrainingMode.mixed,
@@ -447,7 +463,7 @@ class RemediationGenerator {
           ? 'Eine Menge von $a wird um $b größer. Welche Rechenart passt?'
           : 'Von $a werden $b weggenommen. Welche Rechenart passt?',
       answer: plus ? 0 : 1,
-      maxAnswerValue: 3,
+      maxAnswerValue: choices.length - 1,
       choices: choices,
       hint:
           'Achte zuerst auf die Handlung: größer/dazukommen oder kleiner/wegnehmen.',
