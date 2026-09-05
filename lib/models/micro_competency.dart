@@ -829,15 +829,11 @@ class MicroCompetencyCatalog {
               weight: 0.45,
             ),
           ],
-        'partialOperand' => [
+        'partialOperand' => const [
+            MicroCompetencyTag(MicroCompetencyId.placeValueDigits),
             MicroCompetencyTag(
-              taskKey.contains(':-:')
-                  ? MicroCompetencyId.subtractionNoBridge
-                  : MicroCompetencyId.additionNoBridge,
-            ),
-            const MicroCompetencyTag(
-              MicroCompetencyId.placeValueDigits,
-              weight: 0.55,
+              MicroCompetencyId.numberDecomposition,
+              weight: 0.65,
             ),
           ],
         'numberBond' => const [
