@@ -210,7 +210,7 @@ abstract final class EvidenceCoverageAuditCatalog {
       'multiplicationCarry',
       'nextMultiplierDigit',
     ],
-MicroCompetencyId.writtenDivideProcedure: [
+    MicroCompetencyId.writtenDivideProcedure: [
       'firstQuotientDigit',
       'firstDivisionRemainder',
     ],
