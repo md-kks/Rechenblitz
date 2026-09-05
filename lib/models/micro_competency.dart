@@ -65,6 +65,7 @@ enum MicroCompetencyId {
   plausibilityCheck,
   arithmeticLaw,
   reasoningJustification,
+  representationTranslation,
   romanNumeral,
   fractionEqualParts,
   timeDuration,
@@ -608,6 +609,16 @@ class MicroCompetencyCatalog {
       prerequisites: [MicroCompetencyId.arithmeticLaw],
     ),
     MicroCompetencyDefinition(
+      id: MicroCompetencyId.representationTranslation,
+      label: 'Zwischen Darstellungen wechseln',
+      description:
+          'Dieselbe Zahl oder Rechenidee in Stellenwert-, Zerlegungs-, Gruppen- und Symbolform wiedererkennen und übertragen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.wordProblems,
+      minGrade: GradeLevel.first,
+      prerequisites: [MicroCompetencyId.numberDecomposition],
+    ),
+    MicroCompetencyDefinition(
       id: MicroCompetencyId.romanNumeral,
       label: 'Römische Zahlen lesen',
       description: 'Römische Zahlzeichen lesen und zusammensetzen.',
@@ -892,6 +903,11 @@ class MicroCompetencyCatalog {
               weight: 0.35,
             ),
           ],
+        'representationTranslation' => const [
+            MicroCompetencyTag(
+              MicroCompetencyId.representationTranslation,
+            ),
+          ],
         'unitConversion' => const [
             MicroCompetencyTag(MicroCompetencyId.unitConversion),
           ],
@@ -962,6 +978,37 @@ class MicroCompetencyCatalog {
       return const [
         MicroCompetencyTag(MicroCompetencyId.inverseRelationship),
       ];
+    }
+    if (taskKey.startsWith('process:representation:')) {
+      final groups = taskKey.startsWith('process:representation:groups:') ||
+          taskKey.startsWith('process:representation:equation:');
+      final tags = <MicroCompetencyTag>[
+        const MicroCompetencyTag(
+          MicroCompetencyId.representationTranslation,
+        ),
+      ];
+      if (groups) {
+        tags.add(
+          const MicroCompetencyTag(
+            MicroCompetencyId.multiplicationGroups,
+            weight: 0.45,
+          ),
+        );
+      } else {
+        tags.addAll(
+          const [
+            MicroCompetencyTag(
+              MicroCompetencyId.placeValueDigits,
+              weight: 0.45,
+            ),
+            MicroCompetencyTag(
+              MicroCompetencyId.numberDecomposition,
+              weight: 0.35,
+            ),
+          ],
+        );
+      }
+      return tags;
     }
     if (taskKey.startsWith('story:')) {
       return _storyTags(taskKey);

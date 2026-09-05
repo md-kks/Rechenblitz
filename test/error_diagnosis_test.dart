@@ -379,4 +379,29 @@ void main() {
     );
   });
 
+  test('Darstellungswechsel wird als eigenes Fehlermuster erkannt', () {
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.wordProblems,
+        taskKey: 'process:representation:place:407',
+        expected: 0,
+        actual: 1,
+      ),
+      ErrorPattern.representationTranslation,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.wordProblems,
+        taskKey: 'process:representation:groups:3:4',
+        expected: 0,
+        actual: 2,
+      ),
+      ErrorPattern.representationTranslation,
+    );
+    expect(
+      ErrorPattern.representationTranslation.firstResponseHint,
+      contains('Stellenwerte oder gleich große Gruppen'),
+    );
+  });
+
 }

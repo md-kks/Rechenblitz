@@ -273,6 +273,14 @@ class RemediationGenerator {
             pattern,
             MicroCompetencyId.wordProblemInterpretation,
           ),
+        ErrorPattern.representationTranslation =>
+          _targetedWordProblem(
+            stage,
+            grade,
+            range,
+            pattern,
+            MicroCompetencyId.representationTranslation,
+          ),
         ErrorPattern.unitConversion => _unitConversion(stage, grade),
         ErrorPattern.roundingPlace => _rounding(stage, range),
         ErrorPattern.writtenRegrouping =>
@@ -595,9 +603,13 @@ class RemediationGenerator {
     ErrorPattern pattern,
     MicroCompetencyId competency,
   ) {
+    final exerciseMaxValue =
+        competency == MicroCompetencyId.representationTranslation
+            ? range.maxValue
+            : min(range.maxValue, 100);
     final exercise = _structured.generate(
       mode: TrainingMode.wordProblems,
-      maxValue: min(range.maxValue, 100),
+      maxValue: exerciseMaxValue,
       gradeLevel: grade,
       targetCompetency: competency,
     );
@@ -608,7 +620,7 @@ class RemediationGenerator {
       prompt: exercise.prompt,
       answer: exercise.answer,
       maxAnswerValue:
-          exercise.maxAnswerValue ?? min(range.maxValue, 100),
+          exercise.maxAnswerValue ?? exerciseMaxValue,
       choices: exercise.choices,
       answerSuffix: exercise.answerSuffix,
       hint: '${pattern.firstResponseHint} ${exercise.hint}',

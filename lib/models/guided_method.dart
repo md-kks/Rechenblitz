@@ -74,6 +74,11 @@ class GuidedMethodFactory {
       return _plausibilityGuide(taskKey);
     }
 
+    if (taskKey.startsWith('process:representation:') ||
+        taskKey.contains(':process:representation:')) {
+      return _representationGuide(taskKey);
+    }
+
     if (fact != null &&
         fact.operation == MathOperation.minus &&
         _needsSubtractionBridge(fact)) {
@@ -139,6 +144,81 @@ class GuidedMethodFactory {
         GuidedMethodStep(
           title: 'Kontrollieren',
           instruction: 'Prüfe, ob dein Ergebnis zur Aufgabe und zum Zahlenraum passt.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _representationGuide(String taskKey) {
+    final parts = taskKey.split(':');
+    final representationIndex = parts.indexOf('representation');
+    final kind = representationIndex >= 0 &&
+            representationIndex + 1 < parts.length
+        ? parts[representationIndex + 1]
+        : '';
+
+    if (kind == 'place' || kind == 'decompose') {
+      final valueIndex = representationIndex + 2;
+      final number = valueIndex >= 0 && valueIndex < parts.length
+          ? int.tryParse(parts[valueIndex])
+          : null;
+      return GuidedMethodGuide(
+        methodKey: 'representation:placeValue',
+        methodLabel: 'Stellenwerte lesen',
+        nudge:
+            'Lies jede Stelle einzeln: Einer, Zehner, Hunderter und weiter nach links.',
+        steps: [
+          const GuidedMethodStep(
+            title: 'Stellen benennen',
+            instruction:
+                'Ordne jede sichtbare Ziffer zuerst ihrer Stelle zu. Eine 0 hält eine Stelle frei und darf nicht übersprungen werden.',
+          ),
+          GuidedMethodStep(
+            title: 'Wert zusammensetzen',
+            instruction: number == null
+                ? 'Setze die Stellenwerte anschließend wieder zu einer Zahl oder Zerlegung zusammen.'
+                : 'Die Stellenwertdarstellung gehört zu $number. Prüfe, wie jeder Ziffernwert in der Zerlegung erscheint.',
+          ),
+          const GuidedMethodStep(
+            title: 'Darstellungen vergleichen',
+            instruction:
+                'Kontrolliere, ob Zahl, Stellenwerttafel und Zerlegung exakt dieselben Stellenwerte enthalten.',
+          ),
+        ],
+      );
+    }
+
+    final groupsIndex = representationIndex + 2;
+    final eachIndex = representationIndex + 3;
+    final groups = groupsIndex >= 0 && groupsIndex < parts.length
+        ? int.tryParse(parts[groupsIndex])
+        : null;
+    final each = eachIndex >= 0 && eachIndex < parts.length
+        ? int.tryParse(parts[eachIndex])
+        : null;
+    return GuidedMethodGuide(
+      methodKey: 'representation:equalGroups',
+      methodLabel: 'Gleiche Gruppen lesen',
+      nudge:
+          'Zähle zuerst die Gruppen und danach, wie viele Punkte in jeder Gruppe liegen.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Gruppen zählen',
+          instruction: groups == null
+              ? 'Bestimme, wie viele gleich große Gruppen dargestellt sind.'
+              : 'Es sind $groups gleich große Gruppen.',
+        ),
+        GuidedMethodStep(
+          title: 'Inhalt jeder Gruppe',
+          instruction: each == null
+              ? 'Bestimme, wie viele Punkte in jeder Gruppe liegen.'
+              : 'In jeder Gruppe liegen $each Punkte.',
+        ),
+        GuidedMethodStep(
+          title: 'In Symbolsprache übersetzen',
+          instruction: groups == null || each == null
+              ? 'Schreibe: Anzahl der Gruppen × Anzahl je Gruppe.'
+              : '$groups Gruppen mit je $each Punkten entsprechen $groups × $each.',
         ),
       ],
     );

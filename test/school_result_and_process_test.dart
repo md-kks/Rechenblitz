@@ -271,6 +271,7 @@ void main() {
     expect(ids, contains(MicroCompetencyId.errorChecking));
     expect(ids, contains(MicroCompetencyId.plausibilityCheck));
     expect(ids, contains(MicroCompetencyId.reasoningJustification));
+    expect(ids, contains(MicroCompetencyId.representationTranslation));
     expect(ids, contains(MicroCompetencyId.wordProblemRelevantInformation));
     expect(ids, contains(MicroCompetencyId.wordProblemModel));
     expect(ids, contains(MicroCompetencyId.wordProblemInterpretation));
@@ -286,6 +287,7 @@ void main() {
     expect(processIds, contains(MicroCompetencyId.errorChecking));
     expect(processIds, contains(MicroCompetencyId.plausibilityCheck));
     expect(processIds, contains(MicroCompetencyId.reasoningJustification));
+    expect(processIds, contains(MicroCompetencyId.representationTranslation));
     expect(
       processIds,
       contains(MicroCompetencyId.wordProblemRelevantInformation),
@@ -306,6 +308,16 @@ void main() {
         );
     expect(reasoning.coverage, CurriculumCoverage.digitalSupport);
     expect(reasoning.note, contains('eigene Begründungen'));
+
+    final representation = CurriculumAuditCatalog.forGrade(GradeLevel.third)
+        .firstWhere(
+          (objective) =>
+              objective.competency ==
+              MicroCompetencyId.representationTranslation,
+        );
+    expect(representation.coverage, CurriculumCoverage.digitalPractice);
+    expect(representation.processRelated, isTrue);
+    expect(representation.note, contains('eigene Darstellungen'));
 
     final modeling = CurriculumAuditCatalog.forGrade(GradeLevel.third)
         .firstWhere(
@@ -341,6 +353,12 @@ void main() {
 
     await pumpAid('process:plausibility:34:28:92:10');
     expect(find.text('Überschlag'), findsOneWidget);
+
+    await pumpAid('process:representation:place:407');
+    expect(find.text('Stellenwerttafel'), findsOneWidget);
+
+    await pumpAid('process:representation:groups:3:4');
+    expect(find.text('Punktefeld'), findsOneWidget);
   });
 }
 

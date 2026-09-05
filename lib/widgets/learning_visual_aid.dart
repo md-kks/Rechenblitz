@@ -24,7 +24,9 @@ class LearningVisualAid extends StatelessWidget {
             ? _writtenColumnAid()
             : taskKey.startsWith('process:plausibility:')
                 ? _plausibilityAid()
-                : null;
+                : taskKey.startsWith('process:representation:')
+                    ? _representationAid()
+                    : null;
     final child = processChild ?? switch (pattern) {
       ErrorPattern.tenBridge ||
       ErrorPattern.carryOmitted ||
@@ -45,6 +47,7 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.wordProblemRelevantInformation ||
       ErrorPattern.wordProblemModel ||
       ErrorPattern.wordProblemInterpretation => const _OperationAid(),
+      ErrorPattern.representationTranslation => _representationAid(),
       _ => null,
     };
 
@@ -97,6 +100,14 @@ class LearningVisualAid extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Widget _representationAid() {
+    if (taskKey.contains(':groups:') ||
+        taskKey.contains(':equation:')) {
+      return _multiplicationAid();
+    }
+    return _placeValueAid();
   }
 
   Widget _multiplicationAid() {

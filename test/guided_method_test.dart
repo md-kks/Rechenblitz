@@ -134,4 +134,32 @@ void main() {
       SubtractionStrategy.complement,
     );
   });
+  test('Darstellungshilfe bleibt auch im Förderpfad darstellungsspezifisch', () {
+    const preferences = MethodPreferences();
+
+    final direct = GuidedMethodFactory.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'process:representation:groups:3:4',
+      expected: 0,
+      preferences: preferences,
+      targetCompetency: MicroCompetencyId.representationTranslation,
+    );
+    expect(direct.methodKey, 'representation:equalGroups');
+    expect(direct.methodLabel, 'Gleiche Gruppen lesen');
+    expect(direct.steps, hasLength(3));
+    expect(direct.steps.last.instruction, contains('3 × 4'));
+
+    final remediation = GuidedMethodFactory.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey:
+          'remediation:representationTranslation:process:representation:place:407',
+      expected: 0,
+      preferences: preferences,
+      targetCompetency: MicroCompetencyId.representationTranslation,
+    );
+    expect(remediation.methodKey, 'representation:placeValue');
+    expect(remediation.methodLabel, 'Stellenwerte lesen');
+    expect(remediation.steps[1].instruction, contains('407'));
+  });
+
 }

@@ -301,6 +301,10 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                   ),
                 ],
               ),
+              if (current.hasRepresentationVisual) ...[
+                const SizedBox(height: 22),
+                _RepresentationVisual(exercise: current),
+              ],
               if (current.isNumberWall) ...[
                 const SizedBox(height: 22),
                 _NumberWall(exercise: current),
@@ -420,6 +424,145 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 ),
               ],
             ],
+          ),
+        ),
+      );
+}
+
+class _RepresentationVisual extends StatelessWidget {
+  const _RepresentationVisual({required this.exercise});
+
+  final StructuredExercise exercise;
+
+  @override
+  Widget build(BuildContext context) => switch (exercise.representation!) {
+        ExerciseRepresentation.placeValue => _PlaceValueVisual(
+            number: exercise.representationA!,
+          ),
+        ExerciseRepresentation.equalGroups => _EqualGroupsVisual(
+            groups: exercise.representationA!,
+            each: exercise.representationB!,
+          ),
+      };
+}
+
+class _PlaceValueVisual extends StatelessWidget {
+  const _PlaceValueVisual({required this.number});
+
+  final int number;
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = ['E', 'Z', 'H', 'T', 'ZT', 'HT', 'M'];
+    final digits = <int>[];
+    var remaining = number;
+    do {
+      digits.add(remaining % 10);
+      remaining ~/= 10;
+    } while (remaining > 0);
+
+    return Semantics(
+      label: 'Stellenwertdarstellung für eine Zahl',
+      child: Center(
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(
+            digits.length,
+            (index) {
+              final reversedIndex = digits.length - 1 - index;
+              final label = labels[reversedIndex];
+              final digit = digits[reversedIndex];
+              return Container(
+                width: 58,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  color:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$digit',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EqualGroupsVisual extends StatelessWidget {
+  const _EqualGroupsVisual({
+    required this.groups,
+    required this.each,
+  });
+
+  final int groups;
+  final int each;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: '$groups gleich große Gruppen mit je $each Punkten',
+        child: Center(
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
+            children: List.generate(
+              groups,
+              (_) => Container(
+                width: 76,
+                constraints: const BoxConstraints(minHeight: 62),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  color:
+                      Theme.of(context).colorScheme.secondaryContainer,
+                ),
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 5,
+                  runSpacing: 5,
+                  children: List.generate(
+                    each,
+                    (_) => Icon(
+                      Icons.circle,
+                      size: 13,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       );

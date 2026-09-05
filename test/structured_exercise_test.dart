@@ -236,4 +236,91 @@ void main() {
       }
     }
   });
+  test('Darstellungswechsel ist gezielt generierbar und getrennt getaggt', () {
+    final generator = StructuredExerciseGenerator(random: Random(401));
+    final families = <String>{};
+
+    for (var i = 0; i < 120; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: 100,
+        gradeLevel: GradeLevel.second,
+        targetCompetency: MicroCompetencyId.representationTranslation,
+      );
+      final tags = MicroCompetencyCatalog.tagsForTask(
+        mode: TrainingMode.wordProblems,
+        taskKey: exercise.key,
+      );
+
+      expect(exercise.key, startsWith('process:representation:'));
+      expect(tags.first.id, MicroCompetencyId.representationTranslation);
+      expect(exercise.choices, hasLength(4));
+      expect(exercise.choices!.toSet(), hasLength(4));
+      expect(exercise.answer, inInclusiveRange(0, 3));
+
+      final parts = exercise.key.split(':');
+      families.add(parts[2]);
+      if (parts[2] == 'place' || parts[2] == 'decompose') {
+        expect(exercise.representation, ExerciseRepresentation.placeValue);
+        expect(exercise.representationA, isNotNull);
+      } else if (parts[2] == 'groups') {
+        expect(exercise.representation, ExerciseRepresentation.equalGroups);
+        expect(exercise.representationA, isNotNull);
+        expect(exercise.representationB, isNotNull);
+      }
+    }
+
+    expect(families, containsAll(['place', 'decompose', 'groups', 'equation']));
+  });
+
+  test('Klasse 1 nutzt beim Darstellungswechsel nur Zahl und Stellenwert', () {
+    final generator = StructuredExerciseGenerator(random: Random(402));
+
+    for (var i = 0; i < 80; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+        targetCompetency: MicroCompetencyId.representationTranslation,
+      );
+
+      expect(
+        exercise.key.startsWith('process:representation:place:') ||
+            exercise.key.startsWith('process:representation:decompose:'),
+        isTrue,
+      );
+      expect(exercise.representation, ExerciseRepresentation.placeValue);
+      expect(
+        exercise.choices!.every((choice) => !choice.contains('×')),
+        isTrue,
+      );
+    }
+  });
+
+  test('Darstellungswechsel skaliert bis zum Millionenraum', () {
+    final generator = StructuredExerciseGenerator(random: Random(403));
+
+    for (final maxValue in [10, 20, 100, 1000, 1000000]) {
+      for (var i = 0; i < 40; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.wordProblems,
+          maxValue: maxValue,
+          gradeLevel: GradeLevel.fourth,
+          targetCompetency: MicroCompetencyId.representationTranslation,
+        );
+        final numbers = RegExp(r'\d+')
+            .allMatches(exercise.key)
+            .map((match) => int.parse(match.group(0)!))
+            .toList();
+
+        expect(
+          numbers.every((value) => value <= maxValue),
+          isTrue,
+          reason: '${exercise.key} / $maxValue',
+        );
+        expect(exercise.answer, inInclusiveRange(0, 3));
+      }
+    }
+  });
+
 }
