@@ -436,6 +436,116 @@ void main() {
     );
   });
 
+  test('Hilfe im Transfer reicht nicht für Gemeistert', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 4, 13, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'review:plus:47:${3 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 3, 13, index),
+          correct: true,
+          evidenceWeight: 0.8,
+          source: MicroEvidenceSource.transfer,
+          usedHelp: true,
+          helpLevel: 1,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'story:transfer:skill:additionTenBridge:+:books:47:${3 + index}',
+        ),
+      ),
+      ...List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 1, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:47:${3 + index}',
+        ),
+      ),
+    ];
+
+    final progress =
+        controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
+
+    expect(progress.transferEvidence, greaterThan(0));
+    expect(progress.transferIndependentEvidence, 0);
+    expect(progress.state, MicroCompetencyState.secure);
+  });
+
+  test('unsichere Abstandskontrolle bleibt nach zwei Tagen erneut fällig', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 4, 10),
+        correct: false,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.review,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'review:plus:12:7',
+      ),
+      ...List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 1, 10, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:12:${2 + index}',
+        ),
+      ),
+    ];
+
+    expect(
+      controller.dueReviewMicroCompetency(
+        now: DateTime(2026, 9, 5, 10),
+      ),
+      isNull,
+    );
+    expect(
+      controller.dueReviewMicroCompetency(
+        now: DateTime(2026, 9, 6, 10),
+      ),
+      isNotNull,
+    );
+  });
+
   test('Meine Runde transferiert zuerst eine sichere Kompetenz', () {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
