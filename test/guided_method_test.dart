@@ -7,6 +7,7 @@ import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/app_controller.dart';
+import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/widgets/guided_method_panel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -404,5 +405,219 @@ void main() {
     expect(visualChip.avatar, isNotNull);
   });
 
+
+
+  test('Plus über den Zehner markiert echte unabhängige Zwischenschritte', () {
+    final fact = MathFact(
+      a: 47,
+      b: 38,
+      operation: MathOperation.plus,
+    );
+
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.practice,
+      taskKey: fact.key,
+      expected: 85,
+      preferences: const MethodPreferences(),
+      fact: fact,
+    );
+
+    expect(guide.methodKey, 'addition:bridgeToTen');
+    expect(guide.steps[0].question, contains('47'));
+    expect(guide.steps[0].choices[guide.steps[0].correctChoice!], '3');
+    expect(guide.steps[0].evidenceKey, 'bridgeAmount');
+    expect(
+      guide.steps[0].evidenceCompetency,
+      MicroCompetencyId.additionTenBridge,
+    );
+    expect(guide.steps[1].choices[guide.steps[1].correctChoice!], '35');
+    expect(guide.steps[1].evidenceKey, 'remainingAddend');
+    expect(
+      guide.steps[1].evidenceCompetency,
+      MicroCompetencyId.numberDecomposition,
+    );
+    expect(guide.steps.last.recordsIntermediateEvidence, isFalse);
+  });
+
+  test('Exakter Zehner erzeugt keinen künstlichen Rest-Zwischenschritt', () {
+    final fact = MathFact(
+      a: 17,
+      b: 3,
+      operation: MathOperation.plus,
+    );
+
+    final steps = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.practice,
+      fact: fact,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.additionTenBridge,
+    );
+
+    expect(steps, hasLength(1));
+    expect(steps.single.evidenceKey, 'bridgeAmount');
+  });
+
+  test('Unabhängige Rechenschritte bleiben gezielt und untimed', () {
+    final bridge = MathFact(
+      a: 47,
+      b: 38,
+      operation: MathOperation.plus,
+    );
+    final noBridge = MathFact(
+      a: 42,
+      b: 3,
+      operation: MathOperation.plus,
+    );
+
+    final targeted = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.practice,
+      fact: bridge,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.additionTenBridge,
+    );
+    final untargeted = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.practice,
+      fact: bridge,
+      preferences: const MethodPreferences(),
+    );
+    final timed = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.speed,
+      fact: bridge,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.additionTenBridge,
+    );
+    final simple = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.practice,
+      fact: noBridge,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.additionTenBridge,
+    );
+
+    expect(targeted.map((step) => step.evidenceKey), [
+      'bridgeAmount',
+      'remainingAddend',
+    ]);
+    expect(untargeted, isEmpty);
+    expect(timed, isEmpty);
+    expect(simple, isEmpty);
+  });
+
+  test('Minus nutzt die gewählte Schulmethode und überspringt triviale Dekaden',
+      () {
+    const preferences = MethodPreferences(
+      subtraction: SubtractionStrategy.bridgeToTen,
+      selectionPreference: MethodSelectionPreference.schoolMethod,
+    );
+    final bridge = MathFact(
+      a: 63,
+      b: 28,
+      operation: MathOperation.minus,
+    );
+    final fullDecade = MathFact(
+      a: 20,
+      b: 7,
+      operation: MathOperation.minus,
+    );
+
+    final steps = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.minus,
+      fact: bridge,
+      preferences: preferences,
+      targetCompetency: MicroCompetencyId.subtractionTenBridge,
+    );
+    final trivial = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.minus,
+      fact: fullDecade,
+      preferences: preferences,
+      targetCompetency: MicroCompetencyId.subtractionTenBridge,
+    );
+
+    expect(steps.map((step) => step.evidenceKey), [
+      'bridgeAmount',
+      'remainingSubtrahend',
+    ]);
+    expect(steps[0].choices[steps[0].correctChoice!], '3');
+    expect(steps[1].choices[steps[1].correctChoice!], '25');
+    expect(trivial, isEmpty);
+  });
+
+  test('GuidedStepCatalog erkennt auch den Rest des zweiten Summanden', () {
+    const key = 'independent:remainingAddend:plus:47:38';
+
+    expect(GuidedStepCatalog.keyFromTaskKey(key), 'remainingAddend');
+    expect(
+      GuidedStepCatalog.labelFor('remainingAddend'),
+      contains('zweiten Summanden'),
+    );
+  });
+
+  testWidgets(
+      'Training speichert ersten Zehnerübergangsversuch und direkte Lösung getrennt',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.facts = [
+      MathFact(
+        a: 47,
+        b: 38,
+        operation: MathOperation.plus,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainingScreen(
+          controller: controller,
+          mode: TrainingMode.practice,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.additionTenBridge,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 2'), findsOneWidget);
+    expect(find.text('Antwort eingeben'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, '2'));
+    await tester.pump();
+
+    final failedStep = controller.microObservations.firstWhere(
+      (entry) => entry.source == MicroEvidenceSource.independentStep,
+    );
+    expect(failedStep.id, MicroCompetencyId.additionTenBridge);
+    expect(failedStep.correct, isFalse);
+    expect(failedStep.usedHelp, isFalse);
+    expect(
+      failedStep.taskKey,
+      'independent:bridgeAmount:plus:47:38',
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, '3'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Schritt 2 von 2'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '35'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '8'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '5'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(find.text('0 davon waren direkt richtig.'), findsOneWidget);
+    expect(
+      controller
+          .recentTaskKeys(TrainingMode.practice)
+          .where((key) => key == 'plus:47:38')
+          .length,
+      1,
+    );
+  });
 
 }
