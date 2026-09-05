@@ -512,20 +512,44 @@ class GuidedMethodFactory {
     MethodPreferences preferences,
   ) {
     final strategy = preferences.writtenSubtraction;
+    final lowerOnes = b % 10;
+    final onesChoices = _numberChoices(lowerOnes, maxValue: 9);
+    final needsRegrouping = (a % 10) < lowerOnes;
     return GuidedMethodGuide(
       methodKey: 'writtenSubtraction:${strategy.name}',
       methodLabel: strategy.label,
       nudge: 'Schreibe Einer unter Einer, Zehner unter Zehner und Hunderter unter Hunderter.',
       steps: [
-        const GuidedMethodStep(
+        GuidedMethodStep(
           title: 'Stellen ausrichten',
-          instruction: 'Kontrolliere zuerst die Spalten E, Z, H und gegebenenfalls T.',
+          instruction:
+              'Kontrolliere zuerst die Einer-Spalte, bevor du rechnest.',
+          question: 'Welche Ziffer steht unten in der Einer-Spalte?',
+          choices: onesChoices,
+          correctChoice: onesChoices.indexOf('$lowerOnes'),
+          evidenceKey: 'onesAlignment',
+          evidenceCompetency: MicroCompetencyId.writtenAlignment,
         ),
         GuidedMethodStep(
           title: strategy == WrittenSubtractionStrategy.regroup
               ? 'Entbündeln'
               : 'Ergänzen',
           instruction: strategy.description,
+          question: strategy == WrittenSubtractionStrategy.regroup
+              ? 'Musst du bei den Einern entbündeln?'
+              : null,
+          choices: strategy == WrittenSubtractionStrategy.regroup
+              ? const ['Ja', 'Nein']
+              : const <String>[],
+          correctChoice: strategy == WrittenSubtractionStrategy.regroup
+              ? (needsRegrouping ? 0 : 1)
+              : null,
+          evidenceKey: strategy == WrittenSubtractionStrategy.regroup
+              ? 'regroupDecision'
+              : null,
+          evidenceCompetency: strategy == WrittenSubtractionStrategy.regroup
+              ? MicroCompetencyId.writtenRegrouping
+              : null,
         ),
         GuidedMethodStep(
           title: 'Probe',
