@@ -181,7 +181,12 @@ class _TrainingScreenState extends State<TrainingScreen> {
       );
 
   List<GuidedMethodStep> get _independentArithmeticSteps {
-    if (widget.reviewEmphasis || widget.transferEmphasis) {
+    if (widget.reviewEmphasis ||
+        widget.transferEmphasis ||
+        !IndependentArithmeticStepPolicy.shouldProbeTask(
+          completed,
+          scaffoldFading: widget.scaffoldFading,
+        )) {
       return const <GuidedMethodStep>[];
     }
     return GuidedMethodFactory.independentArithmeticStepsForTask(
