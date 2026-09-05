@@ -1413,6 +1413,12 @@ class AppController extends ChangeNotifier {
       return 'Noch keine einzelne Teilkompetenz ist klar auffällig. '
           'Weitere abwechslungsreiche Aufgaben machen die Lernkarte genauer.';
     }
+    final guided = guidedStepFocus();
+    if (guided != null && guided.competencyId == focus.definition.id) {
+      return 'In der geführten Hilfe war „${guided.label}“ wiederholt unsicher: '
+          '${guided.incorrectFirstAttempts} von ${guided.observations} ersten Versuchen waren falsch. '
+          'Deshalb übt Rechenblitz gezielt „${focus.definition.label}“.';
+    }
     final percentage = (focus.independentAccuracy * 100).round();
     return '„${focus.definition.label}“ ist aktuell der sinnvollste '
         'Teilschritt: ${focus.observations} passende Beobachtungen, '
@@ -1478,6 +1484,7 @@ class AppController extends ChangeNotifier {
     DateTime? now,
   }) {
     final microFocus = currentMicroFocus();
+    final guidedFocus = guidedStepFocus();
     final strongMicro = strongestMicroCompetency();
     final reviewMicro = dueReviewMicroCompetency(now: now);
     final transferMicro = transferCandidateMicroCompetency(
@@ -1561,7 +1568,10 @@ class AppController extends ChangeNotifier {
         tasks: 5,
         reason: microFocus == null
             ? 'Das ist heute das wichtigste Lernziel.'
-            : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
+            : guidedFocus != null &&
+                    guidedFocus.competencyId == microFocus.definition.id
+                ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt: ${microFocus.definition.label}.'
+                : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
         targetCompetency: microFocus?.definition.id,
       ),
       GuidedRoundSegment(
