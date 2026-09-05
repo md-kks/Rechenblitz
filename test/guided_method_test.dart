@@ -615,6 +615,60 @@ void main() {
   });
 
   testWidgets(
+      'Scaffold-Fading prüft erst nach zwei unterstützten Aufgaben selbstständig',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.facts = [
+      MathFact(
+        a: 47,
+        b: 38,
+        operation: MathOperation.plus,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainingScreen(
+          controller: controller,
+          mode: TrainingMode.practice,
+          targetTasks: 3,
+          targetCompetency: MicroCompetencyId.additionTenBridge,
+          scaffoldFading: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    Future<void> tapAnswerButton(String label) async {
+      final button = find.widgetWithText(FilledButton, label);
+      await tester.ensureVisible(button);
+      await tester.pump();
+      await tester.tap(button);
+      await tester.pump();
+    }
+
+    expect(find.textContaining('Schritt 1 von'), findsNothing);
+
+    for (final label in ['8', '5', 'OK']) {
+      await tapAnswerButton(label);
+    }
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(find.textContaining('Schritt 1 von'), findsNothing);
+
+    await tapAnswerButton('8');
+    await tapAnswerButton('5');
+    await tapAnswerButton('OK');
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.textContaining('Schritt 1 von'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Schritt 1 von 2'), findsOneWidget);
+  });
+
+  testWidgets(
       'Training speichert ersten Zehnerübergangsversuch und direkte Lösung getrennt',
       (tester) async {
     final controller = AppController();
