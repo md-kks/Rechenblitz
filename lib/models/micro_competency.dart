@@ -816,7 +816,9 @@ class MicroCompetencyCatalog {
       final parts = taskKey.split(':');
       final pattern = parts.length > 1 ? parts[1] : '';
       return switch (pattern) {
-        'tenBridge' => [
+        'tenBridge' ||
+        'carryOmitted' ||
+        'borrowAvoided' => [
             MicroCompetencyTag(
               taskKey.contains(':-:')
                   ? MicroCompetencyId.subtractionTenBridge
@@ -825,6 +827,17 @@ class MicroCompetencyCatalog {
             const MicroCompetencyTag(
               MicroCompetencyId.numberDecomposition,
               weight: 0.45,
+            ),
+          ],
+        'partialOperand' => [
+            MicroCompetencyTag(
+              taskKey.contains(':-:')
+                  ? MicroCompetencyId.subtractionNoBridge
+                  : MicroCompetencyId.additionNoBridge,
+            ),
+            const MicroCompetencyTag(
+              MicroCompetencyId.placeValueDigits,
+              weight: 0.55,
             ),
           ],
         'numberBond' => const [
@@ -836,11 +849,21 @@ class MicroCompetencyCatalog {
         'placeValue' => const [
             MicroCompetencyTag(MicroCompetencyId.placeValueDigits),
           ],
-        'multiplicationFact' => const [
+        'multiplicationFact' ||
+        'multiplicationAsAddition' => const [
             MicroCompetencyTag(MicroCompetencyId.multiplicationFacts),
+            MicroCompetencyTag(
+              MicroCompetencyId.multiplicationGroups,
+              weight: 0.45,
+            ),
           ],
-        'divisionFact' => const [
+        'divisionFact' ||
+        'divisionAsSubtraction' => const [
             MicroCompetencyTag(MicroCompetencyId.divisionFacts),
+            MicroCompetencyTag(
+              MicroCompetencyId.divisionSharing,
+              weight: 0.45,
+            ),
           ],
         'inverseOperation' => const [
             MicroCompetencyTag(MicroCompetencyId.inverseRelationship),
@@ -850,6 +873,27 @@ class MicroCompetencyCatalog {
             MicroCompetencyTag(
               MicroCompetencyId.wordProblemCalculation,
               weight: 0.65,
+            ),
+          ],
+        'wordProblemRelevantInformation' => const [
+            MicroCompetencyTag(
+              MicroCompetencyId.wordProblemRelevantInformation,
+            ),
+          ],
+        'wordProblemModel' => const [
+            MicroCompetencyTag(MicroCompetencyId.wordProblemModel),
+            MicroCompetencyTag(
+              MicroCompetencyId.wordProblemOperation,
+              weight: 0.45,
+            ),
+          ],
+        'wordProblemInterpretation' => const [
+            MicroCompetencyTag(
+              MicroCompetencyId.wordProblemInterpretation,
+            ),
+            MicroCompetencyTag(
+              MicroCompetencyId.wordProblemCalculation,
+              weight: 0.35,
             ),
           ],
         'unitConversion' => const [
