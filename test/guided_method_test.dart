@@ -331,4 +331,20 @@ void main() {
   });
 
 
+  test('GuidedStepCatalog erkennt gespeicherte Teilsschlüssel zuverlässig', () {
+    const taskKey =
+        'guided:subtraction:bridgeToTen:remainingSubtrahend:minus:13:5';
+
+    expect(
+      GuidedStepCatalog.keyFromTaskKey(taskKey),
+      'remainingSubtrahend',
+    );
+    expect(
+      GuidedStepCatalog.labelFor('remainingSubtrahend'),
+      contains('Subtrahenden'),
+    );
+    expect(GuidedStepCatalog.keyFromTaskKey('minus:13:5'), isNull);
+  });
+
+
 }
