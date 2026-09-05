@@ -74,7 +74,8 @@ class GuidedMethodFactory {
       return _plausibilityGuide(taskKey);
     }
 
-    if (taskKey.startsWith('process:representation:')) {
+    if (taskKey.startsWith('process:representation:') ||
+        taskKey.contains(':process:representation:')) {
       return _representationGuide(taskKey);
     }
 
@@ -150,10 +151,17 @@ class GuidedMethodFactory {
 
   static GuidedMethodGuide _representationGuide(String taskKey) {
     final parts = taskKey.split(':');
-    final kind = parts.length > 2 ? parts[2] : '';
+    final representationIndex = parts.indexOf('representation');
+    final kind = representationIndex >= 0 &&
+            representationIndex + 1 < parts.length
+        ? parts[representationIndex + 1]
+        : '';
 
     if (kind == 'place' || kind == 'decompose') {
-      final number = parts.length > 3 ? int.tryParse(parts[3]) : null;
+      final valueIndex = representationIndex + 2;
+      final number = valueIndex >= 0 && valueIndex < parts.length
+          ? int.tryParse(parts[valueIndex])
+          : null;
       return GuidedMethodGuide(
         methodKey: 'representation:placeValue',
         methodLabel: 'Stellenwerte lesen',
@@ -180,8 +188,14 @@ class GuidedMethodFactory {
       );
     }
 
-    final groups = parts.length > 3 ? int.tryParse(parts[3]) : null;
-    final each = parts.length > 4 ? int.tryParse(parts[4]) : null;
+    final groupsIndex = representationIndex + 2;
+    final eachIndex = representationIndex + 3;
+    final groups = groupsIndex >= 0 && groupsIndex < parts.length
+        ? int.tryParse(parts[groupsIndex])
+        : null;
+    final each = eachIndex >= 0 && eachIndex < parts.length
+        ? int.tryParse(parts[eachIndex])
+        : null;
     return GuidedMethodGuide(
       methodKey: 'representation:equalGroups',
       methodLabel: 'Gleiche Gruppen lesen',
