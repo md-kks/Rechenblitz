@@ -829,4 +829,163 @@ void main() {
   });
 
 
+  test('korrekte geführte Schritte erzeugen keinen falschen Mikro-Fokus', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      6,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.numberDecomposition,
+        occurredAt: DateTime(2026, 9, 5, 12, index),
+        correct: true,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.guidedStep,
+        usedHelp: true,
+        helpLevel: HelpLevel.guided.value,
+        methodKey: 'subtraction:bridgeToTen',
+        mode: TrainingMode.minus,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey:
+            'guided:subtraction:bridgeToTen:remainingSubtrahend:minus:13:5:$index',
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.numberDecomposition,
+    );
+
+    expect(progress.guidedStepObservations, 6);
+    expect(progress.guidedStepAccuracy, closeTo(1, 0.001));
+    expect(progress.independentEvidence, 0);
+    expect(controller.guidedStepFocus(), isNull);
+    expect(controller.currentMicroFocus(), isNull);
+    expect(controller.strongestMicroCompetency(), isNull);
+  });
+
+  test('wiederholt falscher geführter Zwischenschritt steuert auf Voraussetzung',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          occurredAt: DateTime(2026, 9, 5, 12, 10 + index),
+          correct: false,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'minus:13:5:$index',
+        ),
+      ),
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          occurredAt: DateTime(2026, 9, 5, 12, index),
+          correct: index == 2,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.guidedStep,
+          usedHelp: true,
+          helpLevel: HelpLevel.guided.value,
+          methodKey: 'subtraction:bridgeToTen',
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'guided:subtraction:bridgeToTen:remainingSubtrahend:minus:13:5:$index',
+        ),
+      ),
+    ];
+
+    final guided = controller.guidedStepFocus();
+    expect(guided, isNotNull);
+    expect(guided!.competencyId, MicroCompetencyId.numberDecomposition);
+    expect(guided.stepKey, 'remainingSubtrahend');
+    expect(guided.label, contains('Subtrahenden'));
+    expect(guided.incorrectFirstAttempts, 2);
+    expect(guided.accuracy, closeTo(1 / 3, 0.001));
+
+    final focus = controller.currentMicroFocus();
+    expect(focus, isNotNull);
+    expect(focus!.definition.id, MicroCompetencyId.numberDecomposition);
+
+    final plan = controller.buildMyRound();
+    expect(plan[1].targetCompetency, MicroCompetencyId.numberDecomposition);
+    expect(plan[1].reason, contains('verbleibenden Teil des Subtrahenden'));
+  });
+
+  test('erholte geführte Teilfrage löst keinen guidedStep-Fokus mehr aus', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final outcomes = [true, true, true, false, false];
+    controller.microObservations = List.generate(
+      outcomes.length,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.numberDecomposition,
+        occurredAt: DateTime(2026, 9, 5, 12, index),
+        correct: outcomes[index],
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.guidedStep,
+        usedHelp: true,
+        helpLevel: HelpLevel.guided.value,
+        methodKey: 'subtraction:bridgeToTen',
+        mode: TrainingMode.minus,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey:
+            'guided:subtraction:bridgeToTen:remainingSubtrahend:minus:13:5:$index',
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.numberDecomposition,
+    );
+    expect(progress.guidedStepAccuracy, closeTo(0.60, 0.001));
+    expect(controller.guidedStepFocus(), isNull);
+    expect(controller.currentMicroFocus(), isNull);
+  });
+
+  test('reguläre Aufgaben mit Hilfe bleiben als Mikro-Fokus relevant', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      4,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 5, 12, index),
+        correct: true,
+        evidenceWeight: 0.8,
+        source: MicroEvidenceSource.practice,
+        usedHelp: true,
+        helpLevel: 1,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:12:7:$index',
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionNoBridge,
+    );
+    expect(progress.baseEvidence, greaterThan(0));
+    expect(progress.independentEvidence, 0);
+    expect(controller.guidedStepFocus(), isNull);
+    expect(
+      controller.currentMicroFocus()!.definition.id,
+      MicroCompetencyId.additionNoBridge,
+    );
+  });
+
+
 }
