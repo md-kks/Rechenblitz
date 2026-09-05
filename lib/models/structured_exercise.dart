@@ -77,6 +77,7 @@ class StructuredExerciseGenerator {
         maxValue: maxValue,
         gradeLevel: gradeLevel,
         transferEmphasis: transferEmphasis,
+        targetCompetency: targetCompetency,
       );
       last = candidate;
       final exactNew = !exactAvoid.contains(candidate.key);
@@ -99,6 +100,7 @@ class StructuredExerciseGenerator {
           maxValue: maxValue,
           gradeLevel: gradeLevel,
           transferEmphasis: transferEmphasis,
+          targetCompetency: targetCompetency,
         );
   }
 
@@ -107,6 +109,7 @@ class StructuredExerciseGenerator {
     required int maxValue,
     required GradeLevel gradeLevel,
     required bool transferEmphasis,
+    required MicroCompetencyId? targetCompetency,
   }) =>
       switch (mode) {
         TrainingMode.numberWall => _numberWall(maxValue),
@@ -116,8 +119,12 @@ class StructuredExerciseGenerator {
         TrainingMode.doublesHalves => _doublesHalves(maxValue),
         TrainingMode.sequences => _sequence(maxValue),
         TrainingMode.factFamilies => _factFamily(maxValue),
-        TrainingMode.wordProblems =>
-          _wordProblem(maxValue, gradeLevel, transferEmphasis),
+        TrainingMode.wordProblems => _wordProblem(
+            maxValue,
+            gradeLevel,
+            transferEmphasis,
+            targetCompetency,
+          ),
         TrainingMode.money => _money(maxValue),
         TrainingMode.clock => _clock(maxValue),
         TrainingMode.measures => _measures(maxValue),
@@ -301,7 +308,24 @@ class StructuredExerciseGenerator {
     int maxValue,
     GradeLevel gradeLevel,
     bool transferEmphasis,
+    MicroCompetencyId? targetCompetency,
   ) {
+    const modelingTargets = {
+      MicroCompetencyId.wordProblemRelevantInformation,
+      MicroCompetencyId.wordProblemOperation,
+      MicroCompetencyId.wordProblemModel,
+      MicroCompetencyId.wordProblemCalculation,
+      MicroCompetencyId.wordProblemInterpretation,
+    };
+    if (targetCompetency != null &&
+        modelingTargets.contains(targetCompetency)) {
+      return _targetedWordProblem(
+        maxValue,
+        gradeLevel,
+        targetCompetency,
+      );
+    }
+
     if (gradeLevel.index >= GradeLevel.third.index &&
         (transferEmphasis || _random.nextDouble() < 0.45)) {
       return _advancedWordProblem(maxValue);
@@ -391,6 +415,362 @@ class StructuredExerciseGenerator {
       answer: each,
       hint: 'Gleichmäßig verteilen passt zu Teilen.',
       key: 'story:divide:${template.$1}:$total:$groups',
+    );
+  }
+
+  StructuredExercise _targetedWordProblem(
+    int maxValue,
+    GradeLevel gradeLevel,
+    MicroCompetencyId targetCompetency,
+  ) =>
+      switch (targetCompetency) {
+        MicroCompetencyId.wordProblemRelevantInformation =>
+          _relevantInformationWordProblem(maxValue),
+        MicroCompetencyId.wordProblemOperation =>
+          _operationWordProblem(maxValue, gradeLevel),
+        MicroCompetencyId.wordProblemModel =>
+          _equationWordProblem(maxValue, gradeLevel),
+        MicroCompetencyId.wordProblemCalculation =>
+          _calculationWordProblem(maxValue, gradeLevel),
+        MicroCompetencyId.wordProblemInterpretation =>
+          _interpretationWordProblem(maxValue),
+        _ => _calculationWordProblem(maxValue, gradeLevel),
+      };
+
+  StructuredExercise _relevantInformationWordProblem(int maxValue) {
+    final limit = max(10, maxValue);
+    final kind = _random.nextInt(3);
+
+    if (kind == 0) {
+      final children = _between(2, min(8, limit - 2));
+      final adults = _between(1, min(4, limit - children));
+      final balls = _between(1, min(5, limit));
+      final correct = '${children} Kinder und ${adults} Erwachsene';
+      return _choiceStory(
+        prompt:
+            'Zu einem Ausflug fahren ${children} Kinder und ${adults} Erwachsene mit. Außerdem werden ${balls} Bälle eingepackt. Welche Angaben brauchst du, um herauszufinden, wie viele Personen mitfahren?',
+        hint:
+            'Achte auf die Frage nach Personen. Gegenstände brauchst du dafür nicht.',
+        key: 'story:info:trip:${children}:${adults}:${balls}',
+        correct: correct,
+        choices: [
+          correct,
+          '${children} Kinder und ${balls} Bälle',
+          '${adults} Erwachsene und ${balls} Bälle',
+          'Nur die ${balls} Bälle',
+        ],
+        maxAnswerValue: limit,
+      );
+    }
+
+    if (kind == 1) {
+      final red = _between(2, min(7, limit - 2));
+      final blue = _between(1, min(5, limit - red));
+      final boxes = _between(1, min(4, limit));
+      final correct = '${red} rote und ${blue} blaue Stifte';
+      return _choiceStory(
+        prompt:
+            'In einem Fach liegen ${red} rote und ${blue} blaue Stifte. Daneben stehen ${boxes} leere Schachteln. Welche Angaben brauchst du, um die Anzahl aller Stifte zu bestimmen?',
+        hint:
+            'Gesucht ist die Anzahl der Stifte. Die leeren Schachteln ändern diese Anzahl nicht.',
+        key: 'story:info:pencils:${red}:${blue}:${boxes}',
+        correct: correct,
+        choices: [
+          correct,
+          '${red} rote Stifte und ${boxes} Schachteln',
+          '${blue} blaue Stifte und ${boxes} Schachteln',
+          'Nur die ${boxes} Schachteln',
+        ],
+        maxAnswerValue: limit,
+      );
+    }
+
+    final first = _between(2, min(8, limit - 2));
+    final second = _between(1, min(6, limit - first));
+    final pages = _between(2, min(9, limit));
+    final correct = '${first} und ${second} Kinder';
+    return _choiceStory(
+      prompt:
+          'In zwei Gruppen spielen ${first} und ${second} Kinder. Ein Buch daneben hat ${pages} Seiten im ersten Kapitel. Welche Angaben brauchst du für die Frage: Wie viele Kinder spielen zusammen?',
+      hint:
+          'Für die Frage nach Kindern zählen nur die beiden Kindergruppen.',
+      key: 'story:info:groups:${first}:${second}:${pages}',
+      correct: correct,
+      choices: [
+        correct,
+        '${first} Kinder und ${pages} Seiten',
+        '${second} Kinder und ${pages} Seiten',
+        'Nur die ${pages} Seiten',
+      ],
+      maxAnswerValue: limit,
+    );
+  }
+
+  StructuredExercise _operationWordProblem(
+    int maxValue,
+    GradeLevel gradeLevel,
+  ) {
+    final limit = max(10, maxValue);
+    final allowGroups =
+        gradeLevel.index >= GradeLevel.second.index && limit >= 20;
+    final kind = _random.nextInt(allowGroups ? 4 : 2);
+
+    if (kind == 0) {
+      final a = _between(1, max(1, limit - 1));
+      final b = _between(1, max(1, limit - a));
+      return _choiceStory(
+        prompt:
+            'In einer Kiste liegen ${a} Bausteine. ${b} Bausteine kommen dazu. Welche Rechenart passt?',
+        hint: 'Die Menge wird größer.',
+        key: 'story:operation:+:${a}:${b}',
+        correct: 'Plus (+)',
+        choices: const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'],
+        maxAnswerValue: limit,
+      );
+    }
+
+    if (kind == 1) {
+      final a = _between(2, limit);
+      final b = _between(1, a - 1);
+      return _choiceStory(
+        prompt:
+            'In einem Korb liegen ${a} Äpfel. ${b} werden herausgenommen. Welche Rechenart passt?',
+        hint: 'Die Menge wird kleiner.',
+        key: 'story:operation:-:${a}:${b}',
+        correct: 'Minus (−)',
+        choices: const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'],
+        maxAnswerValue: limit,
+      );
+    }
+
+    final groups = _between(2, min(6, max(2, limit ~/ 2)));
+    final each = _between(2, min(8, max(2, limit ~/ groups)));
+    if (kind == 2) {
+      return _choiceStory(
+        prompt:
+            '${groups} Tüten enthalten jeweils ${each} Murmeln. Welche Rechenart passt, um die Gesamtzahl zu bestimmen?',
+        hint: 'Gleich große Gruppen passen zu Mal.',
+        key: 'story:operation:x:${groups}:${each}',
+        correct: 'Mal (×)',
+        choices: const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'],
+        maxAnswerValue: limit,
+      );
+    }
+
+    final total = groups * each;
+    return _choiceStory(
+      prompt:
+          '${total} Karten werden gleichmäßig auf ${groups} Kinder verteilt. Welche Rechenart passt, um den Anteil pro Kind zu bestimmen?',
+      hint: 'Gleichmäßig verteilen passt zu Geteilt.',
+      key: 'story:operation:divide:${total}:${groups}',
+      correct: 'Geteilt (÷)',
+      choices: const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'],
+      maxAnswerValue: limit,
+    );
+  }
+
+  StructuredExercise _equationWordProblem(
+    int maxValue,
+    GradeLevel gradeLevel,
+  ) {
+    final limit = max(10, maxValue);
+    final allowGroups =
+        gradeLevel.index >= GradeLevel.second.index && limit >= 20;
+    final kind = _random.nextInt(allowGroups ? 4 : 2);
+
+    if (kind == 0) {
+      final a = _between(1, max(1, limit - 1));
+      final b = _between(1, max(1, limit - a));
+      final correct = '${a} + ${b}';
+      return _choiceStory(
+        prompt:
+            'Auf dem Schulhof spielen ${a} Kinder. ${b} Kinder kommen dazu. Welche Rechnung passt?',
+        hint: 'Beide Kindergruppen werden zusammengezählt.',
+        key: 'story:equation:+:${a}:${b}',
+        correct: correct,
+        choices: [correct, '${a} − ${b}', '${a} × ${b}', '${a} + ${b + 1}'],
+        maxAnswerValue: limit,
+      );
+    }
+
+    if (kind == 1) {
+      final a = _between(2, limit);
+      final b = _between(1, a - 1);
+      final correct = '${a} − ${b}';
+      return _choiceStory(
+        prompt:
+            'In einer Schachtel sind ${a} Karten. ${b} Karten werden weggenommen. Welche Rechnung passt?',
+        hint: 'Von der Anfangsmenge wird die weggenommene Menge abgezogen.',
+        key: 'story:equation:-:${a}:${b}',
+        correct: correct,
+        choices: [correct, '${a} + ${b}', '${b} − ${a}', '${a} − ${max(0, b - 1)}'],
+        maxAnswerValue: limit,
+      );
+    }
+
+    final groups = _between(2, min(6, max(2, limit ~/ 2)));
+    final each = _between(2, min(8, max(2, limit ~/ groups)));
+    if (kind == 2) {
+      final correct = '${groups} × ${each}';
+      return _choiceStory(
+        prompt:
+            '${groups} Reihen haben jeweils ${each} Stühle. Welche Rechnung passt zur Gesamtzahl der Stühle?',
+        hint: 'Gleich große Gruppen werden miteinander vervielfacht.',
+        key: 'story:equation:x:${groups}:${each}',
+        correct: correct,
+        choices: [
+          correct,
+          '${groups} + ${each}',
+          '${groups * each} − ${each}',
+          '${each} ÷ ${groups}',
+        ],
+        maxAnswerValue: limit,
+      );
+    }
+
+    final total = groups * each;
+    final correct = '${total} ÷ ${groups}';
+    return _choiceStory(
+      prompt:
+          '${total} Stifte werden gleichmäßig auf ${groups} Schachteln verteilt. Welche Rechnung passt für die Anzahl pro Schachtel?',
+      hint: 'Die Gesamtmenge wird auf gleich große Gruppen verteilt.',
+      key: 'story:equation:divide:${total}:${groups}',
+      correct: correct,
+      choices: [
+        correct,
+        '${total} − ${groups}',
+        '${total} + ${groups}',
+        '${groups} ÷ ${total}',
+      ],
+      maxAnswerValue: limit,
+    );
+  }
+
+  StructuredExercise _calculationWordProblem(
+    int maxValue,
+    GradeLevel gradeLevel,
+  ) {
+    final limit = max(10, maxValue);
+    final allowGroups =
+        gradeLevel.index >= GradeLevel.second.index && limit >= 20;
+    final kind = _random.nextInt(allowGroups ? 4 : 2);
+
+    if (kind == 0) {
+      final a = _between(1, max(1, limit - 1));
+      final b = _between(1, max(1, limit - a));
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt:
+            'Mara hat ${a} Sticker und bekommt ${b} Sticker dazu. Wie viele Sticker hat sie jetzt?',
+        answer: a + b,
+        hint: 'Die passende Rechnung ist ${a} + ${b}.',
+        key: 'story:calc:+:${a}:${b}',
+        maxAnswerValue: limit,
+      );
+    }
+
+    if (kind == 1) {
+      final a = _between(2, limit);
+      final b = _between(1, a - 1);
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt:
+            'Auf einem Tisch liegen ${a} Karten. ${b} Karten werden weggenommen. Wie viele bleiben?',
+        answer: a - b,
+        hint: 'Die passende Rechnung ist ${a} − ${b}.',
+        key: 'story:calc:-:${a}:${b}',
+        maxAnswerValue: limit,
+      );
+    }
+
+    final groups = _between(2, min(6, max(2, limit ~/ 2)));
+    final each = _between(2, min(8, max(2, limit ~/ groups)));
+    if (kind == 2) {
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt:
+            '${groups} Schachteln enthalten jeweils ${each} Stifte. Wie viele Stifte sind es zusammen?',
+        answer: groups * each,
+        hint: 'Die passende Rechnung ist ${groups} × ${each}.',
+        key: 'story:calc:x:${groups}:${each}',
+        maxAnswerValue: limit,
+      );
+    }
+
+    final total = groups * each;
+    return StructuredExercise(
+      mode: TrainingMode.wordProblems,
+      prompt:
+          '${total} Bonbons werden gleichmäßig auf ${groups} Tüten verteilt. Wie viele Bonbons kommen in jede Tüte?',
+      answer: each,
+      hint: 'Die passende Rechnung ist ${total} ÷ ${groups}.',
+      key: 'story:calc:divide:${total}:${groups}',
+      maxAnswerValue: limit,
+    );
+  }
+
+  StructuredExercise _interpretationWordProblem(int maxValue) {
+    final limit = max(10, maxValue);
+    final subtract = _random.nextBool();
+
+    if (!subtract) {
+      final a = _between(1, max(1, limit - 1));
+      final b = _between(1, max(1, limit - a));
+      final result = a + b;
+      final correct = 'Mara hat jetzt ${result} Sticker.';
+      return _choiceStory(
+        prompt:
+            'Mara hat ${a} Sticker und bekommt ${b} dazu. Die Rechnung ${a} + ${b} = ${result} ist schon gelöst. Welche Antwort passt zur Situation?',
+        hint: 'Beziehe die Zahl ${result} auf die Frage und auf die Sticker.',
+        key: 'story:interpret:+:${a}:${b}:${result}',
+        correct: correct,
+        choices: [
+          correct,
+          'Mara hat ${result} Sticker abgegeben.',
+          'Es kommen noch ${result} Sticker dazu.',
+          'Im Raum sind ${result} Kinder.',
+        ],
+        maxAnswerValue: limit,
+      );
+    }
+
+    final a = _between(2, limit);
+    final b = _between(1, a - 1);
+    final result = a - b;
+    final correct = 'Es bleiben ${result} Karten übrig.';
+    return _choiceStory(
+      prompt:
+          'Auf dem Tisch liegen ${a} Karten. ${b} werden weggenommen. Die Rechnung ${a} − ${b} = ${result} ist schon gelöst. Welche Antwort passt zur Situation?',
+      hint: 'Das Ergebnis beschreibt die Karten, die nach dem Wegnehmen übrig bleiben.',
+      key: 'story:interpret:-:${a}:${b}:${result}',
+      correct: correct,
+      choices: [
+        correct,
+        'Es wurden ${result} Karten weggenommen.',
+        'Am Anfang lagen ${result} Karten dort.',
+        'Es kommen ${result} Karten dazu.',
+      ],
+      maxAnswerValue: limit,
+    );
+  }
+
+  StructuredExercise _choiceStory({
+    required String prompt,
+    required String hint,
+    required String key,
+    required String correct,
+    required List<String> choices,
+    required int maxAnswerValue,
+  }) {
+    final shuffled = [...choices]..shuffle(_random);
+    return StructuredExercise(
+      mode: TrainingMode.wordProblems,
+      prompt: prompt,
+      answer: shuffled.indexOf(correct),
+      hint: hint,
+      key: key,
+      choices: shuffled,
+      maxAnswerValue: maxAnswerValue,
     );
   }
 
