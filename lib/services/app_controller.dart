@@ -30,10 +30,14 @@ class AppController extends ChangeNotifier {
   static const double _masteredReviewAccuracy = 0.80;
   static const double _masteredTransferEvidence = 1.5;
   static const double _masteredTransferAccuracy = 0.80;
+  static const double _evidenceEpsilon = 1e-9;
   static const int _guidedStepWindow = 8;
   static const int _guidedStepMinIncorrect = 2;
   static const double _guidedStepFocusMaxAccuracy = 0.60;
   static const int _guidedStepIndependentConfirmations = 2;
+
+  static bool _evidenceAtLeast(double value, double threshold) =>
+      value + _evidenceEpsilon >= threshold;
 
   AppController({
     StorageService? storage,
@@ -1211,14 +1215,26 @@ class AppController extends ChangeNotifier {
 
     final state = evidence < 1.5
         ? MicroCompetencyState.discovering
-        : independentEvidence >= _masteredIndependentEvidence &&
+        : _evidenceAtLeast(
+                  independentEvidence,
+                  _masteredIndependentEvidence,
+                ) &&
                 independentAccuracy >= _masteredIndependentAccuracy &&
-                reviewIndependentEvidence >= _masteredReviewEvidence &&
+                _evidenceAtLeast(
+                  reviewIndependentEvidence,
+                  _masteredReviewEvidence,
+                ) &&
                 reviewIndependentAccuracy >= _masteredReviewAccuracy &&
-                transferIndependentEvidence >= _masteredTransferEvidence &&
+                _evidenceAtLeast(
+                  transferIndependentEvidence,
+                  _masteredTransferEvidence,
+                ) &&
                 transferIndependentAccuracy >= _masteredTransferAccuracy
             ? MicroCompetencyState.mastered
-            : independentEvidence >= _secureIndependentEvidence &&
+            : _evidenceAtLeast(
+                      independentEvidence,
+                      _secureIndependentEvidence,
+                    ) &&
                     independentAccuracy >= _secureIndependentAccuracy
                 ? MicroCompetencyState.secure
                 : MicroCompetencyState.practicing;
@@ -1450,10 +1466,12 @@ class AppController extends ChangeNotifier {
                     progress.state != MicroCompetencyState.mastered)) {
               return false;
             }
-            final hasStableDelayedEvidence =
-                progress.reviewIndependentEvidence >= _masteredReviewEvidence &&
-                    progress.reviewIndependentAccuracy >=
-                        _masteredReviewAccuracy;
+            final hasStableDelayedEvidence = _evidenceAtLeast(
+                  progress.reviewIndependentEvidence,
+                  _masteredReviewEvidence,
+                ) &&
+                progress.reviewIndependentAccuracy >=
+                    _masteredReviewAccuracy;
             final requiredGap = hasStableDelayedEvidence
                 ? const Duration(days: 7)
                 : const Duration(days: 2);
