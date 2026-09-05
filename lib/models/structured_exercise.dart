@@ -666,6 +666,7 @@ class StructuredExerciseGenerator {
         maxAnswerValue: 3,
         representation: ExerciseRepresentation.placeValue,
         representationA: number,
+        checkpoints: [_placeValueCheckpoint(number)],
       );
     }
 
@@ -685,6 +686,7 @@ class StructuredExerciseGenerator {
         maxAnswerValue: 3,
         representation: ExerciseRepresentation.placeValue,
         representationA: number,
+        checkpoints: [_placeValueCheckpoint(number)],
       );
     }
 
@@ -710,6 +712,7 @@ class StructuredExerciseGenerator {
         representation: ExerciseRepresentation.equalGroups,
         representationA: groups,
         representationB: each,
+        checkpoints: _groupCheckpoints(groups, each),
       );
     }
 
@@ -727,6 +730,11 @@ class StructuredExerciseGenerator {
         '$groups Gruppen mit je ${max(1, each - 1)} Punkten',
       ],
       maxAnswerValue: 3,
+      checkpoints: _groupCheckpoints(
+        groups,
+        each,
+        fromEquation: true,
+      ),
     );
   }
 
