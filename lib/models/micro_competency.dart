@@ -123,7 +123,7 @@ class MicroCompetencyTag {
   final double weight;
 }
 
-enum MicroEvidenceSource { practice, remediation }
+enum MicroEvidenceSource { practice, remediation, transfer }
 
 class MicroCompetencyObservation {
   const MicroCompetencyObservation({
@@ -225,7 +225,13 @@ class MicroCompetencyProgress {
     required this.accuracy,
     required this.evidence,
     required this.observations,
+    this.directAccuracy = 0,
+    this.transferAccuracy = 0,
+    this.directEvidence = 0,
+    this.transferEvidence = 0,
+    this.transferObservations = 0,
     this.lastSeen,
+    this.lastTransferSeen,
   });
 
   final MicroCompetencyDefinition definition;
@@ -233,7 +239,13 @@ class MicroCompetencyProgress {
   final double accuracy;
   final double evidence;
   final int observations;
+  final double directAccuracy;
+  final double transferAccuracy;
+  final double directEvidence;
+  final double transferEvidence;
+  final int transferObservations;
   final DateTime? lastSeen;
+  final DateTime? lastTransferSeen;
 }
 
 class MicroCompetencyCatalog {
