@@ -473,4 +473,33 @@ void main() {
     );
   });
 
+  test('Darstellungsfehler erhält einen gezielten Förderpfad', () {
+    final plan = RemediationGenerator(random: Random(404)).generate(
+      pattern: ErrorPattern.representationTranslation,
+      preferredMode: TrainingMode.wordProblems,
+      grade: GradeLevel.second,
+      range: NumberRangeLevel.hundred,
+      methods: const MethodPreferences(),
+    );
+
+    expect(plan.tasks, hasLength(8));
+    for (final task in plan.tasks) {
+      expect(
+        task.taskKey,
+        startsWith(
+          'remediation:representationTranslation:process:representation:',
+        ),
+      );
+      expect(task.choices, hasLength(4));
+      final tags = MicroCompetencyCatalog.tagsForTask(
+        mode: task.mode,
+        taskKey: task.taskKey,
+      );
+      expect(
+        tags.map((tag) => tag.id),
+        contains(MicroCompetencyId.representationTranslation),
+      );
+    }
+  });
+
 }
