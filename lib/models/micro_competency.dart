@@ -123,7 +123,13 @@ class MicroCompetencyTag {
   final double weight;
 }
 
-enum MicroEvidenceSource { practice, remediation, review, transfer }
+enum MicroEvidenceSource {
+  practice,
+  remediation,
+  review,
+  transfer,
+  guidedStep,
+}
 
 class MicroCompetencyObservation {
   const MicroCompetencyObservation({
