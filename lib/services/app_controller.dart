@@ -902,8 +902,10 @@ class AppController extends ChangeNotifier {
     required MicroEvidenceSource source,
     MathFact? fact,
   }) {
-    final sourceWeight =
-        source == MicroEvidenceSource.remediation ? 0.65 : 1.0;
+    final sourceWeight = switch (source) {
+      MicroEvidenceSource.remediation => 0.65,
+      MicroEvidenceSource.practice || MicroEvidenceSource.transfer => 1.0,
+    };
     final helpWeight = !correct
         ? 1.0
         : switch (helpLevel) {
@@ -969,19 +971,48 @@ class AppController extends ChangeNotifier {
 
     var evidence = 0.0;
     var correctEvidence = 0.0;
+    var directEvidence = 0.0;
+    var directCorrectEvidence = 0.0;
+    var transferEvidence = 0.0;
+    var transferCorrectEvidence = 0.0;
+    var transferObservations = 0;
+    DateTime? lastTransferSeen;
+
     for (final observation in observations) {
       evidence += observation.evidenceWeight;
       if (observation.correct) {
         correctEvidence += observation.evidenceWeight;
       }
+      if (observation.source == MicroEvidenceSource.transfer) {
+        transferEvidence += observation.evidenceWeight;
+        transferObservations += 1;
+        if (observation.correct) {
+          transferCorrectEvidence += observation.evidenceWeight;
+        }
+        lastTransferSeen ??= observation.occurredAt;
+      } else {
+        directEvidence += observation.evidenceWeight;
+        if (observation.correct) {
+          directCorrectEvidence += observation.evidenceWeight;
+        }
+      }
     }
+
     final accuracy = evidence == 0 ? 0.0 : correctEvidence / evidence;
+    final directAccuracy =
+        directEvidence == 0 ? 0.0 : directCorrectEvidence / directEvidence;
+    final transferAccuracy = transferEvidence == 0
+        ? 0.0
+        : transferCorrectEvidence / transferEvidence;
 
     final state = evidence < 1.5
         ? MicroCompetencyState.discovering
-        : evidence >= 8 && accuracy >= 0.88
+        : directEvidence >= 6 &&
+                directAccuracy >= 0.88 &&
+                transferEvidence >= 1.5 &&
+                transferAccuracy >= 0.80
             ? MicroCompetencyState.mastered
-            : evidence >= 4 && accuracy >= 0.80
+            : directEvidence >= 4 && directAccuracy >= 0.80
                 ? MicroCompetencyState.secure
                 : MicroCompetencyState.practicing;
 
@@ -991,7 +1022,13 @@ class AppController extends ChangeNotifier {
       accuracy: accuracy,
       evidence: evidence,
       observations: observations.length,
+      directAccuracy: directAccuracy,
+      transferAccuracy: transferAccuracy,
+      directEvidence: directEvidence,
+      transferEvidence: transferEvidence,
+      transferObservations: transferObservations,
       lastSeen: observations.first.occurredAt,
+      lastTransferSeen: lastTransferSeen,
     );
   }
 
@@ -1060,6 +1097,54 @@ class AppController extends ChangeNotifier {
         .toList()
       ..sort((a, b) => a.lastSeen!.compareTo(b.lastSeen!));
     return secure.isEmpty ? null : secure.first;
+  }
+
+  MicroCompetencyProgress? transferCandidateMicroCompetency() {
+    final candidates = microCompetenciesForGrade()
+        .where(
+          (progress) =>
+              progress.state == MicroCompetencyState.secure ||
+              progress.state == MicroCompetencyState.mastered,
+        )
+        .toList()
+      ..sort((a, b) {
+        final evidenceOrder =
+            a.transferEvidence.compareTo(b.transferEvidence);
+        if (evidenceOrder != 0) return evidenceOrder;
+        final accuracyOrder =
+            a.transferAccuracy.compareTo(b.transferAccuracy);
+        if (accuracyOrder != 0) return accuracyOrder;
+        if (a.lastTransferSeen == null && b.lastTransferSeen != null) {
+          return -1;
+        }
+        if (a.lastTransferSeen != null && b.lastTransferSeen == null) {
+          return 1;
+        }
+        if (a.lastTransferSeen != null && b.lastTransferSeen != null) {
+          final ageOrder =
+              a.lastTransferSeen!.compareTo(b.lastTransferSeen!);
+          if (ageOrder != 0) return ageOrder;
+        }
+        return b.directEvidence.compareTo(a.directEvidence);
+      });
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
+  TrainingMode _transferModeFor(MicroCompetencyId id) {
+    const contextualArithmetic = {
+      MicroCompetencyId.additionNoBridge,
+      MicroCompetencyId.additionTenBridge,
+      MicroCompetencyId.subtractionNoBridge,
+      MicroCompetencyId.subtractionTenBridge,
+      MicroCompetencyId.multiplicationGroups,
+      MicroCompetencyId.multiplicationFacts,
+      MicroCompetencyId.divisionSharing,
+      MicroCompetencyId.divisionFacts,
+    };
+    if (contextualArithmetic.contains(id)) {
+      return TrainingMode.wordProblems;
+    }
+    return MicroCompetencyCatalog.definition(id).preferredMode;
   }
 
   MicroCompetencyProgress? nextNewMicroCompetency() {
@@ -1149,6 +1234,7 @@ class AppController extends ChangeNotifier {
     final microFocus = currentMicroFocus();
     final strongMicro = strongestMicroCompetency();
     final reviewMicro = dueReviewMicroCompetency();
+    final transferMicro = transferCandidateMicroCompetency();
     final newMicro = nextNewMicroCompetency();
 
     var focus =
@@ -1203,7 +1289,9 @@ class AppController extends ChangeNotifier {
 
     final warmUpTarget = strongMicro?.definition.id;
     final reviewTarget = reviewMicro?.definition.id;
-    final transferTarget = newMicro?.definition.id;
+    final transferTarget = transferMicro?.definition.id;
+    final discoveryTarget =
+        transferTarget == null ? newMicro?.definition.id : null;
 
     return [
       GuidedRoundSegment(
@@ -1235,15 +1323,19 @@ class AppController extends ChangeNotifier {
         targetCompetency: reviewTarget,
       ),
       GuidedRoundSegment(
-        mode: transferTarget == null
-            ? transfer
-            : newMicro!.definition.preferredMode,
+        mode: transferTarget != null
+            ? _transferModeFor(transferTarget)
+            : discoveryTarget != null
+                ? newMicro!.definition.preferredMode
+                : transfer,
         tasks: 2,
-        reason: transferTarget == null
-            ? 'Zum Schluss Wissen in einem anderen Zusammenhang anwenden.'
-            : 'Zum Schluss einen neuen Lernschritt vorsichtig entdecken.',
-        targetCompetency: transferTarget,
-        transferEmphasis: true,
+        reason: transferTarget != null
+            ? 'Zum Schluss „${transferMicro!.definition.label}“ in einer veränderten Aufgabe anwenden.'
+            : discoveryTarget != null
+                ? 'Zum Schluss einen neuen Lernschritt vorsichtig entdecken.'
+                : 'Zum Schluss mit einer anderen Aufgabenart abwechslungsreich üben.',
+        targetCompetency: transferTarget ?? discoveryTarget,
+        transferEmphasis: transferTarget != null,
       ),
     ];
   }
