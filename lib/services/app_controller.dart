@@ -1287,9 +1287,13 @@ class AppController extends ChangeNotifier {
       }
     }
 
-    final warmUpTarget = strongMicro?.definition.id;
-    final reviewTarget = reviewMicro?.definition.id;
     final transferTarget = transferMicro?.definition.id;
+    final warmUpTarget = strongMicro?.definition.id == transferTarget
+        ? null
+        : strongMicro?.definition.id;
+    final reviewTarget = reviewMicro?.definition.id == transferTarget
+        ? null
+        : reviewMicro?.definition.id;
     final discoveryTarget =
         transferTarget == null ? newMicro?.definition.id : null;
 
