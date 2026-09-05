@@ -48,6 +48,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   int helpLevel = 0;
   String? activeMethodKey;
   String feedback = '';
+  ErrorPattern? currentErrorPattern;
   final List<int> responseTimes = [];
 
   @override
@@ -71,6 +72,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       );
 
   ErrorPattern get _helpPattern =>
+      currentErrorPattern ??
       ErrorClassifier.classify(
         mode: widget.mode,
         taskKey: current.key,
@@ -92,6 +94,14 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   Future<void> _answer(int answer) async {
     if (locked || finishing) return;
     final response = DateTime.now().difference(shownAt);
+    final diagnosedPattern = answer == current.answer
+        ? null
+        : ErrorClassifier.classify(
+            mode: widget.mode,
+            taskKey: current.key,
+            expected: current.answer,
+            actual: answer,
+          );
     if (wrongOnCurrent == 0) {
       await widget.controller.rememberPresentedTask(
         widget.mode,
@@ -111,9 +121,11 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       incorrectAttempts += 1;
       wrongOnCurrent += 1;
       setState(() {
+        currentErrorPattern ??= diagnosedPattern;
         feedback = wrongOnCurrent >= 2
             ? 'Nutze den Hinweis und probier noch einmal.'
-            : 'Fast. Schau noch einmal.';
+            : diagnosedPattern?.firstResponseHint ??
+                'Prüfe die Aufgabe noch einmal.';
         showHint = wrongOnCurrent >= 2;
       });
       return;
@@ -153,6 +165,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       showHint = false;
       helpLevel = 0;
       activeMethodKey = null;
+      currentErrorPattern = null;
       feedback = '';
     });
     WidgetsBinding.instance.addPostFrameCallback(
