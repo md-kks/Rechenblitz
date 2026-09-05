@@ -204,6 +204,8 @@ class StepRecoveryGenerator {
     'regroupDecision',
     'carryDecision',
     'firstPartialProduct',
+    'secondPartialProduct',
+    'anchorFact',
     'multiplicationCarry',
     'nextMultiplierDigit',
     'firstQuotientDigit',
@@ -267,7 +269,25 @@ class StepRecoveryGenerator {
           _regroupDecision(focus, stage, range, complement: false),
         'carryDecision' => _carryDecision(focus, stage, range),
         'firstPartialProduct' =>
-          _firstPartialProduct(focus, stage, range),
+          focus.competencyId == MicroCompetencyId.multiplicationFacts
+              ? _multiplicationFactPartialProduct(
+                  focus,
+                  stage,
+                  range,
+                  second: false,
+                )
+              : _firstPartialProduct(focus, stage, range),
+        'secondPartialProduct' => _multiplicationFactPartialProduct(
+            focus,
+            stage,
+            range,
+            second: true,
+          ),
+        'anchorFact' => _multiplicationFactAnchor(
+            focus,
+            stage,
+            range,
+          ),
         'multiplicationCarry' =>
           _multiplicationCarry(focus, stage, range),
         'nextMultiplierDigit' =>
@@ -520,6 +540,58 @@ class StepRecoveryGenerator {
       answer: needsCarry ? 0 : 1,
       hint:
           'Addiere nur die Einer $aOnes + $bOnes. Ab 10 entsteht ein Übertrag.',
+    );
+  }
+
+  RemediationTask _multiplicationFactPartialProduct(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range, {
+    required bool second,
+  }) {
+    final limit = max(20, min(range.maxValue, 100));
+    final maxA = min(9, max(2, limit ~/ 4));
+    final a = _between(2, maxA);
+    final maxB = min(10, max(4, limit ~/ a));
+    final b = _between(4, maxB);
+    final left = b ~/ 2;
+    final right = b - left;
+    final factor = second ? right : left;
+    final product = a * factor;
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'fact-partial:$a:$b:${second ? 'second' : 'first'}',
+      prompt:
+          'Zerlege $b in $left und $right. Wie viel ist $a × $factor?',
+      answer: product,
+      max: max(20, min(limit, product + 8)),
+      hint:
+          'Berechne nur dieses Teilprodukt. Danach kannst du beide Teilprodukte zusammenfügen.',
+    );
+  }
+
+  RemediationTask _multiplicationFactAnchor(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(20, min(range.maxValue, 100));
+    final maxA = min(9, max(2, limit ~/ 6));
+    final a = _between(2, maxA);
+    final maxB = min(10, max(6, limit ~/ a));
+    final b = _between(6, maxB);
+    final anchorProduct = a * 5;
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'fact-anchor:$a:$b',
+      prompt:
+          'Für $a × $b nutzt du die bekannte Ankeraufgabe $a × 5. Wie groß ist das Ankerprodukt?',
+      answer: anchorProduct,
+      max: max(20, min(limit, anchorProduct + 8)),
+      hint:
+          'Rechne zuerst sicher mit ×5. Von dort gehst du zur Zielaufgabe weiter.',
     );
   }
 
