@@ -462,6 +462,17 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                       .toList(),
                 ),
               ],
+              if (current.hasCheckpoints && !_checkpointsComplete) ...[
+                const SizedBox(height: 18),
+                _IndependentCheckpointCard(
+                  checkpoint: current.checkpoints[checkpointIndex],
+                  index: checkpointIndex,
+                  total: current.checkpoints.length,
+                  feedback: checkpointFeedback,
+                  locked: checkpointLocked,
+                  onChoice: _answerCheckpoint,
+                ),
+              ],
               const SizedBox(height: 18),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
@@ -516,7 +527,9 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 ),
               ],
               const SizedBox(height: 18),
-              if (current.usesChoices)
+              if (!_checkpointsComplete)
+                const SizedBox.shrink()
+              else if (current.usesChoices)
                 ...List.generate(
                   current.choices!.length,
                   (index) => Padding(
@@ -544,6 +557,70 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                   onAnswer: _answer,
                 ),
               ],
+            ],
+          ),
+        ),
+      );
+}
+
+class _IndependentCheckpointCard extends StatelessWidget {
+  const _IndependentCheckpointCard({
+    required this.checkpoint,
+    required this.index,
+    required this.total,
+    required this.feedback,
+    required this.locked,
+    required this.onChoice,
+  });
+
+  final ExerciseCheckpoint checkpoint;
+  final int index;
+  final int total;
+  final String feedback;
+  final bool locked;
+  final ValueChanged<int> onChoice;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Schritt ${index + 1} von $total',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                checkpoint.question,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 10),
+              ...List.generate(
+                checkpoint.choices.length,
+                (choiceIndex) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: FilledButton.tonal(
+                    onPressed: locked
+                        ? null
+                        : () => onChoice(choiceIndex),
+                    child: Text(checkpoint.choices[choiceIndex]),
+                  ),
+                ),
+              ),
+              if (feedback.isNotEmpty)
+                Text(
+                  feedback,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
             ],
           ),
         ),
