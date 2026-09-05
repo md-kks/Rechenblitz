@@ -225,7 +225,7 @@ void main() {
       MicroCompetencyId.subtractionTenBridge,
     );
   });
-  test('Gemeistert verlangt sichere Basisevidenz plus Transfer', () {
+  test('Gemeistert verlangt selbstständig, Abstand und Transfer', () {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
@@ -233,7 +233,7 @@ void main() {
       6,
       (index) => MicroCompetencyObservation(
         id: MicroCompetencyId.additionTenBridge,
-        occurredAt: DateTime(2026, 9, 5, 12, index),
+        occurredAt: DateTime(2026, 9, 1, 12, index),
         correct: true,
         evidenceWeight: 1,
         source: MicroEvidenceSource.practice,
@@ -245,11 +245,13 @@ void main() {
       ),
     );
 
-    final withoutTransfer =
+    final base =
         controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
-    expect(withoutTransfer.state, MicroCompetencyState.secure);
-    expect(withoutTransfer.baseEvidence, closeTo(6, 0.001));
-    expect(withoutTransfer.transferEvidence, 0);
+    expect(base.state, MicroCompetencyState.secure);
+    expect(base.independentEvidence, closeTo(6, 0.001));
+    expect(base.independentAccuracy, closeTo(1, 0.001));
+    expect(base.reviewEvidence, 0);
+    expect(base.transferEvidence, 0);
 
     controller.microObservations.insertAll(
       0,
@@ -257,7 +259,7 @@ void main() {
         2,
         (index) => MicroCompetencyObservation(
           id: MicroCompetencyId.additionTenBridge,
-          occurredAt: DateTime(2026, 9, 5, 13, index),
+          occurredAt: DateTime(2026, 9, 2, 13, index),
           correct: true,
           evidenceWeight: 1,
           source: MicroEvidenceSource.transfer,
@@ -271,12 +273,286 @@ void main() {
       ),
     );
 
-    final withTransfer =
+    final withoutReview =
         controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
-    expect(withTransfer.state, MicroCompetencyState.mastered);
-    expect(withTransfer.transferEvidence, closeTo(2, 0.001));
-    expect(withTransfer.transferAccuracy, closeTo(1, 0.001));
-    expect(withTransfer.transferObservations, 2);
+    expect(withoutReview.state, MicroCompetencyState.secure);
+    expect(withoutReview.transferIndependentEvidence, closeTo(2, 0.001));
+
+    controller.microObservations.insertAll(
+      0,
+      List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 4, 13, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'review:plus:47:${3 + index}',
+        ),
+      ),
+    );
+
+    final mastered =
+        controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
+    expect(mastered.state, MicroCompetencyState.mastered);
+    expect(mastered.reviewIndependentEvidence, closeTo(2, 0.001));
+    expect(mastered.reviewIndependentAccuracy, closeTo(1, 0.001));
+    expect(mastered.transferIndependentEvidence, closeTo(2, 0.001));
+    expect(mastered.transferIndependentAccuracy, closeTo(1, 0.001));
+  });
+
+  test('Hilfe zählt sichtbar, erzeugt aber keine selbstständige Sicherheit', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      8,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.subtractionTenBridge,
+        occurredAt: DateTime(2026, 9, 1, 12, index),
+        correct: true,
+        evidenceWeight: 0.8,
+        source: MicroEvidenceSource.practice,
+        usedHelp: true,
+        helpLevel: 1,
+        mode: TrainingMode.minus,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'minus:43:18:$index',
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.subtractionTenBridge,
+    );
+
+    expect(progress.aidedObservations, 8);
+    expect(progress.aidedEvidence, greaterThan(0));
+    expect(progress.independentEvidence, 0);
+    expect(progress.state, MicroCompetencyState.practicing);
+  });
+
+  test('Abstandskontrolle wird erst nach zwei Tagen fällig', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      6,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.subtractionTenBridge,
+        occurredAt: DateTime(2026, 9, 1, 10, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.minus,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'minus:${30 + index}:8',
+      ),
+    );
+
+    expect(
+      controller.dueReviewMicroCompetency(
+        now: DateTime(2026, 9, 2, 10),
+      ),
+      isNull,
+    );
+    final due = controller.dueReviewMicroCompetency(
+      now: DateTime(2026, 9, 3, 10),
+    );
+    expect(due, isNotNull);
+    expect(due!.definition.id, MicroCompetencyId.subtractionTenBridge);
+
+    final plan = controller.buildMyRound(
+      now: DateTime(2026, 9, 3, 10),
+    );
+    expect(plan[2].reviewEmphasis, isTrue);
+    expect(
+      plan[2].targetCompetency,
+      MicroCompetencyId.subtractionTenBridge,
+    );
+    expect(plan[2].reason, contains('zeitlichem Abstand'));
+    expect(
+      [
+        plan[0],
+        plan[1],
+        plan[3],
+      ].every(
+        (segment) =>
+            segment.targetCompetency !=
+            MicroCompetencyId.subtractionTenBridge,
+      ),
+      isTrue,
+      reason:
+          'Das Abstandsziel darf in derselben Runde nicht vorgeübt werden.',
+    );
+  });
+
+  test('nach erster Abstandskontrolle gilt ein Sieben-Tage-Abstand', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 4, 10, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'review:plus:12:${7 + index}',
+        ),
+      ),
+      ...List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 1, 10, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:12:${2 + index}',
+        ),
+      ),
+    ];
+
+    expect(
+      controller.dueReviewMicroCompetency(
+        now: DateTime(2026, 9, 10, 10),
+      ),
+      isNull,
+    );
+    expect(
+      controller.dueReviewMicroCompetency(
+        now: DateTime(2026, 9, 11, 10),
+      ),
+      isNotNull,
+    );
+  });
+
+  test('Hilfe im Transfer reicht nicht für Gemeistert', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 4, 13, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'review:plus:47:${3 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 3, 13, index),
+          correct: true,
+          evidenceWeight: 0.8,
+          source: MicroEvidenceSource.transfer,
+          usedHelp: true,
+          helpLevel: 1,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'story:transfer:skill:additionTenBridge:+:books:47:${3 + index}',
+        ),
+      ),
+      ...List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 1, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:47:${3 + index}',
+        ),
+      ),
+    ];
+
+    final progress =
+        controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
+
+    expect(progress.transferEvidence, greaterThan(0));
+    expect(progress.transferIndependentEvidence, 0);
+    expect(progress.state, MicroCompetencyState.secure);
+  });
+
+  test('unsichere Abstandskontrolle bleibt nach zwei Tagen erneut fällig', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 4, 10),
+        correct: false,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.review,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'review:plus:12:7',
+      ),
+      ...List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 1, 10, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:12:${2 + index}',
+        ),
+      ),
+    ];
+
+    expect(
+      controller.dueReviewMicroCompetency(
+        now: DateTime(2026, 9, 5, 10),
+      ),
+      isNull,
+    );
+    expect(
+      controller.dueReviewMicroCompetency(
+        now: DateTime(2026, 9, 6, 10),
+      ),
+      isNotNull,
+    );
   });
 
   test('Meine Runde transferiert zuerst eine sichere Kompetenz', () {
@@ -357,6 +633,31 @@ void main() {
     expect(observation.source, MicroEvidenceSource.transfer);
   });
 
+
+  test('Abstandsevidenz bleibt lokal über Neustart erhalten', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    final fact = MathFact(
+      a: 12,
+      b: 7,
+      operation: MathOperation.plus,
+    );
+    await controller.recordDiagnosticAttempt(
+      mode: TrainingMode.practice,
+      taskKey: fact.key,
+      expected: 19,
+      actual: 19,
+      fact: fact,
+      source: MicroEvidenceSource.review,
+    );
+
+    final reloaded = AppController();
+    await reloaded.load();
+    expect(reloaded.microObservations.first.source, MicroEvidenceSource.review);
+  });
 
   test('alte Mikro-Daten ohne Evidenzquelle bleiben normale Übung', () {
     final observation = MicroCompetencyObservation.fromJson({

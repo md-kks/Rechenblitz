@@ -32,6 +32,7 @@ class GuidedRoundSegment {
     required this.tasks,
     required this.reason,
     this.targetCompetency,
+    this.reviewEmphasis = false,
     this.transferEmphasis = false,
   });
 
@@ -39,6 +40,7 @@ class GuidedRoundSegment {
   final int tasks;
   final String reason;
   final MicroCompetencyId? targetCompetency;
+  final bool reviewEmphasis;
   final bool transferEmphasis;
 }
 

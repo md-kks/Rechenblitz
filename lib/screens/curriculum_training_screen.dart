@@ -19,6 +19,7 @@ class CurriculumTrainingScreen extends StatefulWidget {
     required this.mode,
     this.targetTasks = 10,
     this.targetCompetency,
+    this.reviewEmphasis = false,
     this.transferEmphasis = false,
   });
 
@@ -26,6 +27,7 @@ class CurriculumTrainingScreen extends StatefulWidget {
   final TrainingMode mode;
   final int targetTasks;
   final MicroCompetencyId? targetCompetency;
+  final bool reviewEmphasis;
   final bool transferEmphasis;
 
   @override
@@ -34,6 +36,12 @@ class CurriculumTrainingScreen extends StatefulWidget {
 }
 
 class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
+  MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
+      ? MicroEvidenceSource.transfer
+      : widget.reviewEmphasis
+          ? MicroEvidenceSource.review
+          : MicroEvidenceSource.practice;
+
   final CurriculumExerciseGenerator generator = CurriculumExerciseGenerator();
   late CurriculumExercise current;
   late DateTime startedAt;
@@ -114,9 +122,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         usedHelp: showHint,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
-        source: widget.transferEmphasis
-            ? MicroEvidenceSource.transfer
-            : MicroEvidenceSource.practice,
+        source: _evidenceSource,
       );
     }
     if (answer != current.answer) {
@@ -145,9 +151,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         taskKey: current.key,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
-        source: widget.transferEmphasis
-            ? MicroEvidenceSource.transfer
-            : MicroEvidenceSource.practice,
+        source: _evidenceSource,
       );
       if (!mounted || finishing) return;
     }

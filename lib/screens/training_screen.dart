@@ -20,6 +20,7 @@ class TrainingScreen extends StatefulWidget {
     required this.targetTasks,
     this.timeLimit,
     this.targetCompetency,
+    this.reviewEmphasis = false,
     this.transferEmphasis = false,
   });
 
@@ -28,6 +29,7 @@ class TrainingScreen extends StatefulWidget {
   final int targetTasks;
   final Duration? timeLimit;
   final MicroCompetencyId? targetCompetency;
+  final bool reviewEmphasis;
   final bool transferEmphasis;
 
   @override
@@ -35,6 +37,12 @@ class TrainingScreen extends StatefulWidget {
 }
 
 class _TrainingScreenState extends State<TrainingScreen> {
+  MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
+      ? MicroEvidenceSource.transfer
+      : widget.reviewEmphasis
+          ? MicroEvidenceSource.review
+          : MicroEvidenceSource.practice;
+
   late MathFact current;
   late DateTime taskShownAt;
   late DateTime startedAt;
@@ -172,9 +180,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         usedHelp: usedHelp || showHelp,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
-        source: widget.transferEmphasis
-            ? MicroEvidenceSource.transfer
-            : MicroEvidenceSource.practice,
+        source: _evidenceSource,
       );
     }
     await widget.controller.recordAttempt(
@@ -232,9 +238,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         fact: current,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
-        source: widget.transferEmphasis
-            ? MicroEvidenceSource.transfer
-            : MicroEvidenceSource.practice,
+        source: _evidenceSource,
       );
       if (!mounted || finishing) return;
     }
