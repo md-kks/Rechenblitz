@@ -254,23 +254,36 @@ class StepRecoveryGenerator {
   ) =>
       switch (focus.stepKey) {
         'onesDigit' => _onesDigit(focus, stage, range),
-        'groupCount' => _groups(focus, stage, askForGroups: true),
-        'itemsPerGroup' => _groups(focus, stage, askForGroups: false),
+        'groupCount' =>
+          _groups(focus, stage, range, askForGroups: true),
+        'itemsPerGroup' =>
+          _groups(focus, stage, range, askForGroups: false),
         'bridgeAmount' => _bridgeAmount(focus, stage, range),
         'remainingAddend' => _remainingAddend(focus, stage, range),
         'remainingSubtrahend' =>
           _remainingSubtrahend(focus, stage, range),
         'onesAlignment' => _onesAlignment(focus, stage, range),
         'regroupDecision' =>
-          _regroupDecision(focus, stage, complement: false),
-        'carryDecision' => _carryDecision(focus, stage),
-        'firstPartialProduct' => _firstPartialProduct(focus, stage),
-        'multiplicationCarry' => _multiplicationCarry(focus, stage),
-        'nextMultiplierDigit' => _nextMultiplierDigit(focus, stage),
-        'firstQuotientDigit' =>
-          _divisionStep(focus, stage, askForRemainder: false),
-        'firstDivisionRemainder' =>
-          _divisionStep(focus, stage, askForRemainder: true),
+          _regroupDecision(focus, stage, range, complement: false),
+        'carryDecision' => _carryDecision(focus, stage, range),
+        'firstPartialProduct' =>
+          _firstPartialProduct(focus, stage, range),
+        'multiplicationCarry' =>
+          _multiplicationCarry(focus, stage, range),
+        'nextMultiplierDigit' =>
+          _nextMultiplierDigit(focus, stage, range),
+        'firstQuotientDigit' => _divisionStep(
+            focus,
+            stage,
+            range,
+            askForRemainder: false,
+          ),
+        'firstDivisionRemainder' => _divisionStep(
+            focus,
+            stage,
+            range,
+            askForRemainder: true,
+          ),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -294,11 +307,19 @@ class StepRecoveryGenerator {
 
   RemediationTask _groups(
     IndependentStepRecoveryFocus focus,
-    RemediationStage stage, {
+    RemediationStage stage,
+    NumberRangeLevel range, {
     required bool askForGroups,
   }) {
-    final groups = _between(2, 6);
-    final each = _between(2, 6);
+    final limit = max(10, min(range.maxValue, 100));
+    var groups = _between(2, min(6, limit ~/ 2));
+    var each = _between(2, min(6, max(2, limit ~/ groups)));
+    for (var attempt = 0;
+        attempt < 20 && groups * each > limit;
+        attempt++) {
+      groups = _between(2, min(6, limit ~/ 2));
+      each = _between(2, min(6, max(2, limit ~/ groups)));
+    }
     return _numeric(
       focus: focus,
       stage: stage,
@@ -417,16 +438,31 @@ class StepRecoveryGenerator {
 
   RemediationTask _regroupDecision(
     IndependentStepRecoveryFocus focus,
-    RemediationStage stage, {
+    RemediationStage stage,
+    NumberRangeLevel range, {
     required bool complement,
   }) {
+    final limit = max(20, min(range.maxValue, 100));
     final needsRegrouping = _random.nextBool();
-    final topOnes = needsRegrouping ? _between(0, 4) : _between(5, 9);
-    final bottomOnes = needsRegrouping
-        ? _between(topOnes + 1, 9)
-        : _between(0, topOnes);
-    final a = _between(3, 9) * 10 + topOnes;
-    final b = _between(1, max(1, a ~/ 10 - 1)) * 10 + bottomOnes;
+    var a = _between(10, limit);
+    var b = _between(1, max(1, a - 1));
+    for (var attempt = 0;
+        attempt < 40 && ((a % 10) < (b % 10)) != needsRegrouping;
+        attempt++) {
+      a = _between(10, limit);
+      b = _between(1, max(1, a - 1));
+    }
+    if (((a % 10) < (b % 10)) != needsRegrouping) {
+      if (needsRegrouping) {
+        a = min(limit, 12);
+        b = 5;
+      } else {
+        a = min(limit, 18);
+        b = 5;
+      }
+    }
+    final topOnes = a % 10;
+    final bottomOnes = b % 10;
     return _choice(
       focus: focus,
       stage: stage,
@@ -436,29 +472,47 @@ class StepRecoveryGenerator {
           : 'Bei $a − $b: Musst du in der Einer-Spalte einen Zehner entbündeln?',
       choices: const ['Ja', 'Nein'],
       answer: needsRegrouping ? 0 : 1,
-      hint: 'Vergleiche nur die beiden Einerziffern: $topOnes und $bottomOnes.',
+      hint:
+          'Vergleiche nur die beiden Einerziffern: $topOnes und $bottomOnes.',
     );
   }
 
   RemediationTask _carryDecision(
     IndependentStepRecoveryFocus focus,
     RemediationStage stage,
+    NumberRangeLevel range,
   ) {
     if (focus.sourceTaskKey.contains(':-:')) {
-      return _regroupDecision(focus, stage, complement: true);
+      return _regroupDecision(
+        focus,
+        stage,
+        range,
+        complement: true,
+      );
     }
+
+    final limit = max(20, min(range.maxValue, 100));
     final needsCarry = _random.nextBool();
-    int aOnes;
-    int bOnes;
-    if (needsCarry) {
-      aOnes = _between(5, 9);
-      bOnes = _between(10 - aOnes, 9);
-    } else {
-      aOnes = _between(0, 5);
-      bOnes = _between(0, 9 - aOnes);
+    var a = _between(10, max(10, limit - 1));
+    var b = _between(1, max(1, limit - a));
+    for (var attempt = 0;
+        attempt < 40 &&
+            (((a % 10) + (b % 10) >= 10) != needsCarry);
+        attempt++) {
+      a = _between(10, max(10, limit - 1));
+      b = _between(1, max(1, limit - a));
     }
-    final a = _between(2, 8) * 10 + aOnes;
-    final b = _between(1, 8) * 10 + bOnes;
+    if ((((a % 10) + (b % 10) >= 10) != needsCarry)) {
+      if (needsCarry) {
+        a = min(limit - 8, 12);
+        b = 8;
+      } else {
+        a = min(limit - 3, 13);
+        b = 3;
+      }
+    }
+    final aOnes = a % 10;
+    final bOnes = b % 10;
     return _choice(
       focus: focus,
       stage: stage,
@@ -467,17 +521,26 @@ class StepRecoveryGenerator {
           'Bei $a + $b: Entsteht in der Einer-Spalte ein Übertrag?',
       choices: const ['Ja', 'Nein'],
       answer: needsCarry ? 0 : 1,
-      hint: 'Addiere nur die Einer $aOnes + $bOnes. Ab 10 entsteht ein Übertrag.',
+      hint:
+          'Addiere nur die Einer $aOnes + $bOnes. Ab 10 entsteht ein Übertrag.',
     );
   }
 
   RemediationTask _firstPartialProduct(
     IndependentStepRecoveryFocus focus,
     RemediationStage stage,
+    NumberRangeLevel range,
   ) {
-    final tens = _between(1, 8);
-    final ones = _between(2, 9);
-    final multiplier = _between(2, 9);
+    final limit = max(20, min(range.maxValue, 100));
+    var ones = _between(2, 9);
+    var multiplier = _between(2, 9);
+    for (var attempt = 0;
+        attempt < 30 && ones * multiplier > limit;
+        attempt++) {
+      ones = _between(2, 9);
+      multiplier = _between(2, 9);
+    }
+    final tens = limit >= 20 ? 1 : 0;
     final a = tens * 10 + ones;
     final product = ones * multiplier;
     return _numeric(
@@ -487,66 +550,89 @@ class StepRecoveryGenerator {
       prompt:
           'Bei $a × $multiplier schriftlich: Was ergibt zuerst die Einer-Spalte $ones × $multiplier?',
       answer: product,
-      max: max(20, product + 5),
-      hint: 'Rechne zunächst nur die beiden Ziffern der Einer-Spalte.',
+      max: max(20, min(limit, product + 5)),
+      hint:
+          'Rechne zunächst nur die beiden Ziffern der Einer-Spalte.',
     );
   }
 
   RemediationTask _multiplicationCarry(
     IndependentStepRecoveryFocus focus,
     RemediationStage stage,
+    NumberRangeLevel range,
   ) {
-    final ones = _between(5, 9);
-    final multiplier = _between(2, 9);
+    final limit = max(20, min(range.maxValue, 100));
+    var ones = _between(5, 9);
+    var multiplier = _between(2, 9);
+    for (var attempt = 0;
+        attempt < 30 &&
+            (ones * multiplier < 10 || ones * multiplier > limit);
+        attempt++) {
+      ones = _between(5, 9);
+      multiplier = _between(2, 9);
+    }
     final product = ones * multiplier;
-    final a = _between(1, 8) * 10 + ones;
     return _numeric(
       focus: focus,
       stage: stage,
-      key: 'mul-carry:$a:$multiplier',
+      key: 'mul-carry:$ones:$multiplier',
       prompt:
-          'Bei $a × $multiplier ergibt die Einer-Spalte $ones × $multiplier = $product. Welchen Übertrag schreibst du zur nächsten Stelle?',
+          'In der Einer-Spalte rechnest du $ones × $multiplier = $product. Welchen Übertrag schreibst du zur nächsten Stelle?',
       answer: product ~/ 10,
       max: 9,
-      hint: 'Die Einerziffer bleibt unten. Die Zehner des Teilprodukts werden übertragen.',
+      hint:
+          'Die Einerziffer bleibt unten. Die Zehner des Teilprodukts werden übertragen.',
     );
   }
 
   RemediationTask _nextMultiplierDigit(
     IndependentStepRecoveryFocus focus,
     RemediationStage stage,
+    NumberRangeLevel range,
   ) {
-    final tens = _between(1, 9);
-    final ones = _between(1, 9);
-    final multiplier = tens * 10 + ones;
-    final a = _between(12, 49);
+    final limit = max(20, min(range.maxValue, 99));
+    final multiplier = _between(11, limit);
+    final tens = (multiplier ~/ 10) % 10;
+    final ones = multiplier % 10;
     return _numeric(
       focus: focus,
       stage: stage,
-      key: 'next-multiplier:$a:$multiplier',
+      key: 'next-multiplier:$multiplier',
       prompt:
-          'Bei $a × $multiplier hast du schon mit der Einerziffer $ones gerechnet. Mit welcher Ziffer des zweiten Faktors rechnest du als Nächstes?',
+          'Beim Faktor $multiplier hast du schon mit der Einerziffer $ones gerechnet. Mit welcher Ziffer rechnest du als Nächstes?',
       answer: tens,
       max: 9,
-      hint: 'Nach den Einern folgt die Zehnerziffer des zweiten Faktors.',
+      hint:
+          'Nach den Einern folgt die Zehnerziffer des zweiten Faktors.',
     );
   }
 
   RemediationTask _divisionStep(
     IndependentStepRecoveryFocus focus,
-    RemediationStage stage, {
+    RemediationStage stage,
+    NumberRangeLevel range, {
     required bool askForRemainder,
   }) {
-    final divisor = _between(2, 9);
+    final limit = max(20, min(range.maxValue, 100));
+    var divisor = _between(2, min(9, max(2, limit ~/ 2)));
     var quotientDigit = _between(2, 9);
     var remainder = _between(0, divisor - 1);
     var chunk = divisor * quotientDigit + remainder;
-    for (var attempt = 0; attempt < 20 && chunk < 10; attempt++) {
+    for (var attempt = 0;
+        attempt < 40 && (chunk < 10 || chunk > limit);
+        attempt++) {
+      divisor = _between(2, min(9, max(2, limit ~/ 2)));
       quotientDigit = _between(2, 9);
       remainder = _between(0, divisor - 1);
       chunk = divisor * quotientDigit + remainder;
     }
-    final dividend = chunk * 10 + _between(0, 9);
+    if (chunk < 10 || chunk > limit) {
+      divisor = 3;
+      quotientDigit = 4;
+      remainder = min(2, divisor - 1);
+      chunk = divisor * quotientDigit + remainder;
+    }
+    final dividend = chunk;
     return _numeric(
       focus: focus,
       stage: stage,
@@ -555,7 +641,7 @@ class StepRecoveryGenerator {
           ? 'Beim ersten Schritt von $dividend ÷ $divisor rechnest du mit $chunk. Welcher Rest bleibt nach $quotientDigit × $divisor?'
           : 'Beim ersten Schritt von $dividend ÷ $divisor: Wie oft passt $divisor in $chunk?',
       answer: askForRemainder ? remainder : quotientDigit,
-      max: max(9, divisor),
+      max: 9,
       hint: askForRemainder
           ? 'Rechne $chunk − ($quotientDigit × $divisor).'
           : 'Suche die größte Malaufgabe mit $divisor, die $chunk nicht überschreitet.',
