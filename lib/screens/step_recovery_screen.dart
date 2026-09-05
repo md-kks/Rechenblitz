@@ -138,7 +138,7 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
-              Navigator.of(context).pop();
+              Navigator.of(context).pop(true);
             },
             child: const Text('Fertig'),
           ),
