@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/error_diagnosis.dart';
@@ -12,6 +14,7 @@ class GuidedMethodPanel extends StatefulWidget {
     required this.taskKey,
     required this.expected,
     required this.onHelpLevelChanged,
+    this.onStepAttempt,
     this.onSpeak,
   });
 
@@ -20,6 +23,8 @@ class GuidedMethodPanel extends StatefulWidget {
   final String taskKey;
   final int expected;
   final ValueChanged<HelpLevel> onHelpLevelChanged;
+  final Future<void> Function(GuidedMethodStep step, bool correct)?
+      onStepAttempt;
   final Future<void> Function(String text)? onSpeak;
 
   @override
@@ -30,6 +35,7 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
   HelpLevel level = HelpLevel.nudge;
   int stepIndex = 0;
   final Set<int> solvedSteps = <int>{};
+  final Set<int> attemptedSteps = <int>{};
   String feedback = '';
 
   @override
@@ -50,7 +56,10 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
   }
 
   void _choose(GuidedMethodStep step, int choice) {
-    if (choice == step.correctChoice) {
+    final correct = choice == step.correctChoice;
+    final firstAttempt = attemptedSteps.add(stepIndex);
+
+    if (correct) {
       setState(() {
         solvedSteps.add(stepIndex);
         feedback = 'Genau. Dieser Schritt stimmt.';
@@ -59,6 +68,12 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
       setState(() {
         feedback = 'Noch nicht. Schau auf den Schritt und probiere noch einmal.';
       });
+    }
+
+    if (firstAttempt &&
+        step.recordsIntermediateEvidence &&
+        widget.onStepAttempt != null) {
+      unawaited(widget.onStepAttempt!(step, correct));
     }
   }
 
