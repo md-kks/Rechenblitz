@@ -44,6 +44,26 @@ class GuidedRoundSegment {
   final bool transferEmphasis;
 }
 
+class GuidedStepFocus {
+  const GuidedStepFocus({
+    required this.competencyId,
+    required this.stepKey,
+    required this.label,
+    required this.observations,
+    required this.incorrectFirstAttempts,
+    required this.accuracy,
+    required this.lastSeen,
+  });
+
+  final MicroCompetencyId competencyId;
+  final String stepKey;
+  final String label;
+  final int observations;
+  final int incorrectFirstAttempts;
+  final double accuracy;
+  final DateTime lastSeen;
+}
+
 class ParentLearningInsight {
   const ParentLearningInsight({
     required this.good,
