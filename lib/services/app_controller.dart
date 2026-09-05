@@ -1204,8 +1204,9 @@ class AppController extends ChangeNotifier {
       final stepKey = GuidedStepCatalog.keyFromTaskKey(observation.taskKey);
       if (stepKey == null) continue;
       final groupKey = '${observation.id.name}|$stepKey';
-      grouped.putIfAbsent(groupKey, () => <MicroCompetencyObservation>[])
-        ..add(observation);
+      grouped
+          .putIfAbsent(groupKey, () => <MicroCompetencyObservation>[])
+          .add(observation);
     }
 
     final candidates = <GuidedStepFocus>[];
