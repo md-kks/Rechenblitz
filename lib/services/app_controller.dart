@@ -1169,7 +1169,7 @@ class AppController extends ChangeNotifier {
       return 'Noch keine einzelne Teilkompetenz ist klar auffällig. '
           'Weitere abwechslungsreiche Aufgaben machen die Lernkarte genauer.';
     }
-    final percentage = (focus.accuracy * 100).round();
+    final percentage = (focus.directAccuracy * 100).round();
     return '„${focus.definition.label}“ ist aktuell der sinnvollste '
         'Teilschritt: ${focus.observations} passende Beobachtungen, '
         '$percentage % direkt richtig.';
