@@ -39,6 +39,7 @@ void main() {
     expect(parsed.targetCompetency,
         MicroCompetencyId.wordProblemCalculation);
     expect(parsed.transferEmphasis, isTrue);
+    expect(parsed.summary, contains('Transfer'));
     expect(
       parsed.methods.multiplication,
       MultiplicationStrategy.decompose,
