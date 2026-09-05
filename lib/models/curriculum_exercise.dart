@@ -150,6 +150,10 @@ class CurriculumExerciseGenerator {
         TrainingMode.combinatorics => _combinatorics(gradeLevel),
         TrainingMode.proportionality => _proportionality(gradeLevel, maxValue),
         TrainingMode.perimeterArea => _perimeterArea(gradeLevel),
+        TrainingMode.geometryRelations => _geometryRelations(
+            gradeLevel,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.geometryBodies =>
           targetCompetency == MicroCompetencyId.cubeNetFoldability
               ? _cubeNetFoldability()
@@ -1105,6 +1109,104 @@ class CurriculumExerciseGenerator {
       answerSuffix: area ? 'cm²' : 'cm',
       maxAnswerValue: 2000,
       method: area ? 'Flächeninhalt' : 'Umfang',
+    );
+  }
+
+  CurriculumExercise _geometryRelations(
+    GradeLevel grade, {
+    MicroCompetencyId? targetCompetency,
+  }) {
+    final kind = targetCompetency == MicroCompetencyId.lineRelations
+        ? 0
+        : targetCompetency == MicroCompetencyId.rightAngle
+            ? 1
+            : targetCompetency == MicroCompetencyId.figureClassification
+                ? 2
+                : targetCompetency == MicroCompetencyId.circleParts
+                    ? 3
+                    : _random.nextInt(4);
+
+    if (kind == 0) {
+      final parallel = _random.nextBool();
+      const choices = ['parallel', 'senkrecht', 'weder noch'];
+      return CurriculumExercise(
+        mode: TrainingMode.geometryRelations,
+        prompt: parallel
+            ? 'Zwei Geraden haben überall den gleichen Abstand und schneiden sich nicht. Wie liegen sie zueinander?'
+            : 'Zwei Geraden schneiden sich so, dass vier rechte Winkel entstehen. Wie liegen sie zueinander?',
+        answer: parallel ? 0 : 1,
+        hint: parallel
+            ? 'Parallele Geraden behalten überall den gleichen Abstand.'
+            : 'Senkrechte Geraden schneiden sich im rechten Winkel.',
+        key: 'geomrel:lines:${parallel ? 'parallel' : 'perpendicular'}:${grade.name}',
+        choices: choices,
+        method: 'Lagebeziehungen erkennen',
+      );
+    }
+
+    if (kind == 1) {
+      const choices = [
+        'rechter Winkel',
+        'spitzer Winkel',
+        'stumpfer Winkel',
+      ];
+      return CurriculumExercise(
+        mode: TrainingMode.geometryRelations,
+        prompt:
+            'Eine Ecke sieht genau so aus wie die Ecke eines rechteckigen Blattes. Wie heißt dieser Winkel?',
+        answer: 0,
+        hint:
+            'Die Ecke eines Rechtecks ist ein rechter Winkel.',
+        key: 'geomrel:angle:right:paper:${grade.name}',
+        choices: choices,
+        method: 'Rechte Winkel erkennen',
+      );
+    }
+
+    if (kind == 2) {
+      final variant = _random.nextInt(4);
+      const choices = [
+        'Quadrat',
+        'Rechteck',
+        'gleichseitiges Dreieck',
+        'gleichschenkliges Dreieck',
+      ];
+      final prompt = switch (variant) {
+        0 =>
+          'Welche Figur hat vier gleich lange Seiten und vier rechte Winkel?',
+        1 =>
+          'Welche Figur hat vier rechte Winkel, aber nicht zwingend vier gleich lange Seiten?',
+        2 =>
+          'Welche Figur hat drei gleich lange Seiten?',
+        _ =>
+          'Welche Figur hat mindestens zwei gleich lange Seiten und ist ein Dreieck?',
+      };
+      return CurriculumExercise(
+        mode: TrainingMode.geometryRelations,
+        prompt: prompt,
+        answer: variant,
+        hint:
+            'Achte auf Seitenlängen und Winkel. Diese Eigenschaften bestimmen die Figurenklasse.',
+        key: 'geomrel:figure:$variant:${grade.name}',
+        choices: choices,
+        method: 'Figuren über Eigenschaften einordnen',
+      );
+    }
+
+    final diameter = _random.nextBool();
+    const choices = ['Radius', 'Durchmesser', 'Mittelpunkt'];
+    return CurriculumExercise(
+      mode: TrainingMode.geometryRelations,
+      prompt: diameter
+          ? 'Wie heißt die Strecke, die von einem Randpunkt durch den Mittelpunkt bis zum gegenüberliegenden Randpunkt eines Kreises geht?'
+          : 'Wie heißt die Strecke vom Mittelpunkt eines Kreises bis zum Rand?',
+      answer: diameter ? 1 : 0,
+      hint: diameter
+          ? 'Der Durchmesser geht durch den Mittelpunkt von Rand zu Rand.'
+          : 'Der Radius geht vom Mittelpunkt bis zum Rand.',
+      key: 'geomrel:circle:${diameter ? 'diameter' : 'radius'}:${grade.name}',
+      choices: choices,
+      method: 'Kreisbegriffe verwenden',
     );
   }
 
