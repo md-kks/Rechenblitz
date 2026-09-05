@@ -502,4 +502,298 @@ void main() {
     }
   });
 
+
+  test('gezielter Rechenschritt-Pfad bleibt auf drei Aufgaben begrenzt', () {
+    const focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.writtenMultiplyProcedure,
+      stepKey: 'multiplicationCarry',
+      label: 'Übertrag beim schriftlichen Multiplizieren bestimmen',
+      mode: TrainingMode.writtenMultiply,
+      lastSeen: null,
+      sourceTaskKey:
+          'independent:multiplicationCarry:written:x:237:4',
+    );
+    final plan = StepRecoveryGenerator(random: Random(140)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+    expect(
+      plan.tasks.every(
+        (task) =>
+            task.taskKey.startsWith(
+              'step-recovery:multiplicationCarry:',
+            ) &&
+            task.answer >= 0 &&
+            task.answer <= task.maxAnswerValue,
+      ),
+      isTrue,
+    );
+  });
+
+  test('ein frischer eigenständiger Teilfehler löst sofort Recovery aus', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    final now = DateTime(2026, 9, 5, 20);
+
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.writtenMultiplyProcedure,
+        occurredAt: now.subtract(const Duration(minutes: 5)),
+        correct: false,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.writtenMultiply,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        taskKey:
+            'independent:multiplicationCarry:written:x:237:4',
+      ),
+    ];
+
+    final focus = controller.independentStepRecoveryFocus(now: now);
+    expect(focus, isNotNull);
+    expect(
+      focus!.competencyId,
+      MicroCompetencyId.writtenMultiplyProcedure,
+    );
+    expect(focus.stepKey, 'multiplicationCarry');
+    expect(focus.label, contains('Übertrag'));
+  });
+
+  test('Recovery endet erst nach zwei passenden selbstständigen Bestätigungen',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    final now = DateTime(2026, 9, 5, 20);
+    final failureAt = now.subtract(const Duration(minutes: 10));
+
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.writtenMultiplyProcedure,
+        occurredAt: failureAt.add(const Duration(minutes: 3)),
+        correct: true,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.writtenMultiply,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        taskKey:
+            'independent:multiplicationCarry:step-recovery:multiplicationCarry:one',
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.writtenMultiplyProcedure,
+        occurredAt: failureAt.add(const Duration(minutes: 2)),
+        correct: true,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: true,
+        helpLevel: 1,
+        mode: TrainingMode.writtenMultiply,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        taskKey:
+            'independent:multiplicationCarry:step-recovery:multiplicationCarry:supported',
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.writtenMultiplyProcedure,
+        occurredAt: failureAt,
+        correct: false,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.writtenMultiply,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        taskKey:
+            'independent:multiplicationCarry:written:x:237:4',
+      ),
+    ];
+
+    expect(controller.independentStepRecoveryFocus(now: now), isNotNull);
+
+    controller.microObservations.insert(
+      0,
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.writtenMultiplyProcedure,
+        occurredAt: failureAt.add(const Duration(minutes: 4)),
+        correct: true,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.writtenMultiply,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        taskKey:
+            'independent:multiplicationCarry:step-recovery:multiplicationCarry:check',
+      ),
+    );
+
+    expect(controller.independentStepRecoveryFocus(now: now), isNull);
+  });
+
+  test('Bestätigung eines anderen Teilschritts löst Recovery nicht ab', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    final now = DateTime(2026, 9, 5, 20);
+    final failureAt = now.subtract(const Duration(minutes: 10));
+
+    controller.microObservations = [
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.writtenMultiplyProcedure,
+          occurredAt:
+              failureAt.add(Duration(minutes: index + 1)),
+          correct: true,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.writtenMultiply,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:firstPartialProduct:written:x:23:${index + 3}',
+        ),
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.writtenMultiplyProcedure,
+        occurredAt: failureAt,
+        correct: false,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.writtenMultiply,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        taskKey:
+            'independent:multiplicationCarry:written:x:237:4',
+      ),
+    ];
+
+    final focus = controller.independentStepRecoveryFocus(now: now);
+    expect(focus, isNotNull);
+    expect(focus!.stepKey, 'multiplicationCarry');
+  });
+
+  test('Meine Runde kürzt den normalen Fokus bei akutem Teilfehler', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    final now = DateTime(2026, 9, 5, 20);
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.writtenDivideProcedure,
+        occurredAt: now.subtract(const Duration(minutes: 5)),
+        correct: false,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.writtenDivide,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        taskKey:
+            'independent:firstQuotientDigit:written:divide:324:6',
+      ),
+    ];
+
+    final plan = controller.buildMyRound(now: now);
+
+    expect(plan[1].tasks, 2);
+    expect(
+      plan[1].targetCompetency,
+      MicroCompetencyId.writtenDivideProcedure,
+    );
+    expect(plan[1].reason, contains('erste Quotientenziffer'));
+    expect(
+      plan.fold<int>(0, (sum, segment) => sum + segment.tasks),
+      9,
+    );
+  });
+
+  testWidgets('Meine Runde priorisiert den exakten Teilfehler vor Knacknüssen',
+      (tester) async {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.writtenMultiplyProcedure,
+        occurredAt: DateTime.now(),
+        correct: false,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.writtenMultiply,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        taskKey:
+            'independent:multiplicationCarry:written:x:237:4',
+      ),
+    ];
+    controller.diagnostics = [
+      DiagnosticAttempt(
+        occurredAt: DateTime.now(),
+        mode: TrainingMode.minus,
+        taskKey: 'minus:13:5',
+        expected: 8,
+        actual: 9,
+        correct: false,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        pattern: ErrorPattern.tenBridge,
+      ),
+      DiagnosticAttempt(
+        occurredAt: DateTime.now().subtract(
+          const Duration(minutes: 1),
+        ),
+        mode: TrainingMode.minus,
+        taskKey: 'minus:12:4',
+        expected: 8,
+        actual: 9,
+        correct: false,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        pattern: ErrorPattern.tenBridge,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(home: MyRoundScreen(controller: controller)),
+    );
+
+    expect(find.text('Rechenschritt kurz festigen'), findsOneWidget);
+    expect(
+      find.textContaining('Übertrag beim schriftlichen Multiplizieren'),
+      findsWidgets,
+    );
+    expect(find.byKey(const ValueKey('remediation-button')), findsNothing);
+
+    final button = find.byKey(const ValueKey('step-recovery-button'));
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rechenschritt festigen'), findsOneWidget);
+    expect(find.text('1/3'), findsOneWidget);
+    expect(
+      find.text('Übertrag beim schriftlichen Multiplizieren bestimmen'),
+      findsOneWidget,
+    );
+  });
+
 }
