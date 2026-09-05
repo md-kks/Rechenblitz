@@ -130,6 +130,8 @@ class CurriculumAuditCatalog {
       MicroCompetencyId.geometryBodies,
       MicroCompetencyId.symmetryAxes,
       MicroCompetencyId.planDirections,
+      MicroCompetencyId.cubeNetFoldability,
+      MicroCompetencyId.probabilityExperiment,
     };
     return physical.contains(id)
         ? CurriculumCoverage.digitalSupport

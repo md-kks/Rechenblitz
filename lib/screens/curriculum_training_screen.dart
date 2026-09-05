@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/cube_net.dart';
 import '../models/curriculum_exercise.dart';
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
@@ -315,6 +316,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               const SizedBox(height: 22),
               _BarChart(bars: current.bars!),
             ],
+            if (current.hasCubeNet) ...[
+              const SizedBox(height: 22),
+              _CubeNetView(cells: current.cubeNetCells!),
+            ],
             const SizedBox(height: 18),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
@@ -389,6 +394,59 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CubeNetView extends StatelessWidget {
+  const _CubeNetView({required this.cells});
+
+  final List<GridCell> cells;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxX = cells.map((cell) => cell.x).reduce((a, b) => a > b ? a : b);
+    final maxY = cells.map((cell) => cell.y).reduce((a, b) => a > b ? a : b);
+    final columns = maxX + 1;
+    final rows = maxY + 1;
+    final occupied = cells.toSet();
+
+    return Semantics(
+      label: 'Würfelnetz aus sechs Quadraten',
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: AspectRatio(
+            aspectRatio: columns / rows,
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: rows * columns,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+              ),
+              itemBuilder: (context, index) {
+                final x = index % columns;
+                final y = index ~/ columns;
+                final filled = occupied.contains(GridCell(x, y));
+                return Container(
+                  margin: const EdgeInsets.all(1.5),
+                  decoration: filled
+                      ? BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primaryContainer,
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2,
+                          ),
+                        )
+                      : null,
+                );
+              },
+            ),
+          ),
         ),
       ),
     );

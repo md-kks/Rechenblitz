@@ -28,6 +28,8 @@ enum MicroCompetencyId {
   placeValueDigits,
   placeValueDecompose,
   largeNumberCompare,
+  largeNumberOrder,
+  numberWordReading,
   additionNoBridge,
   additionTenBridge,
   subtractionNoBridge,
@@ -63,11 +65,13 @@ enum MicroCompetencyId {
   timeDuration,
   dataReading,
   probabilityReasoning,
+  probabilityExperiment,
   combinatoricsSystematic,
   proportionalUnit,
   perimeter,
   area,
   geometryBodies,
+  cubeNetFoldability,
   symmetryAxes,
   planDirections,
   scale,
@@ -260,6 +264,24 @@ class MicroCompetencyCatalog {
       id: MicroCompetencyId.largeNumberCompare,
       label: 'Große Zahlen vergleichen',
       description: 'Große Zahlen ordnen und ihre Größe vergleichen.',
+      domain: MicroCompetencyDomain.numberSense,
+      preferredMode: TrainingMode.largeNumbers,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.placeValueDigits],
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeNumberOrder,
+      label: 'Mehrere große Zahlen ordnen',
+      description: 'Drei oder mehr große Zahlen der Größe nach anordnen.',
+      domain: MicroCompetencyDomain.numberSense,
+      preferredMode: TrainingMode.largeNumbers,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.largeNumberCompare],
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.numberWordReading,
+      label: 'Zahlwörter und Ziffern verbinden',
+      description: 'Große Zahlen als deutsches Zahlwort lesen und der passenden Zifferndarstellung zuordnen.',
       domain: MicroCompetencyDomain.numberSense,
       preferredMode: TrainingMode.largeNumbers,
       minGrade: GradeLevel.third,
@@ -569,6 +591,15 @@ class MicroCompetencyCatalog {
       minGrade: GradeLevel.third,
     ),
     MicroCompetencyDefinition(
+      id: MicroCompetencyId.probabilityExperiment,
+      label: 'Zufallsexperimente auswerten',
+      description: 'Ergebnisse wiederholter Zufallsversuche zählen, vergleichen und vorsichtig deuten.',
+      domain: MicroCompetencyDomain.dataAndChance,
+      preferredMode: TrainingMode.probability,
+      minGrade: GradeLevel.fourth,
+      prerequisites: [MicroCompetencyId.probabilityReasoning],
+    ),
+    MicroCompetencyDefinition(
       id: MicroCompetencyId.combinatoricsSystematic,
       label: 'Möglichkeiten systematisch finden',
       description: 'Kombinationen vollständig und geordnet erfassen.',
@@ -607,6 +638,15 @@ class MicroCompetencyCatalog {
       domain: MicroCompetencyDomain.geometry,
       preferredMode: TrainingMode.geometryBodies,
       minGrade: GradeLevel.third,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.cubeNetFoldability,
+      label: 'Würfelnetze auf Faltbarkeit prüfen',
+      description: 'Anordnungen aus sechs Quadraten darauf untersuchen, ob sie sich ohne Überlappung zu einem Würfel falten lassen.',
+      domain: MicroCompetencyDomain.geometry,
+      preferredMode: TrainingMode.geometryBodies,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.geometryBodies],
     ),
     MicroCompetencyDefinition(
       id: MicroCompetencyId.symmetryAxes,
@@ -893,13 +933,17 @@ class MicroCompetencyCatalog {
       switch (mode) {
         TrainingMode.largeNumbers => [
             MicroCompetencyTag(
-              key.contains(':compare:')
-                  ? MicroCompetencyId.largeNumberCompare
-                  : key.contains(':decompose:')
-                      ? MicroCompetencyId.placeValueDecompose
-                      : key.contains(':neighbor:')
-                          ? MicroCompetencyId.countingNeighbors
-                          : MicroCompetencyId.placeValueDigits,
+              key.contains(':order:')
+                  ? MicroCompetencyId.largeNumberOrder
+                  : key.contains(':word:')
+                      ? MicroCompetencyId.numberWordReading
+                      : key.contains(':compare:')
+                          ? MicroCompetencyId.largeNumberCompare
+                          : key.contains(':decompose:')
+                              ? MicroCompetencyId.placeValueDecompose
+                              : key.contains(':neighbor:')
+                                  ? MicroCompetencyId.countingNeighbors
+                                  : MicroCompetencyId.placeValueDigits,
             ),
           ],
         TrainingMode.rounding => const [
@@ -988,11 +1032,22 @@ class MicroCompetencyCatalog {
         TrainingMode.dataCharts => const [
             MicroCompetencyTag(MicroCompetencyId.dataReading),
           ],
-        TrainingMode.probability => const [
-            MicroCompetencyTag(
-              MicroCompetencyId.probabilityReasoning,
-            ),
-          ],
+        TrainingMode.probability =>
+          key.startsWith('prob:experiment:')
+              ? const [
+                  MicroCompetencyTag(
+                    MicroCompetencyId.probabilityExperiment,
+                  ),
+                  MicroCompetencyTag(
+                    MicroCompetencyId.probabilityReasoning,
+                    weight: 0.35,
+                  ),
+                ]
+              : const [
+                  MicroCompetencyTag(
+                    MicroCompetencyId.probabilityReasoning,
+                  ),
+                ],
         TrainingMode.combinatorics => const [
             MicroCompetencyTag(
               MicroCompetencyId.combinatoricsSystematic,
@@ -1008,9 +1063,20 @@ class MicroCompetencyCatalog {
                   : MicroCompetencyId.perimeter,
             ),
           ],
-        TrainingMode.geometryBodies => const [
-            MicroCompetencyTag(MicroCompetencyId.geometryBodies),
-          ],
+        TrainingMode.geometryBodies =>
+          key.startsWith('body:cube-net:fold:')
+              ? const [
+                  MicroCompetencyTag(
+                    MicroCompetencyId.cubeNetFoldability,
+                  ),
+                  MicroCompetencyTag(
+                    MicroCompetencyId.geometryBodies,
+                    weight: 0.35,
+                  ),
+                ]
+              : const [
+                  MicroCompetencyTag(MicroCompetencyId.geometryBodies),
+                ],
         TrainingMode.symmetry => const [
             MicroCompetencyTag(MicroCompetencyId.symmetryAxes),
           ],

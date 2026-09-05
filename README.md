@@ -226,6 +226,30 @@ Für Klasse 3/4 gibt es zusätzlich zu normalen Sachaufgaben echte Transferforma
 
 Der Transferteil von **Meine Runde** bevorzugt diese Aufgaben.
 
+### Lehrplantiefe Klasse 3/4
+
+Die oberen Klassenstufen decken nun zusätzlich Bereiche ab, die zuvor nur teilweise vorhanden waren:
+
+- deutsche Zahlwörter bis **1.000.000** lesen und Zifferndarstellungen zuordnen
+- mehrere große Zahlen der Größe nach ordnen
+- wiederholte Zufallsexperimente anhand beobachteter Häufigkeiten auswerten
+- beobachtete relative Häufigkeiten als Prozentwert einordnen
+- Würfelnetze grafisch auf ihre tatsächliche Faltbarkeit prüfen
+
+Für Würfelnetze wird nicht mit einer festen Liste „richtiger Bilder“ gearbeitet. Ein geometrischer Falt-Validator propagiert die räumliche Orientierung der sechs Quadrate und akzeptiert ein Netz nur, wenn genau sechs unterschiedliche Würfelflächen ohne Orientierungskonflikt entstehen.
+
+### Automatischer Generator-Audit
+
+Die CI erzeugt zusätzlich mehrere tausend Aufgaben aus allen Klasse-3/4-Lernwelten und prüft unter anderem:
+
+- nichtleere Aufgabe, Schlüssel und Hinweis
+- gültige Antwortindizes bei Auswahlaufgaben
+- keine doppelten Antwortoptionen
+- numerische Antworten innerhalb des erlaubten Antwortbereichs
+- sechs unterschiedliche Quadrate bei Würfelnetzen
+- Übereinstimmung zwischen QR-/Generator-Klassifikation und Würfelnetz-Validator
+- gezielte Generierbarkeit und Mikro-Tagging neuer Lernziele
+
 ### Prozesskompetenzen
 
 Klasse 3/4 enthält zusätzlich eigene Mikro-Lernziele für mathematisches Denken:

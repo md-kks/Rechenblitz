@@ -2,6 +2,8 @@
 
 import 'dart:math';
 
+import 'cube_net.dart';
+import 'german_number_words.dart';
 import 'micro_competency.dart';
 import 'training.dart';
 import 'task_diversity.dart';
@@ -24,6 +26,7 @@ class CurriculumExercise {
     this.maxAnswerValue,
     this.method,
     this.bars,
+    this.cubeNetCells,
   });
 
   final TrainingMode mode;
@@ -36,9 +39,11 @@ class CurriculumExercise {
   final int? maxAnswerValue;
   final String? method;
   final List<CurriculumBar>? bars;
+  final List<GridCell>? cubeNetCells;
 
   bool get usesChoices => choices != null && choices!.isNotEmpty;
   bool get hasBars => bars != null && bars!.isNotEmpty;
+  bool get hasCubeNet => cubeNetCells != null && cubeNetCells!.isNotEmpty;
 }
 
 class CurriculumExerciseGenerator {
@@ -111,7 +116,12 @@ class CurriculumExerciseGenerator {
     MicroCompetencyId? targetCompetency,
   }) =>
       switch (mode) {
-        TrainingMode.largeNumbers => _largeNumbers(gradeLevel, maxValue),
+        TrainingMode.largeNumbers =>
+          targetCompetency == MicroCompetencyId.largeNumberOrder
+              ? _largeNumberOrder(gradeLevel, maxValue)
+              : targetCompetency == MicroCompetencyId.numberWordReading
+                  ? _numberWord(gradeLevel, maxValue)
+                  : _largeNumbers(gradeLevel, maxValue),
         TrainingMode.rounding => _rounding(gradeLevel, maxValue),
         TrainingMode.mentalStrategies =>
           targetCompetency == MicroCompetencyId.strategyChoice
@@ -133,11 +143,17 @@ class CurriculumExerciseGenerator {
         TrainingMode.advancedMeasures => _advancedMeasures(gradeLevel),
         TrainingMode.timeDurations => _timeDurations(gradeLevel),
         TrainingMode.dataCharts => _dataCharts(gradeLevel),
-        TrainingMode.probability => _probability(),
+        TrainingMode.probability =>
+          targetCompetency == MicroCompetencyId.probabilityExperiment
+              ? _probabilityExperiment()
+              : _probability(gradeLevel),
         TrainingMode.combinatorics => _combinatorics(gradeLevel),
         TrainingMode.proportionality => _proportionality(gradeLevel, maxValue),
         TrainingMode.perimeterArea => _perimeterArea(gradeLevel),
-        TrainingMode.geometryBodies => _geometryBodies(),
+        TrainingMode.geometryBodies =>
+          targetCompetency == MicroCompetencyId.cubeNetFoldability
+              ? _cubeNetFoldability()
+              : _geometryBodies(),
         TrainingMode.symmetry => _symmetry(),
         TrainingMode.plansAndOrientation => _plansAndOrientation(gradeLevel),
         TrainingMode.volumeCubes => _volumeCubes(gradeLevel),
@@ -151,7 +167,7 @@ class CurriculumExerciseGenerator {
 
   CurriculumExercise _largeNumbers(GradeLevel grade, int maxValue) {
     final limit = _safeMax(maxValue, grade);
-    final kind = _random.nextInt(4);
+    final kind = _random.nextInt(6);
     if (kind == 0) {
       final a = _between(max(100, limit ~/ 10), limit);
       var b = _between(max(100, limit ~/ 10), limit);
@@ -210,6 +226,12 @@ class CurriculumExerciseGenerator {
         method: 'Stellenwert',
       );
     }
+    if (kind == 4) {
+      return _largeNumberOrder(grade, maxValue);
+    }
+    if (kind == 5) {
+      return _numberWord(grade, maxValue);
+    }
     final number = _between(100, limit);
     final labels = [
       (1000000, 'M'),
@@ -233,6 +255,90 @@ class CurriculumExerciseGenerator {
       key: 'large:decompose:$number',
       maxAnswerValue: limit,
       method: 'Stellenwerttafel',
+    );
+  }
+
+  CurriculumExercise _largeNumberOrder(
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = _safeMax(maxValue, grade);
+    final minimum = min(100, max(1, limit ~/ 10));
+    final values = <int>{};
+    while (values.length < 3) {
+      values.add(_between(minimum, limit));
+    }
+    final ascending = values.toList()..sort();
+    final correct = ascending.map(_fmt).join(' < ');
+    final descending = ascending.reversed.map(_fmt).join(' < ');
+    final swapped = [ascending[1], ascending[0], ascending[2]]
+        .map(_fmt)
+        .join(' < ');
+    final swappedEnd = [ascending[0], ascending[2], ascending[1]]
+        .map(_fmt)
+        .join(' < ');
+    final options = <String>{
+      correct,
+      descending,
+      swapped,
+      swappedEnd,
+    }.toList()
+      ..shuffle(_random);
+
+    return CurriculumExercise(
+      mode: TrainingMode.largeNumbers,
+      prompt: 'Welche Reihenfolge geht von klein nach groß?',
+      answer: options.indexOf(correct),
+      hint:
+          'Vergleiche zuerst die höchste Stelle, an der sich die Zahlen unterscheiden.',
+      key: 'large:order:${ascending.join('-')}',
+      choices: options,
+      method: 'Mehrere Zahlen ordnen',
+    );
+  }
+
+  CurriculumExercise _numberWord(
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = _safeMax(maxValue, grade);
+    final number = _between(1, limit);
+    final word = GermanNumberWords.spell(number);
+    final readWord = _random.nextBool();
+
+    if (readWord) {
+      final alternatives = <int>{number};
+      while (alternatives.length < 4) {
+        alternatives.add(_between(1, limit));
+      }
+      final options = alternatives.toList()..shuffle(_random);
+      return CurriculumExercise(
+        mode: TrainingMode.largeNumbers,
+        prompt: 'Welche Zahl bedeutet das Zahlwort?\\n$word',
+        answer: options.indexOf(number),
+        hint:
+            'Suche in dem Zahlwort zuerst Tausender, Hunderter, Zehner und Einer.',
+        key: 'large:word:read:$number',
+        choices: options.map(_fmt).toList(),
+        method: 'Zahlwort lesen',
+      );
+    }
+
+    final alternatives = <int>{number};
+    while (alternatives.length < 4) {
+      alternatives.add(_between(1, limit));
+    }
+    final optionValues = alternatives.toList()..shuffle(_random);
+    final options = optionValues.map(GermanNumberWords.spell).toList();
+    return CurriculumExercise(
+      mode: TrainingMode.largeNumbers,
+      prompt: 'Welches Zahlwort gehört zu ${_fmt(number)}?',
+      answer: optionValues.indexOf(number),
+      hint:
+          'Sprich die Zahl in Stellenwertgruppen: Tausender, Hunderter, Zehner und Einer.',
+      key: 'large:word:write:$number',
+      choices: options,
+      method: 'Zahlwort zuordnen',
     );
   }
 
@@ -807,7 +913,10 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _probability() {
+  CurriculumExercise _probability(GradeLevel grade) {
+    if (grade == GradeLevel.fourth && _random.nextDouble() < 0.30) {
+      return _probabilityExperiment();
+    }
     final kind = _random.nextInt(4);
     const choices = ['sicher', 'möglich', 'unmöglich'];
 
@@ -868,6 +977,52 @@ class CurriculumExerciseGenerator {
       key: 'prob:bag:${context.toLowerCase()}:$red:$blue',
       choices: compare,
       method: 'Chancen einschätzen',
+    );
+  }
+
+  CurriculumExercise _probabilityExperiment() {
+    final trials = [20, 30, 40][_random.nextInt(3)];
+    final red = _between(4, trials - 4);
+    final blue = trials - red;
+    final kind = _random.nextBool();
+    if (kind) {
+      const choices = [
+        'Rot kam häufiger vor',
+        'Blau kam häufiger vor',
+        'beide gleich oft',
+      ];
+      final answer = red == blue ? 2 : red > blue ? 0 : 1;
+      return CurriculumExercise(
+        mode: TrainingMode.probability,
+        prompt:
+            'Ein Zufallsexperiment wurde $trials-mal wiederholt. Rot trat $red-mal auf, Blau $blue-mal. Was beschreibt die Beobachtung richtig?',
+        answer: answer,
+        hint:
+            'Vergleiche die beobachteten Häufigkeiten. Das Ergebnis beschreibt diese Versuchsreihe, nicht eine sichere Vorhersage.',
+        key: 'prob:experiment:compare:$trials:$red:$blue',
+        choices: choices,
+        method: 'Zufallsexperiment auswerten',
+      );
+    }
+
+    final percent = (red * 100 ~/ trials);
+    final options = <int>{percent};
+    for (final delta in [5, 10, -5, -10, 20]) {
+      final candidate = (percent + delta).clamp(0, 100);
+      options.add(candidate);
+      if (options.length >= 4) break;
+    }
+    final values = options.toList()..shuffle(_random);
+    return CurriculumExercise(
+      mode: TrainingMode.probability,
+      prompt:
+          'Bei $trials Versuchen trat Rot $red-mal auf. Welcher Prozentwert beschreibt die beobachtete relative Häufigkeit am besten?',
+      answer: values.indexOf(percent),
+      hint:
+          'Teile die Anzahl für Rot durch alle Versuche und denke an 100 Teile.',
+      key: 'prob:experiment:relative:$trials:$red',
+      choices: values.map((value) => '$value %').toList(),
+      method: 'Relative Häufigkeit beobachten',
     );
   }
 
@@ -954,6 +1109,9 @@ class CurriculumExerciseGenerator {
   }
 
   CurriculumExercise _geometryBodies() {
+    if (_random.nextDouble() < 0.35) {
+      return _cubeNetFoldability();
+    }
     if (_random.nextDouble() < 0.25) {
       if (_random.nextBool()) {
         return const CurriculumExercise(
@@ -997,6 +1155,23 @@ class CurriculumExerciseGenerator {
       key: 'body:' + bodies[index] + ':$property',
       maxAnswerValue: 20,
       method: 'Körper und Eigenschaften',
+    );
+  }
+
+  CurriculumExercise _cubeNetFoldability() {
+    final pattern = CubeNetGenerator(random: _random).generate();
+    const choices = ['Ja, es lässt sich falten', 'Nein, es lässt sich nicht falten'];
+    return CurriculumExercise(
+      mode: TrainingMode.geometryBodies,
+      prompt:
+          'Kann dieses Netz aus sechs Quadraten ohne Überlappung zu einem Würfel gefaltet werden?',
+      answer: pattern.foldable ? 0 : 1,
+      hint:
+          'Stelle dir vor, welche Quadrate beim Falten gegenüberliegen. Jede Würfelfläche darf nur einmal belegt werden.',
+      key: 'body:cube-net:fold:${pattern.foldable ? 'yes' : 'no'}:${pattern.key}',
+      choices: choices,
+      cubeNetCells: pattern.cells,
+      method: 'Würfelnetz gedanklich falten',
     );
   }
 
