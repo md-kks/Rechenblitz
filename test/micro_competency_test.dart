@@ -640,11 +640,17 @@ void main() {
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
 
+    final fact = MathFact(
+      a: 12,
+      b: 7,
+      operation: MathOperation.plus,
+    );
     await controller.recordDiagnosticAttempt(
       mode: TrainingMode.practice,
-      taskKey: 'plus:12:7',
+      taskKey: fact.key,
       expected: 19,
       actual: 19,
+      fact: fact,
       source: MicroEvidenceSource.review,
     );
 
