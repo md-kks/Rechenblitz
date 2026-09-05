@@ -30,6 +30,9 @@ class AppController extends ChangeNotifier {
   static const double _masteredReviewAccuracy = 0.80;
   static const double _masteredTransferEvidence = 1.5;
   static const double _masteredTransferAccuracy = 0.80;
+  static const int _guidedStepWindow = 8;
+  static const int _guidedStepMinIncorrect = 2;
+  static const double _guidedStepFocusMaxAccuracy = 0.60;
 
   AppController({
     StorageService? storage,
@@ -1041,6 +1044,9 @@ class AppController extends ChangeNotifier {
     var transferIndependentEvidence = 0.0;
     var transferIndependentCorrectEvidence = 0.0;
     var transferObservations = 0;
+    var guidedStepEvidence = 0.0;
+    var guidedStepCorrectEvidence = 0.0;
+    var guidedStepObservations = 0;
     DateTime? lastReviewSeen;
     DateTime? lastTransferSeen;
 
@@ -1085,6 +1091,11 @@ class AppController extends ChangeNotifier {
           lastTransferSeen ??= observation.occurredAt;
           break;
         case MicroEvidenceSource.guidedStep:
+          guidedStepEvidence += observation.evidenceWeight;
+          guidedStepObservations += 1;
+          if (observation.correct) {
+            guidedStepCorrectEvidence += observation.evidenceWeight;
+          }
           break;
         case MicroEvidenceSource.practice:
         case MicroEvidenceSource.remediation:
@@ -1119,6 +1130,9 @@ class AppController extends ChangeNotifier {
     final transferIndependentAccuracy = transferIndependentEvidence == 0
         ? 0.0
         : transferIndependentCorrectEvidence / transferIndependentEvidence;
+    final guidedStepAccuracy = guidedStepEvidence == 0
+        ? 0.0
+        : guidedStepCorrectEvidence / guidedStepEvidence;
 
     final state = evidence < 1.5
         ? MicroCompetencyState.discovering
@@ -1146,6 +1160,7 @@ class AppController extends ChangeNotifier {
       reviewIndependentAccuracy: reviewIndependentAccuracy,
       transferAccuracy: transferAccuracy,
       transferIndependentAccuracy: transferIndependentAccuracy,
+      guidedStepAccuracy: guidedStepAccuracy,
       baseEvidence: baseEvidence,
       independentEvidence: independentEvidence,
       aidedEvidence: aidedEvidence,
@@ -1153,9 +1168,11 @@ class AppController extends ChangeNotifier {
       reviewIndependentEvidence: reviewIndependentEvidence,
       transferEvidence: transferEvidence,
       transferIndependentEvidence: transferIndependentEvidence,
+      guidedStepEvidence: guidedStepEvidence,
       aidedObservations: aidedObservations,
       reviewObservations: reviewObservations,
       transferObservations: transferObservations,
+      guidedStepObservations: guidedStepObservations,
       lastSeen: matchingObservations.first.occurredAt,
       lastReviewSeen: lastReviewSeen,
       lastTransferSeen: lastTransferSeen,
@@ -1175,11 +1192,75 @@ class AppController extends ChangeNotifier {
           .map((definition) => microCompetencyProgress(definition.id))
           .toList();
 
+  GuidedStepFocus? guidedStepFocus() {
+    final grouped = <String, List<MicroCompetencyObservation>>{};
+
+    for (final observation in microObservations) {
+      if (observation.source != MicroEvidenceSource.guidedStep ||
+          observation.gradeLevel != gradeLevel ||
+          observation.numberRange != numberRange) {
+        continue;
+      }
+      final stepKey = GuidedStepCatalog.keyFromTaskKey(observation.taskKey);
+      if (stepKey == null) continue;
+      final groupKey = '${observation.id.name}|$stepKey';
+      grouped
+          .putIfAbsent(groupKey, () => <MicroCompetencyObservation>[])
+          .add(observation);
+    }
+
+    final candidates = <GuidedStepFocus>[];
+    for (final entries in grouped.values) {
+      entries.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      final recent = entries.take(_guidedStepWindow).toList();
+      if (recent.length < 2) continue;
+
+      final incorrect = recent.where((entry) => !entry.correct).length;
+      final accuracy =
+          recent.where((entry) => entry.correct).length / recent.length;
+      final competencyId = recent.first.id;
+      final progress = microCompetencyProgress(competencyId);
+
+      if (incorrect < _guidedStepMinIncorrect ||
+          accuracy >= _guidedStepFocusMaxAccuracy ||
+          progress.state == MicroCompetencyState.secure ||
+          progress.state == MicroCompetencyState.mastered) {
+        continue;
+      }
+
+      final stepKey =
+          GuidedStepCatalog.keyFromTaskKey(recent.first.taskKey);
+      if (stepKey == null) continue;
+      candidates.add(
+        GuidedStepFocus(
+          competencyId: competencyId,
+          stepKey: stepKey,
+          label: GuidedStepCatalog.labelFor(stepKey),
+          observations: recent.length,
+          incorrectFirstAttempts: incorrect,
+          accuracy: accuracy,
+          lastSeen: recent.first.occurredAt,
+        ),
+      );
+    }
+
+    candidates.sort((a, b) {
+      final accuracyOrder = a.accuracy.compareTo(b.accuracy);
+      if (accuracyOrder != 0) return accuracyOrder;
+      final incorrectOrder =
+          b.incorrectFirstAttempts.compareTo(a.incorrectFirstAttempts);
+      if (incorrectOrder != 0) return incorrectOrder;
+      return b.lastSeen.compareTo(a.lastSeen);
+    });
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
   MicroCompetencyProgress? currentMicroFocus() {
+    final guidedFocus = guidedStepFocus();
     final candidates = microCompetenciesForGrade()
         .where(
           (progress) =>
-              progress.observations > 0 &&
+              progress.baseEvidence > 0 &&
               progress.state != MicroCompetencyState.secure &&
               progress.state != MicroCompetencyState.mastered,
         )
@@ -1191,15 +1272,31 @@ class AppController extends ChangeNotifier {
         return b.independentEvidence.compareTo(a.independentEvidence);
       });
 
-    if (candidates.isEmpty) return null;
-    final candidate = candidates.first;
+    if (candidates.isEmpty) {
+      return guidedFocus == null
+          ? null
+          : microCompetencyProgress(guidedFocus.competencyId);
+    }
 
+    var candidate = candidates.first;
     for (final prerequisite in candidate.definition.prerequisites) {
       final prerequisiteProgress = microCompetencyProgress(prerequisite);
-      if (prerequisiteProgress.observations > 0 &&
+      final hasBaseSignal = prerequisiteProgress.baseEvidence > 0;
+      final hasWeakGuidedSignal =
+          guidedFocus?.competencyId == prerequisite;
+      if ((hasBaseSignal || hasWeakGuidedSignal) &&
           prerequisiteProgress.state != MicroCompetencyState.secure &&
           prerequisiteProgress.state != MicroCompetencyState.mastered) {
-        return prerequisiteProgress;
+        candidate = prerequisiteProgress;
+        break;
+      }
+    }
+
+    if (guidedFocus != null) {
+      final guidedId = guidedFocus.competencyId;
+      if (candidate.definition.id == guidedId ||
+          candidate.definition.prerequisites.contains(guidedId)) {
+        return microCompetencyProgress(guidedId);
       }
     }
     return candidate;
@@ -1207,7 +1304,7 @@ class AppController extends ChangeNotifier {
 
   MicroCompetencyProgress? strongestMicroCompetency() {
     final candidates = microCompetenciesForGrade()
-        .where((progress) => progress.observations > 0)
+        .where((progress) => progress.independentEvidence > 0)
         .toList()
       ..sort((a, b) {
         final stateOrder = b.state.index.compareTo(a.state.index);
@@ -1320,6 +1417,12 @@ class AppController extends ChangeNotifier {
       return 'Noch keine einzelne Teilkompetenz ist klar auffällig. '
           'Weitere abwechslungsreiche Aufgaben machen die Lernkarte genauer.';
     }
+    final guided = guidedStepFocus();
+    if (guided != null && guided.competencyId == focus.definition.id) {
+      return 'In der geführten Hilfe war „${guided.label}“ wiederholt unsicher: '
+          '${guided.incorrectFirstAttempts} von ${guided.observations} ersten Versuchen waren falsch. '
+          'Deshalb übt Rechenblitz gezielt „${focus.definition.label}“.';
+    }
     final percentage = (focus.independentAccuracy * 100).round();
     return '„${focus.definition.label}“ ist aktuell der sinnvollste '
         'Teilschritt: ${focus.observations} passende Beobachtungen, '
@@ -1385,6 +1488,7 @@ class AppController extends ChangeNotifier {
     DateTime? now,
   }) {
     final microFocus = currentMicroFocus();
+    final guidedFocus = guidedStepFocus();
     final strongMicro = strongestMicroCompetency();
     final reviewMicro = dueReviewMicroCompetency(now: now);
     final transferMicro = transferCandidateMicroCompetency(
@@ -1468,7 +1572,10 @@ class AppController extends ChangeNotifier {
         tasks: 5,
         reason: microFocus == null
             ? 'Das ist heute das wichtigste Lernziel.'
-            : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
+            : guidedFocus != null &&
+                    guidedFocus.competencyId == microFocus.definition.id
+                ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt: ${microFocus.definition.label}.'
+                : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
         targetCompetency: microFocus?.definition.id,
       ),
       GuidedRoundSegment(
@@ -1605,6 +1712,7 @@ class AppController extends ChangeNotifier {
         .length;
     final independentPercent =
         (progress.independentAccuracy * 100).round();
+    final guidedFocus = guidedStepFocus();
 
     final parts = <String>[
       '${relevant.length} passende Beobachtungen',
@@ -1623,8 +1731,13 @@ class AppController extends ChangeNotifier {
       parts.add('$guidedStepCount geführte Zwischenschritte');
     }
 
+    final guidedDetail = guidedFocus != null &&
+            guidedFocus.competencyId == progress.definition.id
+        ? ' Beim geführten Zwischenschritt „${guidedFocus.label}“ waren ${guidedFocus.incorrectFirstAttempts} von ${guidedFocus.observations} ersten Versuchen falsch.'
+        : '';
+
     return '${parts.join(' · ')}. '
-        'Bei selbstständigen Basisaufgaben liegt die gewichtete Sicherheit bei $independentPercent %. '
+        'Bei selbstständigen Basisaufgaben liegt die gewichtete Sicherheit bei $independentPercent %.$guidedDetail '
         'Die Einschätzung bezieht sich nur auf die in Rechenblitz bearbeiteten Aufgaben im aktuellen Profil, in ${gradeLevel.label} und im Zahlenraum ${numberRange.label}.';
   }
 
@@ -1635,12 +1748,20 @@ class AppController extends ChangeNotifier {
     final focus = plan[1];
     final review = plan[2];
     final transfer = plan[3];
+    final guidedFocus = guidedStepFocus();
     final parts = <String>[];
 
     if (focus.targetCompetency != null) {
       final label =
           MicroCompetencyCatalog.definition(focus.targetCompetency!).label;
-      parts.add('${focus.tasks} Aufgaben fokussieren „$label“');
+      if (guidedFocus != null &&
+          guidedFocus.competencyId == focus.targetCompetency) {
+        parts.add(
+          '${focus.tasks} Aufgaben fokussieren „$label“, weil „${guidedFocus.label}“ in der geführten Hilfe wiederholt unsicher war',
+        );
+      } else {
+        parts.add('${focus.tasks} Aufgaben fokussieren „$label“');
+      }
     } else {
       parts.add('${focus.tasks} Aufgaben bearbeiten das wichtigste aktuelle Lernziel');
     }
@@ -1685,6 +1806,7 @@ class AppController extends ChangeNotifier {
     if (priority != null &&
         (hasCurrentMicroEvidence || history.isEmpty)) {
       final currentFocus = currentMicroFocus();
+      final guidedFocus = guidedStepFocus();
       final dueReview = dueReviewMicroCompetency(now: now);
       final transfer = transferCandidateMicroCompetency(
         excluding: dueReview?.definition.id,
@@ -1704,9 +1826,17 @@ class AppController extends ChangeNotifier {
       late final String focusText;
       if (currentFocus != null &&
           currentFocus.definition.id == priority.definition.id) {
-        focusText =
-            'Der konkrete Teilschritt „${priority.definition.label}“ braucht aktuell am meisten Übung. '
-            'Status: ${priority.state.label}; selbstständig ${(priority.independentAccuracy * 100).round()} %.';
+        if (guidedFocus != null &&
+            guidedFocus.competencyId == priority.definition.id) {
+          focusText =
+              'In der geführten Hilfe war „${guidedFocus.label}“ wiederholt unsicher: '
+              '${guidedFocus.incorrectFirstAttempts} von ${guidedFocus.observations} ersten Versuchen waren falsch. '
+              'Deshalb bekommt „${priority.definition.label}“ jetzt gezielt weitere Übung.';
+        } else {
+          focusText =
+              'Der konkrete Teilschritt „${priority.definition.label}“ braucht aktuell am meisten Übung. '
+              'Status: ${priority.state.label}; selbstständig ${(priority.independentAccuracy * 100).round()} %.';
+        }
       } else if (dueReview != null &&
           dueReview.definition.id == priority.definition.id) {
         final statusText = priority.state == MicroCompetencyState.mastered
@@ -1737,7 +1867,13 @@ class AppController extends ChangeNotifier {
           diagnosticStatus != RemediationStatus.stable;
 
       late final String action;
-      if (diagnosticIsActive) {
+      if (guidedFocus != null &&
+          currentFocus?.definition.id == priority.definition.id &&
+          guidedFocus.competencyId == priority.definition.id) {
+        action =
+            'Kurze Aufgaben zu „${priority.definition.label}“ üben. In der Hilfe besonders auf „${guidedFocus.label}“ achten. '
+            'Die Teilfragen sind ein Hinweis aus einer Hilfesituation und kein selbstständiger Leistungsnachweis.';
+      } else if (diagnosticIsActive) {
         action =
             'Im selben Übungsbereich ist das Muster „${diagnostic.pattern.label}“ wiederholt aufgefallen. '
             'Das ist ein zusätzlicher Hinweis, kein Beweis für eine Ursache. '

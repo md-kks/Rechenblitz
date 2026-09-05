@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
+import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/learning_path.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
@@ -383,6 +384,59 @@ void main() {
     expect(insight.evidence, contains('2 mit Hilfe'));
     expect(insight.evidence, contains('2 geführte Zwischenschritte'));
     expect(insight.notYet, contains('Noch nicht „Sicher“'));
+  });
+
+
+  test('Elternhinweis nennt wiederholt unsicheren guidedStep konkret', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          occurredAt: DateTime(2026, 9, 5, 12, 10 + index),
+          correct: false,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'minus:13:5:$index',
+        ),
+      ),
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          occurredAt: DateTime(2026, 9, 5, 12, index),
+          correct: index == 2,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.guidedStep,
+          usedHelp: true,
+          helpLevel: HelpLevel.guided.value,
+          methodKey: 'subtraction:bridgeToTen',
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'guided:subtraction:bridgeToTen:remainingSubtrahend:minus:13:5:$index',
+        ),
+      ),
+    ];
+
+    final insight = controller.parentInsight(
+      now: DateTime(2026, 9, 5, 13),
+    );
+
+    expect(insight.focus, contains('verbleibenden Teil des Subtrahenden'));
+    expect(insight.focus, contains('2 von 3'));
+    expect(insight.action, contains('verbleibenden Teil des Subtrahenden'));
+    expect(insight.action, contains('kein selbstständiger Leistungsnachweis'));
+    expect(insight.evidence, contains('2 von 3'));
+    expect(insight.selection, contains('verbleibenden Teil des Subtrahenden'));
   });
 
 

@@ -49,6 +49,38 @@ class GuidedMethodStep {
       evidenceWeight > 0;
 }
 
+class GuidedStepCatalog {
+  const GuidedStepCatalog._();
+
+  static const labels = <String, String>{
+    'onesDigit': 'Einerziffer erkennen',
+    'groupCount': 'Anzahl der Gruppen erkennen',
+    'itemsPerGroup': 'Elemente je Gruppe erkennen',
+    'bridgeAmount': 'Schritt bis zum vollen Zehner bestimmen',
+    'remainingSubtrahend': 'verbleibenden Teil des Subtrahenden bestimmen',
+    'firstPartialSubtraction': 'ersten Teil korrekt wegnehmen',
+    'firstComplementJump': 'ersten Ergänzungssprung bestimmen',
+    'secondComplementJump': 'zweiten Ergänzungssprung bestimmen',
+    'partialGroups': 'erste Gruppen zusammenfassen',
+    'firstPartialProduct': 'erstes Teilprodukt berechnen',
+    'secondPartialProduct': 'zweites Teilprodukt berechnen',
+    'anchorFact': 'Ankeraufgabe sicher nutzen',
+    'onesAlignment': 'Einer in der richtigen Spalte ausrichten',
+    'regroupDecision': 'notwendiges Entbündeln erkennen',
+  };
+
+  static String labelFor(String key) => labels[key] ?? key;
+
+  static String? keyFromTaskKey(String taskKey) {
+    for (final key in labels.keys) {
+      if (taskKey.contains(':$key:') || taskKey.endsWith(':$key')) {
+        return key;
+      }
+    }
+    return null;
+  }
+}
+
 class GuidedMethodGuide {
   const GuidedMethodGuide({
     required this.methodKey,
