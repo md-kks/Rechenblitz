@@ -21,6 +21,16 @@ abstract final class ScaffoldFadingPolicy {
   }
 }
 
+abstract final class IndependentArithmeticStepPolicy {
+  static bool shouldProbeTask(
+    int completedTasks, {
+    required bool scaffoldFading,
+  }) =>
+      scaffoldFading
+          ? completedTasks >= 2 && completedTasks < 4
+          : completedTasks < 2;
+}
+
 extension HelpLevelX on HelpLevel {
   int get value => index;
 
@@ -250,10 +260,21 @@ class GuidedMethodFactory {
       guide = _subtractionBridge(fact, preferences);
     }
 
-    return guide.steps
-        .where((step) => step.recordsIntermediateEvidence)
-        .take(2)
-        .toList(growable: false);
+    final evidenceSteps = guide.steps
+        .where((step) => step.recordsIntermediateEvidence);
+
+    if (targetCompetency == MicroCompetencyId.numberDecomposition) {
+      return evidenceSteps
+          .where(
+            (step) =>
+                step.evidenceCompetency ==
+                MicroCompetencyId.numberDecomposition,
+          )
+          .take(2)
+          .toList(growable: false);
+    }
+
+    return evidenceSteps.take(2).toList(growable: false);
   }
 
   static GuidedMethodGuide _representationGuide(String taskKey) {
