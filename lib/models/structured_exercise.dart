@@ -730,6 +730,93 @@ class StructuredExerciseGenerator {
     );
   }
 
+  ExerciseCheckpoint _placeValueCheckpoint(int number) {
+    const placeNames = [
+      'Einern',
+      'Zehnern',
+      'Hundertern',
+      'Tausendern',
+      'Zehntausendern',
+      'Hunderttausendern',
+      'Millionen',
+    ];
+    const placeKeys = [
+      'ones',
+      'tens',
+      'hundreds',
+      'thousands',
+      'tenThousands',
+      'hundredThousands',
+      'millions',
+    ];
+
+    var places = 1;
+    var probe = number;
+    while (probe >= 10 && places < placeNames.length) {
+      probe ~/= 10;
+      places += 1;
+    }
+    final placeIndex = _random.nextInt(places);
+    var placeValue = 1;
+    for (var i = 0; i < placeIndex; i++) {
+      placeValue *= 10;
+    }
+    final digit = (number ~/ placeValue) % 10;
+    final choices = _numberRepresentationChoices(digit, 9)
+        .map((value) => '$value')
+        .toList()
+      ..shuffle(_random);
+
+    return ExerciseCheckpoint(
+      key: 'placeDigit:${placeKeys[placeIndex]}',
+      question: 'Welche Ziffer steht bei den ${placeNames[placeIndex]}?',
+      choices: choices,
+      correctChoice: choices.indexOf('$digit'),
+      competencyId: MicroCompetencyId.placeValueDigits,
+      evidenceWeight: 0.40,
+    );
+  }
+
+  List<ExerciseCheckpoint> _groupCheckpoints(
+    int groups,
+    int each, {
+    bool fromEquation = false,
+  }) {
+    final groupChoices = _numberRepresentationChoices(
+      groups,
+      max(6, groups + 2),
+    ).map((value) => '$value').toList()
+      ..shuffle(_random);
+    final eachChoices = _numberRepresentationChoices(
+      each,
+      max(6, each + 2),
+    ).map((value) => '$value').toList()
+      ..shuffle(_random);
+
+    return [
+      ExerciseCheckpoint(
+        key: 'groupCount',
+        question: fromEquation
+            ? 'Wie viele gleich große Gruppen beschreibt der erste Faktor?'
+            : 'Wie viele gleich große Gruppen siehst du?',
+        choices: groupChoices,
+        correctChoice: groupChoices.indexOf('$groups'),
+        competencyId: MicroCompetencyId.multiplicationGroups,
+        evidenceWeight: 0.30,
+      ),
+      ExerciseCheckpoint(
+        key: 'itemsPerGroup',
+        question: fromEquation
+            ? 'Wie viele Elemente gehören in jede Gruppe?'
+            : 'Wie viele Punkte liegen in jeder Gruppe?',
+        choices: eachChoices,
+        correctChoice: eachChoices.indexOf('$each'),
+        competencyId: MicroCompetencyId.multiplicationGroups,
+        evidenceWeight: 0.30,
+      ),
+    ];
+  }
+
   List<int> _numberRepresentationChoices(int correct, int limit) {
     final values = <int>{correct};
     const offsets = [1, -1, 10, -10, 100, -100, 1000, -1000];
@@ -1123,6 +1210,7 @@ class StructuredExerciseGenerator {
     ExerciseRepresentation? representation,
     int? representationA,
     int? representationB,
+    List<ExerciseCheckpoint> checkpoints = const <ExerciseCheckpoint>[],
   }) {
     final shuffled = [...choices]..shuffle(_random);
     return StructuredExercise(
@@ -1136,6 +1224,7 @@ class StructuredExerciseGenerator {
       representation: representation,
       representationA: representationA,
       representationB: representationB,
+      checkpoints: checkpoints,
     );
   }
 
