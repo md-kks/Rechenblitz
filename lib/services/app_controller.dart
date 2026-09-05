@@ -1011,7 +1011,7 @@ class AppController extends ChangeNotifier {
       ...matchingObservations
           .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
           .take(12),
-    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    ];
 
     if (observations.isEmpty) {
       return MicroCompetencyProgress(
@@ -1156,7 +1156,7 @@ class AppController extends ChangeNotifier {
       aidedObservations: aidedObservations,
       reviewObservations: reviewObservations,
       transferObservations: transferObservations,
-      lastSeen: observations.first.occurredAt,
+      lastSeen: matchingObservations.first.occurredAt,
       lastReviewSeen: lastReviewSeen,
       lastTransferSeen: lastTransferSeen,
     );
@@ -1586,7 +1586,7 @@ class AppController extends ChangeNotifier {
       ...matching
           .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
           .take(12),
-    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    ];
     if (relevant.isEmpty) {
       return 'Zu diesem Teilschritt liegen noch keine passenden Beobachtungen vor.';
     }
