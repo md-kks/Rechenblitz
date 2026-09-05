@@ -666,11 +666,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Antwort eingeben'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, '8'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '5'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+    for (final label in ['8', '5', 'OK']) {
+      final button = find.widgetWithText(FilledButton, label);
+      await tester.ensureVisible(button);
+      await tester.pump();
+      await tester.tap(button);
+      await tester.pump();
+    }
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(find.text('0 davon waren direkt richtig.'), findsOneWidget);
