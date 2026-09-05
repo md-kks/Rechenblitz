@@ -146,8 +146,11 @@ class CurriculumAuditCatalog {
         MicroCompetencyId.errorChecking,
         MicroCompetencyId.plausibilityCheck,
         MicroCompetencyId.reasoningJustification,
+        MicroCompetencyId.wordProblemRelevantInformation,
         MicroCompetencyId.wordProblemOperation,
+        MicroCompetencyId.wordProblemModel,
         MicroCompetencyId.wordProblemCalculation,
+        MicroCompetencyId.wordProblemInterpretation,
         MicroCompetencyId.estimation,
       }.contains(id);
 
@@ -168,6 +171,16 @@ class CurriculumAuditCatalog {
           'Rechte Winkel sind digital erkennbar; Prüfen und Konstruieren mit Zeichengeräten sollte praktisch ergänzt werden.',
         MicroCompetencyId.reasoningJustification =>
           'Passende mathematische Begründungen können digital beurteilt und nachvollzogen werden; eigene Begründungen formulieren, austauschen und verteidigen muss im Unterricht praktisch ergänzt werden.',
+        MicroCompetencyId.wordProblemRelevantInformation =>
+          'Relevante und irrelevante Angaben einer Sachsituation werden gezielt getrennt geprüft.',
+        MicroCompetencyId.wordProblemOperation =>
+          'Die mathematische Beziehung einer Sachsituation wird über die passende Rechenart gezielt geprüft.',
+        MicroCompetencyId.wordProblemModel =>
+          'Das Übersetzen einer Sachsituation in eine passende Rechnung wird getrennt vom Ausrechnen geprüft.',
+        MicroCompetencyId.wordProblemCalculation =>
+          'Das rechnerische Lösen einer bereits verstandenen Sachsituation wird als eigener Lernschritt beobachtet.',
+        MicroCompetencyId.wordProblemInterpretation =>
+          'Das Rechenergebnis wird gezielt auf Frage, Einheit und Sachsituation zurückbezogen.',
         _ =>
           'Das Lernziel wird mit generierten Aufgaben, Mikro-Evidenz und gezielter Wiederholung digital unterstützt.',
       };

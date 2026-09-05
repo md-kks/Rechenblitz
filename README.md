@@ -219,6 +219,20 @@ Unter **So rechnen wir** gibt es zwei Modi:
 - **Schulmethode** – die hinterlegte Methode wird konsequent genutzt.
 - **Automatisch / weiß ich nicht** – Rechenblitz darf verschiedene schulübliche Darstellungen vergleichen, ändert die gespeicherte Schulmethode aber niemals automatisch.
 
+### Modellierungskette in Sachaufgaben
+
+Sachaufgaben werden nicht mehr nur als Gesamtaufgabe bewertet. Rechenblitz kann die zentralen Modellierungsschritte gezielt und getrennt beobachten:
+
+1. wichtige Angaben erkennen und Unwichtiges ausblenden
+2. passende Rechenart erkennen
+3. die Sachsituation in eine passende Rechnung übersetzen
+4. die Rechnung korrekt ausführen
+5. das Ergebnis auf Frage und Situation zurückbeziehen
+
+Für gezielte Lernrunden entstehen dafür isolierte Aufgaben, zum Beispiel Auswahl der benötigten Angaben, Auswahl der Rechenart, Auswahl der passenden Rechnung oder Auswahl eines passenden Antwortsatzes. Normale Sachaufgaben liefern weiterhin gewichtete Evidenz für mehrere zusammenhängende Teilschritte.
+
+Damit wird digitales Üben diagnostischer, ohne mehr vorzutäuschen als die App prüfen kann: Eigene Sachkontexte formulieren, frei gewählte Modelle erläutern und Lösungswege im Gespräch verteidigen bleiben praktische Unterrichtsaufgaben.
+
 ### Transfer-Sachaufgaben
 
 Für Klasse 3/4 gibt es zusätzlich zu normalen Sachaufgaben echte Transferformate:

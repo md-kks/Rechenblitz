@@ -271,6 +271,9 @@ void main() {
     expect(ids, contains(MicroCompetencyId.errorChecking));
     expect(ids, contains(MicroCompetencyId.plausibilityCheck));
     expect(ids, contains(MicroCompetencyId.reasoningJustification));
+    expect(ids, contains(MicroCompetencyId.wordProblemRelevantInformation));
+    expect(ids, contains(MicroCompetencyId.wordProblemModel));
+    expect(ids, contains(MicroCompetencyId.wordProblemInterpretation));
   });
 
   test('Lehrplan-Audit kennzeichnet Prozesskompetenzen explizit', () {
@@ -283,6 +286,17 @@ void main() {
     expect(processIds, contains(MicroCompetencyId.errorChecking));
     expect(processIds, contains(MicroCompetencyId.plausibilityCheck));
     expect(processIds, contains(MicroCompetencyId.reasoningJustification));
+    expect(
+      processIds,
+      contains(MicroCompetencyId.wordProblemRelevantInformation),
+    );
+    expect(processIds, contains(MicroCompetencyId.wordProblemOperation));
+    expect(processIds, contains(MicroCompetencyId.wordProblemModel));
+    expect(processIds, contains(MicroCompetencyId.wordProblemCalculation));
+    expect(
+      processIds,
+      contains(MicroCompetencyId.wordProblemInterpretation),
+    );
 
     final reasoning = CurriculumAuditCatalog.forGrade(GradeLevel.third)
         .firstWhere(
@@ -292,6 +306,14 @@ void main() {
         );
     expect(reasoning.coverage, CurriculumCoverage.digitalSupport);
     expect(reasoning.note, contains('eigene Begründungen'));
+
+    final modeling = CurriculumAuditCatalog.forGrade(GradeLevel.third)
+        .firstWhere(
+          (objective) =>
+              objective.competency == MicroCompetencyId.wordProblemModel,
+        );
+    expect(modeling.coverage, CurriculumCoverage.digitalPractice);
+    expect(modeling.note, contains('getrennt vom Ausrechnen'));
   });
 
   testWidgets('Prozessaufgaben besitzen konkrete visuelle Hilfen',
