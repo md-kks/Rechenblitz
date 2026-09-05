@@ -315,6 +315,29 @@ Rundenbegründung, Lernlandkarte und Elternbereich benennen diesen konkreten Tei
 
 Der Mechanismus erweitert die bestehende `GuidedMethodPanel`- und Mikro-Kompetenz-Architektur; es gibt keine parallele Activity- oder Diagnose-Engine. Freie Handschrift, OCR oder eine Interpretation beliebiger selbst formulierter Rechenwege ist ausdrücklich noch nicht Teil dieses Slices.
 
+#### Selbstständige Repräsentationsschritte
+
+Zwischenschritte werden jetzt erstmals auch **außerhalb der Hilfe** beobachtet. Der erste unabhängige Slice nutzt die bereits vorhandenen Darstellungsaufgaben, statt einen neuen Trainingsmodus einzuführen.
+
+Bei **Stellenwertdarstellungen** beantwortet das Kind vor der Gesamtaufgabe eine konkrete Stellenfrage, zum Beispiel welche Ziffer bei den Zehnern oder Hunderttausendern steht. Bei **gleich großen Gruppen / Punktefeldern** werden zunächst Anzahl der Gruppen und Elemente je Gruppe getrennt erkannt. Erst danach wird die Gesamtübersetzung in Zahl, Zerlegung, Gruppenbeschreibung oder Malaufgabe freigegeben.
+
+Diese Teilfragen besitzen die Evidenzquelle `independentStep`:
+
+- sie erscheinen im normalen Aufgabenfluss, nicht erst in „Gemeinsam lösen“,
+- nur der erste Versuch pro Teilfrage wird gespeichert,
+- ein korrekter erster Versuch ohne geöffnete Hilfe zählt als selbstständige Mikro-Evidenz,
+- die Evidenzstärke ist bewusst kleiner als bei einer vollständigen Aufgabe,
+- wurde vorher Hilfe geöffnet, bleibt der Schritt sichtbar, zählt aber nicht als selbstständige Evidenz,
+- ein falscher Teilversuch bleibt erhalten, auch wenn die Gesamtaufgabe anschließend richtig gelöst wird.
+
+Damit kann Rechenblitz erstmals unterscheiden: **Endantwort richtig, aber ein mathematischer Zwischenschritt noch unsicher**. Ein Fehler im Teilsschritt verhindert außerdem, dass die Gesamtaufgabe als vollständig „direkt richtig“ gezählt wird, ohne die Aufgabe dafür mit Strafen oder zusätzlichem Druck zu versehen.
+
+Die Auswertung hält drei Fenster getrennt: bis zu 24 reguläre Mastery-Beobachtungen, bis zu 12 selbstständige Teilfragen und bis zu 12 geführte Teilfragen. So verdrängen viele kleine Interaktionen keine vollständigen Aufgaben aus dem Mastery-Fenster.
+
+Zwei aktuelle, richtige `independentStep`-Beobachtungen ohne Hilfe können außerdem ein älteres guidedStep-Signal ablösen. Dadurch kann Scaffold Fading wirklich enden, sobald derselbe Teilschritt außerhalb der Führung wiederholt gelingt.
+
+Lernlandkarte und Elternbereich zeigen eigenständige Teilfragen getrennt von geführten Teilfragen. Der erste Slice bleibt bewusst auf robuste Darstellungen beschränkt; freie Eingabe komplexer Rechenwege, Handschrift und OCR bleiben außerhalb des Scopes.
+
 Unter **So rechnen wir** gibt es zwei Modi:
 
 - **Schulmethode** – die hinterlegte Methode wird konsequent genutzt.
