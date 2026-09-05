@@ -1189,11 +1189,74 @@ class AppController extends ChangeNotifier {
           .map((definition) => microCompetencyProgress(definition.id))
           .toList();
 
+  GuidedStepFocus? guidedStepFocus() {
+    final grouped = <String, List<MicroCompetencyObservation>>{};
+
+    for (final observation in microObservations) {
+      if (observation.source != MicroEvidenceSource.guidedStep ||
+          observation.gradeLevel != gradeLevel ||
+          observation.numberRange != numberRange) {
+        continue;
+      }
+      final stepKey = GuidedStepCatalog.keyFromTaskKey(observation.taskKey);
+      if (stepKey == null) continue;
+      final groupKey = '${observation.id.name}|$stepKey';
+      grouped.putIfAbsent(groupKey, () => <MicroCompetencyObservation>[])
+        ..add(observation);
+    }
+
+    final candidates = <GuidedStepFocus>[];
+    for (final entries in grouped.values) {
+      entries.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      final recent = entries.take(8).toList();
+      if (recent.length < 2) continue;
+
+      final incorrect = recent.where((entry) => !entry.correct).length;
+      final accuracy =
+          recent.where((entry) => entry.correct).length / recent.length;
+      final competencyId = recent.first.id;
+      final progress = microCompetencyProgress(competencyId);
+
+      if (incorrect < 2 ||
+          accuracy >= 0.60 ||
+          progress.state == MicroCompetencyState.secure ||
+          progress.state == MicroCompetencyState.mastered) {
+        continue;
+      }
+
+      final stepKey =
+          GuidedStepCatalog.keyFromTaskKey(recent.first.taskKey);
+      if (stepKey == null) continue;
+      candidates.add(
+        GuidedStepFocus(
+          competencyId: competencyId,
+          stepKey: stepKey,
+          label: GuidedStepCatalog.labelFor(stepKey),
+          observations: recent.length,
+          incorrectFirstAttempts: incorrect,
+          accuracy: accuracy,
+          lastSeen: recent.first.occurredAt,
+        ),
+      );
+    }
+
+    candidates.sort((a, b) {
+      final accuracyOrder = a.accuracy.compareTo(b.accuracy);
+      if (accuracyOrder != 0) return accuracyOrder;
+      final incorrectOrder =
+          b.incorrectFirstAttempts.compareTo(a.incorrectFirstAttempts);
+      if (incorrectOrder != 0) return incorrectOrder;
+      return b.lastSeen.compareTo(a.lastSeen);
+    });
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
   MicroCompetencyProgress? currentMicroFocus() {
+    final guidedFocus = guidedStepFocus();
     final candidates = microCompetenciesForGrade()
         .where(
           (progress) =>
-              progress.observations > 0 &&
+              progress.independentEvidence > 0 &&
               progress.state != MicroCompetencyState.secure &&
               progress.state != MicroCompetencyState.mastered,
         )
@@ -1205,15 +1268,31 @@ class AppController extends ChangeNotifier {
         return b.independentEvidence.compareTo(a.independentEvidence);
       });
 
-    if (candidates.isEmpty) return null;
-    final candidate = candidates.first;
+    if (candidates.isEmpty) {
+      return guidedFocus == null
+          ? null
+          : microCompetencyProgress(guidedFocus.competencyId);
+    }
 
+    var candidate = candidates.first;
     for (final prerequisite in candidate.definition.prerequisites) {
       final prerequisiteProgress = microCompetencyProgress(prerequisite);
-      if (prerequisiteProgress.observations > 0 &&
+      final hasIndependentSignal = prerequisiteProgress.independentEvidence > 0;
+      final hasWeakGuidedSignal =
+          guidedFocus?.competencyId == prerequisite;
+      if ((hasIndependentSignal || hasWeakGuidedSignal) &&
           prerequisiteProgress.state != MicroCompetencyState.secure &&
           prerequisiteProgress.state != MicroCompetencyState.mastered) {
-        return prerequisiteProgress;
+        candidate = prerequisiteProgress;
+        break;
+      }
+    }
+
+    if (guidedFocus != null) {
+      final guidedId = guidedFocus.competencyId;
+      if (candidate.definition.id == guidedId ||
+          candidate.definition.prerequisites.contains(guidedId)) {
+        return microCompetencyProgress(guidedId);
       }
     }
     return candidate;
@@ -1221,7 +1300,7 @@ class AppController extends ChangeNotifier {
 
   MicroCompetencyProgress? strongestMicroCompetency() {
     final candidates = microCompetenciesForGrade()
-        .where((progress) => progress.observations > 0)
+        .where((progress) => progress.independentEvidence > 0)
         .toList()
       ..sort((a, b) {
         final stateOrder = b.state.index.compareTo(a.state.index);
