@@ -146,6 +146,7 @@ class CurriculumAuditCatalog {
         MicroCompetencyId.errorChecking,
         MicroCompetencyId.plausibilityCheck,
         MicroCompetencyId.reasoningJustification,
+        MicroCompetencyId.representationTranslation,
         MicroCompetencyId.wordProblemRelevantInformation,
         MicroCompetencyId.wordProblemOperation,
         MicroCompetencyId.wordProblemModel,
@@ -171,6 +172,8 @@ class CurriculumAuditCatalog {
           'Rechte Winkel sind digital erkennbar; Prüfen und Konstruieren mit Zeichengeräten sollte praktisch ergänzt werden.',
         MicroCompetencyId.reasoningJustification =>
           'Passende mathematische Begründungen können digital beurteilt und nachvollzogen werden; eigene Begründungen formulieren, austauschen und verteidigen muss im Unterricht praktisch ergänzt werden.',
+        MicroCompetencyId.representationTranslation =>
+          'Vorgegebene Stellenwert-, Zerlegungs-, Gruppen- und Symbolformen können digital zugeordnet und ineinander übertragen werden; eigene Darstellungen entwickeln, auswählen und begründen sollte praktisch ergänzt werden.',
         MicroCompetencyId.wordProblemRelevantInformation =>
           'Relevante und irrelevante Angaben einer Sachsituation werden gezielt getrennt geprüft.',
         MicroCompetencyId.wordProblemOperation =>
