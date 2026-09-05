@@ -74,32 +74,33 @@ class StructuredExercise {
       moneyPartsCents != null && moneyPartsCents!.isNotEmpty;
   bool get hasCheckpoints => checkpoints.isNotEmpty;
 
-  String? get directIndependentStepKey => switch (key) {
-        String value when value.startsWith('story:info:') => 'storyInfo',
-        String value when value.startsWith('story:operation:') =>
-          'storyOperation',
-        String value when value.startsWith('story:equation:') =>
-          'storyEquation',
-        String value when value.startsWith('story:calc:') =>
-          'storyCalculation',
-        String value when value.startsWith('story:interpret:') =>
-          'storyInterpretation',
-        _ => null,
-      };
+  String? get directIndependentStepKey {
+    if (key.startsWith('story:info:')) return 'storyInfo';
+    if (key.startsWith('story:operation:')) return 'storyOperation';
+    if (key.startsWith('story:equation:')) return 'storyEquation';
+    if (key.startsWith('story:calc:')) return 'storyCalculation';
+    if (key.startsWith('story:interpret:')) return 'storyInterpretation';
+    return null;
+  }
 
-  MicroCompetencyId? get directIndependentStepCompetency => switch (key) {
-        String value when value.startsWith('story:info:') =>
-          MicroCompetencyId.wordProblemRelevantInformation,
-        String value when value.startsWith('story:operation:') =>
-          MicroCompetencyId.wordProblemOperation,
-        String value when value.startsWith('story:equation:') =>
-          MicroCompetencyId.wordProblemModel,
-        String value when value.startsWith('story:calc:') =>
-          MicroCompetencyId.wordProblemCalculation,
-        String value when value.startsWith('story:interpret:') =>
-          MicroCompetencyId.wordProblemInterpretation,
-        _ => null,
-      };
+  MicroCompetencyId? get directIndependentStepCompetency {
+    if (key.startsWith('story:info:')) {
+      return MicroCompetencyId.wordProblemRelevantInformation;
+    }
+    if (key.startsWith('story:operation:')) {
+      return MicroCompetencyId.wordProblemOperation;
+    }
+    if (key.startsWith('story:equation:')) {
+      return MicroCompetencyId.wordProblemModel;
+    }
+    if (key.startsWith('story:calc:')) {
+      return MicroCompetencyId.wordProblemCalculation;
+    }
+    if (key.startsWith('story:interpret:')) {
+      return MicroCompetencyId.wordProblemInterpretation;
+    }
+    return null;
+  }
 
   bool get hasDirectIndependentStep =>
       directIndependentStepKey != null &&
