@@ -139,7 +139,7 @@ class CurriculumExerciseGenerator {
               : _estimation(gradeLevel, maxValue),
         TrainingMode.arithmeticLaws =>
           targetCompetency == MicroCompetencyId.reasoningJustification
-              ? _reasoningJustification(gradeLevel, maxValue)
+              ? _reasoningJustification(maxValue)
               : _arithmeticLaws(gradeLevel, maxValue),
         TrainingMode.romanNumerals => _romanNumerals(gradeLevel),
         TrainingMode.fractions => _fractions(gradeLevel, maxValue),
@@ -537,7 +537,7 @@ class CurriculumExerciseGenerator {
   CurriculumExercise _arithmeticLaws(GradeLevel grade, int maxValue) {
     final kind = _random.nextInt(4);
     if (kind == 3) {
-      return _reasoningJustification(grade, maxValue);
+      return _reasoningJustification(maxValue);
     }
     if (kind == 0) {
       final a = _between(2, 9);
@@ -582,10 +582,7 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _reasoningJustification(
-    GradeLevel grade,
-    int maxValue,
-  ) {
+  CurriculumExercise _reasoningJustification(int maxValue) {
     final limit = max(10, maxValue);
     final kind = _random.nextInt(limit >= 40 ? 3 : 2);
 
