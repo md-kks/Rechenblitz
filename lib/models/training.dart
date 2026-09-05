@@ -88,6 +88,7 @@ enum TrainingMode {
   combinatorics,
   proportionality,
   perimeterArea,
+  geometryRelations,
   geometryBodies,
   symmetry,
   plansAndOrientation,
@@ -134,6 +135,7 @@ extension TrainingModeX on TrainingMode {
         TrainingMode.combinatorics => 'Kombinatorik',
         TrainingMode.proportionality => 'Zuordnungen',
         TrainingMode.perimeterArea => 'Umfang & Fläche',
+        TrainingMode.geometryRelations => 'Geraden & Winkel',
         TrainingMode.geometryBodies => 'Körper & Netze',
         TrainingMode.symmetry => 'Symmetrie',
         TrainingMode.plansAndOrientation => 'Pläne & Wege',
@@ -172,6 +174,7 @@ extension TrainingModeX on TrainingMode {
       this == TrainingMode.combinatorics ||
       this == TrainingMode.proportionality ||
       this == TrainingMode.perimeterArea ||
+      this == TrainingMode.geometryRelations ||
       this == TrainingMode.geometryBodies ||
       this == TrainingMode.symmetry ||
       this == TrainingMode.plansAndOrientation ||
