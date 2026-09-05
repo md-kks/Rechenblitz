@@ -314,16 +314,22 @@ class _MicroStepTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reviewDetail = progress.reviewObservations == 0
+        ? 'Abstand: noch offen'
+        : 'Abstand: ${(progress.reviewIndependentAccuracy * 100).round()} % selbstständig';
     final transferDetail = progress.transferObservations == 0
-        ? 'Transfer noch offen'
-        : 'Transfer ${(progress.transferAccuracy * 100).round()} % · '
-            '${progress.transferObservations} Beobachtungen';
+        ? 'Transfer: noch offen'
+        : 'Transfer: ${(progress.transferIndependentAccuracy * 100).round()} % selbstständig';
+    final helpDetail = progress.aidedObservations == 0
+        ? 'Hilfe: bisher nicht benötigt'
+        : 'Hilfe: ${progress.aidedObservations} Beobachtungen';
     final detail = progress.observations == 0
         ? progress.state.label
-        : '${progress.state.label} · '
-            'Basis ${(progress.baseAccuracy * 100).round()} % · '
-            '${progress.observations} Beobachtungen\n'
-            '$transferDetail';
+        : '${progress.state.label}\n'
+            'Selbstständig: ${(progress.independentAccuracy * 100).round()} % · '
+            '${progress.independentEvidence.toStringAsFixed(1)} Evidenz\n'
+            '$helpDetail\n'
+            '$reviewDetail · $transferDetail';
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
