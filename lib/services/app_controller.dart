@@ -1444,6 +1444,146 @@ class AppController extends ChangeNotifier {
     ];
   }
 
+  MicroCompetencyProgress? parentPriorityMicroCompetency({
+    DateTime? now,
+  }) {
+    final focus = currentMicroFocus();
+    if (focus != null) return focus;
+
+    final review = dueReviewMicroCompetency(now: now);
+    if (review != null) return review;
+
+    final transfer = transferCandidateMicroCompetency(
+      excluding: review?.definition.id,
+    );
+    if (transfer != null) return transfer;
+
+    return nextNewMicroCompetency() ?? strongestMicroCompetency();
+  }
+
+  String _masteryMissingText(MicroCompetencyProgress progress) {
+    final missing = <String>[];
+    if (progress.independentEvidence < 4) {
+      missing.add('mehr selbstständige Lösungen');
+    } else if (progress.independentAccuracy < 0.80) {
+      missing.add('eine stabilere selbstständige Trefferquote');
+    } else {
+      if (progress.independentEvidence < 6 ||
+          progress.independentAccuracy < 0.88) {
+        missing.add('eine noch stärkere selbstständige Basis');
+      }
+      if (progress.reviewIndependentEvidence < 1.5 ||
+          progress.reviewIndependentAccuracy < 0.80) {
+        missing.add('ein stabiler Nachweis nach zeitlichem Abstand');
+      }
+      if (progress.transferIndependentEvidence < 1.5 ||
+          progress.transferIndependentAccuracy < 0.80) {
+        missing.add('ein stabiler selbstständiger Transfer');
+      }
+    }
+    if (missing.isEmpty) return 'kein weiterer Mastery-Nachweis';
+    if (missing.length == 1) return missing.first;
+    return '${missing.take(missing.length - 1).join(', ')} und ${missing.last}';
+  }
+
+  String _parentMasteryText(MicroCompetencyProgress progress) {
+    final label = progress.definition.label;
+    return switch (progress.state) {
+      MicroCompetencyState.newSkill =>
+        '„$label“ ist noch neu. Für eine belastbare Einschätzung fehlen noch passende Aufgabenbeobachtungen.',
+      MicroCompetencyState.discovering =>
+        '„$label“ wird gerade erst eingeordnet. Einzelne Lösungen reichen noch nicht für „Sicher“.',
+      MicroCompetencyState.practicing =>
+        '„$label“ wird noch geübt. Für „Sicher“ fehlt ${_masteryMissingText(progress)}.',
+      MicroCompetencyState.secure =>
+        '„$label“ ist „Sicher“: die Kompetenz gelingt in den bisherigen Aufgaben ausreichend selbstständig. Für „Gemeistert“ fehlt noch ${_masteryMissingText(progress)}.',
+      MicroCompetencyState.mastered =>
+        '„$label“ ist „Gemeistert“: selbstständige Basis, erneutes Können nach Abstand und selbstständiger Transfer sind im aktuellen Zahlenraum belegt.',
+    };
+  }
+
+  String _parentEvidenceText(MicroCompetencyProgress progress) {
+    final relevant = microObservations
+        .where(
+          (entry) =>
+              entry.id == progress.definition.id &&
+              entry.gradeLevel == gradeLevel &&
+              entry.numberRange == numberRange,
+        )
+        .take(24)
+        .toList();
+    if (relevant.isEmpty) {
+      return 'Zu diesem Teilschritt liegen noch keine passenden Beobachtungen vor.';
+    }
+
+    final independentCount =
+        relevant.where((entry) => !entry.usedHelp).length;
+    final aidedCount = relevant.where((entry) => entry.usedHelp).length;
+    final reviewCount = relevant
+        .where((entry) => entry.source == MicroEvidenceSource.review)
+        .length;
+    final transferCount = relevant
+        .where((entry) => entry.source == MicroEvidenceSource.transfer)
+        .length;
+    final independentPercent =
+        (progress.independentAccuracy * 100).round();
+
+    final parts = <String>[
+      '${relevant.length} passende Beobachtungen',
+      '$independentCount ohne Hilfe',
+    ];
+    if (aidedCount > 0) {
+      parts.add('$aidedCount mit Hilfe');
+    }
+    if (reviewCount > 0) {
+      parts.add('$reviewCount nach Abstand');
+    }
+    if (transferCount > 0) {
+      parts.add('$transferCount im Transfer');
+    }
+
+    return '${parts.join(' · ')}. '
+        'Bei selbstständigen Basisaufgaben liegt die gewichtete Sicherheit bei $independentPercent %. '
+        'Die Einschätzung bezieht sich nur auf die in Rechenblitz bearbeiteten Aufgaben im aktuellen Profil, in ${gradeLevel.label} und im Zahlenraum ${numberRange.label}.';
+  }
+
+  String _parentSelectionText({
+    DateTime? now,
+  }) {
+    final plan = buildMyRound(now: now);
+    final focus = plan[1];
+    final review = plan[2];
+    final transfer = plan[3];
+    final parts = <String>[];
+
+    if (focus.targetCompetency != null) {
+      final label =
+          MicroCompetencyCatalog.definition(focus.targetCompetency!).label;
+      parts.add('${focus.tasks} Aufgaben fokussieren „$label“');
+    } else {
+      parts.add('${focus.tasks} Aufgaben bearbeiten das wichtigste aktuelle Lernziel');
+    }
+
+    if (review.reviewEmphasis && review.targetCompetency != null) {
+      final label =
+          MicroCompetencyCatalog.definition(review.targetCompetency!).label;
+      parts.add(
+        '${review.tasks} Aufgaben prüfen „$label“ nach zeitlichem Abstand',
+      );
+    }
+
+    if (transfer.transferEmphasis && transfer.targetCompetency != null) {
+      final label =
+          MicroCompetencyCatalog.definition(transfer.targetCompetency!).label;
+      parts.add(
+        '${transfer.tasks} Aufgaben prüfen „$label“ in veränderter Form',
+      );
+    }
+
+    return '${parts.join('; ')}. '
+        'So übt Rechenblitz nicht einfach den Bereich mit der niedrigsten Gesamtquote, sondern den konkreten Teilschritt und die noch fehlende Evidenzart.';
+  }
+
   ParentLearningInsight parentInsight() {
     final modes = learningModesForGrade(gradeLevel);
     final progress = modes.map(competencyProgress).toList();
