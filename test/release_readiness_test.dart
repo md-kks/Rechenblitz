@@ -143,23 +143,23 @@ void main() {
       GradeLevel.second: (
         total: 26,
         fullTaskOnly: 20,
-        guidedOnly: 1,
+        guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 5,
+        targetedRecovery: 6,
       ),
       GradeLevel.third: (
         total: 64,
         fullTaskOnly: 54,
-        guidedOnly: 1,
+        guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 9,
+        targetedRecovery: 10,
       ),
       GradeLevel.fourth: (
         total: 66,
         fullTaskOnly: 56,
-        guidedOnly: 1,
+        guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 9,
+        targetedRecovery: 10,
       ),
     };
 
@@ -286,16 +286,30 @@ void main() {
     }
   });
 
-  test('Audit macht die nächste echte Evidence-Lücke sichtbar', () {
+  test('Audit zeigt nach Einmaleins-Recovery die nächste Evidence-Lücke', () {
     final multiplicationFacts = EvidenceCoverageAuditCatalog.item(
       MicroCompetencyId.multiplicationFacts,
     );
     expect(
       multiplicationFacts.depth,
-      EvidenceCoverageDepth.guidedStep,
+      EvidenceCoverageDepth.targetedRecovery,
     );
-    expect(multiplicationFacts.guidedStepKeys, isNotEmpty);
-    expect(multiplicationFacts.independentStepKeys, isEmpty);
+    expect(
+      multiplicationFacts.independentStepKeys,
+      containsAll([
+        'firstPartialProduct',
+        'secondPartialProduct',
+        'anchorFact',
+      ]),
+    );
+    expect(
+      multiplicationFacts.recoveryStepKeys,
+      containsAll([
+        'firstPartialProduct',
+        'secondPartialProduct',
+        'anchorFact',
+      ]),
+    );
 
     final modeling = [
       MicroCompetencyId.wordProblemRelevantInformation,
