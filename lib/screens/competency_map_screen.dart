@@ -326,7 +326,7 @@ class _MicroStepTile extends StatelessWidget {
     final independentStepDetail =
         progress.independentStepObservations == 0
             ? null
-            : 'Eigenständige Teilfragen: ${(progress.independentStepAccuracy * 100).round()} % · '
+            : 'Teilfragen im Aufgabenfluss: ${(progress.independentStepAccuracy * 100).round()} % · '
                 '${progress.independentStepObservations} erste Versuche';
     final guidedDetail = progress.guidedStepObservations == 0
         ? null
