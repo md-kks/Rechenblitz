@@ -364,9 +364,16 @@ class StepRecoveryGenerator {
     NumberRangeLevel range,
   ) {
     final limit = max(20, min(range.maxValue, 100));
-    final decade = _between(2, max(2, limit ~/ 10));
-    final ones = _between(1, 8);
-    final a = min(limit, decade * 10 + ones);
+    var a = _between(11, limit);
+    for (var attempt = 0;
+        attempt < 20 && (a % 10 == 0 || a % 10 == 9);
+        attempt++) {
+      a = _between(11, limit);
+    }
+    if (a % 10 == 0 || a % 10 == 9) {
+      a = min(limit, 18);
+    }
+    final ones = a % 10;
     final maxB = min(a - 1, 30);
     final b = _between(ones + 1, max(ones + 1, maxB));
     return _numeric(
@@ -388,7 +395,10 @@ class StepRecoveryGenerator {
   ) {
     final limit = max(100, min(range.maxValue, 1000));
     final minus = focus.sourceTaskKey.contains(':-:');
-    final b = _between(12, min(98, limit - 1));
+    final maxB = minus
+        ? min(98, limit - 1)
+        : min(98, max(12, limit - 10));
+    final b = _between(12, maxB);
     final a = minus
         ? _between(b, limit)
         : _between(10, max(10, limit - b));
