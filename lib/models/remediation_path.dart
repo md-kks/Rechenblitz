@@ -885,7 +885,9 @@ class StepRecoveryGenerator {
       );
     }
 
-    final a = _between(2, min(12, limit));
+    final a = operation == '-'
+        ? _between(2, min(12, limit))
+        : _between(1, max(1, min(12, limit - 1)));
     final b = operation == '-'
         ? _between(1, max(1, a - 1))
         : _between(1, max(1, min(9, limit - a)));
@@ -910,7 +912,9 @@ class StepRecoveryGenerator {
   ) {
     final subtract = _storyOperationFromSource(focus.sourceTaskKey) == '-';
     final limit = max(10, min(range.maxValue, 100));
-    final a = _between(2, min(12, limit));
+    final a = subtract
+        ? _between(2, min(12, limit))
+        : _between(1, max(1, min(12, limit - 1)));
     final b = subtract
         ? _between(1, max(1, a - 1))
         : _between(1, max(1, min(9, limit - a)));
