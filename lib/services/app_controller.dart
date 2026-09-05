@@ -286,6 +286,51 @@ class AppController extends ChangeNotifier {
     await storage.saveMicroCompetencyObservations(microObservations);
   }
 
+  Future<void> recordIndependentStepAttempt({
+    required TrainingMode mode,
+    required String taskKey,
+    required String stepKey,
+    required MicroCompetencyId competencyId,
+    required bool correct,
+    required bool usedHelp,
+    required int helpLevel,
+    String? methodKey,
+    double evidenceWeight = 0.35,
+  }) async {
+    if (evidenceWeight <= 0) return;
+    final helpWeight = !correct
+        ? 1.0
+        : switch (helpLevel) {
+            >= 3 => 0.50,
+            2 => 0.65,
+            1 => 0.80,
+            _ => usedHelp ? 0.80 : 1.0,
+          };
+    microObservations.insert(
+      0,
+      MicroCompetencyObservation(
+        id: competencyId,
+        occurredAt: DateTime.now(),
+        correct: correct,
+        evidenceWeight:
+            evidenceWeight.clamp(0.10, 0.50).toDouble() * helpWeight,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: usedHelp,
+        helpLevel: helpLevel,
+        methodKey: methodKey,
+        mode: mode,
+        gradeLevel: gradeLevel,
+        numberRange: numberRange,
+        taskKey: 'independent:$stepKey:$taskKey',
+      ),
+    );
+    if (microObservations.length > 1200) {
+      microObservations = microObservations.take(1200).toList();
+    }
+    notifyListeners();
+    await storage.saveMicroCompetencyObservations(microObservations);
+  }
+
   Future<void> recordGuidedStepAttempt({
     required TrainingMode mode,
     required String taskKey,
@@ -952,6 +997,7 @@ class AppController extends ChangeNotifier {
   }) {
     final sourceWeight = switch (source) {
       MicroEvidenceSource.remediation => 0.65,
+      MicroEvidenceSource.independentStep => 0.45,
       MicroEvidenceSource.guidedStep => 0.35,
       MicroEvidenceSource.practice ||
       MicroEvidenceSource.review ||
@@ -1010,12 +1056,19 @@ class AppController extends ChangeNotifier {
         .toList();
     final observations = <MicroCompetencyObservation>[
       ...matchingObservations
-          .where((entry) => entry.source != MicroEvidenceSource.guidedStep)
+          .where(
+            (entry) =>
+                entry.source != MicroEvidenceSource.independentStep &&
+                entry.source != MicroEvidenceSource.guidedStep,
+          )
           .take(24),
+      ...matchingObservations
+          .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+          .take(12),
       ...matchingObservations
           .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
           .take(12),
-    ];
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
 
     if (observations.isEmpty) {
       return MicroCompetencyProgress(
@@ -1045,6 +1098,9 @@ class AppController extends ChangeNotifier {
     var transferIndependentEvidence = 0.0;
     var transferIndependentCorrectEvidence = 0.0;
     var transferObservations = 0;
+    var independentStepEvidence = 0.0;
+    var independentStepCorrectEvidence = 0.0;
+    var independentStepObservations = 0;
     var guidedStepEvidence = 0.0;
     var guidedStepCorrectEvidence = 0.0;
     var guidedStepObservations = 0;
@@ -1091,6 +1147,21 @@ class AppController extends ChangeNotifier {
           }
           lastTransferSeen ??= observation.occurredAt;
           break;
+        case MicroEvidenceSource.independentStep:
+          independentStepEvidence += observation.evidenceWeight;
+          independentStepObservations += 1;
+          baseEvidence += observation.evidenceWeight;
+          if (observation.correct) {
+            independentStepCorrectEvidence += observation.evidenceWeight;
+            baseCorrectEvidence += observation.evidenceWeight;
+          }
+          if (!observation.usedHelp) {
+            independentEvidence += observation.evidenceWeight;
+            if (observation.correct) {
+              independentCorrectEvidence += observation.evidenceWeight;
+            }
+          }
+          break;
         case MicroEvidenceSource.guidedStep:
           guidedStepEvidence += observation.evidenceWeight;
           guidedStepObservations += 1;
@@ -1131,6 +1202,9 @@ class AppController extends ChangeNotifier {
     final transferIndependentAccuracy = transferIndependentEvidence == 0
         ? 0.0
         : transferIndependentCorrectEvidence / transferIndependentEvidence;
+    final independentStepAccuracy = independentStepEvidence == 0
+        ? 0.0
+        : independentStepCorrectEvidence / independentStepEvidence;
     final guidedStepAccuracy = guidedStepEvidence == 0
         ? 0.0
         : guidedStepCorrectEvidence / guidedStepEvidence;
@@ -1161,6 +1235,7 @@ class AppController extends ChangeNotifier {
       reviewIndependentAccuracy: reviewIndependentAccuracy,
       transferAccuracy: transferAccuracy,
       transferIndependentAccuracy: transferIndependentAccuracy,
+      independentStepAccuracy: independentStepAccuracy,
       guidedStepAccuracy: guidedStepAccuracy,
       baseEvidence: baseEvidence,
       independentEvidence: independentEvidence,
@@ -1169,10 +1244,12 @@ class AppController extends ChangeNotifier {
       reviewIndependentEvidence: reviewIndependentEvidence,
       transferEvidence: transferEvidence,
       transferIndependentEvidence: transferIndependentEvidence,
+      independentStepEvidence: independentStepEvidence,
       guidedStepEvidence: guidedStepEvidence,
       aidedObservations: aidedObservations,
       reviewObservations: reviewObservations,
       transferObservations: transferObservations,
+      independentStepObservations: independentStepObservations,
       guidedStepObservations: guidedStepObservations,
       lastSeen: matchingObservations.first.occurredAt,
       lastReviewSeen: lastReviewSeen,
