@@ -52,8 +52,12 @@ class StructuredExercise {
   bool get hasClock => clockHour != null && clockMinute != null;
   bool get hasMoneyVisual =>
       moneyPartsCents != null && moneyPartsCents!.isNotEmpty;
-  bool get hasRepresentationVisual =>
-      representation != null && representationA != null;
+  bool get hasRepresentationVisual => switch (representation) {
+        ExerciseRepresentation.placeValue => representationA != null,
+        ExerciseRepresentation.equalGroups =>
+          representationA != null && representationB != null,
+        null => false,
+      };
 }
 
 class StructuredExerciseGenerator {
