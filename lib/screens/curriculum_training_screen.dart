@@ -8,6 +8,7 @@ import '../models/guided_method.dart';
 import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import '../widgets/geometry_relation_visual.dart';
 import '../widgets/guided_method_panel.dart';
 import '../widgets/number_answer_pad.dart';
 
@@ -312,6 +313,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                 ),
               ],
             ),
+            if (current.key.startsWith('geomrel:')) ...[
+              const SizedBox(height: 22),
+              GeometryRelationVisual(taskKey: current.key),
+            ],
             if (current.hasBars) ...[
               const SizedBox(height: 22),
               _BarChart(bars: current.bars!),
