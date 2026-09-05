@@ -160,6 +160,57 @@ void main() {
     }
   });
 
+  test('Zeit- und Daten-Lernziele sind gezielt generierbar und getaggt', () {
+    final generator = CurriculumExerciseGenerator(random: Random(9912));
+    const cases = [
+      (
+        mode: TrainingMode.advancedMeasures,
+        id: MicroCompetencyId.secondsConversion,
+        prefix: 'time:seconds:',
+      ),
+      (
+        mode: TrainingMode.timeDurations,
+        id: MicroCompetencyId.calendarDate,
+        prefix: 'calendar:',
+      ),
+      (
+        mode: TrainingMode.dataCharts,
+        id: MicroCompetencyId.tallyTableReading,
+        prefix: 'data:tally:',
+      ),
+      (
+        mode: TrainingMode.dataCharts,
+        id: MicroCompetencyId.dataRepresentationChoice,
+        prefix: 'data:representation:',
+      ),
+    ];
+
+    for (final item in cases) {
+      final exercise = generator.generate(
+        mode: item.mode,
+        gradeLevel: GradeLevel.third,
+        maxValue: 1000,
+        targetCompetency: item.id,
+      );
+      final tags = MicroCompetencyCatalog.tagsForTask(
+        mode: item.mode,
+        taskKey: exercise.key,
+      );
+
+      expect(exercise.key, startsWith(item.prefix));
+      expect(tags.map((tag) => tag.id), contains(item.id));
+      if (exercise.usesChoices) {
+        expect(
+          exercise.answer,
+          inInclusiveRange(0, exercise.choices!.length - 1),
+        );
+        expect(exercise.choices!.toSet().length, exercise.choices!.length);
+      } else {
+        expect(exercise.answer, greaterThanOrEqualTo(0));
+      }
+    }
+  });
+
   test('automatischer Oberstufen-Generator-Audit prüft tausende Aufgaben', () {
     final generator = CurriculumExerciseGenerator(random: Random(123456));
     var generated = 0;
