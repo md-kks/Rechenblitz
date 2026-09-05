@@ -418,7 +418,11 @@ void main() {
           exercise.checkpoints.single.competencyId,
           MicroCompetencyId.placeValueDigits,
         );
-        expect(exercise.checkpoints.single.key, startsWith('placeDigit:'));
+        expect(
+          exercise.checkpoints.single.key == 'onesDigit' ||
+              exercise.checkpoints.single.key.startsWith('placeDigit_'),
+          isTrue,
+        );
       } else {
         expect(exercise.checkpoints, hasLength(2));
         expect(
