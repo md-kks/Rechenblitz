@@ -394,17 +394,28 @@ class GuidedMethodFactory {
     switch (strategy) {
       case MultiplicationStrategy.groups:
         final choices = _numberChoices(result, maxValue: max(100, result + 10));
+        final firstGroupCount = min(2, a);
+        final partialGroups = b * firstGroupCount;
+        final partialChoices =
+            _numberChoices(partialGroups, maxValue: max(20, result));
         return GuidedMethodGuide(
           methodKey: 'multiplication:${strategy.name}',
           methodLabel: strategy.label,
           nudge: 'Stell dir $a gleich große Gruppen mit je $b Dingen vor.',
           steps: [
             GuidedMethodStep(
-              title: 'Gruppen sehen',
-              instruction: '$a Gruppen enthalten jeweils $b.',
+              title: 'Erste Gruppen zusammenfassen',
+              instruction:
+                  'Beginne mit $firstGroupCount gleich großen Gruppen mit je $b.',
+              question:
+                  'Wie viele sind in $firstGroupCount Gruppen zusammen?',
+              choices: partialChoices,
+              correctChoice: partialChoices.indexOf('$partialGroups'),
+              evidenceKey: 'partialGroups',
+              evidenceCompetency: MicroCompetencyId.multiplicationGroups,
             ),
             GuidedMethodStep(
-              title: 'Zusammenfassen',
+              title: 'Alle Gruppen sehen',
               instruction: '${List.filled(min(a, 6), '$b').join(' + ')}${a > 6 ? ' + …' : ''}',
             ),
             GuidedMethodStep(
@@ -423,6 +434,8 @@ class GuidedMethodFactory {
         final p1 = a * left;
         final p2 = a * right;
         final choices = _numberChoices(result, maxValue: max(100, result + 10));
+        final p1Choices = _numberChoices(p1, maxValue: max(100, result));
+        final p2Choices = _numberChoices(p2, maxValue: max(100, result));
         return GuidedMethodGuide(
           methodKey: 'multiplication:${strategy.name}',
           methodLabel: strategy.label,
@@ -430,11 +443,21 @@ class GuidedMethodFactory {
           steps: [
             GuidedMethodStep(
               title: 'Erstes Teilprodukt',
-              instruction: '$a × $left = $p1.',
+              instruction: 'Rechne zuerst $a × $left.',
+              question: 'Wie groß ist das erste Teilprodukt?',
+              choices: p1Choices,
+              correctChoice: p1Choices.indexOf('$p1'),
+              evidenceKey: 'firstPartialProduct',
+              evidenceCompetency: MicroCompetencyId.multiplicationFacts,
             ),
             GuidedMethodStep(
               title: 'Zweites Teilprodukt',
-              instruction: '$a × $right = $p2.',
+              instruction: 'Rechne jetzt $a × $right.',
+              question: 'Wie groß ist das zweite Teilprodukt?',
+              choices: p2Choices,
+              correctChoice: p2Choices.indexOf('$p2'),
+              evidenceKey: 'secondPartialProduct',
+              evidenceCompetency: MicroCompetencyId.multiplicationFacts,
             ),
             GuidedMethodStep(
               title: 'Zusammenfügen',
@@ -451,6 +474,8 @@ class GuidedMethodFactory {
         final anchorProduct = a * anchor;
         final difference = b - anchor;
         final delta = a * difference.abs();
+        final anchorChoices =
+            _numberChoices(anchorProduct, maxValue: max(100, result + delta));
         return GuidedMethodGuide(
           methodKey: 'multiplication:${strategy.name}',
           methodLabel: strategy.label,
@@ -458,7 +483,12 @@ class GuidedMethodFactory {
           steps: [
             GuidedMethodStep(
               title: 'Ankeraufgabe',
-              instruction: '$a × $anchor = $anchorProduct.',
+              instruction: 'Starte mit der leichteren Aufgabe $a × $anchor.',
+              question: 'Wie groß ist das Ankerprodukt?',
+              choices: anchorChoices,
+              correctChoice: anchorChoices.indexOf('$anchorProduct'),
+              evidenceKey: 'anchorFact',
+              evidenceCompetency: MicroCompetencyId.multiplicationFacts,
             ),
             GuidedMethodStep(
               title: 'Zur Zielaufgabe',
