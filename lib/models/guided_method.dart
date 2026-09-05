@@ -93,6 +93,10 @@ class GuidedStepCatalog {
     'onesAlignment': 'Einer in der richtigen Spalte ausrichten',
     'regroupDecision': 'notwendiges Entbündeln erkennen',
     'carryDecision': 'notwendigen Übertrag erkennen',
+    'multiplicationCarry': 'Übertrag beim schriftlichen Multiplizieren bestimmen',
+    'nextMultiplierDigit': 'nächste Multiplikatorziffer bestimmen',
+    'firstQuotientDigit': 'erste Quotientenziffer bestimmen',
+    'firstDivisionRemainder': 'Rest nach dem ersten Divisionsschritt bestimmen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -179,6 +183,30 @@ class GuidedMethodFactory {
           b,
           expected,
           preferences,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.writtenMultiply &&
+        taskKey.startsWith('written:x:')) {
+      final numbers = _numbers(taskKey);
+      if (numbers.length >= 2) {
+        return _writtenMultiplication(
+          numbers[numbers.length - 2],
+          numbers.last,
+          expected,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.writtenDivide &&
+        (taskKey.startsWith('written:divide:') ||
+            taskKey.startsWith('written:divide-rest:'))) {
+      final numbers = _numbers(taskKey);
+      if (numbers.length >= 2) {
+        return _writtenDivision(
+          numbers[numbers.length - 2],
+          numbers.last,
         );
       }
     }
@@ -290,6 +318,42 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.writtenMultiply) {
+      if (targetCompetency != MicroCompetencyId.writtenMultiplyProcedure ||
+          !taskKey.startsWith('written:x:')) {
+        return const <GuidedMethodStep>[];
+      }
+      final numbers = _numbers(taskKey);
+      if (numbers.length < 2) return const <GuidedMethodStep>[];
+      return _writtenMultiplication(
+        numbers[numbers.length - 2],
+        numbers.last,
+        expected,
+      )
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(2)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.writtenDivide) {
+      if (targetCompetency != MicroCompetencyId.writtenDivideProcedure ||
+          (!taskKey.startsWith('written:divide:') &&
+              !taskKey.startsWith('written:divide-rest:'))) {
+        return const <GuidedMethodStep>[];
+      }
+      final numbers = _numbers(taskKey);
+      if (numbers.length < 2) return const <GuidedMethodStep>[];
+      return _writtenDivision(
+        numbers[numbers.length - 2],
+        numbers.last,
+      )
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(2)
+          .toList(growable: false);
+    }
+
     if (mode != TrainingMode.writtenAddSub ||
         (targetCompetency != MicroCompetencyId.writtenAlignment &&
             targetCompetency != MicroCompetencyId.writtenRegrouping) ||
@@ -743,6 +807,164 @@ class GuidedMethodFactory {
     }
   }
 
+  static GuidedMethodGuide _writtenMultiplication(
+    int a,
+    int b,
+    int expected,
+  ) {
+    if (b < 10) {
+      final ones = a % 10;
+      final columnProduct = ones * b;
+      final carry = columnProduct ~/ 10;
+      final productChoices = _numberChoices(
+        columnProduct,
+        maxValue: max(20, columnProduct + 10),
+      );
+      final carryChoices = _numberChoices(
+        carry,
+        maxValue: max(9, carry + 2),
+      );
+      return GuidedMethodGuide(
+        methodKey: 'writtenMultiplication:singleDigit',
+        methodLabel: 'Schriftliche Multiplikation',
+        nudge:
+            'Beginne rechts bei den Einern. Multipliziere Stelle für Stelle und notiere jeden Übertrag.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Einer-Spalte',
+            instruction:
+                'Rechne zuerst nur die Einerziffer $ones × $b.',
+            question: 'Was ergibt $ones × $b in der ersten Spalte?',
+            choices: productChoices,
+            correctChoice: productChoices.indexOf('$columnProduct'),
+            evidenceKey: 'firstPartialProduct',
+            evidenceCompetency:
+                MicroCompetencyId.writtenMultiplyProcedure,
+          ),
+          GuidedMethodStep(
+            title: 'Übertrag notieren',
+            instruction:
+                'Die Einerziffer bleibt unten. Alles darüber wird in die nächste Spalte übertragen.',
+            question: 'Welchen Übertrag gibst du in die nächste Spalte?',
+            choices: carryChoices,
+            correctChoice: carryChoices.indexOf('$carry'),
+            evidenceKey: 'multiplicationCarry',
+            evidenceCompetency:
+                MicroCompetencyId.writtenMultiplyProcedure,
+          ),
+          GuidedMethodStep(
+            title: 'Probe',
+            instruction:
+                'Prüfe $expected mit einem Überschlag oder durch Zerlegen des Faktors.',
+          ),
+        ],
+      );
+    }
+
+    final onesMultiplier = b % 10;
+    final tensMultiplier = (b ~/ 10) % 10;
+    final firstPartialProduct = a * onesMultiplier;
+    final productChoices = _numberChoices(
+      firstPartialProduct,
+      maxValue: max(20, firstPartialProduct + 10),
+    );
+    final digitChoices = _numberChoices(
+      tensMultiplier,
+      maxValue: 9,
+    );
+    return GuidedMethodGuide(
+      methodKey: 'writtenMultiplication:partialProducts',
+      methodLabel: 'Schriftliche Multiplikation mit Teilprodukten',
+      nudge:
+          'Beginne mit der Einerziffer des zweiten Faktors. Danach folgt die Zehnerziffer in der nächsten Stellenlage.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Erstes Teilprodukt',
+          instruction:
+              'Multipliziere $a zuerst mit der Einerziffer $onesMultiplier von $b.',
+          question:
+              'Welches erste Teilprodukt ergibt $a × $onesMultiplier?',
+          choices: productChoices,
+          correctChoice:
+              productChoices.indexOf('$firstPartialProduct'),
+          evidenceKey: 'firstPartialProduct',
+          evidenceCompetency:
+              MicroCompetencyId.writtenMultiplyProcedure,
+        ),
+        GuidedMethodStep(
+          title: 'Nächste Ziffer',
+          instruction:
+              'Für die nächste Teilproduktzeile gehst du eine Stelle nach links.',
+          question:
+              'Mit welcher Ziffer von $b rechnest du als Nächstes?',
+          choices: digitChoices,
+          correctChoice: digitChoices.indexOf('$tensMultiplier'),
+          evidenceKey: 'nextMultiplierDigit',
+          evidenceCompetency:
+              MicroCompetencyId.writtenMultiplyProcedure,
+        ),
+        GuidedMethodStep(
+          title: 'Teilprodukte addieren',
+          instruction:
+              'Richte die Teilprodukte stellenrichtig aus und addiere sie zu $expected.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _writtenDivision(
+    int dividend,
+    int divisor,
+  ) {
+    final firstChunk = _firstDivisionChunk(dividend, divisor);
+    final quotientDigit = firstChunk ~/ divisor;
+    final remainder = firstChunk % divisor;
+    final quotientChoices = _numberChoices(
+      quotientDigit,
+      maxValue: max(9, quotientDigit + 2),
+    );
+    final remainderChoices = _numberChoices(
+      remainder,
+      maxValue: max(divisor - 1, remainder + 2),
+    );
+    return GuidedMethodGuide(
+      methodKey: 'writtenDivision:standard',
+      methodLabel: 'Schriftliche Division',
+      nudge:
+          'Arbeite von links nach rechts: teilen, multiplizieren, abziehen und die nächste Ziffer herunterholen.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Erste Quotientenziffer',
+          instruction:
+              'Nimm von links so viele Ziffern, bis die Zahl mindestens so groß wie $divisor ist. Hier startest du mit $firstChunk.',
+          question: 'Wie oft passt $divisor in $firstChunk?',
+          choices: quotientChoices,
+          correctChoice: quotientChoices.indexOf('$quotientDigit'),
+          evidenceKey: 'firstQuotientDigit',
+          evidenceCompetency:
+              MicroCompetencyId.writtenDivideProcedure,
+        ),
+        GuidedMethodStep(
+          title: 'Rest des ersten Schritts',
+          instruction:
+              'Multipliziere $quotientDigit × $divisor und ziehe dieses Ergebnis von $firstChunk ab.',
+          question:
+              'Welcher Rest bleibt nach diesem ersten Divisionsschritt?',
+          choices: remainderChoices,
+          correctChoice: remainderChoices.indexOf('$remainder'),
+          evidenceKey: 'firstDivisionRemainder',
+          evidenceCompetency:
+              MicroCompetencyId.writtenDivideProcedure,
+        ),
+        const GuidedMethodStep(
+          title: 'Weiterführen',
+          instruction:
+              'Hole die nächste Ziffer herunter und wiederhole dieselben vier Schritte bis zum Ende.',
+        ),
+      ],
+    );
+  }
+
   static GuidedMethodGuide _writtenAddition(
     int a,
     int b,
@@ -1057,6 +1279,15 @@ class GuidedMethodFactory {
         ),
       ],
     );
+  }
+
+  static int _firstDivisionChunk(int dividend, int divisor) {
+    var chunk = 0;
+    for (final codeUnit in '$dividend'.codeUnits) {
+      chunk = chunk * 10 + (codeUnit - 48);
+      if (chunk >= divisor) return chunk;
+    }
+    return dividend;
   }
 
   static int? _firstDirectRegroupingPlace(

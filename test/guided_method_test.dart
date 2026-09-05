@@ -899,6 +899,187 @@ void main() {
     );
   });
 
+
+  test('Schriftliches Mal beobachtet Spaltenprodukt und Übertrag', () {
+    final steps = GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.writtenMultiply,
+      taskKey: 'written:x:237:4',
+      expected: 948,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.writtenMultiplyProcedure,
+    );
+
+    expect(steps.map((step) => step.evidenceKey), [
+      'firstPartialProduct',
+      'multiplicationCarry',
+    ]);
+    expect(steps[0].choices[steps[0].correctChoice!], '28');
+    expect(steps[1].choices[steps[1].correctChoice!], '2');
+    expect(
+      steps.every(
+        (step) =>
+            step.evidenceCompetency ==
+            MicroCompetencyId.writtenMultiplyProcedure,
+      ),
+      isTrue,
+    );
+  });
+
+  test('Mehrstelliger Faktor nutzt Teilprodukt und nächste Faktorstelle', () {
+    final steps = GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.writtenMultiply,
+      taskKey: 'written:x:123:14',
+      expected: 1722,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.writtenMultiplyProcedure,
+    );
+
+    expect(steps.map((step) => step.evidenceKey), [
+      'firstPartialProduct',
+      'nextMultiplierDigit',
+    ]);
+    expect(steps[0].choices[steps[0].correctChoice!], '492');
+    expect(steps[1].choices[steps[1].correctChoice!], '1');
+  });
+
+  test('Schriftliches Teilen beobachtet erste Quotientenziffer und Rest', () {
+    final steps = GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.writtenDivide,
+      taskKey: 'written:divide:324:6',
+      expected: 54,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.writtenDivideProcedure,
+    );
+
+    expect(steps.map((step) => step.evidenceKey), [
+      'firstQuotientDigit',
+      'firstDivisionRemainder',
+    ]);
+    expect(steps[0].question, contains('6 in 32'));
+    expect(steps[0].choices[steps[0].correctChoice!], '5');
+    expect(steps[1].choices[steps[1].correctChoice!], '2');
+    expect(
+      steps.every(
+        (step) =>
+            step.evidenceCompetency ==
+            MicroCompetencyId.writtenDivideProcedure,
+      ),
+      isTrue,
+    );
+  });
+
+  test('Schriftliche Mal/Geteilt-Teilfragen bleiben auf ihr Lernziel begrenzt',
+      () {
+    final wrongTarget = GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.writtenMultiply,
+      taskKey: 'written:x:237:4',
+      expected: 948,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.writtenAlignment,
+    );
+    final untargetedDivision =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.writtenDivide,
+      taskKey: 'written:divide:324:6',
+      expected: 54,
+      preferences: const MethodPreferences(),
+    );
+
+    expect(wrongTarget, isEmpty);
+    expect(untargetedDivision, isEmpty);
+  });
+
+  test('GuidedStepCatalog kennt schriftliche Mal- und Geteilt-Schritte', () {
+    expect(
+      GuidedStepCatalog.keyFromTaskKey(
+        'independent:multiplicationCarry:written:x:237:4',
+      ),
+      'multiplicationCarry',
+    );
+    expect(
+      GuidedStepCatalog.labelFor('firstQuotientDigit'),
+      contains('Quotientenziffer'),
+    );
+    expect(
+      GuidedStepCatalog.labelFor('firstDivisionRemainder'),
+      contains('Divisionsschritt'),
+    );
+  });
+
+  testWidgets(
+      'Curriculum speichert schriftlichen Mal-Teilfehler vor der Endlösung',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.writtenMultiply,
+      prompt: 'Rechne schriftlich:\n237 × 4',
+      answer: 948,
+      hint: 'Multipliziere Stelle für Stelle.',
+      key: 'written:x:237:4',
+      maxAnswerValue: 1000,
+      method: 'Schriftliche Multiplikation',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.writtenMultiply,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.writtenMultiplyProcedure,
+          exerciseGenerator: _FixedCurriculumExerciseGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 2'), findsOneWidget);
+    expect(find.text('Antwort eingeben'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, '27'));
+    await tester.pump();
+
+    final failedStep = controller.microObservations.firstWhere(
+      (entry) => entry.source == MicroEvidenceSource.independentStep,
+    );
+    expect(failedStep.id, MicroCompetencyId.writtenMultiplyProcedure);
+    expect(failedStep.correct, isFalse);
+    expect(
+      failedStep.taskKey,
+      'independent:firstPartialProduct:written:x:237:4',
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, '28'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Schritt 2 von 2'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '2'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+
+    for (final label in ['9', '4', '8', 'OK']) {
+      final button = find.widgetWithText(FilledButton, label);
+      await tester.ensureVisible(button);
+      await tester.pump();
+      await tester.tap(button);
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(find.text('0 direkt richtig.'), findsOneWidget);
+    expect(
+      controller
+          .recentTaskKeys(TrainingMode.writtenMultiply)
+          .where((key) => key == 'written:x:237:4')
+          .length,
+      1,
+    );
+  });
+
 }
 
 class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {
