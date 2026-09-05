@@ -214,9 +214,26 @@ Beispiele:
 - Daten, Wahrscheinlichkeit und Kombinatorik
 - Umfang, Fläche, Körper, Symmetrie, Maßstab und Rauminhalt
 
-Eine Aufgabe kann mehrere Kompetenzen berühren. Die primäre Kompetenz erhält volle Evidenz, unterstützende Voraussetzungen nur einen kleineren Anteil. Richtige Antworten mit eingeblendeter Hilfe zählen ebenfalls schwächer als frei gelöste Antworten. Förderpfade liefern bewusst weniger Evidenz als normale Übungsaufgaben.
+Eine Aufgabe kann mehrere Kompetenzen berühren. Die primäre Kompetenz erhält volle Evidenz, unterstützende Voraussetzungen nur einen kleineren Anteil. Richtige Antworten mit eingeblendeter Hilfe zählen schwächer als frei gelöste Antworten. Förderpfade liefern bewusst weniger Evidenz als normale Übungsaufgaben.
 
-Die Mikro-Lernkarte unterscheidet **Neu / Entdecken / Wird geübt / Sicher / Gemeistert**. „Meine Runde“ kann dadurch gezielt genau den mathematischen Teilschritt auswählen, der aktuell am meisten bringt. **Sicher** basiert auf ausreichend guter Basisevidenz aus gewichteten Übungs- und Förderbeobachtungen. **Gemeistert** verlangt zusätzlich erfolgreiche Transfer-Evidenz; viele richtige Wiederholungen derselben Aufgabenart allein reichen dafür nicht mehr. Sichere Teilkompetenzen werden als Warm-up, fällige Wiederholung oder gezielter Transfer genutzt. Wenn noch keine Kompetenz transferbereit ist, bleibt der letzte Rundenteil eine vorsichtige Entdeckung statt fälschlich als Transfer gewertet zu werden.
+### Mastery-Evidenz
+
+Rechenblitz trennt für jedes Mikro-Lernziel vier unterschiedliche Aussagen:
+
+- **selbstständig** – gelingt die Kompetenz ohne eingeblendete Hilfe?
+- **mit Hilfe** – gelingt sie nach Denkhinweis, Darstellung oder geführtem Rechenweg?
+- **nach Abstand** – gelingt sie nach mindestens zwei Tagen ohne gezieltes Vorüben noch selbstständig?
+- **Transfer** – gelingt dieselbe Kompetenz selbstständig in einer veränderten Aufgabenform oder Anwendungssituation?
+
+Die Mikro-Lernkarte unterscheidet weiterhin **Neu / Entdecken / Wird geübt / Sicher / Gemeistert**, aber die Schwellen sind strenger interpretierbar:
+
+- **Sicher** verlangt genügend selbstständige Evidenz mit mindestens 80 % gewichteter Sicherheit.
+- **Gemeistert** verlangt zusätzlich stärkere selbstständige Basisevidenz, eine erfolgreiche selbstständige Abstandskontrolle und erfolgreiche selbstständige Transfer-Evidenz.
+- Hilfe bleibt wertvolle Lerninformation, kann allein aber weder „Sicher“ noch „Gemeistert“ erzeugen.
+
+Die erste echte Abstandskontrolle wird frühestens nach **zwei Tagen** fällig. Nach stabiler selbstständiger Abstandsevidenz wird der nächste Abstand auf **sieben Tage** erweitert. Eine unsichere Abstandskontrolle führt dagegen nicht zu einer siebentägigen Pause, sondern kann nach zwei Tagen erneut geprüft werden.
+
+„Meine Runde“ setzt den fälligen Abstandstest in den vorhandenen Wiederholungsslot. Dasselbe Ziel wird in dieser Runde weder als Warm-up noch gleichzeitig als Transferziel vorgeübt. Wenn noch keine Kompetenz für Abstand oder Transfer bereit ist, bleiben die Slots normale Wiederholung beziehungsweise vorsichtige Entdeckung.
 
 Im Elternbereich erklärt **„Warum gerade diese Aufgaben?“**, welcher Teilschritt derzeit fokussiert wird und auf welcher Beobachtungsbasis diese Auswahl beruht.
 
@@ -286,7 +303,7 @@ Für Klasse 3/4 bleiben zusätzlich die vorhandenen anspruchsvolleren Sachaufgab
 - Rückwärtsaufgaben
 - Kombination aus Multiplikation und anschließendem Weiterrechnen
 
-Transfer-Evidenz wird lokal getrennt von normaler Übungs- und Förder-Evidenz gespeichert. Eine richtige Lösung mit Hilfe wird auch im Transfer weiterhin entsprechend schwächer gewichtet. Lehreraufträge können Transfer ausdrücklich aktivieren; bei passenden Grundrechen-Kompetenzen wird der Auftrag dann ebenfalls in den Sachkontext verschoben.
+Transfer-Evidenz wird lokal getrennt von normaler Übungs-, Förder- und Abstandsevidenz gespeichert. Eine richtige Lösung mit Hilfe bleibt auch im Transfer als Hilfsevidenz sichtbar und erfüllt die selbstständige Transfer-Bedingung nicht. Lehreraufträge können Transfer ausdrücklich aktivieren; bei passenden Grundrechen-Kompetenzen wird der Auftrag dann ebenfalls in den Sachkontext verschoben.
 
 ### Lehrplantiefe Klasse 3/4
 
