@@ -5,6 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../models/micro_competency.dart';
 import '../models/teacher_assignment_result.dart';
+import '../models/training.dart';
 
 class AssignmentResultScannerScreen extends StatefulWidget {
   const AssignmentResultScannerScreen({super.key});
