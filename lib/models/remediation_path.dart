@@ -3,6 +3,7 @@ import 'dart:math';
 import 'curriculum_exercise.dart';
 import 'error_diagnosis.dart';
 import 'learning_methods.dart';
+import 'micro_competency.dart';
 import 'structured_exercise.dart';
 import 'training.dart';
 
@@ -223,17 +224,54 @@ class RemediationGenerator {
     required MethodPreferences methods,
   }) =>
       switch (pattern) {
-        ErrorPattern.tenBridge =>
-          _tenBridge(stage, preferredMode, range, methods),
+        ErrorPattern.tenBridge ||
+        ErrorPattern.carryOmitted ||
+        ErrorPattern.borrowAvoided =>
+          _tenBridge(
+            stage,
+            preferredMode,
+            range,
+            methods,
+            pattern,
+          ),
+        ErrorPattern.partialOperand =>
+          _partialOperand(stage, preferredMode, range),
         ErrorPattern.numberBond => _numberBond(stage, range),
         ErrorPattern.countingStep => _countingStep(stage, range),
         ErrorPattern.operationChoice => _operationChoice(stage, range),
         ErrorPattern.placeValue => _placeValue(stage, range),
-        ErrorPattern.multiplicationFact =>
-          _multiplication(stage, methods.multiplication),
-        ErrorPattern.divisionFact => _division(stage),
+        ErrorPattern.multiplicationFact ||
+        ErrorPattern.multiplicationAsAddition =>
+          _multiplication(stage, methods.multiplication, pattern),
+        ErrorPattern.divisionFact ||
+        ErrorPattern.divisionAsSubtraction =>
+          _division(stage, pattern),
         ErrorPattern.inverseOperation => _inverse(stage, range),
         ErrorPattern.wordProblem => _wordProblem(stage, grade, range),
+        ErrorPattern.wordProblemRelevantInformation =>
+          _targetedWordProblem(
+            stage,
+            grade,
+            range,
+            pattern,
+            MicroCompetencyId.wordProblemRelevantInformation,
+          ),
+        ErrorPattern.wordProblemModel =>
+          _targetedWordProblem(
+            stage,
+            grade,
+            range,
+            pattern,
+            MicroCompetencyId.wordProblemModel,
+          ),
+        ErrorPattern.wordProblemInterpretation =>
+          _targetedWordProblem(
+            stage,
+            grade,
+            range,
+            pattern,
+            MicroCompetencyId.wordProblemInterpretation,
+          ),
         ErrorPattern.unitConversion => _unitConversion(stage, grade),
         ErrorPattern.roundingPlace => _rounding(stage, range),
         ErrorPattern.writtenRegrouping =>
@@ -255,6 +293,7 @@ class RemediationGenerator {
     TrainingMode preferredMode,
     NumberRangeLevel range,
     MethodPreferences methods,
+    ErrorPattern pattern,
   ) {
     final limit = min(range.maxValue, 100);
     if (limit <= 10) {
@@ -283,7 +322,7 @@ class RemediationGenerator {
       return _numeric(
         stage: stage,
         mode: TrainingMode.minus,
-        key: 'remediation:tenBridge:-:$a:$b',
+        key: 'remediation:${pattern.name}:-:$a:$b',
         prompt: '$a − $b = ?',
         answer: answer,
         max: limit,
@@ -297,12 +336,55 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.practice,
-      key: 'remediation:tenBridge:+:$a:$b',
+      key: 'remediation:${pattern.name}:+:$a:$b',
       prompt: '$a + $b = ?',
       answer: a + b,
       max: limit,
       hint:
           'Ergänze zuerst bis zum nächsten Zehner und rechne danach den Rest weiter.',
+    );
+  }
+
+  RemediationTask _partialOperand(
+    RemediationStage stage,
+    TrainingMode preferredMode,
+    NumberRangeLevel range,
+  ) {
+    final limit = min(range.maxValue, 100);
+    if (limit < 20) {
+      return _numberBond(stage, range);
+    }
+    final subtraction = preferredMode == TrainingMode.minus ||
+        (preferredMode != TrainingMode.practice && _random.nextBool());
+    final tens = _between(1, max(1, limit ~/ 10 - 1)) * 10;
+    final ones = _between(1, 9);
+    final b = tens + ones;
+
+    if (subtraction) {
+      final a = _between(b, limit);
+      return _numeric(
+        stage: stage,
+        mode: TrainingMode.minus,
+        key: 'remediation:partialOperand:-:$a:$b',
+        prompt: '$a − $b = ?',
+        answer: a - b,
+        max: limit,
+        hint:
+            'Zerlege $b in $tens und $ones. Ziehe beide Teile nacheinander ab.',
+      );
+    }
+
+    final maxA = max(1, limit - b);
+    final a = _between(1, maxA);
+    return _numeric(
+      stage: stage,
+      mode: TrainingMode.practice,
+      key: 'remediation:partialOperand:+:$a:$b',
+      prompt: '$a + $b = ?',
+      answer: a + b,
+      max: limit,
+      hint:
+          'Zerlege $b in $tens und $ones. Addiere beide Teile nacheinander.',
     );
   }
 
@@ -403,6 +485,7 @@ class RemediationGenerator {
   RemediationTask _multiplication(
     RemediationStage stage,
     MultiplicationStrategy strategy,
+    ErrorPattern pattern,
   ) {
     final a = _between(2, 10);
     final b = _between(2, 10);
@@ -418,7 +501,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.multiply,
-      key: 'remediation:multiply:$a:$b',
+      key: 'remediation:${pattern.name}:x:$a:$b',
       prompt: '$a × $b = ?',
       answer: answer,
       max: 100,
@@ -426,14 +509,17 @@ class RemediationGenerator {
     );
   }
 
-  RemediationTask _division(RemediationStage stage) {
+  RemediationTask _division(
+    RemediationStage stage,
+    ErrorPattern pattern,
+  ) {
     final divisor = _between(2, 10);
     final quotient = _between(2, 10);
     final dividend = divisor * quotient;
     return _numeric(
       stage: stage,
       mode: TrainingMode.divide,
-      key: 'remediation:divide:$dividend:$divisor',
+      key: 'remediation:${pattern.name}:divide:$dividend:$divisor',
       prompt: '$dividend ÷ $divisor = ?',
       answer: quotient,
       max: 10,
@@ -480,6 +566,33 @@ class RemediationGenerator {
       max: limit,
       hint:
           'Sage zuerst: Wird die Menge größer oder kleiner? Wähle erst danach die Rechenart.',
+    );
+  }
+
+  RemediationTask _targetedWordProblem(
+    RemediationStage stage,
+    GradeLevel grade,
+    NumberRangeLevel range,
+    ErrorPattern pattern,
+    MicroCompetencyId competency,
+  ) {
+    final exercise = _structured.generate(
+      mode: TrainingMode.wordProblems,
+      maxValue: min(range.maxValue, 100),
+      gradeLevel: grade,
+      targetCompetency: competency,
+    );
+    return RemediationTask(
+      stage: stage,
+      mode: TrainingMode.wordProblems,
+      taskKey: 'remediation:${pattern.name}:${exercise.key}',
+      prompt: exercise.prompt,
+      answer: exercise.answer,
+      maxAnswerValue:
+          exercise.maxAnswerValue ?? min(range.maxValue, 100),
+      choices: exercise.choices,
+      answerSuffix: exercise.answerSuffix,
+      hint: '${pattern.firstResponseHint} ${exercise.hint}',
     );
   }
 
