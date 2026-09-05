@@ -356,4 +356,20 @@ void main() {
   });
 
 
+  test('alte Mikro-Daten ohne Evidenzquelle bleiben normale Übung', () {
+    final observation = MicroCompetencyObservation.fromJson({
+      'id': MicroCompetencyId.additionNoBridge.name,
+      'occurredAt': '2026-09-05T12:00:00.000',
+      'correct': true,
+      'evidenceWeight': 1.0,
+      'usedHelp': false,
+      'mode': TrainingMode.practice.name,
+      'gradeLevel': GradeLevel.second.name,
+      'numberRange': NumberRangeLevel.hundred.name,
+      'taskKey': 'plus:12:7',
+    });
+
+    expect(observation.source, MicroEvidenceSource.practice);
+  });
+
 }
