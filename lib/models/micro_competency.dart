@@ -49,11 +49,14 @@ enum MicroCompetencyId {
   shapeProperties,
   roundingPlace,
   mentalStrategy,
+  strategyChoice,
   writtenAlignment,
   writtenRegrouping,
+  errorChecking,
   writtenMultiplyProcedure,
   writtenDivideProcedure,
   estimation,
+  plausibilityCheck,
   arithmeticLaw,
   romanNumeral,
   fractionEqualParts,
@@ -446,6 +449,15 @@ class MicroCompetencyCatalog {
       minGrade: GradeLevel.third,
     ),
     MicroCompetencyDefinition(
+      id: MicroCompetencyId.strategyChoice,
+      label: 'Günstigen Rechenweg auswählen',
+      description: 'Zwischen mehreren möglichen Rechenwegen einen passenden Vorteil erkennen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.mentalStrategies,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.mentalStrategy],
+    ),
+    MicroCompetencyDefinition(
       id: MicroCompetencyId.writtenAlignment,
       label: 'Stellen schriftlich richtig anordnen',
       description: 'Einer, Zehner und Hunderter sauber untereinander schreiben.',
@@ -458,6 +470,15 @@ class MicroCompetencyCatalog {
       id: MicroCompetencyId.writtenRegrouping,
       label: 'Übertrag und Entbündeln',
       description: 'Überträge oder Entbündelungen im schriftlichen Verfahren sicher ausführen.',
+      domain: MicroCompetencyDomain.writtenMethods,
+      preferredMode: TrainingMode.writtenAddSub,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.writtenAlignment],
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.errorChecking,
+      label: 'Rechenfehler erkennen',
+      description: 'Eine vorgegebene Rechnung prüfen und einen Fehler gezielt beschreiben.',
       domain: MicroCompetencyDomain.writtenMethods,
       preferredMode: TrainingMode.writtenAddSub,
       minGrade: GradeLevel.third,
@@ -488,6 +509,15 @@ class MicroCompetencyCatalog {
       domain: MicroCompetencyDomain.arithmetic,
       preferredMode: TrainingMode.estimation,
       minGrade: GradeLevel.third,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.plausibilityCheck,
+      label: 'Ergebnisse auf Plausibilität prüfen',
+      description: 'Mit einem Überschlag beurteilen, ob ein Ergebnis zur Größenordnung passt.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.estimation,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.roundingPlace],
     ),
     MicroCompetencyDefinition(
       id: MicroCompetencyId.arithmeticLaw,
@@ -875,18 +905,36 @@ class MicroCompetencyCatalog {
         TrainingMode.rounding => const [
             MicroCompetencyTag(MicroCompetencyId.roundingPlace),
           ],
-        TrainingMode.mentalStrategies => [
-            const MicroCompetencyTag(MicroCompetencyId.mentalStrategy),
-            if (_keyNeedsBridge(key))
-              MicroCompetencyTag(
-                key.contains(':+:')
-                    ? MicroCompetencyId.additionTenBridge
-                    : MicroCompetencyId.subtractionTenBridge,
-                weight: 0.45,
-              ),
-          ],
-        TrainingMode.writtenAddSub => _keyNeedsRegrouping(key)
-            ? const [
+        TrainingMode.mentalStrategies =>
+          key.startsWith('process:strategy:')
+              ? const [
+                  MicroCompetencyTag(MicroCompetencyId.strategyChoice),
+                  MicroCompetencyTag(
+                    MicroCompetencyId.mentalStrategy,
+                    weight: 0.45,
+                  ),
+                ]
+              : [
+                  const MicroCompetencyTag(MicroCompetencyId.mentalStrategy),
+                  if (_keyNeedsBridge(key))
+                    MicroCompetencyTag(
+                      key.contains(':+:')
+                          ? MicroCompetencyId.additionTenBridge
+                          : MicroCompetencyId.subtractionTenBridge,
+                      weight: 0.45,
+                    ),
+                ],
+        TrainingMode.writtenAddSub =>
+          key.startsWith('process:error:')
+              ? const [
+                  MicroCompetencyTag(MicroCompetencyId.errorChecking),
+                  MicroCompetencyTag(
+                    MicroCompetencyId.writtenAlignment,
+                    weight: 0.35,
+                  ),
+                ]
+              : _keyNeedsRegrouping(key)
+                  ? const [
                 MicroCompetencyTag(
                   MicroCompetencyId.writtenRegrouping,
                 ),
@@ -894,12 +942,12 @@ class MicroCompetencyCatalog {
                   MicroCompetencyId.writtenAlignment,
                   weight: 0.4,
                 ),
-              ]
-            : const [
-                MicroCompetencyTag(
-                  MicroCompetencyId.writtenAlignment,
-                ),
-              ],
+                  ]
+                  : const [
+                      MicroCompetencyTag(
+                        MicroCompetencyId.writtenAlignment,
+                      ),
+                    ],
         TrainingMode.writtenMultiply => const [
             MicroCompetencyTag(
               MicroCompetencyId.writtenMultiplyProcedure,
@@ -910,9 +958,18 @@ class MicroCompetencyCatalog {
               MicroCompetencyId.writtenDivideProcedure,
             ),
           ],
-        TrainingMode.estimation => const [
-            MicroCompetencyTag(MicroCompetencyId.estimation),
-          ],
+        TrainingMode.estimation =>
+          key.startsWith('process:plausibility:')
+              ? const [
+                  MicroCompetencyTag(MicroCompetencyId.plausibilityCheck),
+                  MicroCompetencyTag(
+                    MicroCompetencyId.estimation,
+                    weight: 0.45,
+                  ),
+                ]
+              : const [
+                  MicroCompetencyTag(MicroCompetencyId.estimation),
+                ],
         TrainingMode.arithmeticLaws => const [
             MicroCompetencyTag(MicroCompetencyId.arithmeticLaw),
           ],

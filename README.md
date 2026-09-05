@@ -226,6 +226,30 @@ Für Klasse 3/4 gibt es zusätzlich zu normalen Sachaufgaben echte Transferforma
 
 Der Transferteil von **Meine Runde** bevorzugt diese Aufgaben.
 
+### Prozesskompetenzen
+
+Klasse 3/4 enthält zusätzlich eigene Mikro-Lernziele für mathematisches Denken:
+
+- **günstigen Rechenweg auswählen**
+- **Rechenfehler erkennen**
+- **Ergebnisse per Überschlag auf Plausibilität prüfen**
+
+Diese Aufgaben sind nicht nur Multiple-Choice-Zusätze: Sie erhalten eigene Mikro-Evidenz, eigene Hilfestufen und eigene visuelle Darstellungen. Wenn ein Kind nach einem ersten Fehler eine Hilfe nutzt und anschließend löst, wird diese Unterstützungs-Evidenz separat und schwächer gewichtet gespeichert, ohne die Direkt-richtig-Quote zu erhöhen.
+
+### Visuelle Rechenwege
+
+Die Hilfestufe „Darstellung“ zeigt inzwischen aufgabenspezifische Mathematik statt generischer Symbole, darunter:
+
+- Zahlenstrahl mit Übergang
+- Punktefelder für Multiplikation
+- Stellenwerttafel bis zur Million
+- schriftliche Addition/Subtraktion stellenrichtig untereinander
+- Bruchbilder mit tatsächlich markiertem Anteil
+- Einheitenleiter mit Start- und Zieleinheit
+- Zeitlinien mit echten Uhrzeiten und Teilstrecken
+- Rechtecke mit Maßen für Umfang und Fläche
+- Visualisierung von Rechenvorteil, Fehlerprüfung und Überschlag
+
 ### Lokaler Lehrer-QR-Modus
 
 Lehrkräfte können einen Lernauftrag aus:
@@ -239,12 +263,25 @@ Lehrkräfte können einen Lernauftrag aus:
 
 erzeugen. Der QR-Code enthält **keinen Namen, keine Profil-ID und keinen Lernverlauf**. Beim Scannen wird der Auftrag nur als temporärer Sitzungsrahmen verwendet; persönliche Profileinstellungen werden danach wiederhergestellt. Aufträge für eine andere Klassenstufe werden nicht still in das Profil übernommen.
 
+Nach einer vollständig bearbeiteten Schulrunde erzeugt Rechenblitz zusätzlich einen **Ergebnis-QR**. Dieser enthält nur:
+
+- eine stabile Auftrags-ID
+- Lernziel und Zahlenraum des Auftrags
+- bearbeitete Aufgaben
+- direkt richtige Antworten und Fehlversuche
+- durchschnittliche Antwortzeit
+- aggregierte Hilfestufe und in dieser Runde verwendete Rechenwege
+
+Die Lehrkraft kann den Ergebnis-QR direkt wieder scannen. Auch dieser Rückkanal benötigt kein Konto und überträgt keinen Namen, keine Profil-ID und keinen sonstigen Lernverlauf.
+
 ### Lehrplan-Audit
 
 Der interne Thüringen-Audit ordnet jede Mikro-Kompetenz einem Lernbereich und einer stabilen Lernziel-ID zu. Er unterscheidet zwischen:
 
 - **digital üb- und prüfbar**
 - **digital unterstützt – praktisch ergänzen**
+
+- **prozessbezogen** – z. B. Rechenweg wählen, Fehler erkennen und Plausibilität prüfen
 
 Reales Messen, Zeichnen, Falten, Bauen und Orientieren wird bewusst nicht als vollständig digital prüfbar dargestellt. Der Audit ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
 

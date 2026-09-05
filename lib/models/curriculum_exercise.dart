@@ -78,6 +78,7 @@ class CurriculumExerciseGenerator {
         mode: mode,
         gradeLevel: gradeLevel,
         maxValue: maxValue,
+        targetCompetency: targetCompetency,
       );
       last = candidate;
       final exactNew = !exactAvoid.contains(candidate.key);
@@ -99,6 +100,7 @@ class CurriculumExerciseGenerator {
           mode: mode,
           gradeLevel: gradeLevel,
           maxValue: maxValue,
+          targetCompetency: targetCompetency,
         );
   }
 
@@ -106,15 +108,25 @@ class CurriculumExerciseGenerator {
     required TrainingMode mode,
     required GradeLevel gradeLevel,
     required int maxValue,
+    MicroCompetencyId? targetCompetency,
   }) =>
       switch (mode) {
         TrainingMode.largeNumbers => _largeNumbers(gradeLevel, maxValue),
         TrainingMode.rounding => _rounding(gradeLevel, maxValue),
-        TrainingMode.mentalStrategies => _mentalStrategies(gradeLevel, maxValue),
-        TrainingMode.writtenAddSub => _writtenAddSub(gradeLevel, maxValue),
+        TrainingMode.mentalStrategies =>
+          targetCompetency == MicroCompetencyId.strategyChoice
+              ? _strategyChoice(gradeLevel, maxValue)
+              : _mentalStrategies(gradeLevel, maxValue),
+        TrainingMode.writtenAddSub =>
+          targetCompetency == MicroCompetencyId.errorChecking
+              ? _errorChecking(gradeLevel, maxValue)
+              : _writtenAddSub(gradeLevel, maxValue),
         TrainingMode.writtenMultiply => _writtenMultiply(gradeLevel, maxValue),
         TrainingMode.writtenDivide => _writtenDivide(gradeLevel, maxValue),
-        TrainingMode.estimation => _estimation(gradeLevel, maxValue),
+        TrainingMode.estimation =>
+          targetCompetency == MicroCompetencyId.plausibilityCheck
+              ? _plausibilityCheck(gradeLevel, maxValue)
+              : _estimation(gradeLevel, maxValue),
         TrainingMode.arithmeticLaws => _arithmeticLaws(gradeLevel),
         TrainingMode.romanNumerals => _romanNumerals(gradeLevel),
         TrainingMode.fractions => _fractions(gradeLevel, maxValue),
@@ -252,6 +264,9 @@ class CurriculumExerciseGenerator {
   }
 
   CurriculumExercise _mentalStrategies(GradeLevel grade, int maxValue) {
+    if (_random.nextDouble() < 0.20) {
+      return _strategyChoice(grade, maxValue);
+    }
     final limit = _safeMax(maxValue, grade);
     final addition = _random.nextBool();
     final lowA = min(100, max(10, limit ~/ 4));
@@ -283,6 +298,9 @@ class CurriculumExerciseGenerator {
   }
 
   CurriculumExercise _writtenAddSub(GradeLevel grade, int maxValue) {
+    if (_random.nextDouble() < 0.18) {
+      return _errorChecking(grade, maxValue);
+    }
     final limit = _safeMax(maxValue, grade);
     if (_random.nextBool()) {
       final a = _between(min(50, max(10, limit ~/ 3)), max(10, limit - 1));
@@ -368,6 +386,9 @@ class CurriculumExerciseGenerator {
   }
 
   CurriculumExercise _estimation(GradeLevel grade, int maxValue) {
+    if (_random.nextDouble() < 0.25) {
+      return _plausibilityCheck(grade, maxValue);
+    }
     final limit = _safeMax(maxValue, grade);
     final place = limit <= 500
         ? 10
@@ -433,6 +454,121 @@ class CurriculumExerciseGenerator {
       key: 'law:commute:$a:$b',
       maxAnswerValue: 100,
       method: 'Kommutativgesetz',
+    );
+  }
+
+  CurriculumExercise _strategyChoice(
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = _safeMax(maxValue, grade);
+    final step = limit <= 100
+        ? 10
+        : limit >= 10000
+            ? 1000
+            : 100;
+    final label = step == 10
+        ? 'Zehner'
+        : step == 100
+            ? 'Hunderter'
+            : 'Tausender';
+    final maxAnchorIndex = max(2, (max(step * 2, limit - step) ~/ step));
+    final anchor = _between(2, maxAnchorIndex) * step;
+    final gapMax = step == 10
+        ? 9
+        : step == 100
+            ? 49
+            : 499;
+    final gap = _between(2, min(gapMax, step - 1));
+    final a = max(1, anchor - gap);
+    final maxB = max(gap, min(step, limit - a));
+    final b = _between(gap, maxB);
+    final rest = b - gap;
+
+    final correct = '$a + $gap + $rest';
+    final alternatives = <String>{
+      correct,
+      '$a + ${min(b, max(1, step ~/ 10))} + ${max(0, b - max(1, step ~/ 10))}',
+      '$a + ${max(1, b ~/ 2)} + ${b - max(1, b ~/ 2)}',
+      '$a + $b',
+    }.toList()
+      ..shuffle(_random);
+
+    return CurriculumExercise(
+      mode: TrainingMode.mentalStrategies,
+      prompt:
+          '$a + $b\nWelcher Rechenweg erreicht zuerst den glatten $label $anchor?',
+      answer: alternatives.indexOf(correct),
+      hint:
+          'Suche zuerst genau die Ergänzung von $a bis $anchor. Danach bleibt der Rest.',
+      key: 'process:strategy:$label:$a:$b:$anchor',
+      choices: alternatives,
+      method: 'Rechenweg auswählen',
+    );
+  }
+
+  CurriculumExercise _errorChecking(
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = _safeMax(maxValue, grade);
+    final a = _between(40, max(40, min(limit - 20, 9000)));
+    final b = _between(10, max(10, min(limit - a, 900)));
+    final correct = a + b;
+    final tooLarge = correct + 10 <= limit && _random.nextBool();
+    final wrong = tooLarge ? correct + 10 : max(0, correct - 10);
+    final correctText = tooLarge
+        ? 'Das Ergebnis ist um 10 zu groß.'
+        : 'Das Ergebnis ist um 10 zu klein.';
+    final options = <String>[
+      'Die Rechnung stimmt.',
+      'Das Ergebnis ist um 10 zu groß.',
+      'Das Ergebnis ist um 10 zu klein.',
+      'Die Zahlen dürfen so nicht addiert werden.',
+    ]..shuffle(_random);
+
+    return CurriculumExercise(
+      mode: TrainingMode.writtenAddSub,
+      prompt:
+          'Prüfe die Rechnung:\n$a + $b = $wrong\nWelche Aussage beschreibt den Fehler?',
+      answer: options.indexOf(correctText),
+      hint:
+          'Rechne nicht sofort alles neu. Vergleiche zuerst Einer und Zehner mit dem erwarteten Ergebnis.',
+      key: 'process:error:add:$a:$b:$wrong',
+      choices: options,
+      method: 'Fehler finden und begründen',
+    );
+  }
+
+  CurriculumExercise _plausibilityCheck(
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = _safeMax(maxValue, grade);
+    final place = limit >= 10000 ? 1000 : limit >= 1000 ? 100 : 10;
+    final a = _between(place, max(place, min(limit ~/ 2, 500000)));
+    final b = _between(place, max(place, min(limit - a, 400000)));
+    final correct = a + b;
+    final plausible = _random.nextBool();
+    final delta = place * _between(3, 5);
+    final implausible = correct + delta <= limit
+        ? correct + delta
+        : correct - delta >= 0
+            ? correct - delta
+            : min(limit, correct + place * 2);
+    final candidate = plausible ? correct : implausible;
+    const options = ['plausibel', 'nicht plausibel'];
+
+    return CurriculumExercise(
+      mode: TrainingMode.estimation,
+      prompt:
+          '$a + $b soll $candidate ergeben.\nIst dieses Ergebnis nach einem Überschlag plausibel?',
+      answer: plausible ? 0 : 1,
+      hint:
+          'Runde beide Ausgangszahlen grob. Vergleiche dann die Größenordnung mit $candidate.',
+      key: 'process:plausibility:$a:$b:$candidate:$place',
+      choices: options,
+      method: 'Ergebnis kontrollieren',
     );
   }
 

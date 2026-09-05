@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../models/teacher_assignment.dart';
+import '../models/teacher_assignment_result.dart';
 import '../models/training.dart';
-import '../services/app_controller.dart';
+import '../screens/assignment_result_screen.dart';
 import '../screens/curriculum_training_screen.dart';
 import '../screens/structured_training_screen.dart';
 import '../screens/training_screen.dart';
+import 'app_controller.dart';
 
 Future<void> launchTeacherAssignment(
   BuildContext context,
@@ -26,40 +28,67 @@ Future<void> launchTeacherAssignment(
     return;
   }
 
+  final startedAt = DateTime.now();
   controller.beginTeacherAssignment(assignment);
+
   try {
-    if (assignment.mode.isUpperPrimary) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => CurriculumTrainingScreen(
-            controller: controller,
-            mode: assignment.mode,
-            targetTasks: assignment.tasks,
-            targetCompetency: assignment.targetCompetency,
-          ),
-        ),
-      );
-      return;
-    }
+    await _openAssignmentTraining(
+      context,
+      controller,
+      assignment,
+    );
+  } finally {
+    controller.endTeacherAssignment();
+  }
 
-    if (assignment.mode.isStructured) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => StructuredTrainingScreen(
-            controller: controller,
-            mode: assignment.mode,
-            targetTasks: assignment.tasks,
-            targetCompetency: assignment.targetCompetency,
-            transferEmphasis: assignment.transferEmphasis,
-          ),
-        ),
-      );
-      return;
-    }
+  if (!context.mounted) return;
 
+  TrainingSessionResult? session;
+  for (final entry in controller.history) {
+    if (!entry.isAssessment &&
+        entry.mode == assignment.mode &&
+        !entry.startedAt.isBefore(
+          startedAt.subtract(const Duration(seconds: 1)),
+        )) {
+      session = entry;
+      break;
+    }
+  }
+
+  if (session == null || session.total == 0) return;
+
+  final observations = controller.microObservations.where(
+    (entry) =>
+        entry.mode == assignment.mode &&
+        entry.gradeLevel == assignment.gradeLevel &&
+        entry.numberRange == assignment.numberRange &&
+        !entry.occurredAt.isBefore(
+          startedAt.subtract(const Duration(seconds: 1)),
+        ),
+  );
+
+  final result = TeacherAssignmentResult.fromSession(
+    assignment: assignment,
+    session: session,
+    observations: observations,
+  );
+
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => AssignmentResultScreen(result: result),
+    ),
+  );
+}
+
+Future<void> _openAssignmentTraining(
+  BuildContext context,
+  AppController controller,
+  TeacherAssignment assignment,
+) async {
+  if (assignment.mode.isUpperPrimary) {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => TrainingScreen(
+        builder: (_) => CurriculumTrainingScreen(
           controller: controller,
           mode: assignment.mode,
           targetTasks: assignment.tasks,
@@ -67,7 +96,32 @@ Future<void> launchTeacherAssignment(
         ),
       ),
     );
-  } finally {
-    controller.endTeacherAssignment();
+    return;
   }
+
+  if (assignment.mode.isStructured) {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => StructuredTrainingScreen(
+          controller: controller,
+          mode: assignment.mode,
+          targetTasks: assignment.tasks,
+          targetCompetency: assignment.targetCompetency,
+          transferEmphasis: assignment.transferEmphasis,
+        ),
+      ),
+    );
+    return;
+  }
+
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => TrainingScreen(
+        controller: controller,
+        mode: assignment.mode,
+        targetTasks: assignment.tasks,
+        targetCompetency: assignment.targetCompetency,
+      ),
+    ),
+  );
 }

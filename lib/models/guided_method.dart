@@ -62,6 +62,18 @@ class GuidedMethodFactory {
     MicroCompetencyId? targetCompetency,
     MathFact? fact,
   }) {
+    if (taskKey.startsWith('process:strategy:')) {
+      return _strategyChoiceGuide(taskKey);
+    }
+
+    if (taskKey.startsWith('process:error:')) {
+      return _errorCheckingGuide(taskKey);
+    }
+
+    if (taskKey.startsWith('process:plausibility:')) {
+      return _plausibilityGuide(taskKey);
+    }
+
     if (fact != null &&
         fact.operation == MathOperation.minus &&
         _needsSubtractionBridge(fact)) {
@@ -471,6 +483,93 @@ class GuidedMethodFactory {
           instruction: area
               ? 'Länge × Breite.'
               : 'Alle Seiten addieren oder 2 × (Länge + Breite).',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _strategyChoiceGuide(String key) {
+    final numbers = _numbers(key);
+    final anchor = numbers.isEmpty ? null : numbers.last;
+    return GuidedMethodGuide(
+      methodKey: 'process:strategyChoice',
+      methodLabel: 'Günstigen Rechenweg wählen',
+      nudge: anchor == null
+          ? 'Suche eine runde Zwischenzahl, die das Rechnen einfacher macht.'
+          : 'Welche Zerlegung bringt dich zuerst genau zu $anchor?',
+      steps: [
+        const GuidedMethodStep(
+          title: 'Zielzahl erkennen',
+          instruction:
+              'Suche einen glatten Zehner, Hunderter oder Tausender in der Nähe.',
+        ),
+        const GuidedMethodStep(
+          title: 'Passend zerlegen',
+          instruction:
+              'Zerlege nur so viel vom zweiten Summanden, wie bis zur Zielzahl fehlt.',
+        ),
+        const GuidedMethodStep(
+          title: 'Rest weiterrechnen',
+          instruction:
+              'Rechne danach nur noch den verbleibenden Rest weiter.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _errorCheckingGuide(String key) {
+    final numbers = _numbers(key);
+    final shown = numbers.length >= 3 ? numbers.last : null;
+    return GuidedMethodGuide(
+      methodKey: 'process:errorChecking',
+      methodLabel: 'Rechenfehler finden',
+      nudge: shown == null
+          ? 'Prüfe zuerst die Stellen, statt die ganze Aufgabe sofort neu zu rechnen.'
+          : 'Prüfe, ob $shown zu Einer- und Zehnerstelle der Aufgabe passen kann.',
+      steps: const [
+        GuidedMethodStep(
+          title: 'Einer prüfen',
+          instruction:
+              'Vergleiche zuerst nur die Einerstelle mit der vorgegebenen Rechnung.',
+        ),
+        GuidedMethodStep(
+          title: 'Zehner prüfen',
+          instruction:
+              'Prüfe danach Zehner und mögliche Überträge oder Entbündelungen.',
+        ),
+        GuidedMethodStep(
+          title: 'Fehler beschreiben',
+          instruction:
+              'Benenne möglichst genau, ob das Ergebnis zu groß, zu klein oder korrekt ist.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _plausibilityGuide(String key) {
+    final numbers = _numbers(key);
+    final candidate = numbers.length >= 3 ? numbers[numbers.length - 2] : null;
+    return GuidedMethodGuide(
+      methodKey: 'process:plausibility',
+      methodLabel: 'Mit Überschlag kontrollieren',
+      nudge: candidate == null
+          ? 'Runde die Ausgangszahlen grob und vergleiche die Größenordnung.'
+          : 'Passt $candidate ungefähr zu den gerundeten Ausgangszahlen?',
+      steps: const [
+        GuidedMethodStep(
+          title: 'Ausgangszahlen runden',
+          instruction:
+              'Runde beide Zahlen auf eine sinnvolle Stelle, ohne exakt auszurechnen.',
+        ),
+        GuidedMethodStep(
+          title: 'Überschlag bilden',
+          instruction:
+              'Rechne mit den gerundeten Zahlen eine grobe Erwartung.',
+        ),
+        GuidedMethodStep(
+          title: 'Vergleichen',
+          instruction:
+              'Liegt das vorgeschlagene Ergebnis in derselben Größenordnung?',
         ),
       ],
     );

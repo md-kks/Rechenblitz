@@ -24,6 +24,7 @@ class CurriculumObjective {
     required this.minGrade,
     required this.coverage,
     required this.note,
+    this.processRelated = false,
   });
 
   final String id;
@@ -34,6 +35,7 @@ class CurriculumObjective {
   final GradeLevel minGrade;
   final CurriculumCoverage coverage;
   final String note;
+  final bool processRelated;
 
   bool appliesTo(GradeLevel grade) => grade.index >= minGrade.index;
 }
@@ -69,6 +71,7 @@ class CurriculumAuditCatalog {
               minGrade: definition.minGrade,
               coverage: _coverageFor(definition.id),
               note: _noteFor(definition.id),
+              processRelated: _isProcessRelated(definition.id),
             ),
           )
           .toList(growable: false);
@@ -132,6 +135,15 @@ class CurriculumAuditCatalog {
         ? CurriculumCoverage.digitalSupport
         : CurriculumCoverage.digitalPractice;
   }
+
+  static bool _isProcessRelated(MicroCompetencyId id) => const {
+        MicroCompetencyId.strategyChoice,
+        MicroCompetencyId.errorChecking,
+        MicroCompetencyId.plausibilityCheck,
+        MicroCompetencyId.wordProblemOperation,
+        MicroCompetencyId.wordProblemCalculation,
+        MicroCompetencyId.estimation,
+      }.contains(id);
 
   static String _noteFor(MicroCompetencyId id) => switch (id) {
         MicroCompetencyId.measurementCalculation =>

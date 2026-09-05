@@ -36,6 +36,16 @@ class TeacherAssignment {
         'methods': methods.toJson(),
       };
 
+  String get assignmentId {
+    final bytes = utf8.encode(jsonEncode(toJson()));
+    var hash = 0x811C9DC5;
+    for (final byte in bytes) {
+      hash ^= byte;
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
+    }
+    return hash.toRadixString(16).padLeft(8, '0').toUpperCase();
+  }
+
   String toPayload() {
     final raw = utf8.encode(jsonEncode(toJson()));
     return '$prefix${base64Url.encode(raw).replaceAll('=', '')}';

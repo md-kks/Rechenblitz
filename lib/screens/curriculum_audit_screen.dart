@@ -140,13 +140,20 @@ class _DomainCard extends StatelessWidget {
                         ? 'Noch keine Lernbeobachtung'
                         : '${progress.state.label} · ${(progress.accuracy * 100).round()} % · ${progress.observations} Beobachtungen',
                   ),
-                  trailing: Chip(
-                    label: Text(
-                      objective.coverage ==
-                              CurriculumCoverage.digitalPractice
-                          ? 'digital'
-                          : 'praktisch + digital',
-                    ),
+                  trailing: Wrap(
+                    spacing: 6,
+                    children: [
+                      if (objective.processRelated)
+                        const Chip(label: Text('Prozess')),
+                      Chip(
+                        label: Text(
+                          objective.coverage ==
+                                  CurriculumCoverage.digitalPractice
+                              ? 'digital'
+                              : 'praktisch + digital',
+                        ),
+                      ),
+                    ],
                   ),
                   children: [
                     Align(

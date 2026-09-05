@@ -249,6 +249,29 @@ class AppController extends ChangeNotifier {
     await storage.saveMicroCompetencyObservations(microObservations);
   }
 
+  Future<void> recordMicroSupportResolution({
+    required TrainingMode mode,
+    required String taskKey,
+    MathFact? fact,
+    required int helpLevel,
+    required String? methodKey,
+    MicroEvidenceSource source = MicroEvidenceSource.practice,
+  }) async {
+    if (helpLevel <= 0) return;
+    _recordMicroCompetencies(
+      mode: mode,
+      taskKey: taskKey,
+      correct: true,
+      fact: fact,
+      usedHelp: true,
+      helpLevel: helpLevel,
+      methodKey: methodKey,
+      source: source,
+    );
+    notifyListeners();
+    await storage.saveMicroCompetencyObservations(microObservations);
+  }
+
   Future<void> recordAttempt(
     MathFact fact, {
     required bool correct,

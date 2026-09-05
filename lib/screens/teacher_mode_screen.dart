@@ -7,6 +7,7 @@ import '../models/teacher_assignment.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../services/assignment_launcher.dart';
+import 'assignment_result_scanner_screen.dart';
 
 class TeacherModeScreen extends StatefulWidget {
   const TeacherModeScreen({
@@ -201,6 +202,11 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Auftrags-ID: ${assignment.assignmentId}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                   const SizedBox(height: 16),
                   Semantics(
                     label: 'QR-Code für den Rechenblitz-Lehrerauftrag',
@@ -234,6 +240,17 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
             icon: const Icon(Icons.copy_rounded),
             label: const Text('Auftragscode kopieren'),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const AssignmentResultScannerScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.fact_check_outlined),
+            label: const Text('Ergebnis-QR scannen'),
+          ),
+          const SizedBox(height: 8),
           FilledButton.icon(
             onPressed: grade != widget.controller.gradeLevel
                 ? null

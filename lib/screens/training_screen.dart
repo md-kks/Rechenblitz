@@ -207,6 +207,17 @@ class _TrainingScreenState extends State<TrainingScreen> {
       return;
     }
 
+    if (wrongOnCurrent > 0 && helpLevel > 0) {
+      await widget.controller.recordMicroSupportResolution(
+        mode: widget.mode,
+        taskKey: current.key,
+        fact: current,
+        helpLevel: helpLevel,
+        methodKey: activeMethodKey,
+      );
+      if (!mounted || finishing) return;
+    }
+
     locked = true;
     completed += 1;
     completedResponseMs
