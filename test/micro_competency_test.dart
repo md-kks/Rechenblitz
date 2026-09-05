@@ -1280,7 +1280,7 @@ void main() {
         gradeLevel: GradeLevel.second,
         numberRange: NumberRangeLevel.hundred,
         taskKey:
-            'independent:itemsPerGroup:process:representation:groups:3:4',
+            'independent:groupCount:process:representation:groups:4:3',
       ),
       MicroCompetencyObservation(
         id: MicroCompetencyId.multiplicationGroups,
@@ -1316,6 +1316,53 @@ void main() {
     ];
 
     expect(controller.guidedStepFocus(), isNull);
+  });
+
+  test('Anderer eigenständiger Teilsschritt löscht guidedStep-Signal nicht',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 5, 11, index),
+          correct: true,
+          evidenceWeight: 0.30,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'independent:itemsPerGroup:process:representation:groups:${3 + index}:4',
+        ),
+      ),
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 5, 10, index),
+          correct: index == 2,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.guidedStep,
+          usedHelp: true,
+          helpLevel: HelpLevel.guided.value,
+          methodKey: 'representation:equalGroups',
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'guided:representation:equalGroups:groupCount:process:representation:groups:3:4:$index',
+        ),
+      ),
+    ];
+
+    final guided = controller.guidedStepFocus();
+    expect(guided, isNotNull);
+    expect(guided!.stepKey, 'groupCount');
   });
 
   testWidgets('Repräsentationsaufgabe speichert ersten Teilversuch außerhalb Hilfe',
