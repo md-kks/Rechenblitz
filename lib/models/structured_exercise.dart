@@ -513,6 +513,9 @@ class StructuredExerciseGenerator {
     final limit = max(10, maxValue);
     final allowGroups =
         gradeLevel.index >= GradeLevel.second.index && limit >= 20;
+    final operationChoices = gradeLevel == GradeLevel.first
+        ? const ['Plus (+)', 'Minus (−)']
+        : const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'];
     final kind = _random.nextInt(allowGroups ? 4 : 2);
 
     if (kind == 0) {
@@ -524,7 +527,7 @@ class StructuredExerciseGenerator {
         hint: 'Die Menge wird größer.',
         key: 'story:operation:+:${a}:${b}',
         correct: 'Plus (+)',
-        choices: const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'],
+        choices: operationChoices,
         maxAnswerValue: limit,
       );
     }
@@ -538,7 +541,7 @@ class StructuredExerciseGenerator {
         hint: 'Die Menge wird kleiner.',
         key: 'story:operation:-:${a}:${b}',
         correct: 'Minus (−)',
-        choices: const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'],
+        choices: operationChoices,
         maxAnswerValue: limit,
       );
     }
@@ -552,7 +555,7 @@ class StructuredExerciseGenerator {
         hint: 'Gleich große Gruppen passen zu Mal.',
         key: 'story:operation:x:${groups}:${each}',
         correct: 'Mal (×)',
-        choices: const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'],
+        choices: operationChoices,
         maxAnswerValue: limit,
       );
     }
@@ -564,7 +567,7 @@ class StructuredExerciseGenerator {
       hint: 'Gleichmäßig verteilen passt zu Geteilt.',
       key: 'story:operation:divide:${total}:${groups}',
       correct: 'Geteilt (÷)',
-      choices: const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'],
+      choices: operationChoices,
       maxAnswerValue: limit,
     );
   }
@@ -588,7 +591,19 @@ class StructuredExerciseGenerator {
         hint: 'Beide Kindergruppen werden zusammengezählt.',
         key: 'story:equation:+:${a}:${b}',
         correct: correct,
-        choices: [correct, '${a} − ${b}', '${a} × ${b}', '${a} + ${b + 1}'],
+        choices: gradeLevel == GradeLevel.first
+            ? [
+                correct,
+                '${a} − ${b}',
+                '${a} + ${max(0, b - 1)}',
+                '${max(0, a - 1)} + ${b}',
+              ]
+            : [
+                correct,
+                '${a} − ${b}',
+                '${a} × ${b}',
+                '${a} + ${b + 1}',
+              ],
         maxAnswerValue: limit,
       );
     }
