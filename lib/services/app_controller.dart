@@ -1130,9 +1130,10 @@ class AppController extends ChangeNotifier {
         )
         .toList()
       ..sort((a, b) {
-        final accuracyOrder = a.accuracy.compareTo(b.accuracy);
+        final accuracyOrder =
+            a.independentAccuracy.compareTo(b.independentAccuracy);
         if (accuracyOrder != 0) return accuracyOrder;
-        return b.evidence.compareTo(a.evidence);
+        return b.independentEvidence.compareTo(a.independentEvidence);
       });
 
     if (candidates.isEmpty) return null;
@@ -1154,9 +1155,12 @@ class AppController extends ChangeNotifier {
         .where((progress) => progress.observations > 0)
         .toList()
       ..sort((a, b) {
-        final accuracyOrder = b.accuracy.compareTo(a.accuracy);
+        final stateOrder = b.state.index.compareTo(a.state.index);
+        if (stateOrder != 0) return stateOrder;
+        final accuracyOrder =
+            b.independentAccuracy.compareTo(a.independentAccuracy);
         if (accuracyOrder != 0) return accuracyOrder;
-        return b.evidence.compareTo(a.evidence);
+        return b.independentEvidence.compareTo(a.independentEvidence);
       });
     return candidates.isEmpty ? null : candidates.first;
   }
@@ -1173,9 +1177,12 @@ class AppController extends ChangeNotifier {
                     progress.state != MicroCompetencyState.mastered)) {
               return false;
             }
-            final requiredGap = progress.reviewObservations == 0
-                ? const Duration(days: 2)
-                : const Duration(days: 7);
+            final hasStableDelayedEvidence =
+                progress.reviewIndependentEvidence >= 1.5 &&
+                    progress.reviewIndependentAccuracy >= 0.80;
+            final requiredGap = hasStableDelayedEvidence
+                ? const Duration(days: 7)
+                : const Duration(days: 2);
             return reference.difference(progress.lastSeen!) >= requiredGap;
           },
         )
@@ -1196,11 +1203,11 @@ class AppController extends ChangeNotifier {
         )
         .toList()
       ..sort((a, b) {
-        final evidenceOrder =
-            a.transferEvidence.compareTo(b.transferEvidence);
+        final evidenceOrder = a.transferIndependentEvidence
+            .compareTo(b.transferIndependentEvidence);
         if (evidenceOrder != 0) return evidenceOrder;
-        final accuracyOrder =
-            a.transferAccuracy.compareTo(b.transferAccuracy);
+        final accuracyOrder = a.transferIndependentAccuracy
+            .compareTo(b.transferIndependentAccuracy);
         if (accuracyOrder != 0) return accuracyOrder;
         if (a.lastTransferSeen == null && b.lastTransferSeen != null) {
           return -1;
@@ -1257,10 +1264,10 @@ class AppController extends ChangeNotifier {
       return 'Noch keine einzelne Teilkompetenz ist klar auffällig. '
           'Weitere abwechslungsreiche Aufgaben machen die Lernkarte genauer.';
     }
-    final percentage = (focus.baseAccuracy * 100).round();
+    final percentage = (focus.independentAccuracy * 100).round();
     return '„${focus.definition.label}“ ist aktuell der sinnvollste '
         'Teilschritt: ${focus.observations} passende Beobachtungen, '
-        '$percentage % gewichtete Basissicherheit.';
+        '$percentage % selbstständig richtig.';
   }
 
   CompetencyProgress competencyProgress(TrainingMode mode) {
