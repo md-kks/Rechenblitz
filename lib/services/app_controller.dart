@@ -838,6 +838,7 @@ class AppController extends ChangeNotifier {
       TrainingMode.probability,
       TrainingMode.combinatorics,
       TrainingMode.perimeterArea,
+      TrainingMode.geometryRelations,
       TrainingMode.geometryBodies,
       TrainingMode.symmetry,
       TrainingMode.plansAndOrientation,
