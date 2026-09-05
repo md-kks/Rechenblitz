@@ -1270,24 +1270,36 @@ class AppController extends ChangeNotifier {
           .map((definition) => microCompetencyProgress(definition.id))
           .toList();
 
+  String? _independentStepKeyFromTaskKey(String taskKey) {
+    final parts = taskKey.split(':');
+    if (parts.length < 3 || parts.first != 'independent') return null;
+    return parts[1];
+  }
+
   bool _guidedStepRecoveredIndependently(
     MicroCompetencyId competencyId,
+    String stepKey,
     DateTime after,
   ) {
     final independent = microObservations
         .where(
-          (entry) =>
-              entry.id == competencyId &&
-              entry.gradeLevel == gradeLevel &&
-              entry.numberRange == numberRange &&
-              (entry.source == MicroEvidenceSource.practice ||
-                  entry.source == MicroEvidenceSource.independentStep) &&
-              !entry.usedHelp &&
-              ((entry.source == MicroEvidenceSource.practice &&
-                      entry.evidenceWeight >= 0.80) ||
-                  (entry.source == MicroEvidenceSource.independentStep &&
-                      entry.evidenceWeight >= 0.25)) &&
-              entry.occurredAt.isAfter(after),
+          (entry) {
+            if (entry.id != competencyId ||
+                entry.gradeLevel != gradeLevel ||
+                entry.numberRange != numberRange ||
+                entry.usedHelp ||
+                !entry.occurredAt.isAfter(after)) {
+              return false;
+            }
+            if (entry.source == MicroEvidenceSource.practice) {
+              return entry.evidenceWeight >= 0.80;
+            }
+            if (entry.source == MicroEvidenceSource.independentStep) {
+              return entry.evidenceWeight >= 0.25 &&
+                  _independentStepKeyFromTaskKey(entry.taskKey) == stepKey;
+            }
+            return false;
+          },
         )
         .toList()
       ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
@@ -1325,6 +1337,9 @@ class AppController extends ChangeNotifier {
           recent.where((entry) => entry.correct).length / recent.length;
       final competencyId = recent.first.id;
       final progress = microCompetencyProgress(competencyId);
+      final stepKey =
+          GuidedStepCatalog.keyFromTaskKey(recent.first.taskKey);
+      if (stepKey == null) continue;
 
       if (incorrect < _guidedStepMinIncorrect ||
           accuracy >= _guidedStepFocusMaxAccuracy ||
@@ -1332,14 +1347,11 @@ class AppController extends ChangeNotifier {
           progress.state == MicroCompetencyState.mastered ||
           _guidedStepRecoveredIndependently(
             competencyId,
+            stepKey,
             recent.first.occurredAt,
           )) {
         continue;
       }
-
-      final stepKey =
-          GuidedStepCatalog.keyFromTaskKey(recent.first.taskKey);
-      if (stepKey == null) continue;
       candidates.add(
         GuidedStepFocus(
           competencyId: competencyId,
