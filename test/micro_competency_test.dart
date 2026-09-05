@@ -223,4 +223,128 @@ void main() {
       MicroCompetencyId.subtractionTenBridge,
     );
   });
+  test('Gemeistert verlangt sichere direkte Evidenz plus Transfer', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      6,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        occurredAt: DateTime(2026, 9, 5, 12, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:47:${3 + index}',
+      ),
+    );
+
+    final withoutTransfer =
+        controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
+    expect(withoutTransfer.state, MicroCompetencyState.secure);
+    expect(withoutTransfer.directEvidence, closeTo(6, 0.001));
+    expect(withoutTransfer.transferEvidence, 0);
+
+    controller.microObservations.insertAll(
+      0,
+      List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 5, 13, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.transfer,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'story:transfer:skill:additionTenBridge:+:books:47:${3 + index}',
+        ),
+      ),
+    );
+
+    final withTransfer =
+        controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
+    expect(withTransfer.state, MicroCompetencyState.mastered);
+    expect(withTransfer.transferEvidence, closeTo(2, 0.001));
+    expect(withTransfer.transferAccuracy, closeTo(1, 0.001));
+    expect(withTransfer.transferObservations, 2);
+  });
+
+  test('Meine Runde transferiert zuerst eine sichere Kompetenz', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      6,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.subtractionTenBridge,
+        occurredAt: DateTime(2026, 9, 5, 12, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.minus,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'minus:${20 + index}:7',
+      ),
+    );
+
+    final candidate = controller.transferCandidateMicroCompetency();
+    expect(candidate, isNotNull);
+    expect(candidate!.definition.id, MicroCompetencyId.subtractionTenBridge);
+
+    final plan = controller.buildMyRound();
+    final transfer = plan.last;
+    expect(transfer.transferEmphasis, isTrue);
+    expect(
+      transfer.targetCompetency,
+      MicroCompetencyId.subtractionTenBridge,
+    );
+    expect(transfer.mode, TrainingMode.wordProblems);
+    expect(transfer.reason, contains('veränderten Aufgabe'));
+  });
+
+  test('ohne sichere Kompetenz bleibt der Abschluss Entdeckung statt Transfer',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    final plan = controller.buildMyRound();
+
+    expect(plan.last.transferEmphasis, isFalse);
+  });
+
+  test('Transfer-Evidenz bleibt lokal über Neustart erhalten', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    await controller.recordDiagnosticAttempt(
+      mode: TrainingMode.wordProblems,
+      taskKey:
+          'story:transfer:skill:additionTenBridge:+:books:47:38',
+      expected: 85,
+      actual: 85,
+      source: MicroEvidenceSource.transfer,
+    );
+
+    final reloaded = AppController();
+    await reloaded.load();
+    final observation = reloaded.microObservations.firstWhere(
+      (entry) => entry.id == MicroCompetencyId.additionTenBridge,
+    );
+    expect(observation.source, MicroEvidenceSource.transfer);
+  });
+
+
 }
