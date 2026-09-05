@@ -42,8 +42,11 @@ enum MicroCompetencyId {
   inverseRelationship,
   numberPatterns,
   numberRelations,
+  wordProblemRelevantInformation,
   wordProblemOperation,
+  wordProblemModel,
   wordProblemCalculation,
+  wordProblemInterpretation,
   moneyCalculation,
   clockReading,
   measurementCalculation,
@@ -406,21 +409,48 @@ class MicroCompetencyCatalog {
       minGrade: GradeLevel.first,
     ),
     MicroCompetencyDefinition(
+      id: MicroCompetencyId.wordProblemRelevantInformation,
+      label: 'Wichtige Angaben in Sachaufgaben erkennen',
+      description: 'Für eine Sachfrage benötigte Angaben von unwichtigen Informationen unterscheiden.',
+      domain: MicroCompetencyDomain.measuresAndProblems,
+      preferredMode: TrainingMode.wordProblems,
+      minGrade: GradeLevel.first,
+    ),
+    MicroCompetencyDefinition(
       id: MicroCompetencyId.wordProblemOperation,
       label: 'Passende Rechenart aus Text erkennen',
       description: 'Eine Handlung in einer Sachaufgabe der passenden Rechenart zuordnen.',
       domain: MicroCompetencyDomain.measuresAndProblems,
       preferredMode: TrainingMode.wordProblems,
       minGrade: GradeLevel.first,
+      prerequisites: [MicroCompetencyId.wordProblemRelevantInformation],
     ),
     MicroCompetencyDefinition(
-      id: MicroCompetencyId.wordProblemCalculation,
-      label: 'Sachaufgabe vollständig lösen',
-      description: 'Aus einem Text eine Rechnung bilden und passend beantworten.',
+      id: MicroCompetencyId.wordProblemModel,
+      label: 'Sachlage als Rechnung darstellen',
+      description: 'Die wichtigen Angaben einer Sachaufgabe in eine passende Rechnung übersetzen.',
       domain: MicroCompetencyDomain.measuresAndProblems,
       preferredMode: TrainingMode.wordProblems,
       minGrade: GradeLevel.first,
       prerequisites: [MicroCompetencyId.wordProblemOperation],
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.wordProblemCalculation,
+      label: 'Sachaufgabe rechnerisch lösen',
+      description: 'Eine passend modellierte Sachaufgabe korrekt ausrechnen.',
+      domain: MicroCompetencyDomain.measuresAndProblems,
+      preferredMode: TrainingMode.wordProblems,
+      minGrade: GradeLevel.first,
+      prerequisites: [MicroCompetencyId.wordProblemModel],
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.wordProblemInterpretation,
+      label: 'Ergebnis im Sachzusammenhang deuten',
+      description: 'Ein Rechenergebnis passend zur Frage und Situation als Antwort verstehen.',
+      domain: MicroCompetencyDomain.measuresAndProblems,
+      preferredMode: TrainingMode.wordProblems,
+      minGrade: GradeLevel.first,
+      prerequisites: [MicroCompetencyId.wordProblemCalculation],
     ),
     MicroCompetencyDefinition(
       id: MicroCompetencyId.moneyCalculation,
@@ -988,11 +1018,66 @@ class MicroCompetencyCatalog {
   }
 
   static List<MicroCompetencyTag> _storyTags(String key) {
+    if (key.startsWith('story:info:') ||
+        key.startsWith('story:transfer:irrelevant:')) {
+      return const [
+        MicroCompetencyTag(
+          MicroCompetencyId.wordProblemRelevantInformation,
+        ),
+        MicroCompetencyTag(
+          MicroCompetencyId.wordProblemModel,
+          weight: 0.45,
+        ),
+      ];
+    }
+
+    if (key.startsWith('story:operation:')) {
+      return const [
+        MicroCompetencyTag(MicroCompetencyId.wordProblemOperation),
+        MicroCompetencyTag(
+          MicroCompetencyId.wordProblemRelevantInformation,
+          weight: 0.35,
+        ),
+      ];
+    }
+
+    if (key.startsWith('story:equation:')) {
+      return const [
+        MicroCompetencyTag(MicroCompetencyId.wordProblemModel),
+        MicroCompetencyTag(
+          MicroCompetencyId.wordProblemOperation,
+          weight: 0.45,
+        ),
+        MicroCompetencyTag(
+          MicroCompetencyId.wordProblemRelevantInformation,
+          weight: 0.25,
+        ),
+      ];
+    }
+
+    if (key.startsWith('story:interpret:')) {
+      return const [
+        MicroCompetencyTag(MicroCompetencyId.wordProblemInterpretation),
+        MicroCompetencyTag(
+          MicroCompetencyId.wordProblemCalculation,
+          weight: 0.35,
+        ),
+        MicroCompetencyTag(
+          MicroCompetencyId.wordProblemModel,
+          weight: 0.25,
+        ),
+      ];
+    }
+
     final tags = <MicroCompetencyTag>[
-      const MicroCompetencyTag(MicroCompetencyId.wordProblemOperation),
+      const MicroCompetencyTag(MicroCompetencyId.wordProblemCalculation),
       const MicroCompetencyTag(
-        MicroCompetencyId.wordProblemCalculation,
+        MicroCompetencyId.wordProblemModel,
         weight: 0.65,
+      ),
+      const MicroCompetencyTag(
+        MicroCompetencyId.wordProblemOperation,
+        weight: 0.4,
       ),
     ];
     if (key.startsWith('story:x:')) {
