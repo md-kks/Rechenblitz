@@ -778,5 +778,55 @@ void main() {
     );
   });
 
+  test('Viele geführte Schritte verdrängen selbstständige Mastery-Evidenz nicht',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        30,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          occurredAt: DateTime(2026, 9, 5, 12, index),
+          correct: index.isEven,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.guidedStep,
+          usedHelp: true,
+          helpLevel: HelpLevel.guided.value,
+          methodKey: 'subtraction:bridgeToTen',
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'guided:subtraction:bridgeToTen:bridgeAmount:$index',
+        ),
+      ),
+      ...List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          occurredAt: DateTime(2026, 9, 4, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'minus:${20 + index}:7',
+        ),
+      ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.subtractionTenBridge,
+    );
+
+    expect(progress.independentEvidence, closeTo(6, 0.001));
+    expect(progress.independentAccuracy, closeTo(1, 0.001));
+    expect(progress.aidedObservations, 12);
+    expect(progress.state, MicroCompetencyState.secure);
+  });
+
 
 }
