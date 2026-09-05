@@ -625,6 +625,25 @@ void main() {
   });
 
 
+  test('Abstandsevidenz bleibt lokal über Neustart erhalten', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    await controller.recordDiagnosticAttempt(
+      mode: TrainingMode.practice,
+      taskKey: 'plus:12:7',
+      expected: 19,
+      actual: 19,
+      source: MicroEvidenceSource.review,
+    );
+
+    final reloaded = AppController();
+    await reloaded.load();
+    expect(reloaded.microObservations.first.source, MicroEvidenceSource.review);
+  });
+
   test('alte Mikro-Daten ohne Evidenzquelle bleiben normale Übung', () {
     final observation = MicroCompetencyObservation.fromJson({
       'id': MicroCompetencyId.additionNoBridge.name,
