@@ -400,6 +400,7 @@ void main() {
     await tester.pump();
     await tester.tap(answerButton);
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
 
     final observation = controller.microObservations.firstWhere(
       (entry) => entry.id == MicroCompetencyId.additionTenBridge,
