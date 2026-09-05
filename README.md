@@ -130,6 +130,22 @@ Beispiele für erkannte Muster:
 - Übertrag / Entbündeln bei schriftlichen Verfahren
 - Bruchteile, Daten, Wahrscheinlichkeit, Umfang/Fläche und weitere Curriculum-Muster
 
+### Fehlerabhängige Hilfen
+
+Bei mathematisch eindeutigen Fehlzahlen kann Rechenblitz inzwischen einen Schritt genauer werden. Beispiele:
+
+- `47 + 38 = 75` → der neue Zehner wurde beim Addieren nicht weitergegeben
+- `63 − 28 = 45` → die Einer wurden ziffernweise ohne notwendiges Entbündeln verrechnet
+- `63 − 28 = 55` → nur ein Teil der zweiten Zahl wurde verarbeitet
+- `6 × 4 = 10` → die Faktoren wurden addiert statt als gleich große Gruppen verstanden
+- `24 ÷ 6 = 18` → die Zahlen wurden subtrahiert statt gleichmäßig aufgeteilt
+
+Auch die Modellierungskette von Sachaufgaben bleibt getrennt: unnötige Angaben auswählen, eine passende Rechnung bilden und ein Ergebnis auf die Sachsituation zurückführen erzeugen unterschiedliche Hinweise und Förderpfade.
+
+Nach dem **ersten** falschen Versuch erscheint nur ein kurzer, ursachenspezifischer Denkhinweis. Erst bei einem weiteren Fehlversuch wird die bestehende ausführlichere Hilfe eingeblendet. Wiederkehrende eindeutige Muster führen in den vorhandenen vierstufigen Förderpfad mit Hilfe, weniger Hilfe, Transfer und Kontrolle.
+
+Die Verfeinerung bleibt bewusst konservativ: Passt eine Fehlzahl nicht eindeutig zu einem bekannten Rechenweg, behauptet Rechenblitz keine konkrete Ursache und verwendet weiterhin die gröbere Fehlerkategorie.
+
 Erst wenn ein ähnliches Muster mindestens zweimal auftritt, erscheint es als vorsichtiger Hinweis im Elternbereich und in der Lernlandkarte. Die Diagnose ist regelbasiert und erklärbar; sie behauptet keine medizinische oder lerntherapeutische Diagnose. Diagnosebeobachtungen sind pro Profil, Klassenstufe und Zahlenraum getrennt und bleiben ausschließlich lokal auf dem Gerät.
 
 ## Förderpfade und Recovery

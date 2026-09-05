@@ -46,6 +46,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   int helpLevel = 0;
   String? activeMethodKey;
   String feedback = '';
+  ErrorPattern? currentErrorPattern;
   final List<int> responseTimes = [];
 
   @override
@@ -68,6 +69,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       );
 
   ErrorPattern get _helpPattern =>
+      currentErrorPattern ??
       ErrorClassifier.classify(
         mode: widget.mode,
         taskKey: current.key,
@@ -89,6 +91,14 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   Future<void> _answer(int answer) async {
     if (locked || finishing) return;
     final response = DateTime.now().difference(shownAt);
+    final diagnosedPattern = answer == current.answer
+        ? null
+        : ErrorClassifier.classify(
+            mode: widget.mode,
+            taskKey: current.key,
+            expected: current.answer,
+            actual: answer,
+          );
     if (wrongOnCurrent == 0) {
       await widget.controller.rememberPresentedTask(
         widget.mode,
@@ -108,9 +118,11 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       incorrectAttempts += 1;
       wrongOnCurrent += 1;
       setState(() {
+        currentErrorPattern ??= diagnosedPattern;
         feedback = wrongOnCurrent >= 2
             ? 'Nutze den Rechenhinweis und probiere noch einmal.'
-            : 'Fast. Prüfe deinen Rechenweg noch einmal.';
+            : diagnosedPattern?.firstResponseHint ??
+                'Prüfe deinen Rechenweg noch einmal.';
         if (wrongOnCurrent >= 2) {
           showHint = true;
           if (helpLevel < HelpLevel.nudge.value) {
@@ -162,6 +174,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       showHint = false;
       helpLevel = 0;
       activeMethodKey = null;
+      currentErrorPattern = null;
       feedback = '';
     });
     WidgetsBinding.instance.addPostFrameCallback(

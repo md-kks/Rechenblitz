@@ -26,8 +26,12 @@ class LearningVisualAid extends StatelessWidget {
                 ? _plausibilityAid()
                 : null;
     final child = processChild ?? switch (pattern) {
-      ErrorPattern.tenBridge => _numberLineAid(),
-      ErrorPattern.multiplicationFact => _multiplicationAid(),
+      ErrorPattern.tenBridge ||
+      ErrorPattern.carryOmitted ||
+      ErrorPattern.borrowAvoided ||
+      ErrorPattern.partialOperand => _numberLineAid(),
+      ErrorPattern.multiplicationFact ||
+      ErrorPattern.multiplicationAsAddition => _multiplicationAid(),
       ErrorPattern.placeValue => _placeValueAid(),
       ErrorPattern.writtenRegrouping ||
       ErrorPattern.writtenProcedure => _writtenColumnAid(),
@@ -36,7 +40,11 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.timeDuration => _TimelineAid(taskKey: taskKey),
       ErrorPattern.perimeterArea => _RectangleAid(taskKey: taskKey),
       ErrorPattern.operationChoice ||
-      ErrorPattern.wordProblem => const _OperationAid(),
+      ErrorPattern.divisionAsSubtraction ||
+      ErrorPattern.wordProblem ||
+      ErrorPattern.wordProblemRelevantInformation ||
+      ErrorPattern.wordProblemModel ||
+      ErrorPattern.wordProblemInterpretation => const _OperationAid(),
       _ => null,
     };
 

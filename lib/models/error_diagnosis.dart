@@ -4,15 +4,23 @@ import 'training.dart';
 enum ErrorPattern {
   countingStep,
   tenBridge,
+  carryOmitted,
+  borrowAvoided,
+  partialOperand,
   numberBond,
   operationChoice,
   placeValue,
   multiplicationFact,
+  multiplicationAsAddition,
   divisionFact,
+  divisionAsSubtraction,
   inverseOperation,
   numberRelations,
   patternRule,
   wordProblem,
+  wordProblemRelevantInformation,
+  wordProblemModel,
+  wordProblemInterpretation,
   moneyCalculation,
   clockReading,
   unitConversion,
@@ -42,15 +50,28 @@ extension ErrorPatternX on ErrorPattern {
   String get label => switch (this) {
         ErrorPattern.countingStep => 'Zählschritt / Nachbarzahl',
         ErrorPattern.tenBridge => 'Zehnerübergang',
+        ErrorPattern.carryOmitted => 'Übertrag beim Plus vergessen',
+        ErrorPattern.borrowAvoided => 'Entbündeln beim Minus vermieden',
+        ErrorPattern.partialOperand => 'Nur einen Zahlenteil verrechnet',
         ErrorPattern.numberBond => 'Zahlzerlegung / Grundaufgabe',
         ErrorPattern.operationChoice => 'Rechenart verwechselt',
         ErrorPattern.placeValue => 'Stellenwert',
         ErrorPattern.multiplicationFact => 'Einmaleins-Fakt',
+        ErrorPattern.multiplicationAsAddition =>
+          'Malaufgabe wie Plus gerechnet',
         ErrorPattern.divisionFact => 'Geteilt-Fakt / Umkehraufgabe',
+        ErrorPattern.divisionAsSubtraction =>
+          'Geteiltaufgabe wie Minus gerechnet',
         ErrorPattern.inverseOperation => 'Umkehraufgabe / fehlende Zahl',
         ErrorPattern.numberRelations => 'Zahlbeziehungen',
         ErrorPattern.patternRule => 'Musterregel',
         ErrorPattern.wordProblem => 'Sachaufgabe in Rechnung übersetzen',
+        ErrorPattern.wordProblemRelevantInformation =>
+          'Wichtige Angaben in der Sachaufgabe',
+        ErrorPattern.wordProblemModel =>
+          'Sachaufgabe als Rechnung darstellen',
+        ErrorPattern.wordProblemInterpretation =>
+          'Ergebnis im Sachzusammenhang deuten',
         ErrorPattern.moneyCalculation => 'Geld rechnen',
         ErrorPattern.clockReading => 'Uhrzeit lesen',
         ErrorPattern.unitConversion => 'Größen und Einheiten umwandeln',
@@ -81,6 +102,12 @@ extension ErrorPatternX on ErrorPattern {
           'Kurz am Zahlenstrahl oder mit Nachbarzahlen arbeiten und jeden Schritt sichtbar machen.',
         ErrorPattern.tenBridge =>
           'Den Zehnerübergang mit dem gewählten Schul-Rechenweg langsam sichtbar machen; Tempo noch nicht trainieren.',
+        ErrorPattern.carryOmitted =>
+          'Den Einerübertrag sichtbar notieren: erst die Einer bündeln, den neuen Zehner weitergeben und dann die Zehner addieren.',
+        ErrorPattern.borrowAvoided =>
+          'Vor dem Subtrahieren einen Zehner entbündeln und Einer sowie Zehner getrennt sichtbar bearbeiten.',
+        ErrorPattern.partialOperand =>
+          'Die zweite Zahl in Zehner und Einer zerlegen und beide Teile nacheinander verrechnen.',
         ErrorPattern.numberBond =>
           'Zahlzerlegungen und passende Grundaufgaben in kleinen Mengen wiederholen.',
         ErrorPattern.operationChoice =>
@@ -89,8 +116,12 @@ extension ErrorPatternX on ErrorPattern {
           'Mit Stellenwerttafel und Bündeln/Entbündeln arbeiten, bevor größere Zahlen gerechnet werden.',
         ErrorPattern.multiplicationFact =>
           'Die betroffene Malaufgabe über Punktefelder, Zerlegen oder Nachbaraufgaben herleiten.',
+        ErrorPattern.multiplicationAsAddition =>
+          'Multiplikation als mehrere gleich große Gruppen darstellen und erst danach zur Malaufgabe zurückkehren.',
         ErrorPattern.divisionFact =>
           'Die passende Mal-Umkehraufgabe dazunehmen und Teilen als gleichmäßiges Verteilen darstellen.',
+        ErrorPattern.divisionAsSubtraction =>
+          'Teilen als gleichmäßiges Verteilen darstellen und die passende Mal-Umkehraufgabe danebenlegen.',
         ErrorPattern.inverseOperation =>
           'Vorwärts- und Umkehraufgabe direkt nebeneinander legen und die gesuchte Zahl markieren.',
         ErrorPattern.numberRelations =>
@@ -99,6 +130,12 @@ extension ErrorPatternX on ErrorPattern {
           'Die Veränderung zwischen zwei benachbarten Zahlen markieren und erst dann fortsetzen.',
         ErrorPattern.wordProblem =>
           'Schlüsselhandlung der Geschichte in eigenen Worten sagen und erst danach die Rechenart auswählen.',
+        ErrorPattern.wordProblemRelevantInformation =>
+          'Nur die Frage markieren und anschließend jede Angabe darauf prüfen, ob sie zum Beantworten wirklich gebraucht wird.',
+        ErrorPattern.wordProblemModel =>
+          'Die wichtigen Angaben zuerst markieren und danach eine Rechnung wählen, die genau die Handlung der Geschichte abbildet.',
+        ErrorPattern.wordProblemInterpretation =>
+          'Das Rechenergebnis mit Einheit oder Gegenstand in einen Antwortsatz zurück zur ursprünglichen Frage setzen.',
         ErrorPattern.moneyCalculation =>
           'Beträge mit echten oder gezeichneten Münzen darstellen und erst danach rechnen.',
         ErrorPattern.clockReading =>
@@ -145,6 +182,36 @@ extension ErrorPatternX on ErrorPattern {
           'Rauminhalt mit Schichten aus Einheitswürfeln aufbauen: Länge × Breite × Höhe.',
         ErrorPattern.unknown =>
           'Noch keine feste Ursache annehmen; erst weitere ähnliche Aufgaben beobachten.',
+      };
+
+  String get firstResponseHint => switch (this) {
+        ErrorPattern.carryOmitted =>
+          'Schau auf die Einer: Entsteht dort ein neuer Zehner, der weitergegeben werden muss?',
+        ErrorPattern.borrowAvoided =>
+          'Bei den Einern reicht die obere Ziffer nicht. Entbündele zuerst einen Zehner.',
+        ErrorPattern.partialOperand =>
+          'Prüfe die zweite Zahl: Hast du ihre Zehner und Einer beide verrechnet?',
+        ErrorPattern.multiplicationAsAddition =>
+          '× bedeutet gleich große Gruppen. Addiere nicht nur die beiden Faktoren.',
+        ErrorPattern.divisionAsSubtraction =>
+          '÷ bedeutet gleichmäßig aufteilen. Suche die passende Mal-Umkehraufgabe.',
+        ErrorPattern.wordProblemRelevantInformation =>
+          'Lies nur die Frage: Welche Angaben werden dafür wirklich gebraucht?',
+        ErrorPattern.wordProblemModel =>
+          'Welche Rechnung beschreibt genau die Handlung und die wichtigen Angaben?',
+        ErrorPattern.wordProblemInterpretation =>
+          'Was bedeutet das Ergebnis für die ursprüngliche Frage?',
+        ErrorPattern.operationChoice =>
+          'Prüfe zuerst die Handlung: Wird etwas mehr, weniger, vervielfacht oder verteilt?',
+        ErrorPattern.tenBridge =>
+          'Suche den nächsten glatten Zehner und rechne den Übergang in zwei Schritten.',
+        ErrorPattern.placeValue =>
+          'Prüfe Einer, Zehner und Hunderter getrennt.',
+        ErrorPattern.multiplicationFact =>
+          'Stelle die Malaufgabe als gleich große Gruppen vor.',
+        ErrorPattern.divisionFact =>
+          'Welche Malaufgabe ist die Umkehrung dieser Geteiltaufgabe?',
+        _ => 'Prüfe genau den Rechenschritt, bei dem sich dein Ergebnis verändert hat.',
       };
 }
 
@@ -272,6 +339,26 @@ class ErrorClassifier {
     }
     if (taskKey.startsWith('sequence:')) return ErrorPattern.patternRule;
     if (taskKey.startsWith('family:')) return ErrorPattern.inverseOperation;
+    if (taskKey.startsWith('story:info:') ||
+        taskKey.startsWith('story:transfer:irrelevant:')) {
+      return ErrorPattern.wordProblemRelevantInformation;
+    }
+    if (taskKey.startsWith('story:operation:')) {
+      return ErrorPattern.operationChoice;
+    }
+    if (taskKey.startsWith('story:equation:')) {
+      return ErrorPattern.wordProblemModel;
+    }
+    if (taskKey.startsWith('story:interpret:')) {
+      return ErrorPattern.wordProblemInterpretation;
+    }
+    if (taskKey.startsWith('story:calc:')) {
+      return _storyCalculationPattern(
+        taskKey,
+        expected: expected,
+        actual: actual,
+      );
+    }
     if (taskKey.startsWith('story:')) return ErrorPattern.wordProblem;
     if (taskKey.startsWith('money:')) return ErrorPattern.moneyCalculation;
     if (taskKey.startsWith('clock:')) return ErrorPattern.clockReading;
@@ -331,9 +418,16 @@ class ErrorClassifier {
         if (fact.a >= fact.b && actual == fact.a - fact.b) {
           return ErrorPattern.operationChoice;
         }
-        if ((fact.a % 10) + (fact.b % 10) >= 10) {
-          return ErrorPattern.tenBridge;
+        if (actual != expected && _usedOnlyPartOfSecondOperand(fact, actual)) {
+          return ErrorPattern.partialOperand;
         }
+        final crossesTen = (fact.a % 10) + (fact.b % 10) >= 10;
+        if (actual != expected &&
+            crossesTen &&
+            actual == expected - 10) {
+          return ErrorPattern.carryOmitted;
+        }
+        if (crossesTen) return ErrorPattern.tenBridge;
         if ((actual - expected).abs() == 1) return ErrorPattern.countingStep;
         if ((actual - expected).abs() >= 10 &&
             (actual - expected).abs() % 10 == 0) {
@@ -343,9 +437,16 @@ class ErrorClassifier {
 
       case MathOperation.minus:
         if (actual == fact.a + fact.b) return ErrorPattern.operationChoice;
-        if ((fact.a % 10) < (fact.b % 10)) {
-          return ErrorPattern.tenBridge;
+        if (actual != expected && _usedOnlyPartOfSecondOperand(fact, actual)) {
+          return ErrorPattern.partialOperand;
         }
+        final needsBorrow = (fact.a % 10) < (fact.b % 10);
+        if (actual != expected &&
+            needsBorrow &&
+            _looksLikeDigitwiseSubtraction(fact, actual)) {
+          return ErrorPattern.borrowAvoided;
+        }
+        if (needsBorrow) return ErrorPattern.tenBridge;
         if ((actual - expected).abs() == 1) return ErrorPattern.countingStep;
         if ((actual - expected).abs() >= 10 &&
             (actual - expected).abs() % 10 == 0) {
@@ -354,13 +455,72 @@ class ErrorClassifier {
         return ErrorPattern.numberBond;
 
       case MathOperation.multiply:
-        if (actual == fact.a + fact.b) return ErrorPattern.operationChoice;
+        if (actual != expected && actual == fact.a + fact.b) {
+          return ErrorPattern.multiplicationAsAddition;
+        }
         return ErrorPattern.multiplicationFact;
 
       case MathOperation.divide:
+        if (actual != expected && actual == fact.a - fact.b) {
+          return ErrorPattern.divisionAsSubtraction;
+        }
         if (actual == fact.a * fact.b) return ErrorPattern.operationChoice;
         return ErrorPattern.divisionFact;
     }
+  }
+
+  static bool _usedOnlyPartOfSecondOperand(
+    MathFact fact,
+    int actual,
+  ) {
+    if (fact.b < 10) return false;
+    final ones = fact.b % 10;
+    final higherPlaces = fact.b - ones;
+    return switch (fact.operation) {
+      MathOperation.plus =>
+        actual == fact.a + ones || actual == fact.a + higherPlaces,
+      MathOperation.minus =>
+        actual == fact.a - ones || actual == fact.a - higherPlaces,
+      _ => false,
+    };
+  }
+
+  static bool _looksLikeDigitwiseSubtraction(
+    MathFact fact,
+    int actual,
+  ) {
+    if (fact.a < 10 || fact.a > 99 || fact.b < 10 || fact.b > 99) {
+      return false;
+    }
+    final tens = (fact.a ~/ 10) - (fact.b ~/ 10);
+    final ones = ((fact.a % 10) - (fact.b % 10)).abs();
+    return tens >= 0 && actual == tens * 10 + ones;
+  }
+
+  static ErrorPattern _storyCalculationPattern(
+    String key, {
+    required int expected,
+    required int actual,
+  }) {
+    final parts = key.split(':');
+    if (parts.length < 5) return ErrorPattern.wordProblem;
+    final a = int.tryParse(parts[3]);
+    final b = int.tryParse(parts[4]);
+    if (a == null || b == null) return ErrorPattern.wordProblem;
+    final operation = switch (parts[2]) {
+      '+' => MathOperation.plus,
+      '-' => MathOperation.minus,
+      'x' => MathOperation.multiply,
+      'divide' => MathOperation.divide,
+      _ => null,
+    };
+    if (operation == null) return ErrorPattern.wordProblem;
+    return _classifyFact(
+      mode: TrainingMode.wordProblems,
+      fact: MathFact(a: a, b: b, operation: operation),
+      expected: expected,
+      actual: actual,
+    );
   }
 
   static ErrorPattern _mentalPattern(String key) {

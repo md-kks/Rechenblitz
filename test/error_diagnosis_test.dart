@@ -215,6 +215,149 @@ void main() {
     expect(reloaded.diagnostics.single.pattern, ErrorPattern.tenBridge);
   });
 
+  test('konkrete Stellenfehler werden nur bei passender Fehlzahl verfeinert', () {
+    final plus = MathFact(
+      a: 47,
+      b: 38,
+      operation: MathOperation.plus,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.practice,
+        taskKey: plus.key,
+        expected: 85,
+        actual: 75,
+        fact: plus,
+      ),
+      ErrorPattern.carryOmitted,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.practice,
+        taskKey: plus.key,
+        expected: 85,
+        actual: 74,
+        fact: plus,
+      ),
+      ErrorPattern.tenBridge,
+    );
+
+    final minus = MathFact(
+      a: 63,
+      b: 28,
+      operation: MathOperation.minus,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.minus,
+        taskKey: minus.key,
+        expected: 35,
+        actual: 45,
+        fact: minus,
+      ),
+      ErrorPattern.borrowAvoided,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.minus,
+        taskKey: minus.key,
+        expected: 35,
+        actual: 55,
+        fact: minus,
+      ),
+      ErrorPattern.partialOperand,
+    );
+  });
+
+  test('Mal-als-Plus und Geteilt-als-Minus werden gezielt erkannt', () {
+    final multiplication = MathFact(
+      a: 6,
+      b: 4,
+      operation: MathOperation.multiply,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.multiply,
+        taskKey: multiplication.key,
+        expected: 24,
+        actual: 10,
+        fact: multiplication,
+      ),
+      ErrorPattern.multiplicationAsAddition,
+    );
+
+    final division = MathFact(
+      a: 24,
+      b: 6,
+      operation: MathOperation.divide,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.divide,
+        taskKey: division.key,
+        expected: 4,
+        actual: 18,
+        fact: division,
+      ),
+      ErrorPattern.divisionAsSubtraction,
+    );
+  });
+
+  test('Modellierungsschritte behalten eigene Fehlerursachen', () {
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.wordProblems,
+        taskKey: 'story:info:trip:4:3:2',
+        expected: 0,
+        actual: 1,
+      ),
+      ErrorPattern.wordProblemRelevantInformation,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.wordProblems,
+        taskKey: 'story:equation:+:4:3',
+        expected: 0,
+        actual: 1,
+      ),
+      ErrorPattern.wordProblemModel,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.wordProblems,
+        taskKey: 'story:interpret:+:4:3:7',
+        expected: 0,
+        actual: 2,
+      ),
+      ErrorPattern.wordProblemInterpretation,
+    );
+
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.wordProblems,
+        taskKey: 'story:calc:+:47:38',
+        expected: 85,
+        actual: 75,
+      ),
+      ErrorPattern.carryOmitted,
+    );
+  });
+
+  test('erste Hilfe beschreibt nur den belegbaren Fehlerschritt', () {
+    expect(
+      ErrorPattern.carryOmitted.firstResponseHint,
+      contains('neuer Zehner'),
+    );
+    expect(
+      ErrorPattern.borrowAvoided.firstResponseHint,
+      contains('Entbündele'),
+    );
+    expect(
+      ErrorPattern.wordProblemRelevantInformation.firstResponseHint,
+      contains('wirklich gebraucht'),
+    );
+  });
+
   test('korrekte Antwort trägt Musterkategorie für Recovery weiter', () {
     expect(
       ErrorClassifier.classify(
@@ -224,6 +367,15 @@ void main() {
         actual: 8,
       ),
       ErrorPattern.tenBridge,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.practice,
+        taskKey: 'remediation:carryOmitted:+:47:8',
+        expected: 55,
+        actual: 55,
+      ),
+      ErrorPattern.carryOmitted,
     );
   });
 

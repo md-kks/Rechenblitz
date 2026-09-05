@@ -50,6 +50,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
   int helpLevel = 0;
   String? activeMethodKey;
   String feedback = '';
+  ErrorPattern? currentErrorPattern;
   final List<int> completedResponseMs = [];
   int plusTotal = 0;
   int plusCorrect = 0;
@@ -116,6 +117,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       );
 
   ErrorPattern get _helpPattern =>
+      currentErrorPattern ??
       ErrorClassifier.classify(
         mode: widget.mode,
         taskKey: current.key,
@@ -145,6 +147,15 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (locked || finishing) return;
     final response = DateTime.now().difference(taskShownAt);
     final correct = answer == _expectedAnswer;
+    final diagnosedPattern = correct
+        ? null
+        : ErrorClassifier.classify(
+            mode: widget.mode,
+            taskKey: current.key,
+            expected: _expectedAnswer,
+            actual: answer,
+            fact: current,
+          );
     if (wrongOnCurrent == 0) {
       await widget.controller.rememberPresentedTask(
         widget.mode,
@@ -192,9 +203,11 @@ class _TrainingScreenState extends State<TrainingScreen> {
       incorrectAttempts += 1;
       wrongOnCurrent += 1;
       setState(() {
+        currentErrorPattern ??= diagnosedPattern;
         feedback = wrongOnCurrent >= 2
             ? 'Schau dir die Hilfe an und probier noch einmal.'
-            : 'Fast. Schau noch einmal.';
+            : diagnosedPattern?.firstResponseHint ??
+                'Prüfe deinen Rechenweg noch einmal.';
         if (wrongOnCurrent >= 2) {
           showHelp = true;
           usedHelp = true;
@@ -272,6 +285,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       showHelp = usedHelp;
       helpLevel = showHelp ? HelpLevel.nudge.value : 0;
       activeMethodKey = showHelp ? _guide.methodKey : null;
+      currentErrorPattern = null;
       feedback = '';
       locked = false;
     });

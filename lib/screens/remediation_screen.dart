@@ -101,7 +101,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
       wrongOnCurrent += 1;
       setState(() {
         feedback = wrongOnCurrent == 1
-            ? 'Fast. Schau noch einmal auf den Rechenweg.'
+            ? widget.pattern.firstResponseHint
             : 'Nutze den Hinweis und probiere es noch einmal.';
         showHint = true;
       });
