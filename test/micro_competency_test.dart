@@ -399,17 +399,20 @@ void main() {
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
     controller.microObservations = [
-      MicroCompetencyObservation(
-        id: MicroCompetencyId.additionNoBridge,
-        occurredAt: DateTime(2026, 9, 4, 10),
-        correct: true,
-        evidenceWeight: 1,
-        source: MicroEvidenceSource.review,
-        usedHelp: false,
-        mode: TrainingMode.practice,
-        gradeLevel: GradeLevel.second,
-        numberRange: NumberRangeLevel.hundred,
-        taskKey: 'review:plus:12:7',
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 4, 10, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'review:plus:12:${7 + index}',
+        ),
       ),
       ...List.generate(
         6,
