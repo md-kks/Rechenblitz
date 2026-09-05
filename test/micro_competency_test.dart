@@ -1039,4 +1039,132 @@ void main() {
   });
 
 
+  test('zwei selbstständige Bestätigungen lösen altes guidedStep-Signal ab',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.numberDecomposition,
+        occurredAt: DateTime(2026, 9, 5, 11, 1),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.numberFriends,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'friends:10:6',
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.numberDecomposition,
+        occurredAt: DateTime(2026, 9, 5, 11),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.numberFriends,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'friends:10:4',
+      ),
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          occurredAt: DateTime(2026, 9, 5, 10, index),
+          correct: index == 2,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.guidedStep,
+          usedHelp: true,
+          helpLevel: HelpLevel.guided.value,
+          methodKey: 'subtraction:bridgeToTen',
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'guided:subtraction:bridgeToTen:remainingSubtrahend:minus:13:5:$index',
+        ),
+      ),
+    ];
+
+    expect(controller.guidedStepFocus(), isNull);
+    final plan = controller.buildMyRound();
+    expect(plan[1].targetCompetency, MicroCompetencyId.numberDecomposition);
+    expect(plan[1].scaffoldFading, isFalse);
+  });
+
+  test('aktueller selbstständiger Fehler hält guidedStep-Fading aktiv', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.numberDecomposition,
+        occurredAt: DateTime(2026, 9, 5, 11, 2),
+        correct: false,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.numberFriends,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'friends:10:7',
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.numberDecomposition,
+        occurredAt: DateTime(2026, 9, 5, 11, 1),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.numberFriends,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'friends:10:6',
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.numberDecomposition,
+        occurredAt: DateTime(2026, 9, 5, 11),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.numberFriends,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'friends:10:4',
+      ),
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          occurredAt: DateTime(2026, 9, 5, 10, index),
+          correct: index == 2,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.guidedStep,
+          usedHelp: true,
+          helpLevel: HelpLevel.guided.value,
+          methodKey: 'subtraction:bridgeToTen',
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'guided:subtraction:bridgeToTen:remainingSubtrahend:minus:13:5:$index',
+        ),
+      ),
+    ];
+
+    final guided = controller.guidedStepFocus();
+    expect(guided, isNotNull);
+    expect(guided!.stepKey, 'remainingSubtrahend');
+
+    final plan = controller.buildMyRound();
+    expect(plan[1].targetCompetency, MicroCompetencyId.numberDecomposition);
+    expect(plan[1].scaffoldFading, isTrue);
+    expect(plan[1].reason, contains('schrittweise zurück'));
+  });
+
+
 }
