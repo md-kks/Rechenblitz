@@ -1130,7 +1130,7 @@ class AppController extends ChangeNotifier {
     return candidates.isEmpty ? null : candidates.first;
   }
 
-  TrainingMode _transferModeFor(MicroCompetencyId id) {
+  TrainingMode transferModeFor(MicroCompetencyId id) {
     const contextualArithmetic = {
       MicroCompetencyId.additionNoBridge,
       MicroCompetencyId.additionTenBridge,
@@ -1324,7 +1324,7 @@ class AppController extends ChangeNotifier {
       ),
       GuidedRoundSegment(
         mode: transferTarget != null
-            ? _transferModeFor(transferTarget)
+            ? transferModeFor(transferTarget)
             : discoveryTarget != null
                 ? newMicro!.definition.preferredMode
                 : transfer,
