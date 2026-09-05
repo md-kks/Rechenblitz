@@ -323,12 +323,17 @@ class _MicroStepTile extends StatelessWidget {
     final helpDetail = progress.aidedObservations == 0
         ? 'Hilfe: bisher nicht benötigt'
         : 'Hilfe: ${progress.aidedObservations} Beobachtungen';
+    final guidedDetail = progress.guidedStepObservations == 0
+        ? null
+        : 'Geführte Teilfragen: ${(progress.guidedStepAccuracy * 100).round()} % · '
+            '${progress.guidedStepObservations} erste Versuche';
     final detail = progress.observations == 0
         ? progress.state.label
         : '${progress.state.label}\n'
             'Selbstständig: ${(progress.independentAccuracy * 100).round()} % · '
             '${progress.independentEvidence.toStringAsFixed(1)} Evidenz\n'
             '$helpDetail\n'
+            '${guidedDetail == null ? '' : '$guidedDetail\n'}'
             '$reviewDetail · $transferDetail';
     return ListTile(
       dense: true,
