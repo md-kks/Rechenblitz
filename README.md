@@ -237,6 +237,21 @@ Die erste echte Abstandskontrolle wird frühestens nach **zwei Tagen** fällig. 
 
 Im Elternbereich erklärt **„Warum gerade diese Aufgaben?“**, welcher Teilschritt derzeit fokussiert wird und auf welcher Beobachtungsbasis diese Auswahl beruht.
 
+### Erklärbarkeit für Eltern
+
+Der Elternbereich leitet seine Empfehlung jetzt vorrangig aus denselben Mikro-Kompetenzen und Mastery-Schwellen ab, die auch „Meine Runde“ steuern. Dadurch werden nicht nur Trefferquoten gezeigt, sondern vier konkrete Fragen beantwortet:
+
+- **Was klappt bereits?** – die aktuell stabilste beobachtete Mikro-Kompetenz wird benannt.
+- **Was fehlt konkret?** – Rechenblitz unterscheidet fehlende selbstständige Sicherheit, Abstandskontrolle und Transfer.
+- **Warum hat der Teilschritt diesen Status?** – „Sicher“ und „Gemeistert“ werden aus genau denselben Evidenzschwellen erklärt, die der adaptive Kern verwendet.
+- **Warum kommen gerade diese Aufgaben?** – der Elternbereich beschreibt Fokus-, Abstand- und Transferanteile der nächsten Runde direkt aus dem tatsächlich erzeugten Rundenplan.
+
+Die Beobachtungsbasis wird in verständlicher Form offengelegt: Anzahl passender Beobachtungen, Aufgaben ohne Hilfe, Aufgaben mit Hilfe sowie vorhandene Abstand- und Transferbeobachtungen. Die Texte beziehen sich ausdrücklich nur auf die in Rechenblitz bearbeiteten Aufgaben im aktuellen Profil, der aktuellen Klassenstufe und dem aktuellen Zahlenraum.
+
+Wiederkehrende Fehlermuster werden vorsichtig formuliert. Ein Muster aus demselben Übungsbereich ist ein zusätzlicher Hinweis, aber kein Beweis dafür, dass genau dieses Muster die Ursache einer Mikro-Schwäche ist. Rechenblitz leitet daraus weiterhin keine medizinische, psychologische oder lerntherapeutische Diagnose ab.
+
+Für ältere lokale Profile, die bereits Sitzungsverlauf besitzen, aber noch keine Mikro-Evidenz aus dem neueren Kompetenzmodell, bleibt die bisherige Bereichsauswertung als Fallback erhalten. Erst mit passenden neuen Mikro-Beobachtungen wechselt die Eltern-Erklärung automatisch auf die feinere Teilschritt-Ebene.
+
 ## Methoden-Engine, Schulmodus und Barrierearmut
 
 Rechenblitz verwendet Hilfen jetzt in drei Stufen:

@@ -21,6 +21,15 @@ import 'speech_service.dart';
 import 'storage_service.dart';
 
 class AppController extends ChangeNotifier {
+  static const double _secureIndependentEvidence = 4.0;
+  static const double _secureIndependentAccuracy = 0.80;
+  static const double _masteredIndependentEvidence = 6.0;
+  static const double _masteredIndependentAccuracy = 0.88;
+  static const double _masteredReviewEvidence = 1.5;
+  static const double _masteredReviewAccuracy = 0.80;
+  static const double _masteredTransferEvidence = 1.5;
+  static const double _masteredTransferAccuracy = 0.80;
+
   AppController({
     StorageService? storage,
     AdaptiveEngine? engine,
@@ -1068,14 +1077,15 @@ class AppController extends ChangeNotifier {
 
     final state = evidence < 1.5
         ? MicroCompetencyState.discovering
-        : independentEvidence >= 6 &&
-                independentAccuracy >= 0.88 &&
-                reviewIndependentEvidence >= 1.5 &&
-                reviewIndependentAccuracy >= 0.80 &&
-                transferIndependentEvidence >= 1.5 &&
-                transferIndependentAccuracy >= 0.80
+        : independentEvidence >= _masteredIndependentEvidence &&
+                independentAccuracy >= _masteredIndependentAccuracy &&
+                reviewIndependentEvidence >= _masteredReviewEvidence &&
+                reviewIndependentAccuracy >= _masteredReviewAccuracy &&
+                transferIndependentEvidence >= _masteredTransferEvidence &&
+                transferIndependentAccuracy >= _masteredTransferAccuracy
             ? MicroCompetencyState.mastered
-            : independentEvidence >= 4 && independentAccuracy >= 0.80
+            : independentEvidence >= _secureIndependentEvidence &&
+                    independentAccuracy >= _secureIndependentAccuracy
                 ? MicroCompetencyState.secure
                 : MicroCompetencyState.practicing;
 
@@ -1178,8 +1188,9 @@ class AppController extends ChangeNotifier {
               return false;
             }
             final hasStableDelayedEvidence =
-                progress.reviewIndependentEvidence >= 1.5 &&
-                    progress.reviewIndependentAccuracy >= 0.80;
+                progress.reviewIndependentEvidence >= _masteredReviewEvidence &&
+                    progress.reviewIndependentAccuracy >=
+                        _masteredReviewAccuracy;
             final requiredGap = hasStableDelayedEvidence
                 ? const Duration(days: 7)
                 : const Duration(days: 2);
@@ -1444,7 +1455,275 @@ class AppController extends ChangeNotifier {
     ];
   }
 
-  ParentLearningInsight parentInsight() {
+  MicroCompetencyProgress? parentPriorityMicroCompetency({
+    DateTime? now,
+  }) {
+    final hasCurrentMicroEvidence = microObservations.any(
+      (entry) =>
+          entry.gradeLevel == gradeLevel &&
+          entry.numberRange == numberRange,
+    );
+    final hasCurrentHistory = history.any(
+      (entry) =>
+          entry.gradeLevel == gradeLevel &&
+          entry.numberRange == numberRange,
+    );
+    if (!hasCurrentMicroEvidence && hasCurrentHistory) return null;
+
+    final focus = currentMicroFocus();
+    if (focus != null) return focus;
+
+    final review = dueReviewMicroCompetency(now: now);
+    if (review != null) return review;
+
+    final transfer = transferCandidateMicroCompetency(
+      excluding: review?.definition.id,
+    );
+    if (transfer != null) return transfer;
+
+    return nextNewMicroCompetency() ?? strongestMicroCompetency();
+  }
+
+  String _masteryMissingText(MicroCompetencyProgress progress) {
+    final missing = <String>[];
+    if (progress.independentEvidence < _secureIndependentEvidence) {
+      missing.add('mehr selbstständige Lösungen');
+    } else if (progress.independentAccuracy < _secureIndependentAccuracy) {
+      missing.add('eine stabilere selbstständige Trefferquote');
+    } else {
+      if (progress.independentEvidence < _masteredIndependentEvidence ||
+          progress.independentAccuracy < _masteredIndependentAccuracy) {
+        missing.add('eine noch stärkere selbstständige Basis');
+      }
+      if (progress.reviewIndependentEvidence < _masteredReviewEvidence ||
+          progress.reviewIndependentAccuracy < _masteredReviewAccuracy) {
+        missing.add('ein stabiler Nachweis nach zeitlichem Abstand');
+      }
+      if (progress.transferIndependentEvidence < _masteredTransferEvidence ||
+          progress.transferIndependentAccuracy < _masteredTransferAccuracy) {
+        missing.add('ein stabiler selbstständiger Transfer');
+      }
+    }
+    if (missing.isEmpty) return 'kein weiterer Mastery-Nachweis';
+    if (missing.length == 1) return missing.first;
+    return '${missing.take(missing.length - 1).join(', ')} und ${missing.last}';
+  }
+
+  String _parentMasteryText(MicroCompetencyProgress progress) {
+    final label = progress.definition.label;
+    return switch (progress.state) {
+      MicroCompetencyState.newSkill =>
+        '„$label“ ist noch neu. Für eine belastbare Einschätzung fehlen noch passende Aufgabenbeobachtungen.',
+      MicroCompetencyState.discovering =>
+        '„$label“ wird gerade erst eingeordnet. Einzelne Lösungen reichen noch nicht für „Sicher“.',
+      MicroCompetencyState.practicing =>
+        '„$label“ wird noch geübt. Für „Sicher“ fehlt ${_masteryMissingText(progress)}.',
+      MicroCompetencyState.secure =>
+        '„$label“ ist „Sicher“: die Kompetenz gelingt in den bisherigen Aufgaben ausreichend selbstständig. Für „Gemeistert“ fehlt noch ${_masteryMissingText(progress)}.',
+      MicroCompetencyState.mastered =>
+        '„$label“ ist „Gemeistert“: selbstständige Basis, erneutes Können nach Abstand und selbstständiger Transfer sind im aktuellen Zahlenraum belegt.',
+    };
+  }
+
+  String _parentEvidenceText(MicroCompetencyProgress progress) {
+    final relevant = microObservations
+        .where(
+          (entry) =>
+              entry.id == progress.definition.id &&
+              entry.gradeLevel == gradeLevel &&
+              entry.numberRange == numberRange,
+        )
+        .take(24)
+        .toList();
+    if (relevant.isEmpty) {
+      return 'Zu diesem Teilschritt liegen noch keine passenden Beobachtungen vor.';
+    }
+
+    final independentCount =
+        relevant.where((entry) => !entry.usedHelp).length;
+    final aidedCount = relevant.where((entry) => entry.usedHelp).length;
+    final reviewCount = relevant
+        .where((entry) => entry.source == MicroEvidenceSource.review)
+        .length;
+    final transferCount = relevant
+        .where((entry) => entry.source == MicroEvidenceSource.transfer)
+        .length;
+    final independentPercent =
+        (progress.independentAccuracy * 100).round();
+
+    final parts = <String>[
+      '${relevant.length} passende Beobachtungen',
+      '$independentCount ohne Hilfe',
+    ];
+    if (aidedCount > 0) {
+      parts.add('$aidedCount mit Hilfe');
+    }
+    if (reviewCount > 0) {
+      parts.add('$reviewCount nach Abstand');
+    }
+    if (transferCount > 0) {
+      parts.add('$transferCount im Transfer');
+    }
+
+    return '${parts.join(' · ')}. '
+        'Bei selbstständigen Basisaufgaben liegt die gewichtete Sicherheit bei $independentPercent %. '
+        'Die Einschätzung bezieht sich nur auf die in Rechenblitz bearbeiteten Aufgaben im aktuellen Profil, in ${gradeLevel.label} und im Zahlenraum ${numberRange.label}.';
+  }
+
+  String _parentSelectionText({
+    DateTime? now,
+  }) {
+    final plan = buildMyRound(now: now);
+    final focus = plan[1];
+    final review = plan[2];
+    final transfer = plan[3];
+    final parts = <String>[];
+
+    if (focus.targetCompetency != null) {
+      final label =
+          MicroCompetencyCatalog.definition(focus.targetCompetency!).label;
+      parts.add('${focus.tasks} Aufgaben fokussieren „$label“');
+    } else {
+      parts.add('${focus.tasks} Aufgaben bearbeiten das wichtigste aktuelle Lernziel');
+    }
+
+    if (review.reviewEmphasis && review.targetCompetency != null) {
+      final label =
+          MicroCompetencyCatalog.definition(review.targetCompetency!).label;
+      parts.add(
+        '${review.tasks} Aufgaben prüfen „$label“ nach zeitlichem Abstand',
+      );
+    }
+
+    if (transfer.transferEmphasis && transfer.targetCompetency != null) {
+      final label =
+          MicroCompetencyCatalog.definition(transfer.targetCompetency!).label;
+      parts.add(
+        '${transfer.tasks} Aufgaben prüfen „$label“ in veränderter Form',
+      );
+    } else if (transfer.targetCompetency != null) {
+      final label =
+          MicroCompetencyCatalog.definition(transfer.targetCompetency!).label;
+      parts.add(
+        '${transfer.tasks} Aufgaben führen vorsichtig in „$label“ ein',
+      );
+    }
+
+    return '${parts.join('; ')}. '
+        'So übt Rechenblitz nicht einfach den Bereich mit der niedrigsten Gesamtquote, sondern den konkreten Teilschritt und die noch fehlende Evidenzart.';
+  }
+
+  ParentLearningInsight parentInsight({
+    DateTime? now,
+  }) {
+    final priority = parentPriorityMicroCompetency(now: now);
+    final strongestMicro = strongestMicroCompetency();
+    final hasCurrentMicroEvidence = microObservations.any(
+      (entry) =>
+          entry.gradeLevel == gradeLevel &&
+          entry.numberRange == numberRange,
+    );
+
+    if (priority != null &&
+        (hasCurrentMicroEvidence || history.isEmpty)) {
+      final currentFocus = currentMicroFocus();
+      final dueReview = dueReviewMicroCompetency(now: now);
+      final transfer = transferCandidateMicroCompetency(
+        excluding: dueReview?.definition.id,
+      );
+
+      final good = strongestMicro == null
+          ? 'Noch nicht genug Daten – die ersten kurzen Runden bauen die Lernkarte auf.'
+          : switch (strongestMicro.state) {
+              MicroCompetencyState.mastered =>
+                '„${strongestMicro.definition.label}“ ist bereits gemeistert: selbstständige Basis, Abstand und Transfer sind belegt.',
+              MicroCompetencyState.secure =>
+                '„${strongestMicro.definition.label}“ ist aktuell sicher und gelingt in den bisherigen Aufgaben überwiegend selbstständig.',
+              _ =>
+                'Am stabilsten zeigt sich derzeit „${strongestMicro.definition.label}“ mit ${(strongestMicro.independentAccuracy * 100).round()} % gewichteter selbstständiger Sicherheit.',
+            };
+
+      late final String focusText;
+      if (currentFocus != null &&
+          currentFocus.definition.id == priority.definition.id) {
+        focusText =
+            'Der konkrete Teilschritt „${priority.definition.label}“ braucht aktuell am meisten Übung. '
+            'Status: ${priority.state.label}; selbstständig ${(priority.independentAccuracy * 100).round()} %.';
+      } else if (dueReview != null &&
+          dueReview.definition.id == priority.definition.id) {
+        final statusText = priority.state == MicroCompetencyState.mastered
+            ? 'bereits gemeistert'
+            : 'bereits sicher';
+        focusText =
+            '„${priority.definition.label}“ ist $statusText. Jetzt soll geprüft werden, ob der Teilschritt nach zeitlichem Abstand noch selbstständig gelingt.';
+      } else if (transfer != null &&
+          transfer.definition.id == priority.definition.id) {
+        final statusText = priority.state == MicroCompetencyState.mastered
+            ? 'bereits gemeistert'
+            : 'bereits sicher';
+        focusText =
+            '„${priority.definition.label}“ ist $statusText. Als Nächstes wird die Anwendung in einer veränderten Aufgabe geprüft.';
+      } else {
+        focusText =
+            '„${priority.definition.label}“ ist der nächste sinnvolle Teilschritt in der Lernkarte.';
+      }
+
+      final diagnostic = topDiagnosticForMode(
+        priority.definition.preferredMode,
+      );
+      final diagnosticStatus = diagnostic == null
+          ? null
+          : remediationStatusFor(diagnostic.pattern);
+      final diagnosticIsActive = diagnostic != null &&
+          diagnosticStatus != RemediationStatus.improved &&
+          diagnosticStatus != RemediationStatus.stable;
+
+      late final String action;
+      if (diagnosticIsActive) {
+        action =
+            'Im selben Übungsbereich ist das Muster „${diagnostic.pattern.label}“ wiederholt aufgefallen. '
+            'Das ist ein zusätzlicher Hinweis, kein Beweis für eine Ursache. '
+            '${diagnostic.pattern.action}';
+      } else if (dueReview != null &&
+          dueReview.definition.id == priority.definition.id) {
+        action =
+            'Eine kurze Abstandskontrolle ohne Starthilfe reicht. Entscheidend ist, ob der Rechenweg noch selbstständig abrufbar ist.';
+      } else if (transfer != null &&
+          transfer.definition.id == priority.definition.id) {
+        action = priority.state == MicroCompetencyState.mastered
+            ? 'Zwei kurze Aufgaben in veränderter Form halten die Anwendung flexibel. Sie dienen hier dem Erhalt, nicht einem noch fehlenden Nachweis.'
+            : 'Zwei kurze Aufgaben in veränderter Form prüfen, ob dieselbe mathematische Idee übertragen werden kann.';
+      } else if (priority.state == MicroCompetencyState.newSkill) {
+        action =
+            'Den Teilschritt zunächst mit wenigen Aufgaben vorsichtig kennenlernen; daraus entsteht erst die Beobachtungsbasis.';
+      } else {
+        action =
+            '3–5 Minuten gezielt „${priority.definition.label}“ üben und dabei den gewählten Schul-Rechenweg nutzen.';
+      }
+
+      final notYet = switch (priority.state) {
+        MicroCompetencyState.mastered =>
+          'Für „Gemeistert“ fehlt bei diesem Teilschritt aktuell kein weiterer Nachweis. Wiederholungen dienen dem langfristigen Erhalt.',
+        MicroCompetencyState.secure =>
+          'Noch nicht „Gemeistert“: Es fehlt ${_masteryMissingText(priority)}.',
+        MicroCompetencyState.newSkill =>
+          'Noch keine belastbare Aussage: Erst einige passende Aufgaben zeigen, wie selbstständig der Teilschritt gelingt.',
+        _ =>
+          'Noch nicht „Sicher“: Es fehlt ${_masteryMissingText(priority)}. Tempo ist deshalb noch zweitrangig.',
+      };
+
+      return ParentLearningInsight(
+        good: good,
+        focus: focusText,
+        action: action,
+        notYet: notYet,
+        trend: _weeklyTrendText(),
+        mastery: _parentMasteryText(priority),
+        evidence: _parentEvidenceText(priority),
+        selection: _parentSelectionText(now: now),
+      );
+    }
+
     final modes = learningModesForGrade(gradeLevel);
     final progress = modes.map(competencyProgress).toList();
     final attempted = progress.where((item) => item.tasks > 0).toList();
@@ -1496,6 +1775,12 @@ class AppController extends ChangeNotifier {
       action: action,
       notYet: notYet,
       trend: _weeklyTrendText(),
+      mastery:
+          'Noch liegen nicht genug Mikro-Beobachtungen vor, um „Sicher“ und „Gemeistert“ für einen konkreten Teilschritt zu erklären.',
+      evidence:
+          'Die aktuelle Empfehlung stützt sich deshalb vorerst auf abgeschlossene Übungsrunden und Trefferquoten.',
+      selection:
+          'Mit weiteren kurzen Runden wechselt Rechenblitz automatisch von Bereichsdaten zu konkreten Mikro-Kompetenzen.',
     );
   }
 
