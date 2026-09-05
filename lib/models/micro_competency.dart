@@ -982,26 +982,33 @@ class MicroCompetencyCatalog {
     if (taskKey.startsWith('process:representation:')) {
       final groups = taskKey.startsWith('process:representation:groups:') ||
           taskKey.startsWith('process:representation:equation:');
-      return [
+      final tags = <MicroCompetencyTag>[
         const MicroCompetencyTag(
           MicroCompetencyId.representationTranslation,
         ),
-        if (groups)
+      ];
+      if (groups) {
+        tags.add(
           const MicroCompetencyTag(
             MicroCompetencyId.multiplicationGroups,
             weight: 0.45,
-          )
-        else ...const [
-          MicroCompetencyTag(
-            MicroCompetencyId.placeValueDigits,
-            weight: 0.45,
           ),
-          MicroCompetencyTag(
-            MicroCompetencyId.numberDecomposition,
-            weight: 0.35,
-          ),
-        ],
-      ];
+        );
+      } else {
+        tags.addAll(
+          const [
+            MicroCompetencyTag(
+              MicroCompetencyId.placeValueDigits,
+              weight: 0.45,
+            ),
+            MicroCompetencyTag(
+              MicroCompetencyId.numberDecomposition,
+              weight: 0.35,
+            ),
+          ],
+        );
+      }
+      return tags;
     }
     if (taskKey.startsWith('story:')) {
       return _storyTags(taskKey);
