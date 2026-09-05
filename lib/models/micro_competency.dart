@@ -48,6 +48,7 @@ enum MicroCompetencyId {
   clockReading,
   measurementCalculation,
   unitConversion,
+  secondsConversion,
   shapeProperties,
   roundingPlace,
   mentalStrategy,
@@ -63,7 +64,10 @@ enum MicroCompetencyId {
   romanNumeral,
   fractionEqualParts,
   timeDuration,
+  calendarDate,
   dataReading,
+  tallyTableReading,
+  dataRepresentationChoice,
   probabilityReasoning,
   probabilityExperiment,
   combinatoricsSystematic,
@@ -450,6 +454,15 @@ class MicroCompetencyCatalog {
       minGrade: GradeLevel.second,
     ),
     MicroCompetencyDefinition(
+      id: MicroCompetencyId.secondsConversion,
+      label: 'Minuten und Sekunden umwandeln',
+      description: 'Sekunden und Minuten bei Zeitangaben sicher ineinander umrechnen.',
+      domain: MicroCompetencyDomain.measuresAndProblems,
+      preferredMode: TrainingMode.advancedMeasures,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.clockReading],
+    ),
+    MicroCompetencyDefinition(
       id: MicroCompetencyId.shapeProperties,
       label: 'Eigenschaften ebener Formen',
       description: 'Seiten, Ecken und Formen sicher unterscheiden.',
@@ -579,12 +592,37 @@ class MicroCompetencyCatalog {
       prerequisites: [MicroCompetencyId.clockReading],
     ),
     MicroCompetencyDefinition(
+      id: MicroCompetencyId.calendarDate,
+      label: 'Mit Datum und Kalender rechnen',
+      description: 'Tage, Wochen und Datumsangaben sicher miteinander verknüpfen.',
+      domain: MicroCompetencyDomain.measuresAndProblems,
+      preferredMode: TrainingMode.timeDurations,
+      minGrade: GradeLevel.third,
+    ),
+    MicroCompetencyDefinition(
       id: MicroCompetencyId.dataReading,
       label: 'Daten und Diagramme lesen',
       description: 'Werte aus Tabellen und Diagrammen entnehmen und vergleichen.',
       domain: MicroCompetencyDomain.dataAndChance,
       preferredMode: TrainingMode.dataCharts,
       minGrade: GradeLevel.third,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.tallyTableReading,
+      label: 'Strichlisten und Tabellen auswerten',
+      description: 'Gezählte Daten aus Strichlisten und einfachen Tabellen sicher ablesen.',
+      domain: MicroCompetencyDomain.dataAndChance,
+      preferredMode: TrainingMode.dataCharts,
+      minGrade: GradeLevel.third,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.dataRepresentationChoice,
+      label: 'Passende Datendarstellung wählen',
+      description: 'Für eine Fragestellung sinnvoll zwischen Strichliste, Tabelle und Diagramm auswählen.',
+      domain: MicroCompetencyDomain.dataAndChance,
+      preferredMode: TrainingMode.dataCharts,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.dataReading],
     ),
     MicroCompetencyDefinition(
       id: MicroCompetencyId.probabilityReasoning,
@@ -1061,15 +1099,40 @@ class MicroCompetencyCatalog {
         TrainingMode.fractions => const [
             MicroCompetencyTag(MicroCompetencyId.fractionEqualParts),
           ],
-        TrainingMode.advancedMeasures => const [
-            MicroCompetencyTag(MicroCompetencyId.unitConversion),
-          ],
-        TrainingMode.timeDurations => const [
-            MicroCompetencyTag(MicroCompetencyId.timeDuration),
-          ],
-        TrainingMode.dataCharts => const [
-            MicroCompetencyTag(MicroCompetencyId.dataReading),
-          ],
+        TrainingMode.advancedMeasures =>
+          key.startsWith('time:seconds:')
+              ? const [
+                  MicroCompetencyTag(MicroCompetencyId.secondsConversion),
+                ]
+              : const [
+                  MicroCompetencyTag(MicroCompetencyId.unitConversion),
+                ],
+        TrainingMode.timeDurations =>
+          key.startsWith('calendar:')
+              ? const [
+                  MicroCompetencyTag(MicroCompetencyId.calendarDate),
+                ]
+              : const [
+                  MicroCompetencyTag(MicroCompetencyId.timeDuration),
+                ],
+        TrainingMode.dataCharts =>
+          key.startsWith('data:tally:')
+              ? const [
+                  MicroCompetencyTag(MicroCompetencyId.tallyTableReading),
+                ]
+              : key.startsWith('data:representation:')
+                  ? const [
+                      MicroCompetencyTag(
+                        MicroCompetencyId.dataRepresentationChoice,
+                      ),
+                      MicroCompetencyTag(
+                        MicroCompetencyId.dataReading,
+                        weight: 0.35,
+                      ),
+                    ]
+                  : const [
+                      MicroCompetencyTag(MicroCompetencyId.dataReading),
+                    ],
         TrainingMode.probability =>
           key.startsWith('prob:experiment:')
               ? const [
