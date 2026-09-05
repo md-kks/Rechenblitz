@@ -1711,6 +1711,7 @@ class AppController extends ChangeNotifier {
         .length;
     final independentPercent =
         (progress.independentAccuracy * 100).round();
+    final guidedFocus = guidedStepFocus();
 
     final parts = <String>[
       '${relevant.length} passende Beobachtungen',
@@ -1729,8 +1730,13 @@ class AppController extends ChangeNotifier {
       parts.add('$guidedStepCount geführte Zwischenschritte');
     }
 
+    final guidedDetail = guidedFocus != null &&
+            guidedFocus.competencyId == progress.definition.id
+        ? ' Beim geführten Zwischenschritt „${guidedFocus.label}“ waren ${guidedFocus.incorrectFirstAttempts} von ${guidedFocus.observations} ersten Versuchen falsch.'
+        : '';
+
     return '${parts.join(' · ')}. '
-        'Bei selbstständigen Basisaufgaben liegt die gewichtete Sicherheit bei $independentPercent %. '
+        'Bei selbstständigen Basisaufgaben liegt die gewichtete Sicherheit bei $independentPercent %.$guidedDetail '
         'Die Einschätzung bezieht sich nur auf die in Rechenblitz bearbeiteten Aufgaben im aktuellen Profil, in ${gradeLevel.label} und im Zahlenraum ${numberRange.label}.';
   }
 
@@ -1741,12 +1747,20 @@ class AppController extends ChangeNotifier {
     final focus = plan[1];
     final review = plan[2];
     final transfer = plan[3];
+    final guidedFocus = guidedStepFocus();
     final parts = <String>[];
 
     if (focus.targetCompetency != null) {
       final label =
           MicroCompetencyCatalog.definition(focus.targetCompetency!).label;
-      parts.add('${focus.tasks} Aufgaben fokussieren „$label“');
+      if (guidedFocus != null &&
+          guidedFocus.competencyId == focus.targetCompetency) {
+        parts.add(
+          '${focus.tasks} Aufgaben fokussieren „$label“, weil „${guidedFocus.label}“ in der geführten Hilfe wiederholt unsicher war',
+        );
+      } else {
+        parts.add('${focus.tasks} Aufgaben fokussieren „$label“');
+      }
     } else {
       parts.add('${focus.tasks} Aufgaben bearbeiten das wichtigste aktuelle Lernziel');
     }
@@ -1791,6 +1805,7 @@ class AppController extends ChangeNotifier {
     if (priority != null &&
         (hasCurrentMicroEvidence || history.isEmpty)) {
       final currentFocus = currentMicroFocus();
+      final guidedFocus = guidedStepFocus();
       final dueReview = dueReviewMicroCompetency(now: now);
       final transfer = transferCandidateMicroCompetency(
         excluding: dueReview?.definition.id,
@@ -1810,9 +1825,17 @@ class AppController extends ChangeNotifier {
       late final String focusText;
       if (currentFocus != null &&
           currentFocus.definition.id == priority.definition.id) {
-        focusText =
-            'Der konkrete Teilschritt „${priority.definition.label}“ braucht aktuell am meisten Übung. '
-            'Status: ${priority.state.label}; selbstständig ${(priority.independentAccuracy * 100).round()} %.';
+        if (guidedFocus != null &&
+            guidedFocus.competencyId == priority.definition.id) {
+          focusText =
+              'In der geführten Hilfe war „${guidedFocus.label}“ wiederholt unsicher: '
+              '${guidedFocus.incorrectFirstAttempts} von ${guidedFocus.observations} ersten Versuchen waren falsch. '
+              'Deshalb bekommt „${priority.definition.label}“ jetzt gezielt weitere Übung.';
+        } else {
+          focusText =
+              'Der konkrete Teilschritt „${priority.definition.label}“ braucht aktuell am meisten Übung. '
+              'Status: ${priority.state.label}; selbstständig ${(priority.independentAccuracy * 100).round()} %.';
+        }
       } else if (dueReview != null &&
           dueReview.definition.id == priority.definition.id) {
         final statusText = priority.state == MicroCompetencyState.mastered
@@ -1843,7 +1866,13 @@ class AppController extends ChangeNotifier {
           diagnosticStatus != RemediationStatus.stable;
 
       late final String action;
-      if (diagnosticIsActive) {
+      if (guidedFocus != null &&
+          currentFocus?.definition.id == priority.definition.id &&
+          guidedFocus.competencyId == priority.definition.id) {
+        action =
+            'Kurze Aufgaben zu „${priority.definition.label}“ üben. In der Hilfe besonders auf „${guidedFocus.label}“ achten. '
+            'Die Teilfragen sind ein Hinweis aus einer Hilfesituation und kein selbstständiger Leistungsnachweis.';
+      } else if (diagnosticIsActive) {
         action =
             'Im selben Übungsbereich ist das Muster „${diagnostic.pattern.label}“ wiederholt aufgefallen. '
             'Das ist ein zusätzlicher Hinweis, kein Beweis für eine Ursache. '
