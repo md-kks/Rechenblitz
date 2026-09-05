@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
+import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
@@ -712,5 +713,70 @@ void main() {
       startsWith('story:transfer:skill:additionTenBridge:'),
     );
   });
+
+  test('Geführte Zwischenschritte erzeugen keine selbstständige Mastery', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    for (var i = 0; i < 8; i++) {
+      await controller.recordGuidedStepAttempt(
+        mode: TrainingMode.minus,
+        taskKey: 'minus:13:5',
+        methodKey: 'subtraction:bridgeToTen',
+        stepKey: 'bridgeAmount',
+        competencyId: MicroCompetencyId.subtractionTenBridge,
+        correct: true,
+      );
+    }
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.subtractionTenBridge,
+    );
+
+    expect(progress.observations, 8);
+    expect(progress.aidedObservations, 8);
+    expect(progress.aidedEvidence, greaterThan(0));
+    expect(progress.independentEvidence, 0);
+    expect(progress.reviewIndependentEvidence, 0);
+    expect(progress.transferIndependentEvidence, 0);
+    expect(progress.state, MicroCompetencyState.practicing);
+  });
+
+  test('Geführte Zwischritt-Evidenz bleibt lokal und eindeutig markiert',
+      () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    await controller.recordGuidedStepAttempt(
+      mode: TrainingMode.minus,
+      taskKey: 'minus:13:5',
+      methodKey: 'subtraction:bridgeToTen',
+      stepKey: 'remainingSubtrahend',
+      competencyId: MicroCompetencyId.numberDecomposition,
+      correct: false,
+      evidenceWeight: 0.35,
+    );
+
+    final reloaded = AppController();
+    await reloaded.load();
+    final observation = reloaded.microObservations.firstWhere(
+      (entry) => entry.source == MicroEvidenceSource.guidedStep,
+    );
+
+    expect(observation.id, MicroCompetencyId.numberDecomposition);
+    expect(observation.correct, isFalse);
+    expect(observation.usedHelp, isTrue);
+    expect(observation.helpLevel, HelpLevel.guided.value);
+    expect(observation.evidenceWeight, closeTo(0.35, 0.001));
+    expect(
+      observation.taskKey,
+      contains('guided:subtraction:bridgeToTen:remainingSubtrahend'),
+    );
+  });
+
 
 }
