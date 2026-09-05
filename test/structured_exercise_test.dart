@@ -387,4 +387,80 @@ void main() {
   });
 
 
+  test('Darstellungswechsel erzeugt eigenständige Repräsentationsschritte', () {
+    final generator = StructuredExerciseGenerator(random: Random(404));
+    final families = <String>{};
+
+    for (var i = 0; i < 160; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: 100,
+        gradeLevel: GradeLevel.second,
+        targetCompetency: MicroCompetencyId.representationTranslation,
+      );
+      final family = exercise.key.split(':')[2];
+      families.add(family);
+
+      expect(exercise.hasCheckpoints, isTrue, reason: exercise.key);
+      for (final checkpoint in exercise.checkpoints) {
+        expect(checkpoint.choices, hasLength(4));
+        expect(checkpoint.choices.toSet(), hasLength(4));
+        expect(
+          checkpoint.correctChoice,
+          inInclusiveRange(0, checkpoint.choices.length - 1),
+        );
+        expect(checkpoint.evidenceWeight, inInclusiveRange(0.25, 0.50));
+      }
+
+      if (family == 'place' || family == 'decompose') {
+        expect(exercise.checkpoints, hasLength(1));
+        expect(
+          exercise.checkpoints.single.competencyId,
+          MicroCompetencyId.placeValueDigits,
+        );
+        expect(exercise.checkpoints.single.key, startsWith('placeDigit:'));
+      } else {
+        expect(exercise.checkpoints, hasLength(2));
+        expect(
+          exercise.checkpoints.every(
+            (checkpoint) =>
+                checkpoint.competencyId ==
+                MicroCompetencyId.multiplicationGroups,
+          ),
+          isTrue,
+        );
+        expect(
+          exercise.checkpoints.map((checkpoint) => checkpoint.key).toSet(),
+          {'groupCount', 'itemsPerGroup'},
+        );
+      }
+    }
+
+    expect(families, containsAll(['place', 'decompose', 'groups', 'equation']));
+  });
+
+  test('Klasse 1 bekommt nur Stellenwert-Teilfragen', () {
+    final generator = StructuredExerciseGenerator(random: Random(405));
+
+    for (var i = 0; i < 80; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+        targetCompetency: MicroCompetencyId.representationTranslation,
+      );
+
+      expect(exercise.checkpoints, hasLength(1));
+      expect(
+        exercise.checkpoints.single.competencyId,
+        MicroCompetencyId.placeValueDigits,
+      );
+      expect(
+        exercise.checkpoints.single.question,
+        contains('Welche Ziffer'),
+      );
+    }
+  });
+
+
 }
