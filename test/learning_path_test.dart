@@ -93,10 +93,12 @@ void main() {
 
     final insight = controller.parentInsight();
 
+    expect(controller.parentPriorityMicroCompetency(), isNull);
     expect(insight.good, contains('Geld'));
     expect(insight.focus, contains('Zahlenmauern'));
     expect(insight.action, contains('3–5 Minuten'));
     expect(insight.notYet, contains('Tempo'));
+    expect(insight.mastery, contains('Mikro-Beobachtungen'));
   });
 
 
