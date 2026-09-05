@@ -58,13 +58,18 @@ Der adaptive Grundaufgaben-Pool bleibt bewusst kompakt bis 100. Aufgaben mit gro
 - Massen: g, kg, t
 - Volumen: ml, l
 - Geld: ct, €
-- Zeit: Minuten, Stunden, Tage und Wochen
+- Zeit: Sekunden, Minuten, Stunden, Tage und Wochen
+- Kalender und Datumsangaben
 - Zeitspannen
 - einfache proportionale Zuordnungen
 - weiterführende Sachaufgaben
 
 ### Raum und Form
 - Umfang und Flächeninhalt
+- parallele und senkrechte Geraden
+- rechte Winkel
+- Dreiecke und Vierecke über Eigenschaften klassifizieren
+- Kreisbegriffe: Mittelpunkt, Radius und Durchmesser
 - geometrische Körper und ihre Eigenschaften
 - Würfelnetze
 - Achsensymmetrie
@@ -72,7 +77,8 @@ Der adaptive Grundaufgaben-Pool bleibt bewusst kompakt bis 100. Aufgaben mit gro
 - Rauminhalt mit Einheitswürfeln
 
 ### Muster, Daten und Zufall
-- Daten aus Tabellen und Balkendiagrammen lesen und auswerten
+- Daten aus Tabellen, Strichlisten und Balkendiagrammen lesen und auswerten
+- passende Datendarstellung auswählen
 - Häufigkeiten vergleichen
 - sicher / möglich / unmöglich
 - einfache Gewinnchancen
@@ -229,6 +235,12 @@ Der Transferteil von **Meine Runde** bevorzugt diese Aufgaben.
 ### Lehrplantiefe Klasse 3/4
 
 Die oberen Klassenstufen decken nun zusätzlich Bereiche ab, die zuvor nur teilweise vorhanden waren:
+
+- Lagebeziehungen von Geraden: parallel und senkrecht
+- rechte Winkel sowie Eigenschaften ausgewählter Dreiecke und Vierecke
+- Mittelpunkt, Radius und Durchmesser am Kreis
+- Sekundenumrechnung sowie einfache Datums- und Kalenderaufgaben
+- Strichlisten auswerten und situationsgerecht zwischen Strichliste, Tabelle und Balkendiagramm wählen
 
 - deutsche Zahlwörter bis **1.000.000** lesen und Zifferndarstellungen zuordnen
 - mehrere große Zahlen der Größe nach ordnen
