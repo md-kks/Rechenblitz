@@ -21,6 +21,15 @@ import 'speech_service.dart';
 import 'storage_service.dart';
 
 class AppController extends ChangeNotifier {
+  static const double _secureIndependentEvidence = 4.0;
+  static const double _secureIndependentAccuracy = 0.80;
+  static const double _masteredIndependentEvidence = 6.0;
+  static const double _masteredIndependentAccuracy = 0.88;
+  static const double _masteredReviewEvidence = 1.5;
+  static const double _masteredReviewAccuracy = 0.80;
+  static const double _masteredTransferEvidence = 1.5;
+  static const double _masteredTransferAccuracy = 0.80;
+
   AppController({
     StorageService? storage,
     AdaptiveEngine? engine,
@@ -1068,14 +1077,15 @@ class AppController extends ChangeNotifier {
 
     final state = evidence < 1.5
         ? MicroCompetencyState.discovering
-        : independentEvidence >= 6 &&
-                independentAccuracy >= 0.88 &&
-                reviewIndependentEvidence >= 1.5 &&
-                reviewIndependentAccuracy >= 0.80 &&
-                transferIndependentEvidence >= 1.5 &&
-                transferIndependentAccuracy >= 0.80
+        : independentEvidence >= _masteredIndependentEvidence &&
+                independentAccuracy >= _masteredIndependentAccuracy &&
+                reviewIndependentEvidence >= _masteredReviewEvidence &&
+                reviewIndependentAccuracy >= _masteredReviewAccuracy &&
+                transferIndependentEvidence >= _masteredTransferEvidence &&
+                transferIndependentAccuracy >= _masteredTransferAccuracy
             ? MicroCompetencyState.mastered
-            : independentEvidence >= 4 && independentAccuracy >= 0.80
+            : independentEvidence >= _secureIndependentEvidence &&
+                    independentAccuracy >= _secureIndependentAccuracy
                 ? MicroCompetencyState.secure
                 : MicroCompetencyState.practicing;
 
@@ -1475,21 +1485,21 @@ class AppController extends ChangeNotifier {
 
   String _masteryMissingText(MicroCompetencyProgress progress) {
     final missing = <String>[];
-    if (progress.independentEvidence < 4) {
+    if (progress.independentEvidence < _secureIndependentEvidence) {
       missing.add('mehr selbstständige Lösungen');
-    } else if (progress.independentAccuracy < 0.80) {
+    } else if (progress.independentAccuracy < _secureIndependentAccuracy) {
       missing.add('eine stabilere selbstständige Trefferquote');
     } else {
-      if (progress.independentEvidence < 6 ||
-          progress.independentAccuracy < 0.88) {
+      if (progress.independentEvidence < _masteredIndependentEvidence ||
+          progress.independentAccuracy < _masteredIndependentAccuracy) {
         missing.add('eine noch stärkere selbstständige Basis');
       }
-      if (progress.reviewIndependentEvidence < 1.5 ||
-          progress.reviewIndependentAccuracy < 0.80) {
+      if (progress.reviewIndependentEvidence < _masteredReviewEvidence ||
+          progress.reviewIndependentAccuracy < _masteredReviewAccuracy) {
         missing.add('ein stabiler Nachweis nach zeitlichem Abstand');
       }
-      if (progress.transferIndependentEvidence < 1.5 ||
-          progress.transferIndependentAccuracy < 0.80) {
+      if (progress.transferIndependentEvidence < _masteredTransferEvidence ||
+          progress.transferIndependentAccuracy < _masteredTransferAccuracy) {
         missing.add('ein stabiler selbstständiger Transfer');
       }
     }
