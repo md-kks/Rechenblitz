@@ -349,6 +349,13 @@ class ErrorClassifier {
     if (taskKey.startsWith('process:representation:')) {
       return ErrorPattern.representationTranslation;
     }
+    if (taskKey.startsWith('story:transfer:skill:')) {
+      return _transferStoryPattern(
+        taskKey,
+        expected: expected,
+        actual: actual,
+      );
+    }
     if (taskKey.startsWith('story:info:') ||
         taskKey.startsWith('story:transfer:irrelevant:')) {
       return ErrorPattern.wordProblemRelevantInformation;
@@ -505,6 +512,32 @@ class ErrorClassifier {
     final tens = (fact.a ~/ 10) - (fact.b ~/ 10);
     final ones = ((fact.a % 10) - (fact.b % 10)).abs();
     return tens >= 0 && actual == tens * 10 + ones;
+  }
+
+  static ErrorPattern _transferStoryPattern(
+    String key, {
+    required int expected,
+    required int actual,
+  }) {
+    final parts = key.split(':');
+    if (parts.length < 8) return ErrorPattern.wordProblem;
+    final a = int.tryParse(parts[6]);
+    final b = int.tryParse(parts[7]);
+    if (a == null || b == null) return ErrorPattern.wordProblem;
+    final operation = switch (parts[4]) {
+      '+' => MathOperation.plus,
+      '-' => MathOperation.minus,
+      'x' => MathOperation.multiply,
+      'divide' => MathOperation.divide,
+      _ => null,
+    };
+    if (operation == null) return ErrorPattern.wordProblem;
+    return _classifyFact(
+      mode: TrainingMode.wordProblems,
+      fact: MathFact(a: a, b: b, operation: operation),
+      expected: expected,
+      actual: actual,
+    );
   }
 
   static ErrorPattern _storyCalculationPattern(
