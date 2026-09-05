@@ -74,6 +74,10 @@ class GuidedMethodFactory {
       return _plausibilityGuide(taskKey);
     }
 
+    if (taskKey.startsWith('process:representation:')) {
+      return _representationGuide(taskKey);
+    }
+
     if (fact != null &&
         fact.operation == MathOperation.minus &&
         _needsSubtractionBridge(fact)) {
@@ -139,6 +143,68 @@ class GuidedMethodFactory {
         GuidedMethodStep(
           title: 'Kontrollieren',
           instruction: 'Prüfe, ob dein Ergebnis zur Aufgabe und zum Zahlenraum passt.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _representationGuide(String taskKey) {
+    final parts = taskKey.split(':');
+    final kind = parts.length > 2 ? parts[2] : '';
+
+    if (kind == 'place' || kind == 'decompose') {
+      final number = parts.length > 3 ? int.tryParse(parts[3]) : null;
+      return GuidedMethodGuide(
+        methodKey: 'representation:placeValue',
+        methodLabel: 'Stellenwerte lesen',
+        nudge:
+            'Lies jede Stelle einzeln: Einer, Zehner, Hunderter und weiter nach links.',
+        steps: [
+          const GuidedMethodStep(
+            title: 'Stellen benennen',
+            instruction:
+                'Ordne jede sichtbare Ziffer zuerst ihrer Stelle zu. Eine 0 hält eine Stelle frei und darf nicht übersprungen werden.',
+          ),
+          GuidedMethodStep(
+            title: 'Wert zusammensetzen',
+            instruction: number == null
+                ? 'Setze die Stellenwerte anschließend wieder zu einer Zahl oder Zerlegung zusammen.'
+                : 'Die Stellenwertdarstellung gehört zu $number. Prüfe, wie jeder Ziffernwert in der Zerlegung erscheint.',
+          ),
+          const GuidedMethodStep(
+            title: 'Darstellungen vergleichen',
+            instruction:
+                'Kontrolliere, ob Zahl, Stellenwerttafel und Zerlegung exakt dieselben Stellenwerte enthalten.',
+          ),
+        ],
+      );
+    }
+
+    final groups = parts.length > 3 ? int.tryParse(parts[3]) : null;
+    final each = parts.length > 4 ? int.tryParse(parts[4]) : null;
+    return GuidedMethodGuide(
+      methodKey: 'representation:equalGroups',
+      methodLabel: 'Gleiche Gruppen lesen',
+      nudge:
+          'Zähle zuerst die Gruppen und danach, wie viele Punkte in jeder Gruppe liegen.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Gruppen zählen',
+          instruction: groups == null
+              ? 'Bestimme, wie viele gleich große Gruppen dargestellt sind.'
+              : 'Es sind $groups gleich große Gruppen.',
+        ),
+        GuidedMethodStep(
+          title: 'Inhalt jeder Gruppe',
+          instruction: each == null
+              ? 'Bestimme, wie viele Punkte in jeder Gruppe liegen.'
+              : 'In jeder Gruppe liegen $each Punkte.',
+        ),
+        GuidedMethodStep(
+          title: 'In Symbolsprache übersetzen',
+          instruction: groups == null || each == null
+              ? 'Schreibe: Anzahl der Gruppen × Anzahl je Gruppe.'
+              : '$groups Gruppen mit je $each Punkten entsprechen $groups × $each.',
         ),
       ],
     );
