@@ -155,6 +155,21 @@ abstract final class EvidenceCoverageAuditCatalog {
       'firstQuotientDigit',
       'firstDivisionRemainder',
     ],
+    MicroCompetencyId.wordProblemRelevantInformation: [
+      'storyInfo',
+    ],
+    MicroCompetencyId.wordProblemOperation: [
+      'storyOperation',
+    ],
+    MicroCompetencyId.wordProblemModel: [
+      'storyEquation',
+    ],
+    MicroCompetencyId.wordProblemCalculation: [
+      'storyCalculation',
+    ],
+    MicroCompetencyId.wordProblemInterpretation: [
+      'storyInterpretation',
+    ],
   };
 
   static const Map<MicroCompetencyId, List<String>> _independentSteps = {
@@ -198,6 +213,21 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.writtenDivideProcedure: [
       'firstQuotientDigit',
       'firstDivisionRemainder',
+    ],
+    MicroCompetencyId.wordProblemRelevantInformation: [
+      'storyInfo',
+    ],
+    MicroCompetencyId.wordProblemOperation: [
+      'storyOperation',
+    ],
+    MicroCompetencyId.wordProblemModel: [
+      'storyEquation',
+    ],
+    MicroCompetencyId.wordProblemCalculation: [
+      'storyCalculation',
+    ],
+    MicroCompetencyId.wordProblemInterpretation: [
+      'storyInterpretation',
     ],
   };
 

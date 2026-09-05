@@ -224,6 +224,23 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     if (wrongOnCurrent == 0) {
       await _rememberCurrentTaskOnce();
       if (!mounted || finishing) return;
+      final directStepKey = current.directIndependentStepKey;
+      final directStepCompetency = current.directIndependentStepCompetency;
+      if (directStepKey != null && directStepCompetency != null) {
+        unawaited(
+          widget.controller.recordIndependentStepAttempt(
+            mode: widget.mode,
+            taskKey: current.key,
+            stepKey: directStepKey,
+            competencyId: directStepCompetency,
+            correct: answer == current.answer,
+            usedHelp: showHint,
+            helpLevel: helpLevel,
+            methodKey: activeMethodKey,
+            evidenceWeight: 0.35,
+          ),
+        );
+      }
       await widget.controller.recordDiagnosticAttempt(
         mode: widget.mode,
         taskKey: current.key,

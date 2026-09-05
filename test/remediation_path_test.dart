@@ -906,4 +906,106 @@ void main() {
     );
   });
 
+
+  test('Sachaufgaben-Modellierung hat fünf getrennte Recovery-Pfade', () {
+    final generator = StepRecoveryGenerator(random: Random(630));
+    const cases = [
+      (
+        competency: MicroCompetencyId.wordProblemRelevantInformation,
+        key: 'storyInfo',
+        source: 'story:info:trip:5:2:3',
+      ),
+      (
+        competency: MicroCompetencyId.wordProblemOperation,
+        key: 'storyOperation',
+        source: 'story:operation:divide:18:3',
+      ),
+      (
+        competency: MicroCompetencyId.wordProblemModel,
+        key: 'storyEquation',
+        source: 'story:equation:x:4:5',
+      ),
+      (
+        competency: MicroCompetencyId.wordProblemCalculation,
+        key: 'storyCalculation',
+        source: 'story:calc:-:18:7',
+      ),
+      (
+        competency: MicroCompetencyId.wordProblemInterpretation,
+        key: 'storyInterpretation',
+        source: 'story:interpret:+:8:6:14',
+      ),
+    ];
+
+    for (final item in cases) {
+      final focus = IndependentStepRecoveryFocus(
+        competencyId: item.competency,
+        stepKey: item.key,
+        label: GuidedStepCatalog.labelFor(item.key),
+        mode: TrainingMode.wordProblems,
+        lastSeen: DateTime(2026, 9, 6, 0, 30),
+        sourceTaskKey: 'independent:${item.key}:${item.source}',
+      );
+      final plan = generator.generate(
+        focus: focus,
+        range: NumberRangeLevel.twenty,
+      );
+
+      expect(plan.tasks, hasLength(3), reason: item.key);
+      expect(
+        plan.tasks.map((task) => task.stage),
+        [
+          RemediationStage.supported,
+          RemediationStage.transfer,
+          RemediationStage.check,
+        ],
+        reason: item.key,
+      );
+      expect(
+        plan.tasks.every(
+          (task) =>
+              task.mode == TrainingMode.wordProblems &&
+              task.taskKey.startsWith('step-recovery:${item.key}:') &&
+              task.answer >= 0 &&
+              task.answer <= task.maxAnswerValue,
+        ),
+        isTrue,
+        reason: item.key,
+      );
+      for (final task in plan.tasks.where((task) => !task.usesChoices)) {
+        expect(task.answer, lessThanOrEqualTo(20), reason: item.key);
+        expect(task.maxAnswerValue, lessThanOrEqualTo(20), reason: item.key);
+      }
+    }
+  });
+
+  test('frischer Sachaufgaben-Teilfehler löst exakte Recovery aus', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.twenty;
+    final now = DateTime(2026, 9, 6, 0, 35);
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.wordProblemOperation,
+        occurredAt: now.subtract(const Duration(minutes: 5)),
+        correct: false,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.wordProblems,
+        gradeLevel: GradeLevel.first,
+        numberRange: NumberRangeLevel.twenty,
+        taskKey:
+            'independent:storyOperation:story:operation:-:12:4',
+      ),
+    ];
+
+    final focus = controller.independentStepRecoveryFocus(now: now);
+
+    expect(focus, isNotNull);
+    expect(focus!.competencyId, MicroCompetencyId.wordProblemOperation);
+    expect(focus.stepKey, 'storyOperation');
+    expect(focus.label, contains('Rechenart'));
+  });
+
 }

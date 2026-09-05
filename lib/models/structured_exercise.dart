@@ -73,6 +73,39 @@ class StructuredExercise {
   bool get hasMoneyVisual =>
       moneyPartsCents != null && moneyPartsCents!.isNotEmpty;
   bool get hasCheckpoints => checkpoints.isNotEmpty;
+
+  String? get directIndependentStepKey {
+    if (key.startsWith('story:info:')) return 'storyInfo';
+    if (key.startsWith('story:operation:')) return 'storyOperation';
+    if (key.startsWith('story:equation:')) return 'storyEquation';
+    if (key.startsWith('story:calc:')) return 'storyCalculation';
+    if (key.startsWith('story:interpret:')) return 'storyInterpretation';
+    return null;
+  }
+
+  MicroCompetencyId? get directIndependentStepCompetency {
+    if (key.startsWith('story:info:')) {
+      return MicroCompetencyId.wordProblemRelevantInformation;
+    }
+    if (key.startsWith('story:operation:')) {
+      return MicroCompetencyId.wordProblemOperation;
+    }
+    if (key.startsWith('story:equation:')) {
+      return MicroCompetencyId.wordProblemModel;
+    }
+    if (key.startsWith('story:calc:')) {
+      return MicroCompetencyId.wordProblemCalculation;
+    }
+    if (key.startsWith('story:interpret:')) {
+      return MicroCompetencyId.wordProblemInterpretation;
+    }
+    return null;
+  }
+
+  bool get hasDirectIndependentStep =>
+      directIndependentStepKey != null &&
+      directIndependentStepCompetency != null;
+
   bool get hasRepresentationVisual => switch (representation) {
         ExerciseRepresentation.placeValue => representationA != null,
         ExerciseRepresentation.equalGroups =>

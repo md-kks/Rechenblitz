@@ -135,31 +135,31 @@ void main() {
     const expected = {
       GradeLevel.first: (
         total: 21,
-        fullTaskOnly: 17,
+        fullTaskOnly: 12,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 4,
+        targetedRecovery: 9,
       ),
       GradeLevel.second: (
         total: 26,
-        fullTaskOnly: 20,
+        fullTaskOnly: 15,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 6,
+        targetedRecovery: 11,
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 54,
+        fullTaskOnly: 49,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 10,
+        targetedRecovery: 15,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 56,
+        fullTaskOnly: 51,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 10,
+        targetedRecovery: 15,
       ),
     };
 
@@ -286,7 +286,28 @@ void main() {
     }
   });
 
-  test('Audit zeigt nach Einmaleins-Recovery die nächste Evidence-Lücke', () {
+  test('Audit weist alle Sachaufgaben-Modellierungsschritte als Recovery aus',
+      () {
+    const modeling = {
+      MicroCompetencyId.wordProblemRelevantInformation: 'storyInfo',
+      MicroCompetencyId.wordProblemOperation: 'storyOperation',
+      MicroCompetencyId.wordProblemModel: 'storyEquation',
+      MicroCompetencyId.wordProblemCalculation: 'storyCalculation',
+      MicroCompetencyId.wordProblemInterpretation: 'storyInterpretation',
+    };
+
+    for (final entry in modeling.entries) {
+      final item = EvidenceCoverageAuditCatalog.item(entry.key);
+      expect(
+        item.depth,
+        EvidenceCoverageDepth.targetedRecovery,
+        reason: entry.key.name,
+      );
+      expect(item.independentStepKeys, contains(entry.value));
+      expect(item.guidedStepKeys, contains(entry.value));
+      expect(item.recoveryStepKeys, contains(entry.value));
+    }
+
     final multiplicationFacts = EvidenceCoverageAuditCatalog.item(
       MicroCompetencyId.multiplicationFacts,
     );
@@ -294,35 +315,6 @@ void main() {
       multiplicationFacts.depth,
       EvidenceCoverageDepth.targetedRecovery,
     );
-    expect(
-      multiplicationFacts.independentStepKeys,
-      containsAll([
-        'firstPartialProduct',
-        'secondPartialProduct',
-        'anchorFact',
-      ]),
-    );
-    expect(
-      multiplicationFacts.recoveryStepKeys,
-      containsAll([
-        'firstPartialProduct',
-        'secondPartialProduct',
-        'anchorFact',
-      ]),
-    );
-
-    final modeling = [
-      MicroCompetencyId.wordProblemRelevantInformation,
-      MicroCompetencyId.wordProblemOperation,
-      MicroCompetencyId.wordProblemModel,
-      MicroCompetencyId.wordProblemCalculation,
-      MicroCompetencyId.wordProblemInterpretation,
-    ];
-    for (final id in modeling) {
-      final item = EvidenceCoverageAuditCatalog.item(id);
-      expect(item.fullTaskIndependent, isTrue, reason: id.name);
-      expect(item.hasIndependentStep, isFalse, reason: id.name);
-    }
   });
 
 }

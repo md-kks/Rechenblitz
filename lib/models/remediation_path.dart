@@ -210,6 +210,11 @@ class StepRecoveryGenerator {
     'nextMultiplierDigit',
     'firstQuotientDigit',
     'firstDivisionRemainder',
+    'storyInfo',
+    'storyOperation',
+    'storyEquation',
+    'storyCalculation',
+    'storyInterpretation',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -304,6 +309,12 @@ class StepRecoveryGenerator {
             range,
             askForRemainder: true,
           ),
+        'storyInfo' => _storyInfoStep(focus, stage, range),
+        'storyOperation' => _storyOperationStep(focus, stage, range),
+        'storyEquation' => _storyEquationStep(focus, stage, range),
+        'storyCalculation' => _storyCalculationStep(focus, stage, range),
+        'storyInterpretation' =>
+          _storyInterpretationStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -704,6 +715,246 @@ class StepRecoveryGenerator {
           ? 'Rechne $chunk − ($quotientDigit × $divisor).'
           : 'Suche die größte Malaufgabe mit $divisor, die $chunk nicht überschreitet.',
     );
+  }
+
+  RemediationTask _storyInfoStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(10, min(range.maxValue, 100));
+    final first = _between(2, min(8, max(2, limit - 2)));
+    final second = _between(1, min(6, max(1, limit - first)));
+    final distractor = _between(1, min(9, limit));
+    final correct = '$first und $second Kinder';
+    final choices = <String>[
+      correct,
+      '$first Kinder und $distractor Seiten',
+      '$second Kinder und $distractor Seiten',
+      'Nur die $distractor Seiten',
+    ]..shuffle(_random);
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'story-info:$first:$second:$distractor',
+      prompt:
+          'In zwei Gruppen spielen $first und $second Kinder. Ein Buch daneben hat $distractor Seiten. Welche Angaben brauchst du, um zu bestimmen, wie viele Kinder zusammen spielen?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Prüfe jede Zahl daran, ob sie zur Frage nach den Kindern gehört.',
+    );
+  }
+
+  RemediationTask _storyOperationStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final operation = _storyOperationFromSource(focus.sourceTaskKey);
+    final limit = max(10, min(range.maxValue, 100));
+    final a = _between(2, min(9, limit));
+    final b = _between(1, min(6, max(1, limit - a)));
+    final groups = _between(2, min(5, max(2, limit ~/ 2)));
+    final each = _between(2, min(6, max(2, limit ~/ groups)));
+    final total = groups * each;
+    final (prompt, correct, rawChoices) = switch (operation) {
+      'x' => (
+          '$groups Schachteln enthalten jeweils $each Stifte. Welche Rechenart passt für die Gesamtzahl?',
+          'Mal (×)',
+          <String>['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'],
+        ),
+      'divide' => (
+          '$total Karten werden gleichmäßig auf $groups Kinder verteilt. Welche Rechenart passt für den Anteil pro Kind?',
+          'Geteilt (÷)',
+          <String>['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'],
+        ),
+      '-' => (
+          'In einer Kiste liegen $a Bausteine. $b werden herausgenommen. Welche Rechenart passt?',
+          'Minus (−)',
+          <String>['Plus (+)', 'Minus (−)'],
+        ),
+      _ => (
+          'In einer Kiste liegen $a Bausteine. $b kommen dazu. Welche Rechenart passt?',
+          'Plus (+)',
+          <String>['Plus (+)', 'Minus (−)'],
+        ),
+    };
+    final choices = [...rawChoices]..shuffle(_random);
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'story-operation:$operation:$a:$b:$groups:$each',
+      prompt: prompt,
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Entscheide nach der Handlung: mehr, weniger, gleich große Gruppen oder gleichmäßig verteilen.',
+    );
+  }
+
+  RemediationTask _storyEquationStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final operation = _storyOperationFromSource(focus.sourceTaskKey);
+    final limit = max(10, min(range.maxValue, 100));
+    final a = _between(2, min(9, limit));
+    final b = _between(1, min(6, max(1, limit - a)));
+    final groups = _between(2, min(5, max(2, limit ~/ 2)));
+    final each = _between(2, min(6, max(2, limit ~/ groups)));
+    final total = groups * each;
+    final (prompt, correct, rawChoices) = switch (operation) {
+      'x' => (
+          '$groups Reihen haben jeweils $each Stühle. Welche Rechnung beschreibt die Gesamtzahl?',
+          '$groups × $each',
+          <String>[
+            '$groups × $each',
+            '$groups + $each',
+            '$groups − $each',
+            '$each ÷ $groups',
+          ],
+        ),
+      'divide' => (
+          '$total Stifte werden gleichmäßig auf $groups Schachteln verteilt. Welche Rechnung beschreibt die Anzahl pro Schachtel?',
+          '$total ÷ $groups',
+          <String>[
+            '$total ÷ $groups',
+            '$total − $groups',
+            '$total + $groups',
+            '$groups ÷ $total',
+          ],
+        ),
+      '-' => (
+          'In einer Schachtel sind $a Karten. $b werden weggenommen. Welche Rechnung beschreibt die Situation?',
+          '$a − $b',
+          <String>[
+            '$a − $b',
+            '$a + $b',
+            '$b − $a',
+            '$a × $b',
+          ],
+        ),
+      _ => (
+          'Auf dem Schulhof spielen $a Kinder. $b kommen dazu. Welche Rechnung beschreibt die Situation?',
+          '$a + $b',
+          <String>[
+            '$a + $b',
+            '$a − $b',
+            '$a × $b',
+            '$b − $a',
+          ],
+        ),
+    };
+    final choices = [...rawChoices]..shuffle(_random);
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'story-equation:$operation:$a:$b:$groups:$each',
+      prompt: prompt,
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Ordne die wichtigen Zahlen so an, dass die Rechnung genau zur Handlung passt.',
+    );
+  }
+
+  RemediationTask _storyCalculationStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final operation = _storyOperationFromSource(focus.sourceTaskKey);
+    final limit = max(10, min(range.maxValue, 100));
+    if (operation == 'x' || operation == 'divide') {
+      final groups = _between(2, min(5, max(2, limit ~/ 2)));
+      final each = _between(2, min(6, max(2, limit ~/ groups)));
+      final total = groups * each;
+      return _numeric(
+        focus: focus,
+        stage: stage,
+        key: 'story-calc:$operation:$groups:$each',
+        prompt: operation == 'x'
+            ? 'Die passende Rechnung ist $groups × $each. Wie lautet das Ergebnis?'
+            : 'Die passende Rechnung ist $total ÷ $groups. Wie lautet das Ergebnis?',
+        answer: operation == 'x' ? total : each,
+        max: limit,
+        hint:
+            'Die Sachlage ist schon modelliert. Rechne jetzt nur die angegebene Rechnung aus.',
+      );
+    }
+
+    final a = operation == '-'
+        ? _between(2, min(12, limit))
+        : _between(1, max(1, min(12, limit - 1)));
+    final b = operation == '-'
+        ? _between(1, max(1, a - 1))
+        : _between(1, max(1, min(9, limit - a)));
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'story-calc:$operation:$a:$b',
+      prompt: operation == '-'
+          ? 'Die passende Rechnung ist $a − $b. Wie lautet das Ergebnis?'
+          : 'Die passende Rechnung ist $a + $b. Wie lautet das Ergebnis?',
+      answer: operation == '-' ? a - b : a + b,
+      max: limit,
+      hint:
+          'Die Sachlage ist schon modelliert. Rechne jetzt nur die angegebene Rechnung aus.',
+    );
+  }
+
+  RemediationTask _storyInterpretationStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final subtract = _storyOperationFromSource(focus.sourceTaskKey) == '-';
+    final limit = max(10, min(range.maxValue, 100));
+    final a = subtract
+        ? _between(2, min(12, limit))
+        : _between(1, max(1, min(12, limit - 1)));
+    final b = subtract
+        ? _between(1, max(1, a - 1))
+        : _between(1, max(1, min(9, limit - a)));
+    final result = subtract ? a - b : a + b;
+    final correct = subtract
+        ? 'Es bleiben $result Karten übrig.'
+        : 'Mara hat jetzt $result Sticker.';
+    final choices = subtract
+        ? <String>[
+            correct,
+            'Es wurden $result Karten weggenommen.',
+            'Am Anfang lagen $result Karten dort.',
+            'Es kommen $result Karten dazu.',
+          ]
+        : <String>[
+            correct,
+            'Mara hat $result Sticker abgegeben.',
+            'Es kommen noch $result Sticker dazu.',
+            'Im Raum sind $result Kinder.',
+          ];
+    choices.shuffle(_random);
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'story-interpret:${subtract ? '-' : '+'}:$a:$b:$result',
+      prompt: subtract
+          ? 'Auf dem Tisch liegen $a Karten. $b werden weggenommen. $a − $b = $result. Welche Antwort passt zur Situation?'
+          : 'Mara hat $a Sticker und bekommt $b dazu. $a + $b = $result. Welche Antwort passt zur Situation?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Verbinde die Ergebniszahl wieder mit der Frage und dem Gegenstand der Geschichte.',
+    );
+  }
+
+  String _storyOperationFromSource(String sourceTaskKey) {
+    if (sourceTaskKey.contains(':divide:')) return 'divide';
+    if (sourceTaskKey.contains(':x:')) return 'x';
+    if (sourceTaskKey.contains(':-:')) return '-';
+    return '+';
   }
 
   RemediationTask _numeric({
