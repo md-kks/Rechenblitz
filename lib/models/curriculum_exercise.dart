@@ -140,9 +140,18 @@ class CurriculumExerciseGenerator {
         TrainingMode.arithmeticLaws => _arithmeticLaws(gradeLevel),
         TrainingMode.romanNumerals => _romanNumerals(gradeLevel),
         TrainingMode.fractions => _fractions(gradeLevel, maxValue),
-        TrainingMode.advancedMeasures => _advancedMeasures(gradeLevel),
-        TrainingMode.timeDurations => _timeDurations(gradeLevel),
-        TrainingMode.dataCharts => _dataCharts(gradeLevel),
+        TrainingMode.advancedMeasures => _advancedMeasures(
+            gradeLevel,
+            targetCompetency: targetCompetency,
+          ),
+        TrainingMode.timeDurations => _timeDurations(
+            gradeLevel,
+            targetCompetency: targetCompetency,
+          ),
+        TrainingMode.dataCharts => _dataCharts(
+            gradeLevel,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.probability =>
           targetCompetency == MicroCompetencyId.probabilityExperiment
               ? _probabilityExperiment()
@@ -764,7 +773,14 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _advancedMeasures(GradeLevel grade) {
+  CurriculumExercise _advancedMeasures(
+    GradeLevel grade, {
+    MicroCompetencyId? targetCompetency,
+  }) {
+    if (targetCompetency == MicroCompetencyId.secondsConversion ||
+        _random.nextDouble() < 0.14) {
+      return _secondsConversion(grade);
+    }
     final kind = _random.nextInt(grade == GradeLevel.fourth ? 8 : 6);
     if (kind == 0) {
       final value = _between(1, grade == GradeLevel.third ? 9 : 50);
@@ -798,6 +814,31 @@ class CurriculumExerciseGenerator {
     return _conversion('$value € sind wie viele Cent?', value * 100, '1 € = 100 ct.', 'ct', 'money:euro:$value', 5000);
   }
 
+  CurriculumExercise _secondsConversion(GradeLevel grade) {
+    final toSeconds = _random.nextBool();
+    if (toSeconds) {
+      final minutes = _between(1, grade == GradeLevel.third ? 6 : 12);
+      return _conversion(
+        '$minutes min sind wie viele Sekunden?',
+        minutes * 60,
+        '1 Minute = 60 Sekunden.',
+        's',
+        'time:seconds:min-to-sec:$minutes',
+        900,
+      );
+    }
+    final minutes = _between(1, grade == GradeLevel.third ? 6 : 12);
+    final seconds = minutes * 60;
+    return _conversion(
+      '$seconds s sind wie viele Minuten?',
+      minutes,
+      '60 Sekunden = 1 Minute.',
+      'min',
+      'time:seconds:sec-to-min:$seconds',
+      20,
+    );
+  }
+
   CurriculumExercise _conversion(
     String prompt,
     int answer,
@@ -817,7 +858,14 @@ class CurriculumExerciseGenerator {
         method: 'Größen umwandeln',
       );
 
-  CurriculumExercise _timeDurations(GradeLevel grade) {
+  CurriculumExercise _timeDurations(
+    GradeLevel grade, {
+    MicroCompetencyId? targetCompetency,
+  }) {
+    if (targetCompetency == MicroCompetencyId.calendarDate ||
+        _random.nextDouble() < 0.18) {
+      return _calendarDate(grade);
+    }
     if (grade == GradeLevel.fourth && _random.nextDouble() < 0.25) {
       if (_random.nextBool()) {
         final weeks = _between(1, 6);
@@ -870,7 +918,57 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _dataCharts(GradeLevel grade) {
+  CurriculumExercise _calendarDate(GradeLevel grade) {
+    const months = [
+      ('März', 31),
+      ('April', 30),
+      ('Mai', 31),
+      ('Juni', 30),
+      ('September', 30),
+      ('Oktober', 31),
+    ];
+    final month = months[_random.nextInt(months.length)];
+    final addDays = grade == GradeLevel.third
+        ? [7, 14][_random.nextInt(2)]
+        : [3, 7, 10, 14][_random.nextInt(4)];
+    final start = _between(1, month.$2 - addDays);
+    final answerDay = start + addDays;
+    final choices = <String>{
+      '$answerDay. ${month.$1}',
+      '${max(1, answerDay - 1)}. ${month.$1}',
+      '${min(month.$2, answerDay + 1)}. ${month.$1}',
+      '$start. ${month.$1}',
+    }.toList()
+      ..shuffle(_random);
+    final correct = '$answerDay. ${month.$1}';
+
+    return CurriculumExercise(
+      mode: TrainingMode.timeDurations,
+      prompt:
+          'Heute ist der $start. ${month.$1}. Welches Datum ist $addDays Tage später?',
+      answer: choices.indexOf(correct),
+      hint:
+          'Gehe im Kalender genau $addDays Tage weiter. Der Monat hat hier ${month.$2} Tage.',
+      key: 'calendar:add:${month.$1}:$start:$addDays',
+      choices: choices,
+      method: 'Mit Datum und Kalender rechnen',
+    );
+  }
+
+  CurriculumExercise _dataCharts(
+    GradeLevel grade, {
+    MicroCompetencyId? targetCompetency,
+  }) {
+    if (targetCompetency == MicroCompetencyId.tallyTableReading) {
+      return _tallyData(grade);
+    }
+    if (targetCompetency == MicroCompetencyId.dataRepresentationChoice) {
+      return _dataRepresentationChoice();
+    }
+    final roll = _random.nextDouble();
+    if (roll < 0.18) return _tallyData(grade);
+    if (roll < 0.34) return _dataRepresentationChoice();
+
     final labels = ['Rot', 'Blau', 'Grün', 'Gelb'];
     final values = List<int>.generate(
       4,
@@ -914,6 +1012,51 @@ class CurriculumExerciseGenerator {
       maxAnswerValue: 100,
       bars: bars,
       method: 'Diagramme vergleichen',
+    );
+  }
+
+  CurriculumExercise _tallyData(GradeLevel grade) {
+    final count = _between(6, grade == GradeLevel.third ? 24 : 40);
+    final groups = count ~/ 5;
+    final rest = count % 5;
+    final tally = [
+      ...List<String>.filled(groups, '||||/'),
+      if (rest > 0) List<String>.filled(rest, '|').join(),
+    ].join(' ');
+
+    return CurriculumExercise(
+      mode: TrainingMode.dataCharts,
+      prompt:
+          'Strichliste: $tally\nWie viele Einträge wurden gezählt?',
+      answer: count,
+      hint:
+          'Ein vollständiger Fünferblock steht für 5. Addiere danach die einzelnen Striche.',
+      key: 'data:tally:$count',
+      maxAnswerValue: 50,
+      method: 'Strichliste auswerten',
+    );
+  }
+
+  CurriculumExercise _dataRepresentationChoice() {
+    final kind = _random.nextInt(3);
+    const choices = ['Strichliste', 'Tabelle', 'Balkendiagramm'];
+    final prompt = switch (kind) {
+      0 =>
+        'Du zählst während einer Befragung jede neue Stimme sofort mit. Welche Darstellung eignet sich am besten?',
+      1 =>
+        'Du möchtest exakte Werte für Montag bis Freitag geordnet nachschlagen. Welche Darstellung eignet sich am besten?',
+      _ =>
+        'Du möchtest auf einen Blick vergleichen, welche Lieblingsfarbe am häufigsten gewählt wurde. Welche Darstellung eignet sich am besten?',
+    };
+    return CurriculumExercise(
+      mode: TrainingMode.dataCharts,
+      prompt: prompt,
+      answer: kind,
+      hint:
+          'Strichlisten helfen beim laufenden Zählen, Tabellen beim geordneten Nachschlagen und Balkendiagramme beim schnellen Vergleichen.',
+      key: 'data:representation:$kind',
+      choices: choices,
+      method: 'Passende Datendarstellung wählen',
     );
   }
 
