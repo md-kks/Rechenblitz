@@ -30,6 +30,9 @@ class AppController extends ChangeNotifier {
   static const double _masteredReviewAccuracy = 0.80;
   static const double _masteredTransferEvidence = 1.5;
   static const double _masteredTransferAccuracy = 0.80;
+  static const int _guidedStepWindow = 8;
+  static const int _guidedStepMinIncorrect = 2;
+  static const double _guidedStepFocusMaxAccuracy = 0.60;
 
   AppController({
     StorageService? storage,
@@ -1208,7 +1211,7 @@ class AppController extends ChangeNotifier {
     final candidates = <GuidedStepFocus>[];
     for (final entries in grouped.values) {
       entries.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-      final recent = entries.take(8).toList();
+      final recent = entries.take(_guidedStepWindow).toList();
       if (recent.length < 2) continue;
 
       final incorrect = recent.where((entry) => !entry.correct).length;
@@ -1217,8 +1220,8 @@ class AppController extends ChangeNotifier {
       final competencyId = recent.first.id;
       final progress = microCompetencyProgress(competencyId);
 
-      if (incorrect < 2 ||
-          accuracy >= 0.60 ||
+      if (incorrect < _guidedStepMinIncorrect ||
+          accuracy >= _guidedStepFocusMaxAccuracy ||
           progress.state == MicroCompetencyState.secure ||
           progress.state == MicroCompetencyState.mastered) {
         continue;
