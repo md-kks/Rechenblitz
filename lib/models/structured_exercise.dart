@@ -6,6 +6,8 @@ import '../models/task_diversity.dart';
 
 enum ExerciseShape { triangle, square, rectangle, circle }
 
+enum ExerciseRepresentation { placeValue, equalGroups }
+
 class StructuredExercise {
   const StructuredExercise({
     required this.mode,
@@ -22,6 +24,9 @@ class StructuredExercise {
     this.moneyPartsCents,
     this.answerSuffix,
     this.maxAnswerValue,
+    this.representation,
+    this.representationA,
+    this.representationB,
   });
 
   final TrainingMode mode;
@@ -38,11 +43,17 @@ class StructuredExercise {
   final List<int>? moneyPartsCents;
   final String? answerSuffix;
   final int? maxAnswerValue;
+  final ExerciseRepresentation? representation;
+  final int? representationA;
+  final int? representationB;
 
   bool get isNumberWall => wallValues != null && hiddenWallIndex != null;
   bool get usesChoices => choices != null && choices!.isNotEmpty;
   bool get hasClock => clockHour != null && clockMinute != null;
-  bool get hasMoneyVisual => moneyPartsCents != null && moneyPartsCents!.isNotEmpty;
+  bool get hasMoneyVisual =>
+      moneyPartsCents != null && moneyPartsCents!.isNotEmpty;
+  bool get hasRepresentationVisual =>
+      representation != null && representationA != null;
 }
 
 class StructuredExerciseGenerator {
@@ -310,6 +321,13 @@ class StructuredExerciseGenerator {
     bool transferEmphasis,
     MicroCompetencyId? targetCompetency,
   ) {
+    if (targetCompetency == MicroCompetencyId.representationTranslation) {
+      return _representationTranslation(
+        maxValue,
+        gradeLevel,
+      );
+    }
+
     const modelingTargets = {
       MicroCompetencyId.wordProblemRelevantInformation,
       MicroCompetencyId.wordProblemOperation,
@@ -416,6 +434,127 @@ class StructuredExerciseGenerator {
       hint: 'Gleichmäßig verteilen passt zu Teilen.',
       key: 'story:divide:${template.$1}:$total:$groups',
     );
+  }
+
+  StructuredExercise _representationTranslation(
+    int maxValue,
+    GradeLevel gradeLevel,
+  ) {
+    final limit = max(10, maxValue);
+    final allowGroups =
+        gradeLevel.index >= GradeLevel.second.index && limit >= 20;
+    final kind = _random.nextInt(allowGroups ? 4 : 2);
+
+    if (kind == 0) {
+      final number = _between(1, limit);
+      final correct = '$number';
+      final choices = _numberRepresentationChoices(number, limit)
+          .map((value) => '$value')
+          .toList();
+      return _choiceStory(
+        prompt: 'Welche Zahl zeigt die Stellenwertdarstellung?',
+        hint:
+            'Lies die Stellen von links nach rechts und achte auch auf Stellen mit 0.',
+        key: 'process:representation:place:$number',
+        correct: correct,
+        choices: choices,
+        maxAnswerValue: 3,
+        representation: ExerciseRepresentation.placeValue,
+        representationA: number,
+      );
+    }
+
+    if (kind == 1) {
+      final number = _between(1, limit);
+      final correct = _expandedNumber(number);
+      final choices = _numberRepresentationChoices(number, limit)
+          .map(_expandedNumber)
+          .toList();
+      return _choiceStory(
+        prompt: 'Welche Zerlegung passt zur Stellenwertdarstellung?',
+        hint:
+            'Jede Ziffer steht für ihren Stellenwert: Einer, Zehner, Hunderter und so weiter.',
+        key: 'process:representation:decompose:$number',
+        correct: correct,
+        choices: choices,
+        maxAnswerValue: 3,
+        representation: ExerciseRepresentation.placeValue,
+        representationA: number,
+      );
+    }
+
+    final groups = _between(2, min(5, max(2, limit ~/ 2)));
+    final maxEach = min(5, max(2, limit ~/ groups));
+    final each = _between(2, maxEach);
+
+    if (kind == 2) {
+      final correct = '$groups × $each';
+      return _choiceStory(
+        prompt: 'Welche Rechnung beschreibt das Punktefeld?',
+        hint:
+            'Zähle zuerst die gleich großen Gruppen und dann die Punkte in jeder Gruppe.',
+        key: 'process:representation:groups:$groups:$each',
+        correct: correct,
+        choices: [
+          correct,
+          '$groups + $each',
+          '${groups + 1} × $each',
+          '$groups × ${each + 1}',
+        ],
+        maxAnswerValue: 3,
+        representation: ExerciseRepresentation.equalGroups,
+        representationA: groups,
+        representationB: each,
+      );
+    }
+
+    final correct = '$groups Gruppen mit je $each Punkten';
+    return _choiceStory(
+      prompt: 'Welche Darstellung passt zu $groups × $each?',
+      hint:
+          'Der erste Faktor sagt, wie viele gleich große Gruppen es gibt. Der zweite sagt, wie viele in jeder Gruppe sind.',
+      key: 'process:representation:equation:$groups:$each',
+      correct: correct,
+      choices: [
+        correct,
+        '${groups + 1} Gruppen mit je $each Punkten',
+        '$groups Gruppen mit je ${each + 1} Punkten',
+        '$groups Gruppen mit je ${max(1, each - 1)} Punkten',
+      ],
+      maxAnswerValue: 3,
+    );
+  }
+
+  List<int> _numberRepresentationChoices(int correct, int limit) {
+    final values = <int>{correct};
+    const offsets = [1, -1, 10, -10, 100, -100, 1000, -1000];
+    for (final offset in offsets) {
+      final candidate = correct + offset;
+      if (candidate >= 0 && candidate <= limit) {
+        values.add(candidate);
+      }
+      if (values.length >= 4) break;
+    }
+    while (values.length < 4) {
+      values.add(_random.nextInt(limit + 1));
+    }
+    return values.take(4).toList();
+  }
+
+  String _expandedNumber(int number) {
+    if (number == 0) return '0';
+    final parts = <String>[];
+    var remaining = number;
+    var place = 1;
+    while (remaining > 0) {
+      final digit = remaining % 10;
+      if (digit != 0) {
+        parts.add('${digit * place}');
+      }
+      remaining ~/= 10;
+      place *= 10;
+    }
+    return parts.reversed.join(' + ');
   }
 
   StructuredExercise _targetedWordProblem(
@@ -776,6 +915,9 @@ class StructuredExerciseGenerator {
     required String correct,
     required List<String> choices,
     required int maxAnswerValue,
+    ExerciseRepresentation? representation,
+    int? representationA,
+    int? representationB,
   }) {
     final shuffled = [...choices]..shuffle(_random);
     return StructuredExercise(
@@ -786,6 +928,9 @@ class StructuredExerciseGenerator {
       key: key,
       choices: shuffled,
       maxAnswerValue: maxAnswerValue,
+      representation: representation,
+      representationA: representationA,
+      representationB: representationB,
     );
   }
 
