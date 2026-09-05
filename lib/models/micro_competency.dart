@@ -425,7 +425,7 @@ class MicroCompetencyCatalog {
       label: 'Teilen als Verteilen und Gruppieren',
       description: 'Division als gleichmäßiges Verteilen verstehen.',
       domain: MicroCompetencyDomain.arithmetic,
-      preferredMode: TrainingMode.divide,
+      preferredMode: TrainingMode.wordProblems,
       minGrade: GradeLevel.second,
     ),
     MicroCompetencyDefinition(
@@ -1162,6 +1162,20 @@ class MicroCompetencyCatalog {
   static List<MicroCompetencyTag> _storyTags(String key) {
     if (key.startsWith('story:transfer:skill:')) {
       return _transferStoryTags(key);
+    }
+
+    if (key.startsWith('story:sharing:')) {
+      return const [
+        MicroCompetencyTag(MicroCompetencyId.divisionSharing),
+        MicroCompetencyTag(
+          MicroCompetencyId.divisionFacts,
+          weight: 0.35,
+        ),
+        MicroCompetencyTag(
+          MicroCompetencyId.wordProblemModel,
+          weight: 0.25,
+        ),
+      ];
     }
 
     if (key.startsWith('story:info:') ||

@@ -467,4 +467,30 @@ void main() {
   });
 
 
+
+  test('Teilen als Verteilen hat eine eigene Verständnisaufgabe', () {
+    final generator = StructuredExerciseGenerator(random: Random(319));
+
+    for (final maxValue in [20, 100]) {
+      final exercise = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: maxValue,
+        gradeLevel: GradeLevel.second,
+        targetCompetency: MicroCompetencyId.divisionSharing,
+      );
+      final tags = MicroCompetencyCatalog.tagsForTask(
+        mode: TrainingMode.wordProblems,
+        taskKey: exercise.key,
+      );
+
+      expect(exercise.key, startsWith('story:sharing:'));
+      expect(tags.first.id, MicroCompetencyId.divisionSharing);
+      expect(
+        tags.map((tag) => tag.id),
+        contains(MicroCompetencyId.divisionFacts),
+      );
+      expect(exercise.answer, inInclusiveRange(0, maxValue));
+    }
+  });
+
 }

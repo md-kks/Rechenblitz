@@ -355,6 +355,10 @@ class StructuredExerciseGenerator {
       );
     }
 
+    if (targetCompetency == MicroCompetencyId.divisionSharing) {
+      return _divisionSharingWordProblem(maxValue);
+    }
+
     if (targetCompetency == MicroCompetencyId.representationTranslation) {
       return _representationTranslation(
         maxValue,
@@ -467,6 +471,38 @@ class StructuredExerciseGenerator {
       answer: each,
       hint: 'Gleichmäßig verteilen passt zu Teilen.',
       key: 'story:divide:${template.$1}:$total:$groups',
+    );
+  }
+
+  StructuredExercise _divisionSharingWordProblem(int maxValue) {
+    final limit = max(10, maxValue);
+    final groups = _between(2, min(8, max(2, limit ~/ 2)));
+    final maxEach = max(1, min(10, limit ~/ groups));
+    final each = _between(1, maxEach);
+    final total = groups * each;
+    final contexts = [
+      (
+        'children',
+        '$total Bausteine werden gleichmäßig auf $groups Kinder verteilt. Wie viele Bausteine bekommt jedes Kind?',
+      ),
+      (
+        'bags',
+        '$total Murmeln werden gleichmäßig auf $groups Beutel verteilt. Wie viele Murmeln kommen in jeden Beutel?',
+      ),
+      (
+        'plates',
+        '$total Kekse werden gleichmäßig auf $groups Teller verteilt. Wie viele Kekse liegen auf jedem Teller?',
+      ),
+    ];
+    final context = contexts[_random.nextInt(contexts.length)];
+    return StructuredExercise(
+      mode: TrainingMode.wordProblems,
+      prompt: context.$2,
+      answer: each,
+      hint:
+          'Verteile die Gesamtmenge gleichmäßig auf alle Gruppen. Jede Gruppe bekommt gleich viel.',
+      key: 'story:sharing:${context.$1}:$total:$groups',
+      maxAnswerValue: limit,
     );
   }
 

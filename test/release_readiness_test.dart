@@ -4,10 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/accessibility_preferences.dart';
 import 'package:rechenblitz/models/beta_feedback.dart';
 import 'package:rechenblitz/models/curriculum_audit.dart';
+import 'package:rechenblitz/models/curriculum_exercise.dart';
+import 'package:rechenblitz/models/evidence_coverage_audit.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
+import 'package:rechenblitz/models/remediation_path.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/app_controller.dart';
+import 'package:rechenblitz/services/adaptive_engine.dart';
 import 'package:rechenblitz/services/storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -126,4 +130,185 @@ void main() {
     expect(export, isNot(contains('"facts"')));
     expect(export, isNot(contains('"history"')));
   });
+
+  test('Evidence-Audit klassifiziert jede Mikro-Kompetenz Klasse 1–4', () {
+    const expected = {
+      GradeLevel.first: (
+        total: 21,
+        fullTaskOnly: 17,
+        guidedOnly: 0,
+        independentOnly: 0,
+        targetedRecovery: 4,
+      ),
+      GradeLevel.second: (
+        total: 26,
+        fullTaskOnly: 20,
+        guidedOnly: 1,
+        independentOnly: 0,
+        targetedRecovery: 5,
+      ),
+      GradeLevel.third: (
+        total: 64,
+        fullTaskOnly: 54,
+        guidedOnly: 1,
+        independentOnly: 0,
+        targetedRecovery: 9,
+      ),
+      GradeLevel.fourth: (
+        total: 66,
+        fullTaskOnly: 56,
+        guidedOnly: 1,
+        independentOnly: 0,
+        targetedRecovery: 9,
+      ),
+    };
+
+    for (final grade in GradeLevel.values) {
+      final audit = EvidenceCoverageAuditCatalog.audit(grade);
+      final baseline = expected[grade]!;
+
+      expect(audit.total, baseline.total, reason: grade.name);
+      expect(
+        audit.fullTaskOnlyCount,
+        baseline.fullTaskOnly,
+        reason: grade.name,
+      );
+      expect(
+        audit.guidedStepCount,
+        baseline.guidedOnly,
+        reason: grade.name,
+      );
+      expect(
+        audit.independentStepCount,
+        baseline.independentOnly,
+        reason: grade.name,
+      );
+      expect(
+        audit.targetedRecoveryCount,
+        baseline.targetedRecovery,
+        reason: grade.name,
+      );
+      expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
+      expect(audit.internallyConsistent, isTrue, reason: grade.name);
+    }
+  });
+
+  test('Evidence-Audit prüft bekannte Step-Keys und Recovery-Konsistenz', () {
+    expect(EvidenceCoverageAuditCatalog.declaredStepKeysAreKnown, isTrue);
+
+    for (final definition in MicroCompetencyCatalog.definitions) {
+      final item = EvidenceCoverageAuditCatalog.forDefinition(definition);
+      expect(
+        item.independentStepKeys.every(item.guidedStepKeys.contains),
+        isTrue,
+        reason: definition.id.name,
+      );
+      expect(
+        item.recoveryStepKeys.every(
+          StepRecoveryGenerator.supports,
+        ),
+        isTrue,
+        reason: definition.id.name,
+      );
+    }
+  });
+
+  test('jede Mikro-Kompetenz ist gezielt als Gesamtaufgabe generierbar', () {
+    final structured =
+        StructuredExerciseGenerator(random: Random(202609051));
+    final curriculum =
+        CurriculumExerciseGenerator(random: Random(202609052));
+    final adaptive = AdaptiveEngine(random: Random(202609053));
+
+    for (final definition in MicroCompetencyCatalog.definitions) {
+      final grade = definition.minGrade;
+      final mode = definition.preferredMode;
+      final maxValue = grade.recommendedRange.maxValue;
+
+      if (mode.isUpperPrimary) {
+        final exercise = curriculum.generate(
+          mode: mode,
+          gradeLevel: grade,
+          maxValue: maxValue,
+          targetCompetency: definition.id,
+        );
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: mode,
+          taskKey: exercise.key,
+        );
+        expect(
+          tags.map((tag) => tag.id),
+          contains(definition.id),
+          reason:
+              '${definition.id.name}: ${exercise.key}',
+        );
+        continue;
+      }
+
+      if (mode.isStructured) {
+        final exercise = structured.generate(
+          mode: mode,
+          gradeLevel: grade,
+          maxValue: maxValue,
+          targetCompetency: definition.id,
+        );
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: mode,
+          taskKey: exercise.key,
+        );
+        expect(
+          tags.map((tag) => tag.id),
+          contains(definition.id),
+          reason:
+              '${definition.id.name}: ${exercise.key}',
+        );
+        continue;
+      }
+
+      final factMax = min(maxValue, 100);
+      final facts = AdaptiveEngine.buildFactPool(maxValue: factMax);
+      final fact = adaptive.selectNext(
+        facts: facts,
+        mode: mode,
+        maxValue: factMax,
+        targetCompetency: definition.id,
+      );
+      final tags = MicroCompetencyCatalog.tagsForTask(
+        mode: mode,
+        taskKey: fact.key,
+        fact: fact,
+      );
+      expect(
+        tags.map((tag) => tag.id),
+        contains(definition.id),
+        reason: '${definition.id.name}: ${fact.key}',
+      );
+    }
+  });
+
+  test('Audit macht die nächste echte Evidence-Lücke sichtbar', () {
+    final multiplicationFacts = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.multiplicationFacts,
+    );
+    expect(
+      multiplicationFacts.depth,
+      EvidenceCoverageDepth.guidedStep,
+    );
+    expect(multiplicationFacts.guidedStepKeys, isNotEmpty);
+    expect(multiplicationFacts.independentStepKeys, isEmpty);
+
+    final modeling = [
+      MicroCompetencyId.wordProblemRelevantInformation,
+      MicroCompetencyId.wordProblemOperation,
+      MicroCompetencyId.wordProblemModel,
+      MicroCompetencyId.wordProblemCalculation,
+      MicroCompetencyId.wordProblemInterpretation,
+    ];
+    for (final id in modeling) {
+      final item = EvidenceCoverageAuditCatalog.item(id);
+      expect(item.fullTaskIndependent, isTrue, reason: id.name);
+      expect(item.hasIndependentStep, isFalse, reason: id.name);
+    }
+  });
+
 }
