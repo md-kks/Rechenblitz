@@ -504,12 +504,12 @@ void main() {
 
 
   test('gezielter Rechenschritt-Pfad bleibt auf drei Aufgaben begrenzt', () {
-    const focus = IndependentStepRecoveryFocus(
+    final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.writtenMultiplyProcedure,
       stepKey: 'multiplicationCarry',
       label: 'Übertrag beim schriftlichen Multiplizieren bestimmen',
       mode: TrainingMode.writtenMultiply,
-      lastSeen: null,
+      lastSeen: DateTime(2026, 9, 5, 20),
       sourceTaskKey:
           'independent:multiplicationCarry:written:x:237:4',
     );
