@@ -485,7 +485,7 @@ void main() {
       now: DateTime(2026, 9, 5, 13),
     );
 
-    expect(insight.evidence, contains('2 eigenständige Teilfragen'));
+    expect(insight.evidence, contains('2 Teilfragen im Aufgabenfluss'));
     expect(insight.evidence, contains('4 ohne Hilfe'));
     expect(insight.evidence, isNot(contains('geführte Zwischenschritte')));
   });
