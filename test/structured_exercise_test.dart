@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/models/training.dart';
 
@@ -105,6 +106,105 @@ void main() {
         expect(exercise.answer, inInclusiveRange(0, maxValue));
         expect(exercise.prompt, isNotEmpty);
         expect(exercise.hint, isNotEmpty);
+      }
+    }
+  });
+
+  test('Modellierungsschritte sind gezielt generierbar und getrennt getaggt', () {
+    final generator = StructuredExerciseGenerator(random: Random(311));
+    const cases = [
+      (
+        id: MicroCompetencyId.wordProblemRelevantInformation,
+        prefix: 'story:info:',
+        choices: true,
+      ),
+      (
+        id: MicroCompetencyId.wordProblemOperation,
+        prefix: 'story:operation:',
+        choices: true,
+      ),
+      (
+        id: MicroCompetencyId.wordProblemModel,
+        prefix: 'story:equation:',
+        choices: true,
+      ),
+      (
+        id: MicroCompetencyId.wordProblemCalculation,
+        prefix: 'story:calc:',
+        choices: false,
+      ),
+      (
+        id: MicroCompetencyId.wordProblemInterpretation,
+        prefix: 'story:interpret:',
+        choices: true,
+      ),
+    ];
+
+    for (final item in cases) {
+      final exercise = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: 100,
+        gradeLevel: GradeLevel.second,
+        targetCompetency: item.id,
+      );
+      final tags = MicroCompetencyCatalog.tagsForTask(
+        mode: TrainingMode.wordProblems,
+        taskKey: exercise.key,
+      );
+
+      expect(exercise.key, startsWith(item.prefix));
+      expect(tags.first.id, item.id);
+      expect(exercise.usesChoices, item.choices);
+      if (exercise.usesChoices) {
+        expect(exercise.choices, hasLength(4));
+        expect(exercise.choices!.toSet(), hasLength(4));
+        expect(
+          exercise.answer,
+          inInclusiveRange(0, exercise.choices!.length - 1),
+        );
+      } else {
+        expect(exercise.answer, inInclusiveRange(0, 100));
+      }
+    }
+  });
+
+  test('gezielte Modellierungsaufgaben respektieren kleine Zahlenräume', () {
+    final generator = StructuredExerciseGenerator(random: Random(312));
+    const targets = [
+      MicroCompetencyId.wordProblemRelevantInformation,
+      MicroCompetencyId.wordProblemOperation,
+      MicroCompetencyId.wordProblemModel,
+      MicroCompetencyId.wordProblemCalculation,
+      MicroCompetencyId.wordProblemInterpretation,
+    ];
+
+    for (final maxValue in [10, 20, 100]) {
+      for (final target in targets) {
+        for (var i = 0; i < 30; i++) {
+          final exercise = generator.generate(
+            mode: TrainingMode.wordProblems,
+            maxValue: maxValue,
+            gradeLevel: GradeLevel.second,
+            targetCompetency: target,
+          );
+          final numbers = RegExp(r'\d+')
+              .allMatches(exercise.key)
+              .map((match) => int.parse(match.group(0)!));
+
+          expect(
+            numbers.every((value) => value <= maxValue),
+            isTrue,
+            reason: '${target.name} / ${exercise.key} / $maxValue',
+          );
+          if (exercise.usesChoices) {
+            expect(
+              exercise.answer,
+              inInclusiveRange(0, exercise.choices!.length - 1),
+            );
+          } else {
+            expect(exercise.answer, inInclusiveRange(0, maxValue));
+          }
+        }
       }
     }
   });
