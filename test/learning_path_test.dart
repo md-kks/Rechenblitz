@@ -335,4 +335,55 @@ void main() {
     expect(insight.action, contains('Tempo noch nicht'));
   });
 
+  test('Elternhinweis trennt geführte Zwischenschritte von selbstständigen Aufgaben',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          occurredAt: DateTime(2026, 9, 5, 10, index),
+          correct: true,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.guidedStep,
+          usedHelp: true,
+          helpLevel: 3,
+          methodKey: 'subtraction:bridgeToTen',
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'guided:subtraction:bridgeToTen:bridgeAmount:$index',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          occurredAt: DateTime(2026, 9, 4, 10, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'minus:13:5:$index',
+        ),
+      ),
+    ];
+
+    final insight = controller.parentInsight(
+      now: DateTime(2026, 9, 5, 12),
+    );
+
+    expect(insight.evidence, contains('2 ohne Hilfe'));
+    expect(insight.evidence, contains('2 mit Hilfe'));
+    expect(insight.evidence, contains('2 geführte Zwischenschritte'));
+    expect(insight.notYet, contains('Noch nicht „Sicher“'));
+  });
+
+
 }
