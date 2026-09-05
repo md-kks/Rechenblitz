@@ -198,6 +198,87 @@ void main() {
     expect(insight.evidence, contains('0 ohne Hilfe'));
   });
 
+
+  test('Elternerklärung nennt bei Gemeistert keinen fehlenden Nachweis', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 4, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'review:plus:47:${3 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 3, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.transfer,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'story:transfer:skill:additionTenBridge:+:books:47:${3 + index}',
+        ),
+      ),
+      ...List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 1, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:47:${3 + index}',
+        ),
+      ),
+    ];
+
+    final insight = controller.parentInsight(
+      now: DateTime(2026, 9, 5, 12),
+    );
+
+    expect(insight.mastery, contains('„Gemeistert“'));
+    expect(insight.notYet, contains('kein weiterer Nachweis'));
+    expect(insight.focus, contains('bereits gemeistert'));
+    expect(insight.action, contains('dem Erhalt'));
+    expect(insight.evidence, contains('2 nach Abstand'));
+    expect(insight.evidence, contains('2 im Transfer'));
+  });
+
+  test('frisches Profil erklärt Entdeckung statt scheinbarer Diagnose', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    final insight = controller.parentInsight(
+      now: DateTime(2026, 9, 5, 12),
+    );
+
+    expect(insight.mastery, contains('noch neu'));
+    expect(insight.evidence, contains('noch keine passenden Beobachtungen'));
+    expect(insight.selection, contains('führen vorsichtig in'));
+    expect(insight.notYet, contains('Noch keine belastbare Aussage'));
+  });
+
   test('Rechenweg-Einstellungen werden pro Profil im Controller gespeichert', () async {
     final controller = AppController();
     await controller.load();
