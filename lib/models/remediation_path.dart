@@ -300,8 +300,11 @@ class RemediationGenerator {
       return _numberBond(stage, range);
     }
 
-    final subtraction = preferredMode == TrainingMode.minus ||
-        (preferredMode == TrainingMode.practice && _random.nextBool());
+    final subtraction = pattern == ErrorPattern.borrowAvoided ||
+        (pattern != ErrorPattern.carryOmitted &&
+            (preferredMode == TrainingMode.minus ||
+                (preferredMode == TrainingMode.practice &&
+                    _random.nextBool())));
 
     if (subtraction) {
       final decade = _between(1, max(1, limit ~/ 10 - 1)) * 10;
