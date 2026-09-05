@@ -1318,10 +1318,12 @@ class AppController extends ChangeNotifier {
     );
   }
 
-  List<GuidedRoundSegment> buildMyRound() {
+  List<GuidedRoundSegment> buildMyRound({
+    DateTime? now,
+  }) {
     final microFocus = currentMicroFocus();
     final strongMicro = strongestMicroCompetency();
-    final reviewMicro = dueReviewMicroCompetency();
+    final reviewMicro = dueReviewMicroCompetency(now: now);
     final transferMicro = transferCandidateMicroCompetency(
       excluding: reviewMicro?.definition.id,
     );
