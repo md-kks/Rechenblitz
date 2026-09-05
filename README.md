@@ -216,7 +216,7 @@ Beispiele:
 
 Eine Aufgabe kann mehrere Kompetenzen berühren. Die primäre Kompetenz erhält volle Evidenz, unterstützende Voraussetzungen nur einen kleineren Anteil. Richtige Antworten mit eingeblendeter Hilfe zählen ebenfalls schwächer als frei gelöste Antworten. Förderpfade liefern bewusst weniger Evidenz als normale Übungsaufgaben.
 
-Die Mikro-Lernkarte unterscheidet **Neu / Entdecken / Wird geübt / Sicher / Gemeistert**. „Meine Runde“ kann dadurch gezielt genau den mathematischen Teilschritt auswählen, der aktuell am meisten bringt. Sichere Teilkompetenzen werden als Warm-up oder fällige Wiederholung genutzt, während neue Lernschritte vorsichtig im Transferteil auftauchen.
+Die Mikro-Lernkarte unterscheidet **Neu / Entdecken / Wird geübt / Sicher / Gemeistert**. „Meine Runde“ kann dadurch gezielt genau den mathematischen Teilschritt auswählen, der aktuell am meisten bringt. **Sicher** basiert auf ausreichend guter direkter Evidenz. **Gemeistert** verlangt zusätzlich erfolgreiche Transfer-Evidenz; viele richtige Wiederholungen derselben Aufgabenart allein reichen dafür nicht mehr. Sichere Teilkompetenzen werden als Warm-up, fällige Wiederholung oder gezielter Transfer genutzt. Wenn noch keine Kompetenz transferbereit ist, bleibt der letzte Rundenteil eine vorsichtige Entdeckung statt fälschlich als Transfer gewertet zu werden.
 
 Im Elternbereich erklärt **„Warum gerade diese Aufgaben?“**, welcher Teilschritt derzeit fokussiert wird und auf welcher Beobachtungsbasis diese Auswahl beruht.
 
@@ -264,9 +264,20 @@ Für gezielte Lernrunden entstehen dafür isolierte Aufgaben, zum Beispiel Auswa
 
 Damit wird digitales Üben diagnostischer, ohne mehr vorzutäuschen als die App prüfen kann: Eigene Sachkontexte formulieren, frei gewählte Modelle erläutern und Lösungswege im Gespräch verteidigen bleiben praktische Unterrichtsaufgaben.
 
-### Transfer-Sachaufgaben
+### Systematischer Transfer
 
-Für Klasse 3/4 gibt es zusätzlich zu normalen Sachaufgaben echte Transferformate:
+Transfer ist jetzt eine eigene Evidenzquelle im Mikro-Kompetenzmodell und nicht nur ein Aufgabentitel. **Meine Runde** wählt für den letzten Transfer-Slot bevorzugt eine bereits sichere Teilkompetenz mit wenig oder älterer Transfer-Evidenz.
+
+Bei Grundrechenarten wird die Darstellungsform bewusst verändert:
+
+- Plus ohne / mit Zehnerübergang → Anwendung in einem neuen Sachkontext
+- Minus ohne / mit Zehnerübergang → Anwendung in einem neuen Sachkontext
+- Mal-Fakten bzw. gleich große Gruppen → Gruppen in Tischen, Reihen oder Päckchen
+- Geteilt-Fakten bzw. Verteilen → gleichmäßiges Verteilen auf Teams, Beutel oder Teller
+
+Die Transferaufgabe bleibt auf dieselbe Mikro-Kompetenz getaggt. Ein Fehler im neuen Kontext verliert daher nicht die bereits vorhandene feine Fehlerdiagnose: Ein vergessener Übertrag, Mal-als-Plus oder Geteilt-als-Minus wird weiterhin als solcher erkannt.
+
+Für Klasse 3/4 bleiben zusätzlich die vorhandenen anspruchsvolleren Sachaufgaben erhalten:
 
 - zwei Rechenschritte nacheinander
 - unnötige Informationen erkennen
@@ -275,7 +286,7 @@ Für Klasse 3/4 gibt es zusätzlich zu normalen Sachaufgaben echte Transferforma
 - Rückwärtsaufgaben
 - Kombination aus Multiplikation und anschließendem Weiterrechnen
 
-Der Transferteil von **Meine Runde** bevorzugt diese Aufgaben.
+Transfer-Evidenz wird lokal getrennt von normaler Übungs- und Förder-Evidenz gespeichert. Eine richtige Lösung mit Hilfe wird auch im Transfer weiterhin entsprechend schwächer gewichtet. Lehreraufträge können Transfer ausdrücklich aktivieren; bei passenden Grundrechen-Kompetenzen wird der Auftrag dann ebenfalls in den Sachkontext verschoben.
 
 ### Lehrplantiefe Klasse 3/4
 
