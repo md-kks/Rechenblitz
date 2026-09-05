@@ -413,8 +413,10 @@ class GuidedMethodFactory {
                   'Wie viele sind in $firstGroupCount Gruppen zusammen?',
               choices: partialChoices,
               correctChoice: partialChoices.indexOf('$partialGroups'),
-              evidenceKey: 'partialGroups',
-              evidenceCompetency: MicroCompetencyId.multiplicationGroups,
+              evidenceKey: a > firstGroupCount ? 'partialGroups' : null,
+              evidenceCompetency: a > firstGroupCount
+                  ? MicroCompetencyId.multiplicationGroups
+                  : null,
             ),
             GuidedMethodStep(
               title: 'Alle Gruppen sehen',
@@ -449,8 +451,11 @@ class GuidedMethodFactory {
               question: 'Wie groß ist das erste Teilprodukt?',
               choices: p1Choices,
               correctChoice: p1Choices.indexOf('$p1'),
-              evidenceKey: 'firstPartialProduct',
-              evidenceCompetency: MicroCompetencyId.multiplicationFacts,
+              evidenceKey:
+                  left > 0 && right > 0 ? 'firstPartialProduct' : null,
+              evidenceCompetency: left > 0 && right > 0
+                  ? MicroCompetencyId.multiplicationFacts
+                  : null,
             ),
             GuidedMethodStep(
               title: 'Zweites Teilprodukt',
@@ -458,8 +463,11 @@ class GuidedMethodFactory {
               question: 'Wie groß ist das zweite Teilprodukt?',
               choices: p2Choices,
               correctChoice: p2Choices.indexOf('$p2'),
-              evidenceKey: 'secondPartialProduct',
-              evidenceCompetency: MicroCompetencyId.multiplicationFacts,
+              evidenceKey:
+                  left > 0 && right > 0 ? 'secondPartialProduct' : null,
+              evidenceCompetency: left > 0 && right > 0
+                  ? MicroCompetencyId.multiplicationFacts
+                  : null,
             ),
             GuidedMethodStep(
               title: 'Zusammenfügen',
