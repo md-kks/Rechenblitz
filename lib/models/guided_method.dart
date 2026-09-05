@@ -25,6 +25,9 @@ class GuidedMethodStep {
     this.question,
     this.choices = const <String>[],
     this.correctChoice,
+    this.evidenceKey,
+    this.evidenceCompetency,
+    this.evidenceWeight = 0.35,
   });
 
   final String title;
@@ -32,9 +35,18 @@ class GuidedMethodStep {
   final String? question;
   final List<String> choices;
   final int? correctChoice;
+  final String? evidenceKey;
+  final MicroCompetencyId? evidenceCompetency;
+  final double evidenceWeight;
 
   bool get isInteractive =>
       question != null && choices.isNotEmpty && correctChoice != null;
+
+  bool get recordsIntermediateEvidence =>
+      isInteractive &&
+      evidenceKey != null &&
+      evidenceCompetency != null &&
+      evidenceWeight > 0;
 }
 
 class GuidedMethodGuide {
