@@ -1862,7 +1862,7 @@ class AppController extends ChangeNotifier {
       parts.add('$transferCount im Transfer');
     }
     if (independentStepCount > 0) {
-      parts.add('$independentStepCount eigenständige Teilfragen');
+      parts.add('$independentStepCount Teilfragen im Aufgabenfluss');
     }
     if (guidedStepCount > 0) {
       parts.add('$guidedStepCount geführte Zwischenschritte');
