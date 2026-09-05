@@ -295,6 +295,20 @@ Ein konkreter Zwischenschritt wird nur dann zum adaptiven Hinweis, wenn innerhal
 
 Erholt sich der Zwischenschritt auf 60 % oder mehr, verschwindet dieses Signal wieder. Ein bereits sicherer oder gemeisterter Lernstand wird durch Hilfsschritte nicht zurückgestuft.
 
+#### Hilfe schrittweise zurücknehmen
+
+Bleibt ein guidedStep-Signal aktiv, springt Rechenblitz nicht direkt von vollständiger Führung zu komplett selbstständigem Arbeiten. Der fünf Aufgaben lange Fokusblock verwendet stattdessen ein festes **Scaffold Fading**:
+
+1. **Darstellung** – die erste Aufgabe startet mit visueller Unterstützung.
+2. **Denkhinweis** – die zweite Aufgabe zeigt nur noch einen kurzen Einstieg.
+3. **Ohne Vorhilfe** – die restlichen drei Aufgaben starten selbstständig; Hilfe kann weiterhin freiwillig oder nach Fehlern geöffnet werden.
+
+Die automatisch eingeblendeten ersten beiden Hilfen werden als Hilfe-Evidenz gespeichert und zählen deshalb nicht als selbstständige Mastery-Evidenz.
+
+Ein altes guidedStep-Signal wird außerdem nicht endlos weitergetragen. Nach dem letzten unsicheren Hilfsschritt reichen **zwei aktuelle, selbstständig und korrekt gelöste Primäraufgaben** derselben Mikro-Kompetenz, damit dieses Hilfesignal nicht mehr den Fokus steuert. Ist unter den beiden jüngsten selbstständigen Bestätigungen wieder ein Fehler, bleibt das Signal aktiv. Damit reagiert Rechenblitz sowohl auf Verbesserung als auch auf einen erneuten Einbruch, ohne den Kompetenzstatus künstlich hoch- oder herunterzustufen.
+
+Rundenbegründung und Elternbereich erklären dieses Ausschleichen ausdrücklich als „Darstellung → Denkhinweis → ohne Vorhilfe“.
+
 Wenn der wiederholt unsichere Zwischenschritt eine Voraussetzung des eigentlichen Lernziels betrifft, priorisiert **Meine Runde** zuerst diese Voraussetzung. Beispiel: Bei „Minus über den Zehner“ kann ein wiederholt falscher erster Versuch beim **verbleibenden Teil des Subtrahenden** gezielt zu **„Zahlen sinnvoll zerlegen“** führen.
 
 Rundenbegründung, Lernlandkarte und Elternbereich benennen diesen konkreten Teilsschritt. Die Formulierung bleibt ausdrücklich vorsichtig: Das Signal stammt aus einer Hilfesituation und zeigt einen sinnvollen Übungsansatz, aber keine bewiesene Ursache oder Diagnose.
