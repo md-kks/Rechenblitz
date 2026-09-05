@@ -149,6 +149,10 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
             : diagnosedPattern?.firstResponseHint ??
                 'Prüfe die Aufgabe noch einmal.';
         showHint = wrongOnCurrent >= 2;
+        if (showHint && helpLevel < HelpLevel.nudge.value) {
+          helpLevel = HelpLevel.nudge.value;
+          activeMethodKey = _guide.methodKey;
+        }
       });
       return;
     }
