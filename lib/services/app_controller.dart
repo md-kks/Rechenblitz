@@ -30,10 +30,14 @@ class AppController extends ChangeNotifier {
   static const double _masteredReviewAccuracy = 0.80;
   static const double _masteredTransferEvidence = 1.5;
   static const double _masteredTransferAccuracy = 0.80;
+  static const double _evidenceEpsilon = 1e-9;
   static const int _guidedStepWindow = 8;
   static const int _guidedStepMinIncorrect = 2;
   static const double _guidedStepFocusMaxAccuracy = 0.60;
   static const int _guidedStepIndependentConfirmations = 2;
+
+  static bool _evidenceAtLeast(double value, double threshold) =>
+      value + _evidenceEpsilon >= threshold;
 
   AppController({
     StorageService? storage,
@@ -282,6 +286,51 @@ class AppController extends ChangeNotifier {
       methodKey: methodKey,
       source: source,
     );
+    notifyListeners();
+    await storage.saveMicroCompetencyObservations(microObservations);
+  }
+
+  Future<void> recordIndependentStepAttempt({
+    required TrainingMode mode,
+    required String taskKey,
+    required String stepKey,
+    required MicroCompetencyId competencyId,
+    required bool correct,
+    required bool usedHelp,
+    required int helpLevel,
+    String? methodKey,
+    double evidenceWeight = 0.35,
+  }) async {
+    if (evidenceWeight <= 0) return;
+    final helpWeight = !correct
+        ? 1.0
+        : switch (helpLevel) {
+            >= 3 => 0.50,
+            2 => 0.65,
+            1 => 0.80,
+            _ => usedHelp ? 0.80 : 1.0,
+          };
+    microObservations.insert(
+      0,
+      MicroCompetencyObservation(
+        id: competencyId,
+        occurredAt: DateTime.now(),
+        correct: correct,
+        evidenceWeight:
+            evidenceWeight.clamp(0.10, 0.50).toDouble() * helpWeight,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: usedHelp,
+        helpLevel: helpLevel,
+        methodKey: methodKey,
+        mode: mode,
+        gradeLevel: gradeLevel,
+        numberRange: numberRange,
+        taskKey: 'independent:$stepKey:$taskKey',
+      ),
+    );
+    if (microObservations.length > 1200) {
+      microObservations = microObservations.take(1200).toList();
+    }
     notifyListeners();
     await storage.saveMicroCompetencyObservations(microObservations);
   }
@@ -952,6 +1001,7 @@ class AppController extends ChangeNotifier {
   }) {
     final sourceWeight = switch (source) {
       MicroEvidenceSource.remediation => 0.65,
+      MicroEvidenceSource.independentStep => 0.45,
       MicroEvidenceSource.guidedStep => 0.35,
       MicroEvidenceSource.practice ||
       MicroEvidenceSource.review ||
@@ -1010,12 +1060,19 @@ class AppController extends ChangeNotifier {
         .toList();
     final observations = <MicroCompetencyObservation>[
       ...matchingObservations
-          .where((entry) => entry.source != MicroEvidenceSource.guidedStep)
+          .where(
+            (entry) =>
+                entry.source != MicroEvidenceSource.independentStep &&
+                entry.source != MicroEvidenceSource.guidedStep,
+          )
           .take(24),
+      ...matchingObservations
+          .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+          .take(12),
       ...matchingObservations
           .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
           .take(12),
-    ];
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
 
     if (observations.isEmpty) {
       return MicroCompetencyProgress(
@@ -1045,6 +1102,9 @@ class AppController extends ChangeNotifier {
     var transferIndependentEvidence = 0.0;
     var transferIndependentCorrectEvidence = 0.0;
     var transferObservations = 0;
+    var independentStepEvidence = 0.0;
+    var independentStepCorrectEvidence = 0.0;
+    var independentStepObservations = 0;
     var guidedStepEvidence = 0.0;
     var guidedStepCorrectEvidence = 0.0;
     var guidedStepObservations = 0;
@@ -1091,6 +1151,21 @@ class AppController extends ChangeNotifier {
           }
           lastTransferSeen ??= observation.occurredAt;
           break;
+        case MicroEvidenceSource.independentStep:
+          independentStepEvidence += observation.evidenceWeight;
+          independentStepObservations += 1;
+          baseEvidence += observation.evidenceWeight;
+          if (observation.correct) {
+            independentStepCorrectEvidence += observation.evidenceWeight;
+            baseCorrectEvidence += observation.evidenceWeight;
+          }
+          if (!observation.usedHelp) {
+            independentEvidence += observation.evidenceWeight;
+            if (observation.correct) {
+              independentCorrectEvidence += observation.evidenceWeight;
+            }
+          }
+          break;
         case MicroEvidenceSource.guidedStep:
           guidedStepEvidence += observation.evidenceWeight;
           guidedStepObservations += 1;
@@ -1131,20 +1206,35 @@ class AppController extends ChangeNotifier {
     final transferIndependentAccuracy = transferIndependentEvidence == 0
         ? 0.0
         : transferIndependentCorrectEvidence / transferIndependentEvidence;
+    final independentStepAccuracy = independentStepEvidence == 0
+        ? 0.0
+        : independentStepCorrectEvidence / independentStepEvidence;
     final guidedStepAccuracy = guidedStepEvidence == 0
         ? 0.0
         : guidedStepCorrectEvidence / guidedStepEvidence;
 
     final state = evidence < 1.5
         ? MicroCompetencyState.discovering
-        : independentEvidence >= _masteredIndependentEvidence &&
+        : _evidenceAtLeast(
+                  independentEvidence,
+                  _masteredIndependentEvidence,
+                ) &&
                 independentAccuracy >= _masteredIndependentAccuracy &&
-                reviewIndependentEvidence >= _masteredReviewEvidence &&
+                _evidenceAtLeast(
+                  reviewIndependentEvidence,
+                  _masteredReviewEvidence,
+                ) &&
                 reviewIndependentAccuracy >= _masteredReviewAccuracy &&
-                transferIndependentEvidence >= _masteredTransferEvidence &&
+                _evidenceAtLeast(
+                  transferIndependentEvidence,
+                  _masteredTransferEvidence,
+                ) &&
                 transferIndependentAccuracy >= _masteredTransferAccuracy
             ? MicroCompetencyState.mastered
-            : independentEvidence >= _secureIndependentEvidence &&
+            : _evidenceAtLeast(
+                      independentEvidence,
+                      _secureIndependentEvidence,
+                    ) &&
                     independentAccuracy >= _secureIndependentAccuracy
                 ? MicroCompetencyState.secure
                 : MicroCompetencyState.practicing;
@@ -1161,6 +1251,7 @@ class AppController extends ChangeNotifier {
       reviewIndependentAccuracy: reviewIndependentAccuracy,
       transferAccuracy: transferAccuracy,
       transferIndependentAccuracy: transferIndependentAccuracy,
+      independentStepAccuracy: independentStepAccuracy,
       guidedStepAccuracy: guidedStepAccuracy,
       baseEvidence: baseEvidence,
       independentEvidence: independentEvidence,
@@ -1169,10 +1260,12 @@ class AppController extends ChangeNotifier {
       reviewIndependentEvidence: reviewIndependentEvidence,
       transferEvidence: transferEvidence,
       transferIndependentEvidence: transferIndependentEvidence,
+      independentStepEvidence: independentStepEvidence,
       guidedStepEvidence: guidedStepEvidence,
       aidedObservations: aidedObservations,
       reviewObservations: reviewObservations,
       transferObservations: transferObservations,
+      independentStepObservations: independentStepObservations,
       guidedStepObservations: guidedStepObservations,
       lastSeen: matchingObservations.first.occurredAt,
       lastReviewSeen: lastReviewSeen,
@@ -1193,20 +1286,36 @@ class AppController extends ChangeNotifier {
           .map((definition) => microCompetencyProgress(definition.id))
           .toList();
 
+  String? _independentStepKeyFromTaskKey(String taskKey) {
+    final parts = taskKey.split(':');
+    if (parts.length < 3 || parts.first != 'independent') return null;
+    return parts[1];
+  }
+
   bool _guidedStepRecoveredIndependently(
     MicroCompetencyId competencyId,
+    String stepKey,
     DateTime after,
   ) {
     final independent = microObservations
         .where(
-          (entry) =>
-              entry.id == competencyId &&
-              entry.gradeLevel == gradeLevel &&
-              entry.numberRange == numberRange &&
-              entry.source == MicroEvidenceSource.practice &&
-              !entry.usedHelp &&
-              entry.evidenceWeight >= 0.80 &&
-              entry.occurredAt.isAfter(after),
+          (entry) {
+            if (entry.id != competencyId ||
+                entry.gradeLevel != gradeLevel ||
+                entry.numberRange != numberRange ||
+                entry.usedHelp ||
+                !entry.occurredAt.isAfter(after)) {
+              return false;
+            }
+            if (entry.source == MicroEvidenceSource.practice) {
+              return entry.evidenceWeight >= 0.80;
+            }
+            if (entry.source == MicroEvidenceSource.independentStep) {
+              return entry.evidenceWeight >= 0.25 &&
+                  _independentStepKeyFromTaskKey(entry.taskKey) == stepKey;
+            }
+            return false;
+          },
         )
         .toList()
       ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
@@ -1244,6 +1353,9 @@ class AppController extends ChangeNotifier {
           recent.where((entry) => entry.correct).length / recent.length;
       final competencyId = recent.first.id;
       final progress = microCompetencyProgress(competencyId);
+      final stepKey =
+          GuidedStepCatalog.keyFromTaskKey(recent.first.taskKey);
+      if (stepKey == null) continue;
 
       if (incorrect < _guidedStepMinIncorrect ||
           accuracy >= _guidedStepFocusMaxAccuracy ||
@@ -1251,14 +1363,11 @@ class AppController extends ChangeNotifier {
           progress.state == MicroCompetencyState.mastered ||
           _guidedStepRecoveredIndependently(
             competencyId,
+            stepKey,
             recent.first.occurredAt,
           )) {
         continue;
       }
-
-      final stepKey =
-          GuidedStepCatalog.keyFromTaskKey(recent.first.taskKey);
-      if (stepKey == null) continue;
       candidates.add(
         GuidedStepFocus(
           competencyId: competencyId,
@@ -1357,10 +1466,12 @@ class AppController extends ChangeNotifier {
                     progress.state != MicroCompetencyState.mastered)) {
               return false;
             }
-            final hasStableDelayedEvidence =
-                progress.reviewIndependentEvidence >= _masteredReviewEvidence &&
-                    progress.reviewIndependentAccuracy >=
-                        _masteredReviewAccuracy;
+            final hasStableDelayedEvidence = _evidenceAtLeast(
+                  progress.reviewIndependentEvidence,
+                  _masteredReviewEvidence,
+                ) &&
+                progress.reviewIndependentAccuracy >=
+                    _masteredReviewAccuracy;
             final requiredGap = hasStableDelayedEvidence
                 ? const Duration(days: 7)
                 : const Duration(days: 2);
@@ -1669,20 +1780,32 @@ class AppController extends ChangeNotifier {
 
   String _masteryMissingText(MicroCompetencyProgress progress) {
     final missing = <String>[];
-    if (progress.independentEvidence < _secureIndependentEvidence) {
+    if (!_evidenceAtLeast(
+      progress.independentEvidence,
+      _secureIndependentEvidence,
+    )) {
       missing.add('mehr selbstständige Lösungen');
     } else if (progress.independentAccuracy < _secureIndependentAccuracy) {
       missing.add('eine stabilere selbstständige Trefferquote');
     } else {
-      if (progress.independentEvidence < _masteredIndependentEvidence ||
+      if (!_evidenceAtLeast(
+            progress.independentEvidence,
+            _masteredIndependentEvidence,
+          ) ||
           progress.independentAccuracy < _masteredIndependentAccuracy) {
         missing.add('eine noch stärkere selbstständige Basis');
       }
-      if (progress.reviewIndependentEvidence < _masteredReviewEvidence ||
+      if (!_evidenceAtLeast(
+            progress.reviewIndependentEvidence,
+            _masteredReviewEvidence,
+          ) ||
           progress.reviewIndependentAccuracy < _masteredReviewAccuracy) {
         missing.add('ein stabiler Nachweis nach zeitlichem Abstand');
       }
-      if (progress.transferIndependentEvidence < _masteredTransferEvidence ||
+      if (!_evidenceAtLeast(
+            progress.transferIndependentEvidence,
+            _masteredTransferEvidence,
+          ) ||
           progress.transferIndependentAccuracy < _masteredTransferAccuracy) {
         missing.add('ein stabiler selbstständiger Transfer');
       }
@@ -1719,12 +1842,19 @@ class AppController extends ChangeNotifier {
         .toList();
     final relevant = <MicroCompetencyObservation>[
       ...matching
-          .where((entry) => entry.source != MicroEvidenceSource.guidedStep)
+          .where(
+            (entry) =>
+                entry.source != MicroEvidenceSource.independentStep &&
+                entry.source != MicroEvidenceSource.guidedStep,
+          )
           .take(24),
+      ...matching
+          .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+          .take(12),
       ...matching
           .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
           .take(12),
-    ];
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     if (relevant.isEmpty) {
       return 'Zu diesem Teilschritt liegen noch keine passenden Beobachtungen vor.';
     }
@@ -1737,6 +1867,9 @@ class AppController extends ChangeNotifier {
         .length;
     final transferCount = relevant
         .where((entry) => entry.source == MicroEvidenceSource.transfer)
+        .length;
+    final independentStepCount = relevant
+        .where((entry) => entry.source == MicroEvidenceSource.independentStep)
         .length;
     final guidedStepCount = relevant
         .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
@@ -1757,6 +1890,9 @@ class AppController extends ChangeNotifier {
     }
     if (transferCount > 0) {
       parts.add('$transferCount im Transfer');
+    }
+    if (independentStepCount > 0) {
+      parts.add('$independentStepCount Teilfragen im Aufgabenfluss');
     }
     if (guidedStepCount > 0) {
       parts.add('$guidedStepCount geführte Zwischenschritte');

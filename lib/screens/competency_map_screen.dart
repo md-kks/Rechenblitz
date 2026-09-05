@@ -323,6 +323,11 @@ class _MicroStepTile extends StatelessWidget {
     final helpDetail = progress.aidedObservations == 0
         ? 'Hilfe: bisher nicht benötigt'
         : 'Hilfe: ${progress.aidedObservations} Beobachtungen';
+    final independentStepDetail =
+        progress.independentStepObservations == 0
+            ? null
+            : 'Teilfragen im Aufgabenfluss: ${(progress.independentStepAccuracy * 100).round()} % · '
+                '${progress.independentStepObservations} erste Versuche';
     final guidedDetail = progress.guidedStepObservations == 0
         ? null
         : 'Geführte Teilfragen: ${(progress.guidedStepAccuracy * 100).round()} % · '
@@ -333,6 +338,7 @@ class _MicroStepTile extends StatelessWidget {
             'Selbstständig: ${(progress.independentAccuracy * 100).round()} % · '
             '${progress.independentEvidence.toStringAsFixed(1)} Evidenz\n'
             '$helpDetail\n'
+            '${independentStepDetail == null ? '' : '$independentStepDetail\n'}'
             '${guidedDetail == null ? '' : '$guidedDetail\n'}'
             '$reviewDetail · $transferDetail';
     return ListTile(

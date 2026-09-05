@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -60,6 +61,16 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   String feedback = '';
   ErrorPattern? currentErrorPattern;
   final List<int> responseTimes = [];
+  int checkpointIndex = 0;
+  final Set<int> checkpointAttempted = <int>{};
+  final Map<int, int> checkpointWrongAttempts = <int, int>{};
+  bool checkpointLocked = false;
+  bool hadCheckpointError = false;
+  Future<void>? taskRememberFuture;
+  String checkpointFeedback = '';
+
+  bool get _checkpointsComplete =>
+      checkpointIndex >= current.checkpoints.length;
 
   @override
   void initState() {
@@ -74,6 +85,14 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   }
 
   void _prepareHelpForCurrent() {
+    checkpointIndex = 0;
+    checkpointAttempted.clear();
+    checkpointWrongAttempts.clear();
+    checkpointLocked = false;
+    hadCheckpointError = false;
+    taskRememberFuture = null;
+    checkpointFeedback = '';
+
     final fadingLevel = ScaffoldFadingPolicy.initialLevelForTask(
       completed,
       enabled: widget.scaffoldFading,
@@ -112,8 +131,86 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
 
 
 
+  Future<void> _rememberCurrentTaskOnce() {
+    final existing = taskRememberFuture;
+    if (existing != null) return existing;
+    final future = widget.controller.rememberPresentedTask(
+      widget.mode,
+      current.key,
+    );
+    taskRememberFuture = future;
+    return future;
+  }
+
+  Future<void> _answerCheckpoint(int choice) async {
+    if (locked ||
+        finishing ||
+        checkpointLocked ||
+        _checkpointsComplete) {
+      return;
+    }
+
+    final index = checkpointIndex;
+    final checkpoint = current.checkpoints[index];
+    final correct = choice == checkpoint.correctChoice;
+    final firstAttempt = checkpointAttempted.add(index);
+
+    if (firstAttempt) {
+      unawaited(_rememberCurrentTaskOnce());
+      unawaited(
+        widget.controller.recordIndependentStepAttempt(
+          mode: widget.mode,
+          taskKey: current.key,
+          stepKey: checkpoint.key,
+          competencyId: checkpoint.competencyId,
+          correct: correct,
+          usedHelp: showHint,
+          helpLevel: helpLevel,
+          methodKey: activeMethodKey,
+          evidenceWeight: checkpoint.evidenceWeight,
+        ),
+      );
+    }
+
+    if (!correct) {
+      hadCheckpointError = true;
+      final attempts = (checkpointWrongAttempts[index] ?? 0) + 1;
+      checkpointWrongAttempts[index] = attempts;
+      setState(() {
+        checkpointFeedback = attempts >= 2
+            ? 'Nutze bei Bedarf den Hinweis und prüfe diesen Schritt noch einmal.'
+            : 'Noch nicht. Schau genau auf die Darstellung.';
+        if (attempts >= 2) {
+          showHint = true;
+          if (helpLevel < HelpLevel.nudge.value) {
+            helpLevel = HelpLevel.nudge.value;
+            activeMethodKey = _guide.methodKey;
+          }
+        }
+      });
+      return;
+    }
+
+    setState(() {
+      checkpointLocked = true;
+      checkpointFeedback = 'Genau. Dieser Schritt stimmt.';
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!mounted ||
+        finishing ||
+        checkpointIndex != index ||
+        current.checkpoints.length <= index) {
+      return;
+    }
+    setState(() {
+      checkpointIndex += 1;
+      checkpointLocked = false;
+      checkpointFeedback = '';
+    });
+  }
+
   Future<void> _answer(int answer) async {
-    if (locked || finishing) return;
+    if (locked || finishing || !_checkpointsComplete) return;
     final response = DateTime.now().difference(shownAt);
     final diagnosedPattern = answer == current.answer
         ? null
@@ -124,10 +221,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
             actual: answer,
           );
     if (wrongOnCurrent == 0) {
-      await widget.controller.rememberPresentedTask(
-        widget.mode,
-        current.key,
-      );
+      await _rememberCurrentTaskOnce();
+      if (!mounted || finishing) return;
       await widget.controller.recordDiagnosticAttempt(
         mode: widget.mode,
         taskKey: current.key,
@@ -171,7 +266,9 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     locked = true;
     completed += 1;
     responseTimes.add(response.inMilliseconds.clamp(0, 30000).toInt());
-    if (wrongOnCurrent == 0) correctFirstTry += 1;
+    if (wrongOnCurrent == 0 && !hadCheckpointError) {
+      correctFirstTry += 1;
+    }
     if (widget.controller.hapticEnabled) HapticFeedback.lightImpact();
     if (widget.controller.soundEnabled) {
       SystemSound.play(SystemSoundType.click);
@@ -377,6 +474,17 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                       .toList(),
                 ),
               ],
+              if (current.hasCheckpoints && !_checkpointsComplete) ...[
+                const SizedBox(height: 18),
+                _IndependentCheckpointCard(
+                  checkpoint: current.checkpoints[checkpointIndex],
+                  index: checkpointIndex,
+                  total: current.checkpoints.length,
+                  feedback: checkpointFeedback,
+                  locked: checkpointLocked,
+                  onChoice: _answerCheckpoint,
+                ),
+              ],
               const SizedBox(height: 18),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
@@ -431,7 +539,9 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 ),
               ],
               const SizedBox(height: 18),
-              if (current.usesChoices)
+              if (!_checkpointsComplete)
+                const SizedBox.shrink()
+              else if (current.usesChoices)
                 ...List.generate(
                   current.choices!.length,
                   (index) => Padding(
@@ -459,6 +569,70 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                   onAnswer: _answer,
                 ),
               ],
+            ],
+          ),
+        ),
+      );
+}
+
+class _IndependentCheckpointCard extends StatelessWidget {
+  const _IndependentCheckpointCard({
+    required this.checkpoint,
+    required this.index,
+    required this.total,
+    required this.feedback,
+    required this.locked,
+    required this.onChoice,
+  });
+
+  final ExerciseCheckpoint checkpoint;
+  final int index;
+  final int total;
+  final String feedback;
+  final bool locked;
+  final ValueChanged<int> onChoice;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Schritt ${index + 1} von $total',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                checkpoint.question,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 10),
+              ...List.generate(
+                checkpoint.choices.length,
+                (choiceIndex) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: FilledButton.tonal(
+                    onPressed: locked
+                        ? null
+                        : () => onChoice(choiceIndex),
+                    child: Text(checkpoint.choices[choiceIndex]),
+                  ),
+                ),
+              ),
+              if (feedback.isNotEmpty)
+                Text(
+                  feedback,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
             ],
           ),
         ),

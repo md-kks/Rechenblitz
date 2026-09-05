@@ -8,6 +8,24 @@ enum ExerciseShape { triangle, square, rectangle, circle }
 
 enum ExerciseRepresentation { placeValue, equalGroups }
 
+class ExerciseCheckpoint {
+  const ExerciseCheckpoint({
+    required this.key,
+    required this.question,
+    required this.choices,
+    required this.correctChoice,
+    required this.competencyId,
+    this.evidenceWeight = 0.35,
+  });
+
+  final String key;
+  final String question;
+  final List<String> choices;
+  final int correctChoice;
+  final MicroCompetencyId competencyId;
+  final double evidenceWeight;
+}
+
 class StructuredExercise {
   const StructuredExercise({
     required this.mode,
@@ -27,6 +45,7 @@ class StructuredExercise {
     this.representation,
     this.representationA,
     this.representationB,
+    this.checkpoints = const <ExerciseCheckpoint>[],
   });
 
   final TrainingMode mode;
@@ -46,12 +65,14 @@ class StructuredExercise {
   final ExerciseRepresentation? representation;
   final int? representationA;
   final int? representationB;
+  final List<ExerciseCheckpoint> checkpoints;
 
   bool get isNumberWall => wallValues != null && hiddenWallIndex != null;
   bool get usesChoices => choices != null && choices!.isNotEmpty;
   bool get hasClock => clockHour != null && clockMinute != null;
   bool get hasMoneyVisual =>
       moneyPartsCents != null && moneyPartsCents!.isNotEmpty;
+  bool get hasCheckpoints => checkpoints.isNotEmpty;
   bool get hasRepresentationVisual => switch (representation) {
         ExerciseRepresentation.placeValue => representationA != null,
         ExerciseRepresentation.equalGroups =>
@@ -645,6 +666,7 @@ class StructuredExerciseGenerator {
         maxAnswerValue: 3,
         representation: ExerciseRepresentation.placeValue,
         representationA: number,
+        checkpoints: [_placeValueCheckpoint(number)],
       );
     }
 
@@ -664,6 +686,7 @@ class StructuredExerciseGenerator {
         maxAnswerValue: 3,
         representation: ExerciseRepresentation.placeValue,
         representationA: number,
+        checkpoints: [_placeValueCheckpoint(number)],
       );
     }
 
@@ -689,6 +712,7 @@ class StructuredExerciseGenerator {
         representation: ExerciseRepresentation.equalGroups,
         representationA: groups,
         representationB: each,
+        checkpoints: _groupCheckpoints(groups, each),
       );
     }
 
@@ -706,7 +730,101 @@ class StructuredExerciseGenerator {
         '$groups Gruppen mit je ${max(1, each - 1)} Punkten',
       ],
       maxAnswerValue: 3,
+      checkpoints: _groupCheckpoints(
+        groups,
+        each,
+        fromEquation: true,
+      ),
     );
+  }
+
+  ExerciseCheckpoint _placeValueCheckpoint(int number) {
+    const placeNames = [
+      'Einern',
+      'Zehnern',
+      'Hundertern',
+      'Tausendern',
+      'Zehntausendern',
+      'Hunderttausendern',
+      'Millionen',
+    ];
+    const placeKeys = [
+      'ones',
+      'tens',
+      'hundreds',
+      'thousands',
+      'tenThousands',
+      'hundredThousands',
+      'millions',
+    ];
+
+    var places = 1;
+    var probe = number;
+    while (probe >= 10 && places < placeNames.length) {
+      probe ~/= 10;
+      places += 1;
+    }
+    final placeIndex = _random.nextInt(places);
+    var placeValue = 1;
+    for (var i = 0; i < placeIndex; i++) {
+      placeValue *= 10;
+    }
+    final digit = (number ~/ placeValue) % 10;
+    final choices = _numberRepresentationChoices(digit, 9)
+        .map((value) => '$value')
+        .toList()
+      ..shuffle(_random);
+
+    return ExerciseCheckpoint(
+      key: placeIndex == 0
+          ? 'onesDigit'
+          : 'placeDigit_${placeKeys[placeIndex]}',
+      question: 'Welche Ziffer steht bei den ${placeNames[placeIndex]}?',
+      choices: choices,
+      correctChoice: choices.indexOf('$digit'),
+      competencyId: MicroCompetencyId.placeValueDigits,
+      evidenceWeight: 0.40,
+    );
+  }
+
+  List<ExerciseCheckpoint> _groupCheckpoints(
+    int groups,
+    int each, {
+    bool fromEquation = false,
+  }) {
+    final groupChoices = _numberRepresentationChoices(
+      groups,
+      max(6, groups + 2),
+    ).map((value) => '$value').toList()
+      ..shuffle(_random);
+    final eachChoices = _numberRepresentationChoices(
+      each,
+      max(6, each + 2),
+    ).map((value) => '$value').toList()
+      ..shuffle(_random);
+
+    return [
+      ExerciseCheckpoint(
+        key: 'groupCount',
+        question: fromEquation
+            ? 'Wie viele gleich große Gruppen beschreibt der erste Faktor?'
+            : 'Wie viele gleich große Gruppen siehst du?',
+        choices: groupChoices,
+        correctChoice: groupChoices.indexOf('$groups'),
+        competencyId: MicroCompetencyId.multiplicationGroups,
+        evidenceWeight: 0.30,
+      ),
+      ExerciseCheckpoint(
+        key: 'itemsPerGroup',
+        question: fromEquation
+            ? 'Wie viele Elemente gehören in jede Gruppe?'
+            : 'Wie viele Punkte liegen in jeder Gruppe?',
+        choices: eachChoices,
+        correctChoice: eachChoices.indexOf('$each'),
+        competencyId: MicroCompetencyId.multiplicationGroups,
+        evidenceWeight: 0.30,
+      ),
+    ];
   }
 
   List<int> _numberRepresentationChoices(int correct, int limit) {
@@ -1102,6 +1220,7 @@ class StructuredExerciseGenerator {
     ExerciseRepresentation? representation,
     int? representationA,
     int? representationB,
+    List<ExerciseCheckpoint> checkpoints = const <ExerciseCheckpoint>[],
   }) {
     final shuffled = [...choices]..shuffle(_random);
     return StructuredExercise(
@@ -1115,6 +1234,7 @@ class StructuredExerciseGenerator {
       representation: representation,
       representationA: representationA,
       representationB: representationB,
+      checkpoints: checkpoints,
     );
   }
 

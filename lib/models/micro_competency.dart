@@ -128,6 +128,7 @@ enum MicroEvidenceSource {
   remediation,
   review,
   transfer,
+  independentStep,
   guidedStep,
 }
 
@@ -237,6 +238,7 @@ class MicroCompetencyProgress {
     this.reviewIndependentAccuracy = 0,
     this.transferAccuracy = 0,
     this.transferIndependentAccuracy = 0,
+    this.independentStepAccuracy = 0,
     this.guidedStepAccuracy = 0,
     this.baseEvidence = 0,
     this.independentEvidence = 0,
@@ -245,10 +247,12 @@ class MicroCompetencyProgress {
     this.reviewIndependentEvidence = 0,
     this.transferEvidence = 0,
     this.transferIndependentEvidence = 0,
+    this.independentStepEvidence = 0,
     this.guidedStepEvidence = 0,
     this.aidedObservations = 0,
     this.reviewObservations = 0,
     this.transferObservations = 0,
+    this.independentStepObservations = 0,
     this.guidedStepObservations = 0,
     this.lastSeen,
     this.lastReviewSeen,
@@ -266,6 +270,7 @@ class MicroCompetencyProgress {
   final double reviewIndependentAccuracy;
   final double transferAccuracy;
   final double transferIndependentAccuracy;
+  final double independentStepAccuracy;
   final double guidedStepAccuracy;
   final double baseEvidence;
   final double independentEvidence;
@@ -274,10 +279,12 @@ class MicroCompetencyProgress {
   final double reviewIndependentEvidence;
   final double transferEvidence;
   final double transferIndependentEvidence;
+  final double independentStepEvidence;
   final double guidedStepEvidence;
   final int aidedObservations;
   final int reviewObservations;
   final int transferObservations;
+  final int independentStepObservations;
   final int guidedStepObservations;
   final DateTime? lastSeen;
   final DateTime? lastReviewSeen;

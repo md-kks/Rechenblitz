@@ -1167,4 +1167,289 @@ void main() {
   });
 
 
+  test('Eigenständige Teilfragen zählen geringer, aber selbstständig', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    for (var i = 0; i < 10; i++) {
+      await controller.recordIndependentStepAttempt(
+        mode: TrainingMode.wordProblems,
+        taskKey: 'process:representation:groups:3:4:$i',
+        stepKey: 'groupCount',
+        competencyId: MicroCompetencyId.multiplicationGroups,
+        correct: true,
+        usedHelp: false,
+        helpLevel: 0,
+        evidenceWeight: 0.40,
+      );
+    }
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.multiplicationGroups,
+    );
+
+    expect(progress.independentStepObservations, 10);
+    expect(progress.independentStepAccuracy, closeTo(1, 0.001));
+    expect(progress.independentStepEvidence, closeTo(4, 0.001));
+    expect(progress.independentEvidence, closeTo(4, 0.001));
+    expect(progress.aidedObservations, 0);
+    expect(progress.state, MicroCompetencyState.secure);
+  });
+
+  test('Teilfrage nach geöffneter Hilfe ist keine selbstständige Evidenz',
+      () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    for (var i = 0; i < 6; i++) {
+      await controller.recordIndependentStepAttempt(
+        mode: TrainingMode.wordProblems,
+        taskKey: 'process:representation:place:47:$i',
+        stepKey: 'placeDigit:tens',
+        competencyId: MicroCompetencyId.placeValueDigits,
+        correct: true,
+        usedHelp: true,
+        helpLevel: HelpLevel.visual.value,
+        methodKey: 'representation:placeValue',
+        evidenceWeight: 0.40,
+      );
+    }
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.placeValueDigits,
+    );
+
+    expect(progress.independentStepObservations, 6);
+    expect(progress.independentStepEvidence, greaterThan(0));
+    expect(progress.independentEvidence, 0);
+    expect(progress.aidedObservations, 6);
+    expect(progress.state, isNot(MicroCompetencyState.secure));
+  });
+
+  test('Eigenständige Teilfragen bleiben lokal eindeutig markiert', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    await controller.recordIndependentStepAttempt(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'process:representation:groups:3:4',
+      stepKey: 'itemsPerGroup',
+      competencyId: MicroCompetencyId.multiplicationGroups,
+      correct: false,
+      usedHelp: false,
+      helpLevel: 0,
+      evidenceWeight: 0.30,
+    );
+
+    final reloaded = AppController();
+    await reloaded.load();
+    final observation = reloaded.microObservations.firstWhere(
+      (entry) => entry.source == MicroEvidenceSource.independentStep,
+    );
+
+    expect(observation.id, MicroCompetencyId.multiplicationGroups);
+    expect(observation.correct, isFalse);
+    expect(observation.usedHelp, isFalse);
+    expect(observation.evidenceWeight, closeTo(0.30, 0.001));
+    expect(
+      observation.taskKey,
+      startsWith('independent:itemsPerGroup:process:representation:'),
+    );
+  });
+
+  test('Zwei eigenständige Teilfragen können altes guidedStep-Signal ablösen',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.multiplicationGroups,
+        occurredAt: DateTime(2026, 9, 5, 11, 1),
+        correct: true,
+        evidenceWeight: 0.30,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.wordProblems,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey:
+            'independent:groupCount:process:representation:groups:4:3',
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.multiplicationGroups,
+        occurredAt: DateTime(2026, 9, 5, 11),
+        correct: true,
+        evidenceWeight: 0.30,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.wordProblems,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey:
+            'independent:groupCount:process:representation:groups:3:4',
+      ),
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 5, 10, index),
+          correct: index == 2,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.guidedStep,
+          usedHelp: true,
+          helpLevel: HelpLevel.guided.value,
+          methodKey: 'representation:equalGroups',
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'guided:representation:equalGroups:groupCount:process:representation:groups:3:4:$index',
+        ),
+      ),
+    ];
+
+    expect(controller.guidedStepFocus(), isNull);
+  });
+
+  test('Anderer eigenständiger Teilsschritt löscht guidedStep-Signal nicht',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 5, 11, index),
+          correct: true,
+          evidenceWeight: 0.30,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'independent:itemsPerGroup:process:representation:groups:${3 + index}:4',
+        ),
+      ),
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 5, 10, index),
+          correct: index == 2,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.guidedStep,
+          usedHelp: true,
+          helpLevel: HelpLevel.guided.value,
+          methodKey: 'representation:equalGroups',
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'guided:representation:equalGroups:groupCount:process:representation:groups:3:4:$index',
+        ),
+      ),
+    ];
+
+    final guided = controller.guidedStepFocus();
+    expect(guided, isNotNull);
+    expect(guided!.stepKey, 'groupCount');
+  });
+
+  testWidgets('Repräsentationsaufgabe speichert ersten Teilversuch außerhalb Hilfe',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.wordProblems,
+          targetTasks: 2,
+          targetCompetency: MicroCompetencyId.representationTranslation,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('Schritt 1 von'), findsOneWidget);
+    final buttons = find.byType(FilledButton);
+    expect(buttons, findsWidgets);
+
+    await tester.tap(buttons.first);
+    await tester.pump(const Duration(milliseconds: 420));
+
+    final observation = controller.microObservations.firstWhere(
+      (entry) => entry.source == MicroEvidenceSource.independentStep,
+    );
+    expect(observation.usedHelp, isFalse);
+    expect(
+      observation.id == MicroCompetencyId.placeValueDigits ||
+          observation.id == MicroCompetencyId.multiplicationGroups,
+      isTrue,
+    );
+  });
+
+  test('Viele Teilfragen verdrängen vollständige Aufgaben nicht aus Mastery-Fenster',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        30,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 5, 12, index),
+          correct: true,
+          evidenceWeight: 0.25,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'independent:groupCount:process:representation:groups:${3 + index % 3}:4:$index',
+        ),
+      ),
+      ...List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 4, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'multiply:${3 + index}:4',
+        ),
+      ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.multiplicationGroups,
+    );
+
+    expect(progress.independentStepObservations, 12);
+    expect(progress.independentStepEvidence, closeTo(3, 0.001));
+    expect(progress.independentEvidence, closeTo(9, 0.001));
+    expect(progress.observations, 18);
+  });
+
+
 }

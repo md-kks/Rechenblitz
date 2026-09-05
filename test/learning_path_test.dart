@@ -442,4 +442,53 @@ void main() {
   });
 
 
+  test('Elternhinweis zeigt eigenständige Repräsentations-Teilfragen getrennt',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 5, 12, index),
+          correct: true,
+          evidenceWeight: 0.30,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'independent:groupCount:process:representation:groups:3:4:$index',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 4, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'multiply:3:4:$index',
+        ),
+      ),
+    ];
+
+    final insight = controller.parentInsight(
+      now: DateTime(2026, 9, 5, 13),
+    );
+
+    expect(insight.evidence, contains('2 Teilfragen im Aufgabenfluss'));
+    expect(insight.evidence, contains('4 ohne Hilfe'));
+    expect(insight.evidence, isNot(contains('geführte Zwischenschritte')));
+  });
+
+
 }
