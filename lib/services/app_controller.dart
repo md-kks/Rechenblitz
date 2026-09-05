@@ -1041,6 +1041,9 @@ class AppController extends ChangeNotifier {
     var transferIndependentEvidence = 0.0;
     var transferIndependentCorrectEvidence = 0.0;
     var transferObservations = 0;
+    var guidedStepEvidence = 0.0;
+    var guidedStepCorrectEvidence = 0.0;
+    var guidedStepObservations = 0;
     DateTime? lastReviewSeen;
     DateTime? lastTransferSeen;
 
@@ -1085,6 +1088,11 @@ class AppController extends ChangeNotifier {
           lastTransferSeen ??= observation.occurredAt;
           break;
         case MicroEvidenceSource.guidedStep:
+          guidedStepEvidence += observation.evidenceWeight;
+          guidedStepObservations += 1;
+          if (observation.correct) {
+            guidedStepCorrectEvidence += observation.evidenceWeight;
+          }
           break;
         case MicroEvidenceSource.practice:
         case MicroEvidenceSource.remediation:
@@ -1119,6 +1127,9 @@ class AppController extends ChangeNotifier {
     final transferIndependentAccuracy = transferIndependentEvidence == 0
         ? 0.0
         : transferIndependentCorrectEvidence / transferIndependentEvidence;
+    final guidedStepAccuracy = guidedStepEvidence == 0
+        ? 0.0
+        : guidedStepCorrectEvidence / guidedStepEvidence;
 
     final state = evidence < 1.5
         ? MicroCompetencyState.discovering
@@ -1146,6 +1157,7 @@ class AppController extends ChangeNotifier {
       reviewIndependentAccuracy: reviewIndependentAccuracy,
       transferAccuracy: transferAccuracy,
       transferIndependentAccuracy: transferIndependentAccuracy,
+      guidedStepAccuracy: guidedStepAccuracy,
       baseEvidence: baseEvidence,
       independentEvidence: independentEvidence,
       aidedEvidence: aidedEvidence,
@@ -1153,9 +1165,11 @@ class AppController extends ChangeNotifier {
       reviewIndependentEvidence: reviewIndependentEvidence,
       transferEvidence: transferEvidence,
       transferIndependentEvidence: transferIndependentEvidence,
+      guidedStepEvidence: guidedStepEvidence,
       aidedObservations: aidedObservations,
       reviewObservations: reviewObservations,
       transferObservations: transferObservations,
+      guidedStepObservations: guidedStepObservations,
       lastSeen: matchingObservations.first.occurredAt,
       lastReviewSeen: lastReviewSeen,
       lastTransferSeen: lastTransferSeen,
