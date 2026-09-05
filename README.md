@@ -283,6 +283,22 @@ Pro Teilfrage wird nur der **erste Versuch** gespeichert. Korrigiert ein Kind ei
 
 Geführte Zwischenschritte besitzen ein separates kleines Auswertungsfenster und verdrängen keine älteren selbstständigen Beobachtungen aus dem Mastery-Fenster. Im Elternbereich können sie als **geführte Zwischenschritte** erscheinen, ohne mit Lösungen ohne Hilfe vermischt zu werden.
 
+#### Adaptive Nutzung der Zwischenschritte
+
+`guidedStep` wird jetzt auch für die Auswahl der nächsten Lernaufgaben genutzt – aber bewusst konservativ. Ein korrekt gelöster Hilfsschritt darf **nicht** wie „0 % selbstständig“ als Schwäche erscheinen. Deshalb besitzt jede Mikro-Kompetenz eine getrennte guidedStep-Quote und guidedStep-Anzahl.
+
+Ein konkreter Zwischenschritt wird nur dann zum adaptiven Hinweis, wenn innerhalb der jüngsten **acht** Beobachtungen:
+
+- mindestens **zwei erste Versuche falsch** waren,
+- die Trefferquote unter **60 %** liegt,
+- und die zugehörige Mikro-Kompetenz noch nicht **Sicher** oder **Gemeistert** ist.
+
+Erholt sich der Zwischenschritt auf 60 % oder mehr, verschwindet dieses Signal wieder. Ein bereits sicherer oder gemeisterter Lernstand wird durch Hilfsschritte nicht zurückgestuft.
+
+Wenn der wiederholt unsichere Zwischenschritt eine Voraussetzung des eigentlichen Lernziels betrifft, priorisiert **Meine Runde** zuerst diese Voraussetzung. Beispiel: Bei „Minus über den Zehner“ kann ein wiederholt falscher erster Versuch beim **verbleibenden Teil des Subtrahenden** gezielt zu **„Zahlen sinnvoll zerlegen“** führen.
+
+Rundenbegründung, Lernlandkarte und Elternbereich benennen diesen konkreten Teilsschritt. Die Formulierung bleibt ausdrücklich vorsichtig: Das Signal stammt aus einer Hilfesituation und zeigt einen sinnvollen Übungsansatz, aber keine bewiesene Ursache oder Diagnose.
+
 Der Mechanismus erweitert die bestehende `GuidedMethodPanel`- und Mikro-Kompetenz-Architektur; es gibt keine parallele Activity- oder Diagnose-Engine. Freie Handschrift, OCR oder eine Interpretation beliebiger selbst formulierter Rechenwege ist ausdrücklich noch nicht Teil dieses Slices.
 
 Unter **So rechnen wir** gibt es zwei Modi:
