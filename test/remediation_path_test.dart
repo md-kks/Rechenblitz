@@ -796,4 +796,53 @@ void main() {
     );
   });
 
+
+  test('gezielte Recovery respektiert auch Zahlenraum 20', () {
+    final focuses = [
+      IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.writtenAlignment,
+        stepKey: 'onesAlignment',
+        label: 'Einer in der richtigen Spalte ausrichten',
+        mode: TrainingMode.writtenAddSub,
+        lastSeen: DateTime(2026, 9, 5, 20),
+        sourceTaskKey: 'independent:onesAlignment:written:+:17:3',
+      ),
+      IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.writtenRegrouping,
+        stepKey: 'carryDecision',
+        label: 'notwendigen Übertrag erkennen',
+        mode: TrainingMode.writtenAddSub,
+        lastSeen: DateTime(2026, 9, 5, 20),
+        sourceTaskKey: 'independent:carryDecision:written:+:12:8',
+      ),
+      IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.writtenMultiplyProcedure,
+        stepKey: 'firstPartialProduct',
+        label: 'erstes Teilprodukt berechnen',
+        mode: TrainingMode.writtenMultiply,
+        lastSeen: DateTime(2026, 9, 5, 20),
+        sourceTaskKey: 'independent:firstPartialProduct:written:x:12:1',
+      ),
+      IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.writtenDivideProcedure,
+        stepKey: 'firstQuotientDigit',
+        label: 'erste Quotientenziffer bestimmen',
+        mode: TrainingMode.writtenDivide,
+        lastSeen: DateTime(2026, 9, 5, 20),
+        sourceTaskKey: 'independent:firstQuotientDigit:written:divide:18:3',
+      ),
+    ];
+
+    for (var i = 0; i < focuses.length; i++) {
+      final plan = StepRecoveryGenerator(random: Random(500 + i)).generate(
+        focus: focuses[i],
+        range: NumberRangeLevel.twenty,
+      );
+      for (final task in plan.tasks.where((task) => !task.usesChoices)) {
+        expect(task.answer, lessThanOrEqualTo(20));
+        expect(task.maxAnswerValue, lessThanOrEqualTo(20));
+      }
+    }
+  });
+
 }
