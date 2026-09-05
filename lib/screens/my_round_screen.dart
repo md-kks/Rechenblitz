@@ -43,6 +43,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             targetCompetency: segment.targetCompetency,
             reviewEmphasis: segment.reviewEmphasis,
             transferEmphasis: segment.transferEmphasis,
+            scaffoldFading: segment.scaffoldFading,
           ),
         ),
       );
@@ -56,6 +57,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             targetCompetency: segment.targetCompetency,
             reviewEmphasis: segment.reviewEmphasis,
             transferEmphasis: segment.transferEmphasis,
+            scaffoldFading: segment.scaffoldFading,
           ),
         ),
       );
@@ -69,6 +71,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             targetCompetency: segment.targetCompetency,
             reviewEmphasis: segment.reviewEmphasis,
             transferEmphasis: segment.transferEmphasis,
+            scaffoldFading: segment.scaffoldFading,
           ),
         ),
       );

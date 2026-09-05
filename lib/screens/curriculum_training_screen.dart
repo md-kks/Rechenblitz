@@ -21,6 +21,7 @@ class CurriculumTrainingScreen extends StatefulWidget {
     this.targetCompetency,
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
+    this.scaffoldFading = false,
   });
 
   final AppController controller;
@@ -29,6 +30,7 @@ class CurriculumTrainingScreen extends StatefulWidget {
   final MicroCompetencyId? targetCompetency;
   final bool reviewEmphasis;
   final bool transferEmphasis;
+  final bool scaffoldFading;
 
   @override
   State<CurriculumTrainingScreen> createState() =>
@@ -64,10 +66,21 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     super.initState();
     startedAt = DateTime.now();
     current = _next();
+    _prepareHelpForCurrent();
     shownAt = DateTime.now();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => widget.controller.speak(current.prompt),
     );
+  }
+
+  void _prepareHelpForCurrent() {
+    final fadingLevel = ScaffoldFadingPolicy.initialLevelForTask(
+      completed,
+      enabled: widget.scaffoldFading,
+    );
+    showHint = fadingLevel != null;
+    helpLevel = fadingLevel?.value ?? HelpLevel.none.value;
+    activeMethodKey = fadingLevel == null ? null : _guide.methodKey;
   }
 
   CurriculumExercise _next() => generator.generate(
@@ -183,9 +196,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       shownAt = DateTime.now();
       wrongOnCurrent = 0;
       locked = false;
-      showHint = false;
-      helpLevel = 0;
-      activeMethodKey = null;
+      _prepareHelpForCurrent();
       currentErrorPattern = null;
       feedback = '';
     });
@@ -369,6 +380,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                 key: ValueKey('guide:${current.key}:$completed'),
                 guide: _guide,
                 pattern: _helpPattern,
+                initialLevel: HelpLevel.values[helpLevel],
                 taskKey: current.key,
                 expected: current.answer,
                 onStepAttempt: (step, correct) {

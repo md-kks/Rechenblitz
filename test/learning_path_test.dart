@@ -433,10 +433,12 @@ void main() {
 
     expect(insight.focus, contains('verbleibenden Teil des Subtrahenden'));
     expect(insight.focus, contains('2 von 3'));
+    expect(insight.action, contains('schrittweise zurückgenommen'));
     expect(insight.action, contains('verbleibenden Teil des Subtrahenden'));
     expect(insight.action, contains('kein selbstständiger Leistungsnachweis'));
     expect(insight.evidence, contains('2 von 3'));
     expect(insight.selection, contains('verbleibenden Teil des Subtrahenden'));
+    expect(insight.selection, contains('Darstellung über Denkhinweis'));
   });
 
 

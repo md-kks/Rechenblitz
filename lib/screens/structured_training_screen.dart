@@ -21,6 +21,7 @@ class StructuredTrainingScreen extends StatefulWidget {
     this.targetCompetency,
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
+    this.scaffoldFading = false,
   });
 
   final AppController controller;
@@ -29,6 +30,7 @@ class StructuredTrainingScreen extends StatefulWidget {
   final MicroCompetencyId? targetCompetency;
   final bool reviewEmphasis;
   final bool transferEmphasis;
+  final bool scaffoldFading;
 
   @override
   State<StructuredTrainingScreen> createState() =>
@@ -64,10 +66,21 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     super.initState();
     startedAt = DateTime.now();
     current = _next();
+    _prepareHelpForCurrent();
     shownAt = DateTime.now();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => widget.controller.speak(current.prompt),
     );
+  }
+
+  void _prepareHelpForCurrent() {
+    final fadingLevel = ScaffoldFadingPolicy.initialLevelForTask(
+      completed,
+      enabled: widget.scaffoldFading,
+    );
+    showHint = fadingLevel != null;
+    helpLevel = fadingLevel?.value ?? HelpLevel.none.value;
+    activeMethodKey = fadingLevel == null ? null : _guide.methodKey;
   }
 
   StructuredExercise _next() => generator.generate(
@@ -136,6 +149,10 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
             : diagnosedPattern?.firstResponseHint ??
                 'Prüfe die Aufgabe noch einmal.';
         showHint = wrongOnCurrent >= 2;
+        if (showHint && helpLevel < HelpLevel.nudge.value) {
+          helpLevel = HelpLevel.nudge.value;
+          activeMethodKey = _guide.methodKey;
+        }
       });
       return;
     }
@@ -172,9 +189,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       shownAt = DateTime.now();
       wrongOnCurrent = 0;
       locked = false;
-      showHint = false;
-      helpLevel = 0;
-      activeMethodKey = null;
+      _prepareHelpForCurrent();
       currentErrorPattern = null;
       feedback = '';
     });
@@ -381,6 +396,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                   key: ValueKey('guide:${current.key}:$completed'),
                   guide: _guide,
                   pattern: _helpPattern,
+                  initialLevel: HelpLevel.values[helpLevel],
                   taskKey: current.key,
                   expected: current.answer,
                   onStepAttempt: (step, correct) =>

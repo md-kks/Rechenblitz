@@ -7,6 +7,20 @@ import 'training.dart';
 
 enum HelpLevel { none, nudge, visual, guided }
 
+abstract final class ScaffoldFadingPolicy {
+  static HelpLevel? initialLevelForTask(
+    int completedTasks, {
+    required bool enabled,
+  }) {
+    if (!enabled) return null;
+    return switch (completedTasks) {
+      0 => HelpLevel.visual,
+      1 => HelpLevel.nudge,
+      _ => null,
+    };
+  }
+}
+
 extension HelpLevelX on HelpLevel {
   int get value => index;
 

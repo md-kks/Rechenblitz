@@ -347,4 +347,62 @@ void main() {
   });
 
 
+  test('Scaffold-Fading reduziert Darstellung zu Hinweis und dann ohne Hilfe',
+      () {
+    expect(
+      ScaffoldFadingPolicy.initialLevelForTask(0, enabled: true),
+      HelpLevel.visual,
+    );
+    expect(
+      ScaffoldFadingPolicy.initialLevelForTask(1, enabled: true),
+      HelpLevel.nudge,
+    );
+    expect(
+      ScaffoldFadingPolicy.initialLevelForTask(2, enabled: true),
+      isNull,
+    );
+    expect(
+      ScaffoldFadingPolicy.initialLevelForTask(4, enabled: true),
+      isNull,
+    );
+    expect(
+      ScaffoldFadingPolicy.initialLevelForTask(0, enabled: false),
+      isNull,
+    );
+  });
+
+  testWidgets('Geführtes Panel kann direkt mit Darstellung starten',
+      (tester) async {
+    const guide = GuidedMethodGuide(
+      methodKey: 'test:fading',
+      methodLabel: 'Fading',
+      nudge: 'Ein kurzer Hinweis.',
+      steps: [],
+    );
+    final levels = <HelpLevel>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuidedMethodPanel(
+            guide: guide,
+            pattern: ErrorPattern.numberBond,
+            taskKey: 'test:fading',
+            expected: 10,
+            initialLevel: HelpLevel.visual,
+            onHelpLevelChanged: levels.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(levels, [HelpLevel.visual]);
+    final visualChip = tester.widget<ActionChip>(
+      find.widgetWithText(ActionChip, '2 Darstellung'),
+    );
+    expect(visualChip.avatar, isNotNull);
+  });
+
+
 }

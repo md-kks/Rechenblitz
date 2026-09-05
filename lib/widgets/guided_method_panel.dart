@@ -14,6 +14,7 @@ class GuidedMethodPanel extends StatefulWidget {
     required this.taskKey,
     required this.expected,
     required this.onHelpLevelChanged,
+    this.initialLevel = HelpLevel.nudge,
     this.onStepAttempt,
     this.onSpeak,
   });
@@ -23,6 +24,7 @@ class GuidedMethodPanel extends StatefulWidget {
   final String taskKey;
   final int expected;
   final ValueChanged<HelpLevel> onHelpLevelChanged;
+  final HelpLevel initialLevel;
   final Future<void> Function(GuidedMethodStep step, bool correct)?
       onStepAttempt;
   final Future<void> Function(String text)? onSpeak;
@@ -32,7 +34,7 @@ class GuidedMethodPanel extends StatefulWidget {
 }
 
 class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
-  HelpLevel level = HelpLevel.nudge;
+  late HelpLevel level;
   int stepIndex = 0;
   final Set<int> solvedSteps = <int>{};
   final Set<int> attemptedSteps = <int>{};
@@ -41,6 +43,7 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
   @override
   void initState() {
     super.initState();
+    level = widget.initialLevel;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onHelpLevelChanged(level);
     });
