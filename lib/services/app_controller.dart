@@ -1331,6 +1331,7 @@ class AppController extends ChangeNotifier {
               !entry.correct &&
               entry.gradeLevel == gradeLevel &&
               entry.numberRange == numberRange &&
+              !entry.occurredAt.isAfter(reference) &&
               reference.difference(entry.occurredAt) <=
                   _stepRecoveryFreshness,
         )
