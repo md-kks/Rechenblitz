@@ -160,6 +160,441 @@ class RemediationPlan {
   String get title => '${pattern.label} gezielt üben';
 }
 
+class IndependentStepRecoveryFocus {
+  const IndependentStepRecoveryFocus({
+    required this.competencyId,
+    required this.stepKey,
+    required this.label,
+    required this.mode,
+    required this.lastSeen,
+    required this.sourceTaskKey,
+  });
+
+  final MicroCompetencyId competencyId;
+  final String stepKey;
+  final String label;
+  final TrainingMode mode;
+  final DateTime lastSeen;
+  final String sourceTaskKey;
+}
+
+class StepRecoveryPlan {
+  const StepRecoveryPlan({
+    required this.focus,
+    required this.tasks,
+  });
+
+  final IndependentStepRecoveryFocus focus;
+  final List<RemediationTask> tasks;
+
+  String get title => '${focus.label} kurz festigen';
+}
+
+class StepRecoveryGenerator {
+  StepRecoveryGenerator({Random? random}) : _random = random ?? Random();
+
+  static const supportedStepKeys = <String>{
+    'onesDigit',
+    'groupCount',
+    'itemsPerGroup',
+    'bridgeAmount',
+    'remainingAddend',
+    'remainingSubtrahend',
+    'onesAlignment',
+    'regroupDecision',
+    'carryDecision',
+    'firstPartialProduct',
+    'multiplicationCarry',
+    'nextMultiplierDigit',
+    'firstQuotientDigit',
+    'firstDivisionRemainder',
+  };
+
+  static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
+
+  final Random _random;
+
+  StepRecoveryPlan generate({
+    required IndependentStepRecoveryFocus focus,
+    required NumberRangeLevel range,
+  }) {
+    if (!supports(focus.stepKey)) {
+      throw ArgumentError.value(
+        focus.stepKey,
+        'focus.stepKey',
+        'Für diesen Teilschritt gibt es noch keinen gezielten Recovery-Pfad.',
+      );
+    }
+    return StepRecoveryPlan(
+      focus: focus,
+      tasks: [
+        _task(
+          focus,
+          RemediationStage.supported,
+          range,
+        ),
+        _task(
+          focus,
+          RemediationStage.transfer,
+          range,
+        ),
+        _task(
+          focus,
+          RemediationStage.check,
+          range,
+        ),
+      ],
+    );
+  }
+
+  RemediationTask _task(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) =>
+      switch (focus.stepKey) {
+        'onesDigit' => _onesDigit(focus, stage, range),
+        'groupCount' => _groups(focus, stage, askForGroups: true),
+        'itemsPerGroup' => _groups(focus, stage, askForGroups: false),
+        'bridgeAmount' => _bridgeAmount(focus, stage, range),
+        'remainingAddend' => _remainingAddend(focus, stage, range),
+        'remainingSubtrahend' =>
+          _remainingSubtrahend(focus, stage, range),
+        'onesAlignment' => _onesAlignment(focus, stage, range),
+        'regroupDecision' =>
+          _regroupDecision(focus, stage, complement: false),
+        'carryDecision' => _carryDecision(focus, stage),
+        'firstPartialProduct' => _firstPartialProduct(focus, stage),
+        'multiplicationCarry' => _multiplicationCarry(focus, stage),
+        'nextMultiplierDigit' => _nextMultiplierDigit(focus, stage),
+        'firstQuotientDigit' =>
+          _divisionStep(focus, stage, askForRemainder: false),
+        'firstDivisionRemainder' =>
+          _divisionStep(focus, stage, askForRemainder: true),
+        _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
+      };
+
+  RemediationTask _onesDigit(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(20, min(range.maxValue, 1000));
+    final number = _between(10, limit);
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'place:$number',
+      prompt: 'Welche Ziffer steht bei $number an der Einerstelle?',
+      answer: number % 10,
+      max: 9,
+      hint: 'Die Einerstelle ist immer ganz rechts.',
+    );
+  }
+
+  RemediationTask _groups(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage, {
+    required bool askForGroups,
+  }) {
+    final groups = _between(2, 6);
+    final each = _between(2, 6);
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'groups:$groups:$each',
+      prompt: askForGroups
+          ? '$groups gleich große Gruppen mit je $each Punkten: Wie viele Gruppen sind es?'
+          : '$groups gleich große Gruppen mit je $each Punkten: Wie viele Punkte liegen in jeder Gruppe?',
+      answer: askForGroups ? groups : each,
+      max: 8,
+      hint: askForGroups
+          ? 'Zähle nur die Gruppen, noch nicht alle Punkte.'
+          : 'Schau nur auf eine einzelne Gruppe.',
+    );
+  }
+
+  RemediationTask _bridgeAmount(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(20, min(range.maxValue, 100));
+    final decade = _between(1, max(1, limit ~/ 10 - 1));
+    final ones = _between(1, 9);
+    final a = decade * 10 + ones;
+    final nextTen = (decade + 1) * 10;
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'bridge:$a:$nextTen',
+      prompt: 'Wie viel fehlt von $a bis $nextTen?',
+      answer: nextTen - a,
+      max: 10,
+      hint: 'Ergänze nur bis zum nächsten vollen Zehner.',
+    );
+  }
+
+  RemediationTask _remainingAddend(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(20, min(range.maxValue, 100));
+    final decade = _between(1, max(1, limit ~/ 10 - 1));
+    final ones = _between(2, 9);
+    final a = decade * 10 + ones;
+    final toTen = 10 - ones;
+    final b = _between(toTen + 1, 9);
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'add-rest:$a:$b',
+      prompt:
+          'Bei $a + $b werden zuerst $toTen bis zum nächsten Zehner genutzt. Wie viel von $b bleibt danach übrig?',
+      answer: b - toTen,
+      max: 9,
+      hint: 'Ziehe den schon verwendeten Teil $toTen von $b ab.',
+    );
+  }
+
+  RemediationTask _remainingSubtrahend(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(20, min(range.maxValue, 100));
+    final decade = _between(2, max(2, limit ~/ 10));
+    final ones = _between(1, 8);
+    final a = min(limit, decade * 10 + ones);
+    final maxB = min(a - 1, 30);
+    final b = _between(ones + 1, max(ones + 1, maxB));
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'sub-rest:$a:$b',
+      prompt:
+          'Bei $a − $b werden zuerst $ones bis zum vollen Zehner weggenommen. Wie viel vom Subtrahenden $b bleibt danach?',
+      answer: b - ones,
+      max: max(10, b),
+      hint: 'Ziehe vom Subtrahenden nur den bereits verwendeten Teil $ones ab.',
+    );
+  }
+
+  RemediationTask _onesAlignment(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(100, min(range.maxValue, 1000));
+    final minus = focus.sourceTaskKey.contains(':-:');
+    final b = _between(12, min(98, limit - 1));
+    final a = minus
+        ? _between(b, limit)
+        : _between(10, max(10, limit - b));
+    final symbol = minus ? '−' : '+';
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'align:${minus ? '-' : '+'}:$a:$b',
+      prompt:
+          'Bei $a $symbol $b schriftlich: Welche Ziffer von $b steht unten in der Einer-Spalte?',
+      answer: b % 10,
+      max: 9,
+      hint: 'Einer stehen unter Einern – nimm die ganz rechte Ziffer von $b.',
+    );
+  }
+
+  RemediationTask _regroupDecision(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage, {
+    required bool complement,
+  }) {
+    final needsRegrouping = _random.nextBool();
+    final topOnes = needsRegrouping ? _between(0, 4) : _between(5, 9);
+    final bottomOnes = needsRegrouping
+        ? _between(topOnes + 1, 9)
+        : _between(0, topOnes);
+    final a = _between(3, 9) * 10 + topOnes;
+    final b = _between(1, max(1, a ~/ 10 - 1)) * 10 + bottomOnes;
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'regroup:$a:$b',
+      prompt: complement
+          ? 'Bei $a − $b: Musst du in der Einer-Spalte über 10 ergänzen und einen Übertrag beachten?'
+          : 'Bei $a − $b: Musst du in der Einer-Spalte einen Zehner entbündeln?',
+      choices: const ['Ja', 'Nein'],
+      answer: needsRegrouping ? 0 : 1,
+      hint: 'Vergleiche nur die beiden Einerziffern: $topOnes und $bottomOnes.',
+    );
+  }
+
+  RemediationTask _carryDecision(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    if (focus.sourceTaskKey.contains(':-:')) {
+      return _regroupDecision(focus, stage, complement: true);
+    }
+    final needsCarry = _random.nextBool();
+    int aOnes;
+    int bOnes;
+    if (needsCarry) {
+      aOnes = _between(5, 9);
+      bOnes = _between(10 - aOnes, 9);
+    } else {
+      aOnes = _between(0, 5);
+      bOnes = _between(0, 9 - aOnes);
+    }
+    final a = _between(2, 8) * 10 + aOnes;
+    final b = _between(1, 8) * 10 + bOnes;
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'carry:$a:$b',
+      prompt:
+          'Bei $a + $b: Entsteht in der Einer-Spalte ein Übertrag?',
+      choices: const ['Ja', 'Nein'],
+      answer: needsCarry ? 0 : 1,
+      hint: 'Addiere nur die Einer $aOnes + $bOnes. Ab 10 entsteht ein Übertrag.',
+    );
+  }
+
+  RemediationTask _firstPartialProduct(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final tens = _between(1, 8);
+    final ones = _between(2, 9);
+    final multiplier = _between(2, 9);
+    final a = tens * 10 + ones;
+    final product = ones * multiplier;
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'partial-product:$a:$multiplier',
+      prompt:
+          'Bei $a × $multiplier schriftlich: Was ergibt zuerst die Einer-Spalte $ones × $multiplier?',
+      answer: product,
+      max: max(20, product + 5),
+      hint: 'Rechne zunächst nur die beiden Ziffern der Einer-Spalte.',
+    );
+  }
+
+  RemediationTask _multiplicationCarry(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final ones = _between(5, 9);
+    final multiplier = _between(2, 9);
+    final product = ones * multiplier;
+    final a = _between(1, 8) * 10 + ones;
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'mul-carry:$a:$multiplier',
+      prompt:
+          'Bei $a × $multiplier ergibt die Einer-Spalte $ones × $multiplier = $product. Welchen Übertrag schreibst du zur nächsten Stelle?',
+      answer: product ~/ 10,
+      max: 9,
+      hint: 'Die Einerziffer bleibt unten. Die Zehner des Teilprodukts werden übertragen.',
+    );
+  }
+
+  RemediationTask _nextMultiplierDigit(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final tens = _between(1, 9);
+    final ones = _between(1, 9);
+    final multiplier = tens * 10 + ones;
+    final a = _between(12, 49);
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'next-multiplier:$a:$multiplier',
+      prompt:
+          'Bei $a × $multiplier hast du schon mit der Einerziffer $ones gerechnet. Mit welcher Ziffer des zweiten Faktors rechnest du als Nächstes?',
+      answer: tens,
+      max: 9,
+      hint: 'Nach den Einern folgt die Zehnerziffer des zweiten Faktors.',
+    );
+  }
+
+  RemediationTask _divisionStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage, {
+    required bool askForRemainder,
+  }) {
+    final divisor = _between(2, 9);
+    var quotientDigit = _between(2, 9);
+    var remainder = _between(0, divisor - 1);
+    var chunk = divisor * quotientDigit + remainder;
+    for (var attempt = 0; attempt < 20 && chunk < 10; attempt++) {
+      quotientDigit = _between(2, 9);
+      remainder = _between(0, divisor - 1);
+      chunk = divisor * quotientDigit + remainder;
+    }
+    final dividend = chunk * 10 + _between(0, 9);
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'division:$dividend:$divisor:$chunk',
+      prompt: askForRemainder
+          ? 'Beim ersten Schritt von $dividend ÷ $divisor rechnest du mit $chunk. Welcher Rest bleibt nach $quotientDigit × $divisor?'
+          : 'Beim ersten Schritt von $dividend ÷ $divisor: Wie oft passt $divisor in $chunk?',
+      answer: askForRemainder ? remainder : quotientDigit,
+      max: max(9, divisor),
+      hint: askForRemainder
+          ? 'Rechne $chunk − ($quotientDigit × $divisor).'
+          : 'Suche die größte Malaufgabe mit $divisor, die $chunk nicht überschreitet.',
+    );
+  }
+
+  RemediationTask _numeric({
+    required IndependentStepRecoveryFocus focus,
+    required RemediationStage stage,
+    required String key,
+    required String prompt,
+    required int answer,
+    required int max,
+    required String hint,
+  }) =>
+      RemediationTask(
+        stage: stage,
+        mode: focus.mode,
+        taskKey: 'step-recovery:${focus.stepKey}:$key',
+        prompt: prompt,
+        answer: answer,
+        maxAnswerValue: max,
+        hint: hint,
+      );
+
+  RemediationTask _choice({
+    required IndependentStepRecoveryFocus focus,
+    required RemediationStage stage,
+    required String key,
+    required String prompt,
+    required List<String> choices,
+    required int answer,
+    required String hint,
+  }) =>
+      RemediationTask(
+        stage: stage,
+        mode: focus.mode,
+        taskKey: 'step-recovery:${focus.stepKey}:$key',
+        prompt: prompt,
+        answer: answer,
+        maxAnswerValue: choices.length - 1,
+        hint: hint,
+        choices: choices,
+      );
+
+  int _between(int low, int high) =>
+      high <= low ? low : low + _random.nextInt(high - low + 1);
+}
+
 class RemediationGenerator {
   RemediationGenerator({Random? random})
       : _random = random ?? Random(),
