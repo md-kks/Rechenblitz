@@ -262,6 +262,29 @@ Rechenblitz verwendet Hilfen jetzt in drei Stufen:
 
 Die tatsächlich benötigte Hilfestufe wird in der Mikro-Kompetenz-Evidenz berücksichtigt. Eine richtige Lösung ohne Hilfe zählt stärker als dieselbe Lösung nach einem vollständig geführten Rechenweg. Ebenso wird gespeichert, welcher schulische Rechenweg verwendet wurde.
 
+### Zwischenschritt-Evidenz
+
+Die Stufe **„Gemeinsam lösen“** kann jetzt ausgewählte mathematische Teilschritte einzeln beobachten. Rechenblitz bewertet dabei nicht nur, ob die Endantwort nach Hilfe richtig wird, sondern auch den **ersten Versuch** an einer konkreten Teilfrage des Rechenwegs.
+
+Der erste Slice umfasst bewusst robuste, deterministisch prüfbare Zwischenschritte:
+
+- Minus über den Zehner: Schritt bis zum Zehner und Zerlegung des verbleibenden Subtrahenden
+- ergänzendes Minus: Größe der einzelnen Ergänzungssprünge
+- Multiplikation mit Gruppen: Zwischensumme erster gleich großer Gruppen
+- zerlegte Multiplikation: einzelne Teilprodukte
+- Nachbaraufgaben beim Multiplizieren: bekannte Ankeraufgabe
+- Stellenwertdarstellungen: Ziffer an einer konkreten Stelle erkennen
+- Punktefelder: Anzahl der Gruppen und Elemente je Gruppe unterscheiden
+- schriftliche Subtraktion: Stellen richtig ausrichten und notwendiges Entbündeln erkennen
+
+Wichtig ist die Evidenzgrenze: Eine interaktive Teilfrage erscheint **innerhalb einer geführten Hilfe**. Ihre Evidenzquelle `guidedStep` ist deshalb immer als Hilfe markiert und zählt weder als selbstständige Basisevidenz noch als Abstand- oder Transfernachweis. Auch viele richtige geführte Teilfragen können damit allein niemals **„Sicher“** oder **„Gemeistert“** erzeugen.
+
+Pro Teilfrage wird nur der **erste Versuch** gespeichert. Korrigiert ein Kind eine zunächst falsche Auswahl anschließend mit Hilfe, bleibt die erste Teilbeobachtung falsch; das erfolgreiche Weiterarbeiten wird weiterhin über die bereits vorhandene Unterstützungs-Evidenz des Gesamtproblems erfasst. Damit wird ein Fehler nicht nachträglich „weggeschrieben“.
+
+Geführte Zwischenschritte besitzen ein separates kleines Auswertungsfenster und verdrängen keine älteren selbstständigen Beobachtungen aus dem Mastery-Fenster. Im Elternbereich können sie als **geführte Zwischenschritte** erscheinen, ohne mit Lösungen ohne Hilfe vermischt zu werden.
+
+Der Mechanismus erweitert die bestehende `GuidedMethodPanel`- und Mikro-Kompetenz-Architektur; es gibt keine parallele Activity- oder Diagnose-Engine. Freie Handschrift, OCR oder eine Interpretation beliebiger selbst formulierter Rechenwege ist ausdrücklich noch nicht Teil dieses Slices.
+
 Unter **So rechnen wir** gibt es zwei Modi:
 
 - **Schulmethode** – die hinterlegte Methode wird konsequent genutzt.

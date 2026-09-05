@@ -6,6 +6,7 @@ import '../models/accessibility_preferences.dart';
 import '../models/assessment.dart';
 import '../models/beta_feedback.dart';
 import '../models/error_diagnosis.dart';
+import '../models/guided_method.dart';
 import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
 import '../models/learning_path.dart';
@@ -277,6 +278,40 @@ class AppController extends ChangeNotifier {
       methodKey: methodKey,
       source: source,
     );
+    notifyListeners();
+    await storage.saveMicroCompetencyObservations(microObservations);
+  }
+
+  Future<void> recordGuidedStepAttempt({
+    required TrainingMode mode,
+    required String taskKey,
+    required String methodKey,
+    required String stepKey,
+    required MicroCompetencyId competencyId,
+    required bool correct,
+    double evidenceWeight = 0.35,
+  }) async {
+    if (evidenceWeight <= 0) return;
+    microObservations.insert(
+      0,
+      MicroCompetencyObservation(
+        id: competencyId,
+        occurredAt: DateTime.now(),
+        correct: correct,
+        evidenceWeight: evidenceWeight.clamp(0.05, 0.50).toDouble(),
+        source: MicroEvidenceSource.guidedStep,
+        usedHelp: true,
+        helpLevel: HelpLevel.guided.value,
+        methodKey: methodKey,
+        mode: mode,
+        gradeLevel: gradeLevel,
+        numberRange: numberRange,
+        taskKey: 'guided:$methodKey:$stepKey:$taskKey',
+      ),
+    );
+    if (microObservations.length > 1200) {
+      microObservations = microObservations.take(1200).toList();
+    }
     notifyListeners();
     await storage.saveMicroCompetencyObservations(microObservations);
   }
@@ -913,6 +948,7 @@ class AppController extends ChangeNotifier {
   }) {
     final sourceWeight = switch (source) {
       MicroEvidenceSource.remediation => 0.65,
+      MicroEvidenceSource.guidedStep => 0.35,
       MicroEvidenceSource.practice ||
       MicroEvidenceSource.review ||
       MicroEvidenceSource.transfer => 1.0,
@@ -960,15 +996,22 @@ class AppController extends ChangeNotifier {
     MicroCompetencyId id,
   ) {
     final definition = MicroCompetencyCatalog.definition(id);
-    final observations = microObservations
+    final matchingObservations = microObservations
         .where(
           (entry) =>
               entry.id == id &&
               entry.gradeLevel == gradeLevel &&
               entry.numberRange == numberRange,
         )
-        .take(24)
         .toList();
+    final observations = <MicroCompetencyObservation>[
+      ...matchingObservations
+          .where((entry) => entry.source != MicroEvidenceSource.guidedStep)
+          .take(24),
+      ...matchingObservations
+          .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
+          .take(12),
+    ];
 
     if (observations.isEmpty) {
       return MicroCompetencyProgress(
@@ -1041,6 +1084,8 @@ class AppController extends ChangeNotifier {
           }
           lastTransferSeen ??= observation.occurredAt;
           break;
+        case MicroEvidenceSource.guidedStep:
+          break;
         case MicroEvidenceSource.practice:
         case MicroEvidenceSource.remediation:
           baseEvidence += observation.evidenceWeight;
@@ -1111,7 +1156,7 @@ class AppController extends ChangeNotifier {
       aidedObservations: aidedObservations,
       reviewObservations: reviewObservations,
       transferObservations: transferObservations,
-      lastSeen: observations.first.occurredAt,
+      lastSeen: matchingObservations.first.occurredAt,
       lastReviewSeen: lastReviewSeen,
       lastTransferSeen: lastTransferSeen,
     );
@@ -1526,15 +1571,22 @@ class AppController extends ChangeNotifier {
   }
 
   String _parentEvidenceText(MicroCompetencyProgress progress) {
-    final relevant = microObservations
+    final matching = microObservations
         .where(
           (entry) =>
               entry.id == progress.definition.id &&
               entry.gradeLevel == gradeLevel &&
               entry.numberRange == numberRange,
         )
-        .take(24)
         .toList();
+    final relevant = <MicroCompetencyObservation>[
+      ...matching
+          .where((entry) => entry.source != MicroEvidenceSource.guidedStep)
+          .take(24),
+      ...matching
+          .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
+          .take(12),
+    ];
     if (relevant.isEmpty) {
       return 'Zu diesem Teilschritt liegen noch keine passenden Beobachtungen vor.';
     }
@@ -1547,6 +1599,9 @@ class AppController extends ChangeNotifier {
         .length;
     final transferCount = relevant
         .where((entry) => entry.source == MicroEvidenceSource.transfer)
+        .length;
+    final guidedStepCount = relevant
+        .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
         .length;
     final independentPercent =
         (progress.independentAccuracy * 100).round();
@@ -1563,6 +1618,9 @@ class AppController extends ChangeNotifier {
     }
     if (transferCount > 0) {
       parts.add('$transferCount im Transfer');
+    }
+    if (guidedStepCount > 0) {
+      parts.add('$guidedStepCount geführte Zwischenschritte');
     }
 
     return '${parts.join(' · ')}. '

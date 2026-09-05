@@ -25,6 +25,9 @@ class GuidedMethodStep {
     this.question,
     this.choices = const <String>[],
     this.correctChoice,
+    this.evidenceKey,
+    this.evidenceCompetency,
+    this.evidenceWeight = 0.35,
   });
 
   final String title;
@@ -32,9 +35,18 @@ class GuidedMethodStep {
   final String? question;
   final List<String> choices;
   final int? correctChoice;
+  final String? evidenceKey;
+  final MicroCompetencyId? evidenceCompetency;
+  final double evidenceWeight;
 
   bool get isInteractive =>
       question != null && choices.isNotEmpty && correctChoice != null;
+
+  bool get recordsIntermediateEvidence =>
+      isInteractive &&
+      evidenceKey != null &&
+      evidenceCompetency != null &&
+      evidenceWeight > 0;
 }
 
 class GuidedMethodGuide {
@@ -162,22 +174,32 @@ class GuidedMethodFactory {
       final number = valueIndex >= 0 && valueIndex < parts.length
           ? int.tryParse(parts[valueIndex])
           : null;
+      final ones = number == null ? null : number % 10;
+      final onesChoices = ones == null
+          ? const <String>[]
+          : _numberChoices(ones, maxValue: 9);
       return GuidedMethodGuide(
         methodKey: 'representation:placeValue',
         methodLabel: 'Stellenwerte lesen',
         nudge:
             'Lies jede Stelle einzeln: Einer, Zehner, Hunderter und weiter nach links.',
         steps: [
-          const GuidedMethodStep(
+          GuidedMethodStep(
             title: 'Stellen benennen',
             instruction:
                 'Ordne jede sichtbare Ziffer zuerst ihrer Stelle zu. Eine 0 hält eine Stelle frei und darf nicht übersprungen werden.',
+            question: ones == null ? null : 'Welche Ziffer steht bei den Einern?',
+            choices: onesChoices,
+            correctChoice: ones == null ? null : onesChoices.indexOf('$ones'),
+            evidenceKey: ones == null ? null : 'onesDigit',
+            evidenceCompetency:
+                ones == null ? null : MicroCompetencyId.placeValueDigits,
           ),
           GuidedMethodStep(
             title: 'Wert zusammensetzen',
             instruction: number == null
                 ? 'Setze die Stellenwerte anschließend wieder zu einer Zahl oder Zerlegung zusammen.'
-                : 'Die Stellenwertdarstellung gehört zu $number. Prüfe, wie jeder Ziffernwert in der Zerlegung erscheint.',
+                : 'Setze danach alle Stellenwerte wieder zur Zahl $number zusammen.',
           ),
           const GuidedMethodStep(
             title: 'Darstellungen vergleichen',
@@ -196,6 +218,12 @@ class GuidedMethodFactory {
     final each = eachIndex >= 0 && eachIndex < parts.length
         ? int.tryParse(parts[eachIndex])
         : null;
+    final groupChoices = groups == null
+        ? const <String>[]
+        : _numberChoices(groups, maxValue: max(6, groups + 2));
+    final eachChoices = each == null
+        ? const <String>[]
+        : _numberChoices(each, maxValue: max(6, each + 2));
     return GuidedMethodGuide(
       methodKey: 'representation:equalGroups',
       methodLabel: 'Gleiche Gruppen lesen',
@@ -204,15 +232,24 @@ class GuidedMethodFactory {
       steps: [
         GuidedMethodStep(
           title: 'Gruppen zählen',
-          instruction: groups == null
-              ? 'Bestimme, wie viele gleich große Gruppen dargestellt sind.'
-              : 'Es sind $groups gleich große Gruppen.',
+          instruction: 'Bestimme zuerst nur die Anzahl der gleich großen Gruppen.',
+          question: groups == null ? null : 'Wie viele Gruppen siehst du?',
+          choices: groupChoices,
+          correctChoice:
+              groups == null ? null : groupChoices.indexOf('$groups'),
+          evidenceKey: groups == null ? null : 'groupCount',
+          evidenceCompetency:
+              groups == null ? null : MicroCompetencyId.multiplicationGroups,
         ),
         GuidedMethodStep(
           title: 'Inhalt jeder Gruppe',
-          instruction: each == null
-              ? 'Bestimme, wie viele Punkte in jeder Gruppe liegen.'
-              : 'In jeder Gruppe liegen $each Punkte.',
+          instruction: 'Schau jetzt nur auf eine Gruppe und zähle ihren Inhalt.',
+          question: each == null ? null : 'Wie viele Punkte sind in jeder Gruppe?',
+          choices: eachChoices,
+          correctChoice: each == null ? null : eachChoices.indexOf('$each'),
+          evidenceKey: each == null ? null : 'itemsPerGroup',
+          evidenceCompetency:
+              each == null ? null : MicroCompetencyId.multiplicationGroups,
         ),
         GuidedMethodStep(
           title: 'In Symbolsprache übersetzen',
@@ -248,10 +285,12 @@ class GuidedMethodFactory {
           steps: [
             GuidedMethodStep(
               title: 'Bis zum Zehner',
-              instruction: 'Von $a bis $bridge fehlen $toTen.',
+              instruction: 'Suche zuerst den vollen Zehner unter $a.',
               question: 'Wie viel musst du zuerst wegnehmen?',
               choices: choices1,
               correctChoice: choices1.indexOf('$toTen'),
+              evidenceKey: 'bridgeAmount',
+              evidenceCompetency: MicroCompetencyId.subtractionTenBridge,
             ),
             GuidedMethodStep(
               title: 'Rest bestimmen',
@@ -259,6 +298,8 @@ class GuidedMethodFactory {
               question: 'Wie viel musst du noch wegnehmen?',
               choices: choices2,
               correctChoice: choices2.indexOf('$rest'),
+              evidenceKey: 'remainingSubtrahend',
+              evidenceCompetency: MicroCompetencyId.numberDecomposition,
             ),
             GuidedMethodStep(
               title: 'Weiterrechnen',
@@ -283,10 +324,12 @@ class GuidedMethodFactory {
           steps: [
             GuidedMethodStep(
               title: 'Ersten Teil wegnehmen',
-              instruction: '$a − $first = $middle.',
+              instruction: 'Nimm zuerst $first von $a weg.',
               question: 'Wo landest du nach dem ersten Schritt?',
               choices: choices1,
               correctChoice: choices1.indexOf('$middle'),
+              evidenceKey: 'firstPartialSubtraction',
+              evidenceCompetency: MicroCompetencyId.numberDecomposition,
             ),
             GuidedMethodStep(
               title: 'Rest wegnehmen',
@@ -302,6 +345,10 @@ class GuidedMethodFactory {
         final firstJump = bridge - b;
         final secondJump = a - bridge;
         final choices = _numberChoices(result, maxValue: max(20, a));
+        final firstJumpChoices =
+            _numberChoices(firstJump, maxValue: max(10, a));
+        final secondJumpChoices =
+            _numberChoices(secondJump, maxValue: max(10, a));
         return GuidedMethodGuide(
           methodKey: 'subtraction:${strategy.name}',
           methodLabel: strategy.label,
@@ -309,11 +356,21 @@ class GuidedMethodFactory {
           steps: [
             GuidedMethodStep(
               title: 'Bis zum Zehner ergänzen',
-              instruction: 'Von $b bis $bridge sind es $firstJump.',
+              instruction: 'Ergänze von $b bis zum nächsten vollen Zehner.',
+              question: 'Wie groß ist der erste Sprung?',
+              choices: firstJumpChoices,
+              correctChoice: firstJumpChoices.indexOf('$firstJump'),
+              evidenceKey: 'firstComplementJump',
+              evidenceCompetency: MicroCompetencyId.subtractionTenBridge,
             ),
             GuidedMethodStep(
               title: 'Bis zur größeren Zahl',
-              instruction: 'Von $bridge bis $a sind es noch $secondJump.',
+              instruction: 'Ergänze vom vollen Zehner weiter bis $a.',
+              question: 'Wie groß ist der zweite Sprung?',
+              choices: secondJumpChoices,
+              correctChoice: secondJumpChoices.indexOf('$secondJump'),
+              evidenceKey: 'secondComplementJump',
+              evidenceCompetency: MicroCompetencyId.subtractionTenBridge,
             ),
             GuidedMethodStep(
               title: 'Sprünge zusammenzählen',
@@ -339,17 +396,30 @@ class GuidedMethodFactory {
     switch (strategy) {
       case MultiplicationStrategy.groups:
         final choices = _numberChoices(result, maxValue: max(100, result + 10));
+        final firstGroupCount = min(2, a);
+        final partialGroups = b * firstGroupCount;
+        final partialChoices =
+            _numberChoices(partialGroups, maxValue: max(20, result));
         return GuidedMethodGuide(
           methodKey: 'multiplication:${strategy.name}',
           methodLabel: strategy.label,
           nudge: 'Stell dir $a gleich große Gruppen mit je $b Dingen vor.',
           steps: [
             GuidedMethodStep(
-              title: 'Gruppen sehen',
-              instruction: '$a Gruppen enthalten jeweils $b.',
+              title: 'Erste Gruppen zusammenfassen',
+              instruction:
+                  'Beginne mit $firstGroupCount gleich großen Gruppen mit je $b.',
+              question:
+                  'Wie viele sind in $firstGroupCount Gruppen zusammen?',
+              choices: partialChoices,
+              correctChoice: partialChoices.indexOf('$partialGroups'),
+              evidenceKey: a > firstGroupCount ? 'partialGroups' : null,
+              evidenceCompetency: a > firstGroupCount
+                  ? MicroCompetencyId.multiplicationGroups
+                  : null,
             ),
             GuidedMethodStep(
-              title: 'Zusammenfassen',
+              title: 'Alle Gruppen sehen',
               instruction: '${List.filled(min(a, 6), '$b').join(' + ')}${a > 6 ? ' + …' : ''}',
             ),
             GuidedMethodStep(
@@ -368,6 +438,8 @@ class GuidedMethodFactory {
         final p1 = a * left;
         final p2 = a * right;
         final choices = _numberChoices(result, maxValue: max(100, result + 10));
+        final p1Choices = _numberChoices(p1, maxValue: max(100, result));
+        final p2Choices = _numberChoices(p2, maxValue: max(100, result));
         return GuidedMethodGuide(
           methodKey: 'multiplication:${strategy.name}',
           methodLabel: strategy.label,
@@ -375,11 +447,27 @@ class GuidedMethodFactory {
           steps: [
             GuidedMethodStep(
               title: 'Erstes Teilprodukt',
-              instruction: '$a × $left = $p1.',
+              instruction: 'Rechne zuerst $a × $left.',
+              question: 'Wie groß ist das erste Teilprodukt?',
+              choices: p1Choices,
+              correctChoice: p1Choices.indexOf('$p1'),
+              evidenceKey:
+                  left > 0 && right > 0 ? 'firstPartialProduct' : null,
+              evidenceCompetency: left > 0 && right > 0
+                  ? MicroCompetencyId.multiplicationFacts
+                  : null,
             ),
             GuidedMethodStep(
               title: 'Zweites Teilprodukt',
-              instruction: '$a × $right = $p2.',
+              instruction: 'Rechne jetzt $a × $right.',
+              question: 'Wie groß ist das zweite Teilprodukt?',
+              choices: p2Choices,
+              correctChoice: p2Choices.indexOf('$p2'),
+              evidenceKey:
+                  left > 0 && right > 0 ? 'secondPartialProduct' : null,
+              evidenceCompetency: left > 0 && right > 0
+                  ? MicroCompetencyId.multiplicationFacts
+                  : null,
             ),
             GuidedMethodStep(
               title: 'Zusammenfügen',
@@ -396,6 +484,8 @@ class GuidedMethodFactory {
         final anchorProduct = a * anchor;
         final difference = b - anchor;
         final delta = a * difference.abs();
+        final anchorChoices =
+            _numberChoices(anchorProduct, maxValue: max(100, result + delta));
         return GuidedMethodGuide(
           methodKey: 'multiplication:${strategy.name}',
           methodLabel: strategy.label,
@@ -403,7 +493,12 @@ class GuidedMethodFactory {
           steps: [
             GuidedMethodStep(
               title: 'Ankeraufgabe',
-              instruction: '$a × $anchor = $anchorProduct.',
+              instruction: 'Starte mit der leichteren Aufgabe $a × $anchor.',
+              question: 'Wie groß ist das Ankerprodukt?',
+              choices: anchorChoices,
+              correctChoice: anchorChoices.indexOf('$anchorProduct'),
+              evidenceKey: 'anchorFact',
+              evidenceCompetency: MicroCompetencyId.multiplicationFacts,
             ),
             GuidedMethodStep(
               title: 'Zur Zielaufgabe',
@@ -427,20 +522,44 @@ class GuidedMethodFactory {
     MethodPreferences preferences,
   ) {
     final strategy = preferences.writtenSubtraction;
+    final lowerOnes = b % 10;
+    final onesChoices = _numberChoices(lowerOnes, maxValue: 9);
+    final needsRegrouping = (a % 10) < lowerOnes;
     return GuidedMethodGuide(
       methodKey: 'writtenSubtraction:${strategy.name}',
       methodLabel: strategy.label,
       nudge: 'Schreibe Einer unter Einer, Zehner unter Zehner und Hunderter unter Hunderter.',
       steps: [
-        const GuidedMethodStep(
+        GuidedMethodStep(
           title: 'Stellen ausrichten',
-          instruction: 'Kontrolliere zuerst die Spalten E, Z, H und gegebenenfalls T.',
+          instruction:
+              'Kontrolliere zuerst die Einer-Spalte, bevor du rechnest.',
+          question: 'Welche Ziffer steht unten in der Einer-Spalte?',
+          choices: onesChoices,
+          correctChoice: onesChoices.indexOf('$lowerOnes'),
+          evidenceKey: 'onesAlignment',
+          evidenceCompetency: MicroCompetencyId.writtenAlignment,
         ),
         GuidedMethodStep(
           title: strategy == WrittenSubtractionStrategy.regroup
               ? 'Entbündeln'
               : 'Ergänzen',
           instruction: strategy.description,
+          question: strategy == WrittenSubtractionStrategy.regroup
+              ? 'Musst du bei den Einern entbündeln?'
+              : null,
+          choices: strategy == WrittenSubtractionStrategy.regroup
+              ? const ['Ja', 'Nein']
+              : const <String>[],
+          correctChoice: strategy == WrittenSubtractionStrategy.regroup
+              ? (needsRegrouping ? 0 : 1)
+              : null,
+          evidenceKey: strategy == WrittenSubtractionStrategy.regroup
+              ? 'regroupDecision'
+              : null,
+          evidenceCompetency: strategy == WrittenSubtractionStrategy.regroup
+              ? MicroCompetencyId.writtenRegrouping
+              : null,
         ),
         GuidedMethodStep(
           title: 'Probe',
