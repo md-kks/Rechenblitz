@@ -22,6 +22,7 @@ class TrainingScreen extends StatefulWidget {
     this.targetCompetency,
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
+    this.scaffoldFading = false,
   });
 
   final AppController controller;
@@ -31,6 +32,7 @@ class TrainingScreen extends StatefulWidget {
   final MicroCompetencyId? targetCompetency;
   final bool reviewEmphasis;
   final bool transferEmphasis;
+  final bool scaffoldFading;
 
   @override
   State<TrainingScreen> createState() => _TrainingScreenState();
@@ -94,10 +96,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     super.initState();
     startedAt = DateTime.now();
     current = _next();
-    usedHelp = widget.mode == TrainingMode.minus && _minusStage == 1;
-    showHelp = usedHelp;
-    helpLevel = showHelp ? HelpLevel.nudge.value : 0;
-    activeMethodKey = showHelp ? _guide.methodKey : null;
+    _prepareHelpForCurrent();
     taskShownAt = DateTime.now();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => widget.controller.speak(_spokenTask),
@@ -115,6 +114,25 @@ class _TrainingScreenState extends State<TrainingScreen> {
   void dispose() {
     timer?.cancel();
     super.dispose();
+  }
+
+  void _prepareHelpForCurrent() {
+    final fadingLevel = ScaffoldFadingPolicy.initialLevelForTask(
+      completed,
+      enabled: widget.scaffoldFading,
+    );
+    if (widget.scaffoldFading) {
+      usedHelp = fadingLevel != null;
+      showHelp = fadingLevel != null;
+      helpLevel = fadingLevel?.value ?? HelpLevel.none.value;
+      activeMethodKey = fadingLevel == null ? null : _guide.methodKey;
+      return;
+    }
+
+    usedHelp = widget.mode == TrainingMode.minus && _minusStage == 1;
+    showHelp = usedHelp;
+    helpLevel = showHelp ? HelpLevel.nudge.value : HelpLevel.none.value;
+    activeMethodKey = showHelp ? _guide.methodKey : null;
   }
 
   MathFact _next() => widget.controller.engine.selectNext(
@@ -293,10 +311,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       taskShownAt = DateTime.now();
       wrongOnCurrent = 0;
       helpCountedForCurrent = false;
-      usedHelp = widget.mode == TrainingMode.minus && _minusStage == 1;
-      showHelp = usedHelp;
-      helpLevel = showHelp ? HelpLevel.nudge.value : 0;
-      activeMethodKey = showHelp ? _guide.methodKey : null;
+      _prepareHelpForCurrent();
       currentErrorPattern = null;
       feedback = '';
       locked = false;
@@ -488,6 +503,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                       key: ValueKey('guide:${current.key}:$completed'),
                       guide: _guide,
                       pattern: _helpPattern,
+                      initialLevel: HelpLevel.values[helpLevel],
                       taskKey: current.key,
                       expected: _expectedAnswer,
                       onStepAttempt: (step, correct) =>
