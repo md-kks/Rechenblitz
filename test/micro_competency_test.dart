@@ -396,6 +396,8 @@ void main() {
 
     final answerButton = find.widgetWithText(FilledButton, '10');
     expect(answerButton, findsOneWidget);
+    await tester.ensureVisible(answerButton);
+    await tester.pump();
     await tester.tap(answerButton);
     await tester.pump();
 
