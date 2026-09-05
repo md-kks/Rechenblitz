@@ -996,15 +996,22 @@ class AppController extends ChangeNotifier {
     MicroCompetencyId id,
   ) {
     final definition = MicroCompetencyCatalog.definition(id);
-    final observations = microObservations
+    final matchingObservations = microObservations
         .where(
           (entry) =>
               entry.id == id &&
               entry.gradeLevel == gradeLevel &&
               entry.numberRange == numberRange,
         )
-        .take(24)
         .toList();
+    final observations = <MicroCompetencyObservation>[
+      ...matchingObservations
+          .where((entry) => entry.source != MicroEvidenceSource.guidedStep)
+          .take(24),
+      ...matchingObservations
+          .where((entry) => entry.source == MicroEvidenceSource.guidedStep)
+          .take(12),
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
 
     if (observations.isEmpty) {
       return MicroCompetencyProgress(
