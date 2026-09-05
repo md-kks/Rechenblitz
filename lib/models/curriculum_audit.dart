@@ -130,6 +130,8 @@ class CurriculumAuditCatalog {
       MicroCompetencyId.geometryBodies,
       MicroCompetencyId.symmetryAxes,
       MicroCompetencyId.planDirections,
+      MicroCompetencyId.lineRelations,
+      MicroCompetencyId.rightAngle,
       MicroCompetencyId.cubeNetFoldability,
       MicroCompetencyId.probabilityExperiment,
     };
@@ -158,6 +160,10 @@ class CurriculumAuditCatalog {
           'Symmetrie ist digital erkennbar; Falten, Spiegeln und Zeichnen sollte praktisch ergänzt werden.',
         MicroCompetencyId.planDirections =>
           'Pläne und Wege sind digital übbar; reale Orientierung bleibt eine praktische Kompetenz.',
+        MicroCompetencyId.lineRelations =>
+          'Parallel und senkrecht sind digital erkennbar; das Zeichnen mit Lineal oder Geodreieck muss praktisch ergänzt werden.',
+        MicroCompetencyId.rightAngle =>
+          'Rechte Winkel sind digital erkennbar; Prüfen und Konstruieren mit Zeichengeräten sollte praktisch ergänzt werden.',
         _ =>
           'Das Lernziel wird mit generierten Aufgaben, Mikro-Evidenz und gezielter Wiederholung digital unterstützt.',
       };
