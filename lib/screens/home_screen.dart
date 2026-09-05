@@ -677,6 +677,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () => _openMode(TrainingMode.perimeterArea),
                   ),
                   _LearningTile(
+                    icon: Icons.architecture_rounded,
+                    title: 'Geraden & Winkel',
+                    subtitle: 'parallel, senkrecht & Kreis',
+                    onTap: () => _openMode(TrainingMode.geometryRelations),
+                  ),
+                  _LearningTile(
                     icon: Icons.view_in_ar_rounded,
                     title: 'Körper & Netze',
                     subtitle: 'Ecken, Kanten, Flächen',
