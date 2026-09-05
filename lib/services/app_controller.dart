@@ -1447,6 +1447,18 @@ class AppController extends ChangeNotifier {
   MicroCompetencyProgress? parentPriorityMicroCompetency({
     DateTime? now,
   }) {
+    final hasCurrentMicroEvidence = microObservations.any(
+      (entry) =>
+          entry.gradeLevel == gradeLevel &&
+          entry.numberRange == numberRange,
+    );
+    final hasCurrentHistory = history.any(
+      (entry) =>
+          entry.gradeLevel == gradeLevel &&
+          entry.numberRange == numberRange,
+    );
+    if (!hasCurrentMicroEvidence && hasCurrentHistory) return null;
+
     final focus = currentMicroFocus();
     if (focus != null) return focus;
 
@@ -1622,12 +1634,18 @@ class AppController extends ChangeNotifier {
             'Status: ${priority.state.label}; selbstständig ${(priority.independentAccuracy * 100).round()} %.';
       } else if (dueReview != null &&
           dueReview.definition.id == priority.definition.id) {
+        final statusText = priority.state == MicroCompetencyState.mastered
+            ? 'bereits gemeistert'
+            : 'bereits sicher';
         focusText =
-            '„${priority.definition.label}“ ist bereits sicher. Jetzt soll geprüft werden, ob der Teilschritt nach zeitlichem Abstand noch selbstständig gelingt.';
+            '„${priority.definition.label}“ ist $statusText. Jetzt soll geprüft werden, ob der Teilschritt nach zeitlichem Abstand noch selbstständig gelingt.';
       } else if (transfer != null &&
           transfer.definition.id == priority.definition.id) {
+        final statusText = priority.state == MicroCompetencyState.mastered
+            ? 'bereits gemeistert'
+            : 'bereits sicher';
         focusText =
-            '„${priority.definition.label}“ ist bereits sicher. Als Nächstes soll geprüft werden, ob das Wissen auch in einer veränderten Aufgabe selbstständig angewendet wird.';
+            '„${priority.definition.label}“ ist $statusText. Als Nächstes wird die Anwendung in einer veränderten Aufgabe geprüft.';
       } else {
         focusText =
             '„${priority.definition.label}“ ist der nächste sinnvolle Teilschritt in der Lernkarte.';
@@ -1646,7 +1664,8 @@ class AppController extends ChangeNotifier {
       late final String action;
       if (diagnosticIsActive) {
         action =
-            'Das Muster „${diagnostic.pattern.label}“ ist wiederholt aufgefallen. '
+            'Im selben Übungsbereich ist das Muster „${diagnostic.pattern.label}“ wiederholt aufgefallen. '
+            'Das ist ein zusätzlicher Hinweis, kein Beweis für eine Ursache. '
             '${diagnostic.pattern.action}';
       } else if (dueReview != null &&
           dueReview.definition.id == priority.definition.id) {
@@ -1666,7 +1685,7 @@ class AppController extends ChangeNotifier {
 
       final notYet = switch (priority.state) {
         MicroCompetencyState.mastered =>
-          'Für diesen Teilschritt fehlt aktuell kein Mastery-Nachweis. Wiederholungen dienen nur dem langfristigen Erhalt.',
+          'Für „Gemeistert“ fehlt bei diesem Teilschritt aktuell kein weiterer Nachweis. Wiederholungen dienen dem langfristigen Erhalt.',
         MicroCompetencyState.secure =>
           'Noch nicht „Gemeistert“: Es fehlt ${_masteryMissingText(priority)}.',
         MicroCompetencyState.newSkill =>
