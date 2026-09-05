@@ -99,6 +99,7 @@ class TeacherAssignment {
     final target = targetCompetency == null
         ? mode.title
         : MicroCompetencyCatalog.definition(targetCompetency!).label;
-    return '${gradeLevel.label} · ${numberRange.label} · $target · $tasks Aufgaben';
+    final transfer = transferEmphasis ? ' · Transfer' : '';
+    return '${gradeLevel.label} · ${numberRange.label} · $target · $tasks Aufgaben$transfer';
   }
 }
