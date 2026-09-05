@@ -66,6 +66,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   final Map<int, int> checkpointWrongAttempts = <int, int>{};
   bool checkpointLocked = false;
   bool hadCheckpointError = false;
+  bool taskRemembered = false;
   String checkpointFeedback = '';
 
   bool get _checkpointsComplete =>
@@ -89,6 +90,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     checkpointWrongAttempts.clear();
     checkpointLocked = false;
     hadCheckpointError = false;
+    taskRemembered = false;
     checkpointFeedback = '';
 
     final fadingLevel = ScaffoldFadingPolicy.initialLevelForTask(
@@ -129,6 +131,15 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
 
 
 
+  Future<void> _rememberCurrentTaskOnce() async {
+    if (taskRemembered) return;
+    taskRemembered = true;
+    await widget.controller.rememberPresentedTask(
+      widget.mode,
+      current.key,
+    );
+  }
+
   Future<void> _answerCheckpoint(int choice) async {
     if (locked ||
         finishing ||
@@ -143,6 +154,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     final firstAttempt = checkpointAttempted.add(index);
 
     if (firstAttempt) {
+      await _rememberCurrentTaskOnce();
+      if (!mounted || finishing) return;
       unawaited(
         widget.controller.recordIndependentStepAttempt(
           mode: widget.mode,
@@ -207,10 +220,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
             actual: answer,
           );
     if (wrongOnCurrent == 0) {
-      await widget.controller.rememberPresentedTask(
-        widget.mode,
-        current.key,
-      );
+      await _rememberCurrentTaskOnce();
+      if (!mounted || finishing) return;
       await widget.controller.recordDiagnosticAttempt(
         mode: widget.mode,
         taskKey: current.key,
