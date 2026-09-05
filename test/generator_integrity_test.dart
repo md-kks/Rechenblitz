@@ -1,11 +1,13 @@
 import 'dart:math';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/cube_net.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/german_number_words.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
+import 'package:rechenblitz/widgets/geometry_relation_visual.dart';
 
 void main() {
   test('deutsche Zahlwörter decken typische Stellenwerte bis 1 Million ab', () {
@@ -208,6 +210,37 @@ void main() {
       } else {
         expect(exercise.answer, greaterThanOrEqualTo(0));
       }
+    }
+  });
+
+  testWidgets('Geometrie-Darstellungen rendern alle vier Aufgabentypen',
+      (tester) async {
+    const keys = [
+      'geomrel:lines:parallel:third',
+      'geomrel:lines:perpendicular:third',
+      'geomrel:angle:right:paper:third',
+      'geomrel:figure:2:third',
+      'geomrel:circle:radius:third',
+      'geomrel:circle:diameter:third',
+    ];
+
+    for (final key in keys) {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SizedBox.shrink(),
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GeometryRelationVisual(taskKey: key),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull, reason: key);
+      expect(find.byType(CustomPaint), findsWidgets);
     }
   });
 
