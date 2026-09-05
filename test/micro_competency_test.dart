@@ -1,11 +1,13 @@
 import 'dart:math';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/models/training.dart';
+import 'package:rechenblitz/screens/structured_training_screen.dart';
 import 'package:rechenblitz/services/adaptive_engine.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -370,6 +372,41 @@ void main() {
     });
 
     expect(observation.source, MicroEvidenceSource.practice);
+  });
+
+  testWidgets('Transfer-Runde speichert aus der Oberfläche Transfer-Evidenz',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.ten;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.wordProblems,
+          targetTasks: 2,
+          targetCompetency: MicroCompetencyId.additionTenBridge,
+          transferEmphasis: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final answerButton = find.widgetWithText(FilledButton, '10');
+    expect(answerButton, findsOneWidget);
+    await tester.tap(answerButton);
+    await tester.pump();
+
+    final observation = controller.microObservations.firstWhere(
+      (entry) => entry.id == MicroCompetencyId.additionTenBridge,
+    );
+    expect(observation.source, MicroEvidenceSource.transfer);
+    expect(
+      observation.taskKey,
+      startsWith('story:transfer:skill:additionTenBridge:'),
+    );
   });
 
 }
