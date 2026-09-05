@@ -21,6 +21,7 @@ enum ErrorPattern {
   wordProblemRelevantInformation,
   wordProblemModel,
   wordProblemInterpretation,
+  representationTranslation,
   moneyCalculation,
   clockReading,
   unitConversion,
@@ -72,6 +73,8 @@ extension ErrorPatternX on ErrorPattern {
           'Sachaufgabe als Rechnung darstellen',
         ErrorPattern.wordProblemInterpretation =>
           'Ergebnis im Sachzusammenhang deuten',
+        ErrorPattern.representationTranslation =>
+          'Zwischen Darstellungen wechseln',
         ErrorPattern.moneyCalculation => 'Geld rechnen',
         ErrorPattern.clockReading => 'Uhrzeit lesen',
         ErrorPattern.unitConversion => 'Größen und Einheiten umwandeln',
@@ -136,6 +139,8 @@ extension ErrorPatternX on ErrorPattern {
           'Die wichtigen Angaben zuerst markieren und danach eine Rechnung wählen, die genau die Handlung der Geschichte abbildet.',
         ErrorPattern.wordProblemInterpretation =>
           'Das Rechenergebnis mit Einheit oder Gegenstand in einen Antwortsatz zurück zur ursprünglichen Frage setzen.',
+        ErrorPattern.representationTranslation =>
+          'Dieselbe Zahl oder Rechenidee nacheinander als Stellenwertdarstellung, Zerlegung, Gruppenbild und Symbolform lesen und vergleichen.',
         ErrorPattern.moneyCalculation =>
           'Beträge mit echten oder gezeichneten Münzen darstellen und erst danach rechnen.',
         ErrorPattern.clockReading =>
@@ -201,6 +206,8 @@ extension ErrorPatternX on ErrorPattern {
           'Welche Rechnung beschreibt genau die Handlung und die wichtigen Angaben?',
         ErrorPattern.wordProblemInterpretation =>
           'Was bedeutet das Ergebnis für die ursprüngliche Frage?',
+        ErrorPattern.representationTranslation =>
+          'Beschreibe zuerst, was du siehst: Stellenwerte oder gleich große Gruppen. Übersetze erst danach in Zahl oder Rechnung.',
         ErrorPattern.operationChoice =>
           'Prüfe zuerst die Handlung: Wird etwas mehr, weniger, vervielfacht oder verteilt?',
         ErrorPattern.tenBridge =>
@@ -339,6 +346,9 @@ class ErrorClassifier {
     }
     if (taskKey.startsWith('sequence:')) return ErrorPattern.patternRule;
     if (taskKey.startsWith('family:')) return ErrorPattern.inverseOperation;
+    if (taskKey.startsWith('process:representation:')) {
+      return ErrorPattern.representationTranslation;
+    }
     if (taskKey.startsWith('story:info:') ||
         taskKey.startsWith('story:transfer:irrelevant:')) {
       return ErrorPattern.wordProblemRelevantInformation;
