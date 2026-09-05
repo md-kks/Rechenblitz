@@ -776,7 +776,9 @@ class StructuredExerciseGenerator {
       ..shuffle(_random);
 
     return ExerciseCheckpoint(
-      key: 'placeDigit:${placeKeys[placeIndex]}',
+      key: placeIndex == 0
+          ? 'onesDigit'
+          : 'placeDigit_${placeKeys[placeIndex]}',
       question: 'Welche Ziffer steht bei den ${placeNames[placeIndex]}?',
       choices: choices,
       correctChoice: choices.indexOf('$digit'),
