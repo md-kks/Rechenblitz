@@ -398,10 +398,10 @@ void main() {
     await tester.pump();
 
     expect(levels, [HelpLevel.visual]);
-    final visualChip = tester.widget<ChoiceChip>(
-      find.widgetWithText(ChoiceChip, '2 Darstellung'),
+    final visualChip = tester.widget<ActionChip>(
+      find.widgetWithText(ActionChip, '2 Darstellung'),
     );
-    expect(visualChip.selected, isTrue);
+    expect(visualChip.avatar, isNotNull);
   });
 
 
