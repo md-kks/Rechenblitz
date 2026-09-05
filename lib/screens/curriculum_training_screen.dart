@@ -371,6 +371,16 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                 pattern: _helpPattern,
                 taskKey: current.key,
                 expected: current.answer,
+                onStepAttempt: (step, correct) =>
+                    widget.controller.recordGuidedStepAttempt(
+                  mode: widget.mode,
+                  taskKey: current.key,
+                  methodKey: _guide.methodKey,
+                  stepKey: step.evidenceKey!,
+                  competencyId: step.evidenceCompetency!,
+                  correct: correct,
+                  evidenceWeight: step.evidenceWeight,
+                ),
                 onHelpLevelChanged: (level) {
                   if (!mounted) return;
                   setState(() {
