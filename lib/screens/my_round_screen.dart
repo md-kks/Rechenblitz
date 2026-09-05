@@ -8,6 +8,7 @@ import '../services/app_controller.dart';
 import 'curriculum_training_screen.dart';
 import 'remediation_screen.dart';
 import 'structured_training_screen.dart';
+import 'step_recovery_screen.dart';
 import 'training_screen.dart';
 
 class MyRoundScreen extends StatefulWidget {
@@ -22,10 +23,15 @@ class MyRoundScreen extends StatefulWidget {
 class _MyRoundScreenState extends State<MyRoundScreen> {
   late List<GuidedRoundSegment> plan;
   final Set<int> completed = {};
+  late final bool hadStepRecoveryAtStart;
+  bool stepRecoveryAttempted = false;
+  bool stepRecoveryCompleted = false;
 
   @override
   void initState() {
     super.initState();
+    hadStepRecoveryAtStart =
+        widget.controller.independentStepRecoveryFocus() != null;
     plan = widget.controller.buildMyRound();
   }
 
@@ -85,17 +91,28 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final remediation = widget.controller.remediationCandidate();
+    final unresolvedStepRecovery =
+        widget.controller.independentStepRecoveryFocus();
+    final stepRecovery =
+        stepRecoveryAttempted ? null : unresolvedStepRecovery;
+    final remediation = unresolvedStepRecovery == null
+        ? widget.controller.remediationCandidate()
+        : null;
     final reviewOnly = remediation == null
         ? false
         : widget.controller.remediationReviewOnly(remediation.pattern);
-    final doneTasks = [
+    final regularDoneTasks = [
       for (var i = 0; i < plan.length; i++)
         if (completed.contains(i)) plan[i].tasks,
     ].fold<int>(0, (a, b) => a + b);
-    final totalTasks =
+    final doneTasks =
+        regularDoneTasks + (stepRecoveryCompleted ? 3 : 0);
+    final regularTotalTasks =
         plan.fold<int>(0, (sum, segment) => sum + segment.tasks);
-    final allDone = completed.length == plan.length;
+    final totalTasks =
+        regularTotalTasks + (hadStepRecoveryAtStart ? 3 : 0);
+    final allDone = completed.length == plan.length &&
+        (!hadStepRecoveryAtStart || stepRecoveryCompleted);
     final hasTransfer = plan.any((segment) => segment.transferEmphasis);
 
     return Scaffold(
@@ -138,6 +155,61 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
               ),
             ),
           ),
+          if (stepRecovery != null) ...[
+            const SizedBox(height: 18),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.center_focus_strong_rounded),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Rechenschritt kurz festigen',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Beim letzten selbstständigen Versuch war „${stepRecovery.label}“ noch unsicher. Drei kurze Aufgaben üben nur diesen Schritt: einmal mit Hinweis, einmal verändert und einmal als Kontrolle.',
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      key: const ValueKey('step-recovery-button'),
+                      onPressed: () async {
+                        final recoveryFinished =
+                            await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => StepRecoveryScreen(
+                              controller: widget.controller,
+                              focus: stepRecovery,
+                            ),
+                          ),
+                        );
+                        if (mounted && recoveryFinished == true) {
+                          setState(() {
+                            stepRecoveryAttempted = true;
+                            stepRecoveryCompleted = true;
+                          });
+                        }
+                      },
+                      icon: const Icon(Icons.route_rounded),
+                      label: const Text('Rechenschritt festigen'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (remediation != null && remediation.modes.isNotEmpty) ...[
             const SizedBox(height: 18),
             Card(

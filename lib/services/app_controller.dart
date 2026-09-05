@@ -35,6 +35,8 @@ class AppController extends ChangeNotifier {
   static const int _guidedStepMinIncorrect = 2;
   static const double _guidedStepFocusMaxAccuracy = 0.60;
   static const int _guidedStepIndependentConfirmations = 2;
+  static const int _stepRecoveryIndependentConfirmations = 2;
+  static const Duration _stepRecoveryFreshness = Duration(days: 2);
 
   static bool _evidenceAtLeast(double value, double threshold) =>
       value + _evidenceEpsilon >= threshold;
@@ -1292,6 +1294,74 @@ class AppController extends ChangeNotifier {
     return parts[1];
   }
 
+  bool _independentStepRecovered(
+    MicroCompetencyId competencyId,
+    String stepKey,
+    DateTime after,
+  ) {
+    final confirmations = microObservations
+        .where(
+          (entry) =>
+              entry.id == competencyId &&
+              entry.gradeLevel == gradeLevel &&
+              entry.numberRange == numberRange &&
+              entry.source == MicroEvidenceSource.independentStep &&
+              !entry.usedHelp &&
+              entry.evidenceWeight >= 0.25 &&
+              entry.occurredAt.isAfter(after) &&
+              GuidedStepCatalog.keyFromTaskKey(entry.taskKey) == stepKey,
+        )
+        .toList()
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final latest = confirmations
+        .take(_stepRecoveryIndependentConfirmations)
+        .toList();
+    return latest.length >= _stepRecoveryIndependentConfirmations &&
+        latest.every((entry) => entry.correct);
+  }
+
+  IndependentStepRecoveryFocus? independentStepRecoveryFocus({
+    DateTime? now,
+  }) {
+    final reference = now ?? DateTime.now();
+    final candidates = microObservations
+        .where(
+          (entry) =>
+              entry.source == MicroEvidenceSource.independentStep &&
+              !entry.correct &&
+              entry.gradeLevel == gradeLevel &&
+              entry.numberRange == numberRange &&
+              !entry.occurredAt.isAfter(reference) &&
+              reference.difference(entry.occurredAt) <=
+                  _stepRecoveryFreshness,
+        )
+        .toList()
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+
+    for (final observation in candidates) {
+      final stepKey = GuidedStepCatalog.keyFromTaskKey(observation.taskKey);
+      if (stepKey == null || !StepRecoveryGenerator.supports(stepKey)) {
+        continue;
+      }
+      if (_independentStepRecovered(
+        observation.id,
+        stepKey,
+        observation.occurredAt,
+      )) {
+        continue;
+      }
+      return IndependentStepRecoveryFocus(
+        competencyId: observation.id,
+        stepKey: stepKey,
+        label: GuidedStepCatalog.labelFor(stepKey),
+        mode: observation.mode,
+        lastSeen: observation.occurredAt,
+        sourceTaskKey: observation.taskKey,
+      );
+    }
+    return null;
+  }
+
   bool _guidedStepRecoveredIndependently(
     MicroCompetencyId competencyId,
     String stepKey,
@@ -1626,7 +1696,10 @@ class AppController extends ChangeNotifier {
   List<GuidedRoundSegment> buildMyRound({
     DateTime? now,
   }) {
-    final microFocus = currentMicroFocus();
+    final stepRecovery = independentStepRecoveryFocus(now: now);
+    final microFocus = stepRecovery == null
+        ? currentMicroFocus()
+        : microCompetencyProgress(stepRecovery.competencyId);
     final guidedFocus = guidedStepFocus();
     final strongMicro = strongestMicroCompetency();
     final reviewMicro = dueReviewMicroCompetency(now: now);
@@ -1708,15 +1781,18 @@ class AppController extends ChangeNotifier {
       ),
       GuidedRoundSegment(
         mode: focus,
-        tasks: 5,
-        reason: microFocus == null
-            ? 'Das ist heute das wichtigste Lernziel.'
-            : guidedFocus != null &&
-                    guidedFocus.competencyId == microFocus.definition.id
-                ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt „${microFocus.definition.label}“ und nehmen die Hilfe schrittweise zurück.'
-                : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
+        tasks: stepRecovery == null ? 5 : 2,
+        reason: stepRecovery != null
+            ? 'Nach der kurzen Arbeit an „${stepRecovery.label}“ reichen zwei passende Gesamtaufgaben, damit die Runde kompakt bleibt.'
+            : microFocus == null
+                ? 'Das ist heute das wichtigste Lernziel.'
+                : guidedFocus != null &&
+                        guidedFocus.competencyId == microFocus.definition.id
+                    ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt „${microFocus.definition.label}“ und nehmen die Hilfe schrittweise zurück.'
+                    : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
         targetCompetency: microFocus?.definition.id,
-        scaffoldFading: guidedFocus != null &&
+        scaffoldFading: stepRecovery == null &&
+            guidedFocus != null &&
             microFocus != null &&
             guidedFocus.competencyId == microFocus.definition.id,
       ),
