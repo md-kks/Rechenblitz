@@ -10,6 +10,7 @@ import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../widgets/guided_method_panel.dart';
+import '../widgets/independent_step_card.dart';
 import '../widgets/number_answer_pad.dart';
 
 class TrainingScreen extends StatefulWidget {
@@ -63,6 +64,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
   String? activeMethodKey;
   String feedback = '';
   ErrorPattern? currentErrorPattern;
+  int taskIndex = 0;
+  int checkpointIndex = 0;
+  final Set<int> checkpointAttempted = <int>{};
+  final Map<int, int> checkpointWrongAttempts = <int, int>{};
+  bool checkpointLocked = false;
+  bool hadCheckpointError = false;
+  Future<void>? taskRememberFuture;
+  String checkpointFeedback = '';
   final List<int> completedResponseMs = [];
   int plusTotal = 0;
   int plusCorrect = 0;
@@ -117,6 +126,15 @@ class _TrainingScreenState extends State<TrainingScreen> {
   }
 
   void _prepareHelpForCurrent() {
+    taskIndex = completed;
+    checkpointIndex = 0;
+    checkpointAttempted.clear();
+    checkpointWrongAttempts.clear();
+    checkpointLocked = false;
+    hadCheckpointError = false;
+    taskRememberFuture = null;
+    checkpointFeedback = '';
+
     final fadingLevel = ScaffoldFadingPolicy.initialLevelForTask(
       completed,
       enabled: widget.scaffoldFading,
@@ -164,6 +182,106 @@ class _TrainingScreenState extends State<TrainingScreen> {
         fact: current,
       );
 
+  List<GuidedMethodStep> get _independentArithmeticSteps {
+    if (widget.reviewEmphasis ||
+        widget.transferEmphasis ||
+        !IndependentArithmeticStepPolicy.shouldProbeTask(
+          taskIndex,
+          scaffoldFading: widget.scaffoldFading,
+        )) {
+      return const <GuidedMethodStep>[];
+    }
+    return GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: widget.mode,
+      fact: current,
+      preferences: widget.controller.effectiveMethodPreferences,
+      targetCompetency: widget.targetCompetency,
+    );
+  }
+
+  bool get _checkpointsComplete =>
+      checkpointIndex >= _independentArithmeticSteps.length;
+
+  Future<void> _rememberCurrentTaskOnce() {
+    final existing = taskRememberFuture;
+    if (existing != null) return existing;
+    final future = widget.controller.rememberPresentedTask(
+      widget.mode,
+      current.key,
+    );
+    taskRememberFuture = future;
+    return future;
+  }
+
+  Future<void> _answerCheckpoint(int choice) async {
+    if (locked ||
+        finishing ||
+        checkpointLocked ||
+        _checkpointsComplete) {
+      return;
+    }
+
+    final steps = _independentArithmeticSteps;
+    final index = checkpointIndex;
+    final step = steps[index];
+    final correct = choice == step.correctChoice;
+    final firstAttempt = checkpointAttempted.add(index);
+
+    if (firstAttempt) {
+      unawaited(_rememberCurrentTaskOnce());
+      unawaited(
+        widget.controller.recordIndependentStepAttempt(
+          mode: widget.mode,
+          taskKey: current.key,
+          stepKey: step.evidenceKey!,
+          competencyId: step.evidenceCompetency!,
+          correct: correct,
+          usedHelp: usedHelp || showHelp,
+          helpLevel: helpLevel,
+          methodKey: activeMethodKey,
+          evidenceWeight: step.evidenceWeight,
+        ),
+      );
+    }
+
+    if (!correct) {
+      hadCheckpointError = true;
+      final attempts = (checkpointWrongAttempts[index] ?? 0) + 1;
+      checkpointWrongAttempts[index] = attempts;
+      setState(() {
+        checkpointFeedback = attempts >= 2
+            ? 'Nutze bei Bedarf die Hilfe und prüfe diesen Schritt noch einmal.'
+            : 'Noch nicht. Prüfe diesen Rechenschritt noch einmal.';
+        if (attempts >= 2) {
+          showHelp = true;
+          usedHelp = true;
+          if (helpLevel < HelpLevel.nudge.value) {
+            helpLevel = HelpLevel.nudge.value;
+          }
+          activeMethodKey ??= _guide.methodKey;
+        }
+      });
+      return;
+    }
+
+    setState(() {
+      checkpointLocked = true;
+      checkpointFeedback = 'Genau. Dieser Schritt stimmt.';
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!mounted ||
+        finishing ||
+        checkpointIndex != index ||
+        _independentArithmeticSteps.length <= index) {
+      return;
+    }
+    setState(() {
+      checkpointIndex += 1;
+      checkpointLocked = false;
+      checkpointFeedback = '';
+    });
+  }
+
   String get _spokenTask => widget.mode == TrainingMode.numberFriends
       ? '${current.result} ist gleich ${current.a} plus welche Zahl?'
       : '${current.a} ${current.symbol} ${current.b} ist gleich?';
@@ -172,7 +290,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       widget.mode == TrainingMode.numberFriends ? current.b : current.result;
 
   Future<void> _answer(int answer) async {
-    if (locked || finishing) return;
+    if (locked || finishing || !_checkpointsComplete) return;
     final response = DateTime.now().difference(taskShownAt);
     final correct = answer == _expectedAnswer;
     final diagnosedPattern = correct
@@ -185,10 +303,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
             fact: current,
           );
     if (wrongOnCurrent == 0) {
-      await widget.controller.rememberPresentedTask(
-        widget.mode,
-        current.key,
-      );
+      await _rememberCurrentTaskOnce();
       await widget.controller.recordDiagnosticAttempt(
         mode: widget.mode,
         taskKey: current.key,
@@ -265,7 +380,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     completed += 1;
     completedResponseMs
         .add(response.inMilliseconds.clamp(0, 30000).toInt());
-    final firstTry = wrongOnCurrent == 0;
+    final firstTry = wrongOnCurrent == 0 && !hadCheckpointError;
     if (firstTry) correctFirstTry += 1;
     _countCompletedFact(firstTryCorrect: firstTry);
     if (widget.controller.hapticEnabled) HapticFeedback.lightImpact();
@@ -485,6 +600,21 @@ class _TrainingScreenState extends State<TrainingScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
+                  if (!_checkpointsComplete) ...[
+                    const SizedBox(height: 2),
+                    IndependentStepCard(
+                      question:
+                          _independentArithmeticSteps[checkpointIndex].question!,
+                      choices:
+                          _independentArithmeticSteps[checkpointIndex].choices,
+                      index: checkpointIndex,
+                      total: _independentArithmeticSteps.length,
+                      feedback: checkpointFeedback,
+                      locked: checkpointLocked,
+                      onChoice: _answerCheckpoint,
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: Text(
@@ -528,7 +658,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
                     ),
                   if (!showHelp &&
                       widget.mode != TrainingMode.tempo &&
-                      (current.isMinus || current.isMultiply || current.isDivide))
+                      (_independentArithmeticSteps.isNotEmpty ||
+                          current.isMinus ||
+                          current.isMultiply ||
+                          current.isDivide))
                     TextButton.icon(
                       onPressed: () => setState(() {
                         usedHelp = true;
@@ -540,11 +673,12 @@ class _TrainingScreenState extends State<TrainingScreen> {
                       label: const Text('Zeig mir eine Hilfe'),
                     ),
                   const SizedBox(height: 24),
-                  NumberAnswerPad(
-                    key: ValueKey('${current.key}:$completed'),
-                    maxValue: widget.controller.effectiveMaxValue,
-                    onAnswer: _answer,
-                  ),
+                  if (_checkpointsComplete)
+                    NumberAnswerPad(
+                      key: ValueKey('${current.key}:$completed'),
+                      maxValue: widget.controller.effectiveMaxValue,
+                      onAnswer: _answer,
+                    ),
                 ],
               ),
             ),
