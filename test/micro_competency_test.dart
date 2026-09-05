@@ -1402,5 +1402,54 @@ void main() {
     );
   });
 
+  test('Viele Teilfragen verdrängen vollständige Aufgaben nicht aus Mastery-Fenster',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        30,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 5, 12, index),
+          correct: true,
+          evidenceWeight: 0.25,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey:
+              'independent:groupCount:process:representation:groups:${3 + index % 3}:4:$index',
+        ),
+      ),
+      ...List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 4, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'multiply:${3 + index}:4',
+        ),
+      ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.multiplicationGroups,
+    );
+
+    expect(progress.independentStepObservations, 12);
+    expect(progress.independentStepEvidence, closeTo(3, 0.001));
+    expect(progress.independentEvidence, closeTo(9, 0.001));
+    expect(progress.observations, 18);
+  });
+
 
 }
