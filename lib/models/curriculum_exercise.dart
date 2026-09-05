@@ -139,8 +139,8 @@ class CurriculumExerciseGenerator {
               : _estimation(gradeLevel, maxValue),
         TrainingMode.arithmeticLaws =>
           targetCompetency == MicroCompetencyId.reasoningJustification
-              ? _reasoningJustification(gradeLevel)
-              : _arithmeticLaws(gradeLevel),
+              ? _reasoningJustification(gradeLevel, maxValue)
+              : _arithmeticLaws(gradeLevel, maxValue),
         TrainingMode.romanNumerals => _romanNumerals(gradeLevel),
         TrainingMode.fractions => _fractions(gradeLevel, maxValue),
         TrainingMode.advancedMeasures => _advancedMeasures(
@@ -534,10 +534,10 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _arithmeticLaws(GradeLevel grade) {
+  CurriculumExercise _arithmeticLaws(GradeLevel grade, int maxValue) {
     final kind = _random.nextInt(4);
     if (kind == 3) {
-      return _reasoningJustification(grade);
+      return _reasoningJustification(grade, maxValue);
     }
     if (kind == 0) {
       final a = _between(2, 9);
@@ -582,13 +582,17 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _reasoningJustification(GradeLevel grade) {
-    final kind = _random.nextInt(3);
+  CurriculumExercise _reasoningJustification(
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = max(10, maxValue);
+    final kind = _random.nextInt(limit >= 40 ? 3 : 2);
 
     if (kind == 0) {
-      final a = _between(21, grade == GradeLevel.third ? 89 : 499);
-      final b = _between(11, grade == GradeLevel.third ? 49 : 199);
-      final shift = _between(1, 9);
+      final a = _between(3, max(3, limit - 2));
+      final b = _between(2, max(2, limit - a));
+      final shift = _between(1, min(3, a - 1));
       final correct =
           'Ein Summand wird um $shift kleiner und der andere um $shift größer. Die Summe bleibt gleich.';
       final options = <String>{
@@ -613,8 +617,8 @@ class CurriculumExerciseGenerator {
     }
 
     if (kind == 1) {
-      final a = _between(2, 9);
-      final b = _between(11, grade == GradeLevel.third ? 49 : 99);
+      final a = _between(2, min(9, max(2, limit ~/ 2)));
+      final b = _between(2, max(2, limit ~/ a));
       final correct =
           'Die Faktoren werden nur vertauscht. Beim Multiplizieren bleibt das Produkt dabei gleich.';
       final options = <String>{
@@ -638,11 +642,11 @@ class CurriculumExerciseGenerator {
       );
     }
 
-    final factor = _between(2, 9);
-    var value = _between(11, grade == GradeLevel.third ? 49 : 99);
-    if (value % 10 == 0) value += 1;
-    final rounded = ((value + 9) ~/ 10) * 10;
-    final difference = rounded - value;
+    final factor = _between(2, min(9, max(2, limit ~/ 20)));
+    final maxRounded = max(20, (limit ~/ factor ~/ 10) * 10);
+    final rounded = _between(2, maxRounded ~/ 10) * 10;
+    final difference = _between(1, min(9, rounded - 1));
+    final value = rounded - difference;
     final correction = factor * difference;
     final correct =
         '$value ist $difference kleiner als $rounded. Deshalb wird $factor × $difference vom leichteren Produkt abgezogen.';
