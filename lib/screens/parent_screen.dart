@@ -217,52 +217,56 @@ class _ParentScreenState extends State<ParentScreen> {
           const SizedBox(height: 14),
           _Section(
             title: 'Warum gerade diese Aufgaben?',
-            child: microFocus == null
-                ? Text(c.microFocusReason())
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        microFocus.definition.label,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(microFocus.definition.description),
-                      const SizedBox(height: 10),
-                      Text(c.microFocusReason()),
-                      if (methodInsight != null) ...[
-                        const SizedBox(height: 10),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.insights_outlined),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(methodInsight),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 10),
-                      Text(
-                        'Rechenblitz übt deshalb nicht pauschal „${microFocus.definition.preferredMode.title}“, sondern bevorzugt Aufgaben, die genau diesen Teilschritt überprüfen.',
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: _startRecommended,
-                        icon: const Icon(Icons.track_changes_rounded),
-                        label: const Text('Teilschritt gezielt üben'),
-                      ),
-                    ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (priority != null) ...[
+                  Text(
+                    priority.definition.label,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900),
                   ),
+                  const SizedBox(height: 5),
+                  Text(priority.definition.description),
+                  const SizedBox(height: 12),
+                ],
+                _ExplainCard(
+                  icon: Icons.route_outlined,
+                  title: 'Auswahl der nächsten Runde',
+                  text: insight.selection,
+                ),
+                const SizedBox(height: 10),
+                _ExplainCard(
+                  icon: Icons.workspace_premium_outlined,
+                  title: 'Warum dieser Lernstatus?',
+                  text: insight.mastery,
+                ),
+                const SizedBox(height: 10),
+                _ExplainCard(
+                  icon: Icons.fact_check_outlined,
+                  title: 'Worauf stützt sich das?',
+                  text: insight.evidence,
+                ),
+                if (methodInsight != null) ...[
+                  const SizedBox(height: 10),
+                  _ExplainCard(
+                    icon: Icons.insights_outlined,
+                    title: 'Hinweis zum Rechenweg',
+                    text: methodInsight,
+                  ),
+                ],
+                if (priority != null) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _startRecommended,
+                    icon: const Icon(Icons.track_changes_rounded),
+                    label: const Text('Teilschritt gezielt üben'),
+                  ),
+                ],
+              ],
+            ),
           ),
           const SizedBox(height: 14),
           _Section(
@@ -667,6 +671,46 @@ class _InsightLine extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      );
+}
+
+class _ExplainCard extends StatelessWidget {
+  const _ExplainCard({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 21),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(text),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       );
 }
