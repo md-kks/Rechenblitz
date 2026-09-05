@@ -61,6 +61,7 @@ enum MicroCompetencyId {
   estimation,
   plausibilityCheck,
   arithmeticLaw,
+  reasoningJustification,
   romanNumeral,
   fractionEqualParts,
   timeDuration,
@@ -565,6 +566,16 @@ class MicroCompetencyCatalog {
       domain: MicroCompetencyDomain.arithmetic,
       preferredMode: TrainingMode.arithmeticLaws,
       minGrade: GradeLevel.third,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.reasoningJustification,
+      label: 'Rechenbeziehungen begründen',
+      description:
+          'Zu einem Rechenweg eine mathematisch passende Begründung auswählen und nachvollziehen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.arithmeticLaws,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.arithmeticLaw],
     ),
     MicroCompetencyDefinition(
       id: MicroCompetencyId.romanNumeral,
@@ -1090,9 +1101,20 @@ class MicroCompetencyCatalog {
               : const [
                   MicroCompetencyTag(MicroCompetencyId.estimation),
                 ],
-        TrainingMode.arithmeticLaws => const [
-            MicroCompetencyTag(MicroCompetencyId.arithmeticLaw),
-          ],
+        TrainingMode.arithmeticLaws =>
+          key.startsWith('process:reasoning:')
+              ? const [
+                  MicroCompetencyTag(
+                    MicroCompetencyId.reasoningJustification,
+                  ),
+                  MicroCompetencyTag(
+                    MicroCompetencyId.arithmeticLaw,
+                    weight: 0.45,
+                  ),
+                ]
+              : const [
+                  MicroCompetencyTag(MicroCompetencyId.arithmeticLaw),
+                ],
         TrainingMode.romanNumerals => const [
             MicroCompetencyTag(MicroCompetencyId.romanNumeral),
           ],

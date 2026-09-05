@@ -137,7 +137,10 @@ class CurriculumExerciseGenerator {
           targetCompetency == MicroCompetencyId.plausibilityCheck
               ? _plausibilityCheck(gradeLevel, maxValue)
               : _estimation(gradeLevel, maxValue),
-        TrainingMode.arithmeticLaws => _arithmeticLaws(gradeLevel),
+        TrainingMode.arithmeticLaws =>
+          targetCompetency == MicroCompetencyId.reasoningJustification
+              ? _reasoningJustification(maxValue)
+              : _arithmeticLaws(gradeLevel, maxValue),
         TrainingMode.romanNumerals => _romanNumerals(gradeLevel),
         TrainingMode.fractions => _fractions(gradeLevel, maxValue),
         TrainingMode.advancedMeasures => _advancedMeasures(
@@ -531,8 +534,11 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _arithmeticLaws(GradeLevel grade) {
-    final kind = _random.nextInt(3);
+  CurriculumExercise _arithmeticLaws(GradeLevel grade, int maxValue) {
+    final kind = _random.nextInt(4);
+    if (kind == 3) {
+      return _reasoningJustification(maxValue);
+    }
     if (kind == 0) {
       final a = _between(2, 9);
       final b = _between(11, grade == GradeLevel.third ? 49 : 99);
@@ -573,6 +579,93 @@ class CurriculumExerciseGenerator {
       key: 'law:commute:$a:$b',
       maxAnswerValue: 100,
       method: 'Kommutativgesetz',
+    );
+  }
+
+  CurriculumExercise _reasoningJustification(int maxValue) {
+    final limit = max(10, maxValue);
+    final kind = _random.nextInt(limit >= 40 ? 3 : 2);
+
+    if (kind == 0) {
+      final a = _between(3, max(3, limit - 2));
+      final b = _between(2, max(2, limit - a));
+      final shift = _between(1, min(3, a - 1));
+      final correct =
+          'Ein Summand wird um $shift kleiner und der andere um $shift größer. Die Summe bleibt gleich.';
+      final options = <String>{
+        correct,
+        'Beide Summanden werden um $shift kleiner. Deshalb bleibt die Summe gleich.',
+        'Die Summanden dürfen nur vertauscht, aber nicht verändert werden.',
+        'Beim Addieren darf man immer dieselbe Zahl von beiden Summanden abziehen.',
+      }.toList()
+        ..shuffle(_random);
+
+      return CurriculumExercise(
+        mode: TrainingMode.arithmeticLaws,
+        prompt:
+            '$a + $b = ' + (a - shift).toString() + ' + ' + (b + shift).toString() + '\nWelche Begründung erklärt, warum beide Rechnungen gleich viel ergeben?',
+        answer: options.indexOf(correct),
+        hint:
+            'Vergleiche beide Summanden: Was wird kleiner, was wird im gleichen Maß größer?',
+        key: 'process:reasoning:compensate:$a:$b:$shift',
+        choices: options,
+        method: 'Rechenbeziehung begründen',
+      );
+    }
+
+    if (kind == 1) {
+      final a = _between(2, min(9, max(2, limit ~/ 2)));
+      final b = _between(2, max(2, limit ~/ a));
+      final correct =
+          'Die Faktoren werden nur vertauscht. Beim Multiplizieren bleibt das Produkt dabei gleich.';
+      final options = <String>{
+        correct,
+        'Beide Faktoren werden verdoppelt, deshalb bleibt das Produkt gleich.',
+        'Beim Multiplizieren darf man einen Faktor weglassen.',
+        'Die Rechnung ist nur gleich, weil beide Zahlen kleiner als 100 sind.',
+      }.toList()
+        ..shuffle(_random);
+
+      return CurriculumExercise(
+        mode: TrainingMode.arithmeticLaws,
+        prompt:
+            '$a × $b = $b × $a\nWelche Begründung passt zu dieser Rechenbeziehung?',
+        answer: options.indexOf(correct),
+        hint:
+            'Prüfe, ob sich die Zahlen selbst ändern oder nur ihre Reihenfolge.',
+        key: 'process:reasoning:commute:$a:$b',
+        choices: options,
+        method: 'Rechenbeziehung begründen',
+      );
+    }
+
+    final factor = _between(2, min(9, max(2, limit ~/ 20)));
+    final maxRounded = max(20, (limit ~/ factor ~/ 10) * 10);
+    final rounded = _between(2, maxRounded ~/ 10) * 10;
+    final difference = _between(1, min(9, rounded - 1));
+    final value = rounded - difference;
+    final correction = factor * difference;
+    final correct =
+        '$value ist $difference kleiner als $rounded. Deshalb wird $factor × $difference vom leichteren Produkt abgezogen.';
+    final options = <String>{
+      correct,
+      'Das Produkt bleibt gleich, wenn man nur den zweiten Faktor vergrößert.',
+      'Man zieht $difference ab, weil zwischen $value und $rounded genau $difference liegt.',
+      'Beim Multiplizieren darf man jeden Faktor zuerst auf den nächsten Zehner runden.',
+    }.toList()
+      ..shuffle(_random);
+
+    return CurriculumExercise(
+      mode: TrainingMode.arithmeticLaws,
+      prompt:
+          '$factor × $value = $factor × $rounded − $correction\nWelche Begründung erklärt diesen Rechenweg?',
+      answer: options.indexOf(correct),
+      hint:
+          'Zerlege $value als $rounded − $difference und denke daran, dass $factor mit beiden Teilen multipliziert wird.',
+      key:
+          'process:reasoning:distribute:$factor:$value:$rounded:$difference',
+      choices: options,
+      method: 'Rechenbeziehung begründen',
     );
   }
 

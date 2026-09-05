@@ -131,6 +131,11 @@ void main() {
         id: MicroCompetencyId.plausibilityCheck,
         prefix: 'process:plausibility:',
       ),
+      (
+        mode: TrainingMode.arithmeticLaws,
+        id: MicroCompetencyId.reasoningJustification,
+        prefix: 'process:reasoning:',
+      ),
     ];
 
     for (final item in cases) {
@@ -149,6 +154,14 @@ void main() {
       expect(tags.map((tag) => tag.id), contains(item.id));
       expect(exercise.choices, isNotNull);
       expect(exercise.answer, inInclusiveRange(0, exercise.choices!.length - 1));
+
+      if (item.id == MicroCompetencyId.reasoningJustification) {
+        expect(tags.first.id, MicroCompetencyId.reasoningJustification);
+        final lawSupport = tags.firstWhere(
+          (tag) => tag.id == MicroCompetencyId.arithmeticLaw,
+        );
+        expect(lawSupport.weight, closeTo(0.45, 0.001));
+      }
     }
   });
 
@@ -192,6 +205,22 @@ void main() {
       final candidate = plausibilityNumbers[plausibilityNumbers.length - 2];
       expect(pa + pb, lessThanOrEqualTo(100));
       expect(candidate, inInclusiveRange(0, 100));
+
+      final reasoning = generator.generate(
+        mode: TrainingMode.arithmeticLaws,
+        gradeLevel: GradeLevel.third,
+        maxValue: 100,
+        targetCompetency: MicroCompetencyId.reasoningJustification,
+      );
+      final reasoningNumbers = _numbers(reasoning.key);
+      if (reasoning.key.contains(':compensate:')) {
+        expect(reasoningNumbers[0] + reasoningNumbers[1], lessThanOrEqualTo(100));
+      } else if (reasoning.key.contains(':commute:')) {
+        expect(reasoningNumbers[0] * reasoningNumbers[1], lessThanOrEqualTo(100));
+      } else {
+        expect(reasoning.key, contains(':distribute:'));
+        expect(reasoningNumbers[0] * reasoningNumbers[2], lessThanOrEqualTo(100));
+      }
     }
   });
 
@@ -241,6 +270,7 @@ void main() {
     expect(ids, contains(MicroCompetencyId.strategyChoice));
     expect(ids, contains(MicroCompetencyId.errorChecking));
     expect(ids, contains(MicroCompetencyId.plausibilityCheck));
+    expect(ids, contains(MicroCompetencyId.reasoningJustification));
   });
 
   test('Lehrplan-Audit kennzeichnet Prozesskompetenzen explizit', () {
@@ -252,6 +282,16 @@ void main() {
     expect(processIds, contains(MicroCompetencyId.strategyChoice));
     expect(processIds, contains(MicroCompetencyId.errorChecking));
     expect(processIds, contains(MicroCompetencyId.plausibilityCheck));
+    expect(processIds, contains(MicroCompetencyId.reasoningJustification));
+
+    final reasoning = CurriculumAuditCatalog.forGrade(GradeLevel.third)
+        .firstWhere(
+          (objective) =>
+              objective.competency ==
+              MicroCompetencyId.reasoningJustification,
+        );
+    expect(reasoning.coverage, CurriculumCoverage.digitalSupport);
+    expect(reasoning.note, contains('eigene Begründungen'));
   });
 
   testWidgets('Prozessaufgaben besitzen konkrete visuelle Hilfen',
