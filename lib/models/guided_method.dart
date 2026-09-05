@@ -92,6 +92,7 @@ class GuidedStepCatalog {
     'anchorFact': 'Ankeraufgabe sicher nutzen',
     'onesAlignment': 'Einer in der richtigen Spalte ausrichten',
     'regroupDecision': 'notwendiges Entbündeln erkennen',
+    'carryDecision': 'notwendigen Übertrag erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -165,12 +166,17 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.writtenAddSub &&
-        taskKey.contains(':-:')) {
+        (taskKey.contains(':+:') || taskKey.contains(':-:'))) {
       final numbers = _numbers(taskKey);
       if (numbers.length >= 2) {
+        final a = numbers[numbers.length - 2];
+        final b = numbers.last;
+        if (taskKey.contains(':+:')) {
+          return _writtenAddition(a, b, expected);
+        }
         return _writtenSubtraction(
-          numbers[numbers.length - 2],
-          numbers.last,
+          a,
+          b,
           expected,
           preferences,
         );
@@ -275,6 +281,57 @@ class GuidedMethodFactory {
     }
 
     return evidenceSteps.take(2).toList(growable: false);
+  }
+
+  static List<GuidedMethodStep> independentWrittenStepsForTask({
+    required TrainingMode mode,
+    required String taskKey,
+    required int expected,
+    required MethodPreferences preferences,
+    MicroCompetencyId? targetCompetency,
+  }) {
+    if (mode != TrainingMode.writtenAddSub ||
+        (targetCompetency != MicroCompetencyId.writtenAlignment &&
+            targetCompetency != MicroCompetencyId.writtenRegrouping) ||
+        (!taskKey.startsWith('written:+:') &&
+            !taskKey.startsWith('written:-:'))) {
+      return const <GuidedMethodStep>[];
+    }
+
+    final numbers = _numbers(taskKey);
+    if (numbers.length < 2) return const <GuidedMethodStep>[];
+    final a = numbers[numbers.length - 2];
+    final b = numbers.last;
+    final guide = taskKey.contains(':+:')
+        ? _writtenAddition(a, b, expected)
+        : _writtenSubtraction(a, b, expected, preferences);
+    final evidenceSteps =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).toList();
+
+    if (targetCompetency == MicroCompetencyId.writtenAlignment) {
+      return evidenceSteps
+          .where(
+            (step) =>
+                step.evidenceCompetency == MicroCompetencyId.writtenAlignment,
+          )
+          .take(1)
+          .toList(growable: false);
+    }
+
+    final hasRegrouping = evidenceSteps.any(
+      (step) =>
+          step.evidenceCompetency == MicroCompetencyId.writtenRegrouping,
+    );
+    if (!hasRegrouping) return const <GuidedMethodStep>[];
+
+    return evidenceSteps
+        .where(
+          (step) =>
+              step.evidenceCompetency == MicroCompetencyId.writtenAlignment ||
+              step.evidenceCompetency == MicroCompetencyId.writtenRegrouping,
+        )
+        .take(2)
+        .toList(growable: false);
   }
 
   static GuidedMethodGuide _representationGuide(String taskKey) {
@@ -686,6 +743,58 @@ class GuidedMethodFactory {
     }
   }
 
+  static GuidedMethodGuide _writtenAddition(
+    int a,
+    int b,
+    int expected,
+  ) {
+    final lowerOnes = b % 10;
+    final onesChoices = _numberChoices(lowerOnes, maxValue: 9);
+    final carryPlace = _firstDirectRegroupingPlace(
+      a,
+      b,
+      addition: true,
+    );
+    final needsCarry = carryPlace != null;
+    return GuidedMethodGuide(
+      methodKey: 'writtenAddition:standard',
+      methodLabel: 'Schriftliche Addition',
+      nudge:
+          'Schreibe Einer unter Einer, Zehner unter Zehner und rechne von rechts nach links.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Stellen ausrichten',
+          instruction:
+              'Kontrolliere zuerst die Einer-Spalte, bevor du rechnest.',
+          question: 'Welche Ziffer steht unten in der Einer-Spalte?',
+          choices: onesChoices,
+          correctChoice: onesChoices.indexOf('$lowerOnes'),
+          evidenceKey: 'onesAlignment',
+          evidenceCompetency: MicroCompetencyId.writtenAlignment,
+        ),
+        GuidedMethodStep(
+          title: 'Übertrag prüfen',
+          instruction: needsCarry
+              ? 'Prüfe die ${_placeLabel(carryPlace)} und notiere den Übertrag in die nächste Stelle.'
+              : 'Prüfe jede Spalte, ob ein Übertrag entsteht.',
+          question: needsCarry
+              ? 'Entsteht in der ${_placeLabel(carryPlace)} ein Übertrag?'
+              : 'Entsteht bei dieser Aufgabe ein Übertrag?',
+          choices: const ['Ja', 'Nein'],
+          correctChoice: needsCarry ? 0 : 1,
+          evidenceKey: needsCarry ? 'carryDecision' : null,
+          evidenceCompetency:
+              needsCarry ? MicroCompetencyId.writtenRegrouping : null,
+        ),
+        GuidedMethodStep(
+          title: 'Probe',
+          instruction:
+              'Prüfe dein Ergebnis $expected mit einer Überschlagsrechnung.',
+        ),
+      ],
+    );
+  }
+
   static GuidedMethodGuide _writtenSubtraction(
     int a,
     int b,
@@ -695,7 +804,13 @@ class GuidedMethodFactory {
     final strategy = preferences.writtenSubtraction;
     final lowerOnes = b % 10;
     final onesChoices = _numberChoices(lowerOnes, maxValue: 9);
-    final needsRegrouping = (a % 10) < lowerOnes;
+    final regroupPlace = _firstDirectRegroupingPlace(
+      a,
+      b,
+      addition: false,
+    );
+    final needsRegrouping = regroupPlace != null;
+    final usesEntbuendeln = strategy == WrittenSubtractionStrategy.regroup;
     return GuidedMethodGuide(
       methodKey: 'writtenSubtraction:${strategy.name}',
       methodLabel: strategy.label,
@@ -712,25 +827,24 @@ class GuidedMethodFactory {
           evidenceCompetency: MicroCompetencyId.writtenAlignment,
         ),
         GuidedMethodStep(
-          title: strategy == WrittenSubtractionStrategy.regroup
-              ? 'Entbündeln'
-              : 'Ergänzen',
+          title: usesEntbuendeln ? 'Entbündeln' : 'Ergänzen',
           instruction: strategy.description,
-          question: strategy == WrittenSubtractionStrategy.regroup
-              ? 'Musst du bei den Einern entbündeln?'
+          question: needsRegrouping
+              ? usesEntbuendeln
+                  ? 'Musst du in der ${_placeLabel(regroupPlace)} entbündeln?'
+                  : 'Musst du in der ${_placeLabel(regroupPlace)} über 10 ergänzen und einen Übertrag beachten?'
+              : usesEntbuendeln
+                  ? 'Musst du bei dieser Aufgabe entbündeln?'
+                  : 'Brauchst du bei dieser Aufgabe einen Übertrag?',
+          choices: const ['Ja', 'Nein'],
+          correctChoice: needsRegrouping ? 0 : 1,
+          evidenceKey: needsRegrouping
+              ? usesEntbuendeln
+                  ? 'regroupDecision'
+                  : 'carryDecision'
               : null,
-          choices: strategy == WrittenSubtractionStrategy.regroup
-              ? const ['Ja', 'Nein']
-              : const <String>[],
-          correctChoice: strategy == WrittenSubtractionStrategy.regroup
-              ? (needsRegrouping ? 0 : 1)
-              : null,
-          evidenceKey: strategy == WrittenSubtractionStrategy.regroup
-              ? 'regroupDecision'
-              : null,
-          evidenceCompetency: strategy == WrittenSubtractionStrategy.regroup
-              ? MicroCompetencyId.writtenRegrouping
-              : null,
+          evidenceCompetency:
+              needsRegrouping ? MicroCompetencyId.writtenRegrouping : null,
         ),
         GuidedMethodStep(
           title: 'Probe',
@@ -944,6 +1058,36 @@ class GuidedMethodFactory {
       ],
     );
   }
+
+  static int? _firstDirectRegroupingPlace(
+    int a,
+    int b, {
+    required bool addition,
+  }) {
+    var left = a;
+    var right = b;
+    var place = 1;
+    while (left > 0 || right > 0) {
+      final needsRegrouping = addition
+          ? (left % 10) + (right % 10) >= 10
+          : (left % 10) < (right % 10);
+      if (needsRegrouping) return place;
+      left ~/= 10;
+      right ~/= 10;
+      place *= 10;
+    }
+    return null;
+  }
+
+  static String _placeLabel(int place) => switch (place) {
+        1 => 'Einer-Spalte',
+        10 => 'Zehner-Spalte',
+        100 => 'Hunderter-Spalte',
+        1000 => 'Tausender-Spalte',
+        10000 => 'Zehntausender-Spalte',
+        100000 => 'Hunderttausender-Spalte',
+        _ => 'betroffenen Stelle',
+      };
 
   static bool _needsAdditionBridge(MathFact fact) =>
       (fact.a % 10) + (fact.b % 10) >= 10;
