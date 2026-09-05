@@ -775,10 +775,10 @@ class GuidedMethodFactory {
         GuidedMethodStep(
           title: 'Übertrag prüfen',
           instruction: needsCarry
-              ? 'Prüfe die ${_placeLabel(carryPlace)} und notiere den Übertrag in die nächste Stelle.'
+              ? 'Prüfe die ${_placeLabel(carryPlace!)} und notiere den Übertrag in die nächste Stelle.'
               : 'Prüfe jede Spalte, ob ein Übertrag entsteht.',
           question: needsCarry
-              ? 'Entsteht in der ${_placeLabel(carryPlace)} ein Übertrag?'
+              ? 'Entsteht in der ${_placeLabel(carryPlace!)} ein Übertrag?'
               : 'Entsteht bei dieser Aufgabe ein Übertrag?',
           choices: const ['Ja', 'Nein'],
           correctChoice: needsCarry ? 0 : 1,
@@ -831,8 +831,8 @@ class GuidedMethodFactory {
           instruction: strategy.description,
           question: needsRegrouping
               ? usesEntbuendeln
-                  ? 'Musst du in der ${_placeLabel(regroupPlace)} entbündeln?'
-                  : 'Musst du in der ${_placeLabel(regroupPlace)} über 10 ergänzen und einen Übertrag beachten?'
+                  ? 'Musst du in der ${_placeLabel(regroupPlace!)} entbündeln?'
+                  : 'Musst du in der ${_placeLabel(regroupPlace!)} über 10 ergänzen und einen Übertrag beachten?'
               : usesEntbuendeln
                   ? 'Musst du bei dieser Aufgabe entbündeln?'
                   : 'Brauchst du bei dieser Aufgabe einen Übertrag?',
