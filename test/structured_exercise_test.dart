@@ -168,6 +168,34 @@ void main() {
     }
   });
 
+  test('Klasse 1 sieht in Modellierungsaufgaben nur bekannte Rechenarten', () {
+    final generator = StructuredExerciseGenerator(random: Random(313));
+
+    for (var i = 0; i < 30; i++) {
+      final operation = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+        targetCompetency: MicroCompetencyId.wordProblemOperation,
+      );
+      expect(operation.choices, hasLength(2));
+      expect(operation.choices!.toSet(), {'Plus (+)', 'Minus (−)'});
+
+      final equation = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+        targetCompetency: MicroCompetencyId.wordProblemModel,
+      );
+      expect(
+        equation.choices!.every(
+          (choice) => !choice.contains('×') && !choice.contains('÷'),
+        ),
+        isTrue,
+      );
+    }
+  });
+
   test('gezielte Modellierungsaufgaben respektieren kleine Zahlenräume', () {
     final generator = StructuredExerciseGenerator(random: Random(312));
     const targets = [
