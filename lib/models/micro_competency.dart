@@ -1221,37 +1221,34 @@ class MicroCompetencyCatalog {
       ),
     ];
 
-    switch (target) {
-      case MicroCompetencyId.multiplicationGroups:
-        tags.add(
-          const MicroCompetencyTag(
-            MicroCompetencyId.multiplicationFacts,
-            weight: 0.35,
-          ),
-        );
-      case MicroCompetencyId.multiplicationFacts:
-        tags.add(
-          const MicroCompetencyTag(
-            MicroCompetencyId.multiplicationGroups,
-            weight: 0.45,
-          ),
-        );
-      case MicroCompetencyId.divisionSharing:
-        tags.add(
-          const MicroCompetencyTag(
-            MicroCompetencyId.divisionFacts,
-            weight: 0.35,
-          ),
-        );
-      case MicroCompetencyId.divisionFacts:
-        tags.add(
-          const MicroCompetencyTag(
-            MicroCompetencyId.divisionSharing,
-            weight: 0.45,
-          ),
-        );
-      default:
-        break;
+    if (target == MicroCompetencyId.multiplicationGroups) {
+      tags.add(
+        const MicroCompetencyTag(
+          MicroCompetencyId.multiplicationFacts,
+          weight: 0.35,
+        ),
+      );
+    } else if (target == MicroCompetencyId.multiplicationFacts) {
+      tags.add(
+        const MicroCompetencyTag(
+          MicroCompetencyId.multiplicationGroups,
+          weight: 0.45,
+        ),
+      );
+    } else if (target == MicroCompetencyId.divisionSharing) {
+      tags.add(
+        const MicroCompetencyTag(
+          MicroCompetencyId.divisionFacts,
+          weight: 0.35,
+        ),
+      );
+    } else if (target == MicroCompetencyId.divisionFacts) {
+      tags.add(
+        const MicroCompetencyTag(
+          MicroCompetencyId.divisionSharing,
+          weight: 0.45,
+        ),
+      );
     }
     return tags;
   }
