@@ -47,10 +47,10 @@ class _ParentScreenState extends State<ParentScreen> {
       ms == 0 ? '–' : '${(ms / 1000).toStringAsFixed(1)} s';
 
   Future<void> _startRecommended() async {
-    final microFocus = widget.controller.currentMicroFocus();
-    final mode = microFocus?.definition.preferredMode ??
+    final priority = widget.controller.parentPriorityMicroCompetency();
+    final mode = priority?.definition.preferredMode ??
         widget.controller.recommendedMode();
-    final targetCompetency = microFocus?.definition.id;
+    final targetCompetency = priority?.definition.id;
     if (mode.isUpperPrimary) {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -94,10 +94,10 @@ class _ParentScreenState extends State<ParentScreen> {
     final c = widget.controller;
     final recommendation = c.recommendationText();
     final insight = c.parentInsight();
-    final microFocus = c.currentMicroFocus();
-    final methodInsight = microFocus == null
+    final priority = c.parentPriorityMicroCompetency();
+    final methodInsight = priority == null || priority.observations == 0
         ? null
-        : c.methodSupportInsight(microFocus.definition.id);
+        : c.methodSupportInsight(priority.definition.id);
     final diagnosticPatterns = c
         .diagnosticSummaries(recurringOnly: true)
         .where(
@@ -192,8 +192,8 @@ class _ParentScreenState extends State<ParentScreen> {
                   text: insight.action,
                 ),
                 _InsightLine(
-                  icon: Icons.speed_rounded,
-                  title: 'Noch nicht nötig',
+                  icon: Icons.pending_actions_outlined,
+                  title: 'Was noch fehlt',
                   text: insight.notYet,
                 ),
                 _InsightLine(
