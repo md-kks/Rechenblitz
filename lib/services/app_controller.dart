@@ -281,6 +281,40 @@ class AppController extends ChangeNotifier {
     await storage.saveMicroCompetencyObservations(microObservations);
   }
 
+  Future<void> recordGuidedStepAttempt({
+    required TrainingMode mode,
+    required String taskKey,
+    required String methodKey,
+    required String stepKey,
+    required MicroCompetencyId competencyId,
+    required bool correct,
+    double evidenceWeight = 0.35,
+  }) async {
+    if (evidenceWeight <= 0) return;
+    microObservations.insert(
+      0,
+      MicroCompetencyObservation(
+        id: competencyId,
+        occurredAt: DateTime.now(),
+        correct: correct,
+        evidenceWeight: evidenceWeight.clamp(0.05, 0.50).toDouble(),
+        source: MicroEvidenceSource.guidedStep,
+        usedHelp: true,
+        helpLevel: HelpLevel.guided.value,
+        methodKey: methodKey,
+        mode: mode,
+        gradeLevel: gradeLevel,
+        numberRange: numberRange,
+        taskKey: 'guided:$methodKey:$stepKey:$taskKey',
+      ),
+    );
+    if (microObservations.length > 1200) {
+      microObservations = microObservations.take(1200).toList();
+    }
+    notifyListeners();
+    await storage.saveMicroCompetencyObservations(microObservations);
+  }
+
   Future<void> recordAttempt(
     MathFact fact, {
     required bool correct,
@@ -913,6 +947,7 @@ class AppController extends ChangeNotifier {
   }) {
     final sourceWeight = switch (source) {
       MicroEvidenceSource.remediation => 0.65,
+      MicroEvidenceSource.guidedStep => 0.35,
       MicroEvidenceSource.practice ||
       MicroEvidenceSource.review ||
       MicroEvidenceSource.transfer => 1.0,
@@ -1040,6 +1075,8 @@ class AppController extends ChangeNotifier {
             }
           }
           lastTransferSeen ??= observation.occurredAt;
+          break;
+        case MicroEvidenceSource.guidedStep:
           break;
         case MicroEvidenceSource.practice:
         case MicroEvidenceSource.remediation:
