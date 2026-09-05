@@ -1256,7 +1256,7 @@ class AppController extends ChangeNotifier {
     final candidates = microCompetenciesForGrade()
         .where(
           (progress) =>
-              progress.independentEvidence > 0 &&
+              progress.baseEvidence > 0 &&
               progress.state != MicroCompetencyState.secure &&
               progress.state != MicroCompetencyState.mastered,
         )
@@ -1277,10 +1277,10 @@ class AppController extends ChangeNotifier {
     var candidate = candidates.first;
     for (final prerequisite in candidate.definition.prerequisites) {
       final prerequisiteProgress = microCompetencyProgress(prerequisite);
-      final hasIndependentSignal = prerequisiteProgress.independentEvidence > 0;
+      final hasBaseSignal = prerequisiteProgress.baseEvidence > 0;
       final hasWeakGuidedSignal =
           guidedFocus?.competencyId == prerequisite;
-      if ((hasIndependentSignal || hasWeakGuidedSignal) &&
+      if ((hasBaseSignal || hasWeakGuidedSignal) &&
           prerequisiteProgress.state != MicroCompetencyState.secure &&
           prerequisiteProgress.state != MicroCompetencyState.mastered) {
         candidate = prerequisiteProgress;
