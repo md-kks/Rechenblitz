@@ -124,7 +124,7 @@ class CurriculumAuditCatalog {
   }
 
   static CurriculumCoverage _coverageFor(MicroCompetencyId id) {
-    const physical = {
+    const needsPracticalComplement = {
       MicroCompetencyId.measurementCalculation,
       MicroCompetencyId.shapeProperties,
       MicroCompetencyId.geometryBodies,
@@ -134,8 +134,9 @@ class CurriculumAuditCatalog {
       MicroCompetencyId.rightAngle,
       MicroCompetencyId.cubeNetFoldability,
       MicroCompetencyId.probabilityExperiment,
+      MicroCompetencyId.reasoningJustification,
     };
-    return physical.contains(id)
+    return needsPracticalComplement.contains(id)
         ? CurriculumCoverage.digitalSupport
         : CurriculumCoverage.digitalPractice;
   }
@@ -144,6 +145,7 @@ class CurriculumAuditCatalog {
         MicroCompetencyId.strategyChoice,
         MicroCompetencyId.errorChecking,
         MicroCompetencyId.plausibilityCheck,
+        MicroCompetencyId.reasoningJustification,
         MicroCompetencyId.wordProblemOperation,
         MicroCompetencyId.wordProblemCalculation,
         MicroCompetencyId.estimation,
@@ -164,6 +166,8 @@ class CurriculumAuditCatalog {
           'Parallel und senkrecht sind digital erkennbar; das Zeichnen mit Lineal oder Geodreieck muss praktisch ergänzt werden.',
         MicroCompetencyId.rightAngle =>
           'Rechte Winkel sind digital erkennbar; Prüfen und Konstruieren mit Zeichengeräten sollte praktisch ergänzt werden.',
+        MicroCompetencyId.reasoningJustification =>
+          'Passende mathematische Begründungen können digital beurteilt und nachvollzogen werden; eigene Begründungen formulieren, austauschen und verteidigen muss im Unterricht praktisch ergänzt werden.',
         _ =>
           'Das Lernziel wird mit generierten Aufgaben, Mikro-Evidenz und gezielter Wiederholung digital unterstützt.',
       };
