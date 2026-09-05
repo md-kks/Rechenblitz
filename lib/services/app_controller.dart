@@ -6,6 +6,7 @@ import '../models/accessibility_preferences.dart';
 import '../models/assessment.dart';
 import '../models/beta_feedback.dart';
 import '../models/error_diagnosis.dart';
+import '../models/guided_method.dart';
 import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
 import '../models/learning_path.dart';
