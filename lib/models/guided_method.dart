@@ -72,6 +72,7 @@ class GuidedStepCatalog {
     'itemsPerGroup': 'Elemente je Gruppe erkennen',
     'bridgeAmount': 'Schritt bis zum vollen Zehner bestimmen',
     'remainingSubtrahend': 'verbleibenden Teil des Subtrahenden bestimmen',
+    'remainingAddend': 'verbleibenden Teil des zweiten Summanden bestimmen',
     'firstPartialSubtraction': 'ersten Teil korrekt wegnehmen',
     'firstComplementJump': 'ersten Ergänzungssprung bestimmen',
     'secondComplementJump': 'zweiten Ergänzungssprung bestimmen',
@@ -135,6 +136,12 @@ class GuidedMethodFactory {
     if (taskKey.startsWith('process:representation:') ||
         taskKey.contains(':process:representation:')) {
       return _representationGuide(taskKey);
+    }
+
+    if (fact != null &&
+        fact.operation == MathOperation.plus &&
+        _needsAdditionBridge(fact)) {
+      return _additionBridge(fact);
     }
 
     if (fact != null &&
@@ -205,6 +212,48 @@ class GuidedMethodFactory {
         ),
       ],
     );
+  }
+
+  static List<GuidedMethodStep> independentArithmeticStepsForTask({
+    required TrainingMode mode,
+    required MathFact fact,
+    required MethodPreferences preferences,
+    MicroCompetencyId? targetCompetency,
+  }) {
+    if (mode != TrainingMode.practice &&
+        mode != TrainingMode.minus &&
+        mode != TrainingMode.mixed) {
+      return const <GuidedMethodStep>[];
+    }
+
+    final target = switch (fact.operation) {
+      MathOperation.plus => MicroCompetencyId.additionTenBridge,
+      MathOperation.minus => MicroCompetencyId.subtractionTenBridge,
+      _ => null,
+    };
+    if (target == null ||
+        (targetCompetency != target &&
+            targetCompetency != MicroCompetencyId.numberDecomposition)) {
+      return const <GuidedMethodStep>[];
+    }
+
+    final GuidedMethodGuide guide;
+    if (fact.operation == MathOperation.plus) {
+      if (!_needsAdditionBridge(fact)) {
+        return const <GuidedMethodStep>[];
+      }
+      guide = _additionBridge(fact);
+    } else {
+      if (!_needsSubtractionBridge(fact) || fact.a % 10 == 0) {
+        return const <GuidedMethodStep>[];
+      }
+      guide = _subtractionBridge(fact, preferences);
+    }
+
+    return guide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .take(2)
+        .toList(growable: false);
   }
 
   static GuidedMethodGuide _representationGuide(String taskKey) {
@@ -302,6 +351,61 @@ class GuidedMethodFactory {
           instruction: groups == null || each == null
               ? 'Schreibe: Anzahl der Gruppen × Anzahl je Gruppe.'
               : '$groups Gruppen mit je $each Punkten entsprechen $groups × $each.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _additionBridge(MathFact fact) {
+    final a = fact.a;
+    final b = fact.b;
+    final result = a + b;
+    final toTen = 10 - (a % 10);
+    final bridge = a + toTen;
+    final rest = b - toTen;
+    final bridgeChoices = _numberChoices(
+      toTen,
+      maxValue: max(10, b),
+    );
+    final restChoices = _numberChoices(
+      rest,
+      maxValue: max(10, b),
+    );
+    final resultChoices = _numberChoices(
+      result,
+      maxValue: max(20, result),
+    );
+
+    return GuidedMethodGuide(
+      methodKey: 'addition:bridgeToTen',
+      methodLabel: 'Erst zum Zehner',
+      nudge: 'Ergänze $a zuerst bis zum nächsten vollen Zehner.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Bis zum Zehner',
+          instruction: 'Suche zuerst den nächsten vollen Zehner über $a.',
+          question: 'Wie viel fehlt von $a bis $bridge?',
+          choices: bridgeChoices,
+          correctChoice: bridgeChoices.indexOf('$toTen'),
+          evidenceKey: 'bridgeAmount',
+          evidenceCompetency: MicroCompetencyId.additionTenBridge,
+        ),
+        GuidedMethodStep(
+          title: 'Rest bestimmen',
+          instruction: 'Von den $b wurden schon $toTen zum Auffüllen genutzt.',
+          question: 'Wie viel von $b bleibt danach übrig?',
+          choices: restChoices,
+          correctChoice: restChoices.indexOf('$rest'),
+          evidenceKey: rest > 0 ? 'remainingAddend' : null,
+          evidenceCompetency:
+              rest > 0 ? MicroCompetencyId.numberDecomposition : null,
+        ),
+        GuidedMethodStep(
+          title: 'Weiterrechnen',
+          instruction: '$bridge + $rest = $result.',
+          question: 'Wie lautet das Ergebnis?',
+          choices: resultChoices,
+          correctChoice: resultChoices.indexOf('$result'),
         ),
       ],
     );
@@ -819,6 +923,9 @@ class GuidedMethodFactory {
       ],
     );
   }
+
+  static bool _needsAdditionBridge(MathFact fact) =>
+      (fact.a % 10) + (fact.b % 10) >= 10;
 
   static bool _needsSubtractionBridge(MathFact fact) =>
       (fact.a % 10) < (fact.b % 10);
