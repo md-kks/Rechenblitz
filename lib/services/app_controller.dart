@@ -1780,20 +1780,32 @@ class AppController extends ChangeNotifier {
 
   String _masteryMissingText(MicroCompetencyProgress progress) {
     final missing = <String>[];
-    if (progress.independentEvidence < _secureIndependentEvidence) {
+    if (!_evidenceAtLeast(
+      progress.independentEvidence,
+      _secureIndependentEvidence,
+    )) {
       missing.add('mehr selbstständige Lösungen');
     } else if (progress.independentAccuracy < _secureIndependentAccuracy) {
       missing.add('eine stabilere selbstständige Trefferquote');
     } else {
-      if (progress.independentEvidence < _masteredIndependentEvidence ||
+      if (!_evidenceAtLeast(
+            progress.independentEvidence,
+            _masteredIndependentEvidence,
+          ) ||
           progress.independentAccuracy < _masteredIndependentAccuracy) {
         missing.add('eine noch stärkere selbstständige Basis');
       }
-      if (progress.reviewIndependentEvidence < _masteredReviewEvidence ||
+      if (!_evidenceAtLeast(
+            progress.reviewIndependentEvidence,
+            _masteredReviewEvidence,
+          ) ||
           progress.reviewIndependentAccuracy < _masteredReviewAccuracy) {
         missing.add('ein stabiler Nachweis nach zeitlichem Abstand');
       }
-      if (progress.transferIndependentEvidence < _masteredTransferEvidence ||
+      if (!_evidenceAtLeast(
+            progress.transferIndependentEvidence,
+            _masteredTransferEvidence,
+          ) ||
           progress.transferIndependentAccuracy < _masteredTransferAccuracy) {
         missing.add('ein stabiler selbstständiger Transfer');
       }
