@@ -225,9 +225,9 @@ class MicroCompetencyProgress {
     required this.accuracy,
     required this.evidence,
     required this.observations,
-    this.directAccuracy = 0,
+    this.baseAccuracy = 0,
     this.transferAccuracy = 0,
-    this.directEvidence = 0,
+    this.baseEvidence = 0,
     this.transferEvidence = 0,
     this.transferObservations = 0,
     this.lastSeen,
@@ -239,9 +239,9 @@ class MicroCompetencyProgress {
   final double accuracy;
   final double evidence;
   final int observations;
-  final double directAccuracy;
+  final double baseAccuracy;
   final double transferAccuracy;
-  final double directEvidence;
+  final double baseEvidence;
   final double transferEvidence;
   final int transferObservations;
   final DateTime? lastSeen;
