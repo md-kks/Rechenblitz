@@ -64,6 +64,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
   String? activeMethodKey;
   String feedback = '';
   ErrorPattern? currentErrorPattern;
+  int taskIndex = 0;
   int checkpointIndex = 0;
   final Set<int> checkpointAttempted = <int>{};
   final Map<int, int> checkpointWrongAttempts = <int, int>{};
@@ -125,6 +126,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
   }
 
   void _prepareHelpForCurrent() {
+    taskIndex = completed;
     checkpointIndex = 0;
     checkpointAttempted.clear();
     checkpointWrongAttempts.clear();
@@ -184,7 +186,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (widget.reviewEmphasis ||
         widget.transferEmphasis ||
         !IndependentArithmeticStepPolicy.shouldProbeTask(
-          completed,
+          taskIndex,
           scaffoldFading: widget.scaffoldFading,
         )) {
       return const <GuidedMethodStep>[];
