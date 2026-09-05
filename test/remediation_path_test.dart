@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
+import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/remediation_path.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/app_controller.dart';
@@ -81,6 +82,159 @@ void main() {
           reason: pattern.name,
         );
       }
+    }
+  });
+
+  test('detaillierte Rechenfehler erhalten ursachenspezifische Förderpfade', () {
+    final generator = RemediationGenerator(random: Random(77));
+
+    final carry = generator.generate(
+      pattern: ErrorPattern.carryOmitted,
+      preferredMode: TrainingMode.practice,
+      grade: GradeLevel.second,
+      range: NumberRangeLevel.hundred,
+      methods: const MethodPreferences(),
+    );
+    expect(
+      carry.tasks.every(
+        (task) => task.taskKey.startsWith('remediation:carryOmitted:+:'),
+      ),
+      isTrue,
+    );
+    for (final task in carry.tasks) {
+      final numbers = RegExp(r'\d+')
+          .allMatches(task.taskKey)
+          .map((match) => int.parse(match.group(0)!))
+          .toList();
+      final a = numbers[numbers.length - 2];
+      final b = numbers.last;
+      expect((a % 10) + (b % 10), greaterThanOrEqualTo(10));
+    }
+
+    final borrow = generator.generate(
+      pattern: ErrorPattern.borrowAvoided,
+      preferredMode: TrainingMode.minus,
+      grade: GradeLevel.second,
+      range: NumberRangeLevel.hundred,
+      methods: const MethodPreferences(),
+    );
+    expect(
+      borrow.tasks.every(
+        (task) => task.taskKey.startsWith('remediation:borrowAvoided:-:'),
+      ),
+      isTrue,
+    );
+
+    final partial = generator.generate(
+      pattern: ErrorPattern.partialOperand,
+      preferredMode: TrainingMode.minus,
+      grade: GradeLevel.second,
+      range: NumberRangeLevel.hundred,
+      methods: const MethodPreferences(),
+    );
+    expect(
+      partial.tasks.every(
+        (task) => task.taskKey.startsWith('remediation:partialOperand:-:'),
+      ),
+      isTrue,
+    );
+    expect(partial.tasks.every((task) => task.hint.contains('Zerlege')), isTrue);
+  });
+
+  test('Mal- und Geteilt-Fehlvorstellungen bleiben bis zur Kontrolle erhalten',
+      () {
+    final generator = RemediationGenerator(random: Random(78));
+    final multiplication = generator.generate(
+      pattern: ErrorPattern.multiplicationAsAddition,
+      preferredMode: TrainingMode.multiply,
+      grade: GradeLevel.second,
+      range: NumberRangeLevel.hundred,
+      methods: const MethodPreferences(),
+    );
+    expect(
+      multiplication.tasks.every(
+        (task) => task.taskKey
+            .startsWith('remediation:multiplicationAsAddition:x:'),
+      ),
+      isTrue,
+    );
+
+    final division = generator.generate(
+      pattern: ErrorPattern.divisionAsSubtraction,
+      preferredMode: TrainingMode.divide,
+      grade: GradeLevel.second,
+      range: NumberRangeLevel.hundred,
+      methods: const MethodPreferences(),
+    );
+    expect(
+      division.tasks.every(
+        (task) => task.taskKey
+            .startsWith('remediation:divisionAsSubtraction:divide:'),
+      ),
+      isTrue,
+    );
+  });
+
+  test('Modellierungsfehler fördern genau den fehlenden Sachaufgaben-Schritt',
+      () {
+    const cases = [
+      (
+        pattern: ErrorPattern.wordProblemRelevantInformation,
+        competency: MicroCompetencyId.wordProblemRelevantInformation,
+        innerPrefix: 'story:info:',
+      ),
+      (
+        pattern: ErrorPattern.wordProblemModel,
+        competency: MicroCompetencyId.wordProblemModel,
+        innerPrefix: 'story:equation:',
+      ),
+      (
+        pattern: ErrorPattern.wordProblemInterpretation,
+        competency: MicroCompetencyId.wordProblemInterpretation,
+        innerPrefix: 'story:interpret:',
+      ),
+    ];
+
+    for (final item in cases) {
+      final plan = RemediationGenerator(
+        random: Random(100 + item.pattern.index),
+      ).generate(
+        pattern: item.pattern,
+        preferredMode: TrainingMode.wordProblems,
+        grade: GradeLevel.second,
+        range: NumberRangeLevel.hundred,
+        methods: const MethodPreferences(),
+      );
+
+      for (final task in plan.tasks) {
+        expect(
+          task.taskKey,
+          startsWith(
+            'remediation:${item.pattern.name}:${item.innerPrefix}',
+          ),
+        );
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: task.mode,
+          taskKey: task.taskKey,
+        );
+        expect(tags.map((tag) => tag.id), contains(item.competency));
+      }
+    }
+  });
+
+  test('Rechenart-Förderung in Klasse 1 bleibt bei Plus und Minus', () {
+    final plan = RemediationGenerator(random: Random(79)).generate(
+      pattern: ErrorPattern.operationChoice,
+      preferredMode: TrainingMode.wordProblems,
+      grade: GradeLevel.first,
+      range: NumberRangeLevel.twenty,
+      methods: const MethodPreferences(),
+    );
+
+    for (final task in plan.tasks) {
+      expect(task.choices, hasLength(2));
+      expect(task.choices!.toSet(), {'Plus (+)', 'Minus (−)'});
+      expect(task.answer, inInclusiveRange(0, 1));
     }
   });
 
