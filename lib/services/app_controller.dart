@@ -1584,13 +1584,15 @@ class AppController extends ChangeNotifier {
         'So übt Rechenblitz nicht einfach den Bereich mit der niedrigsten Gesamtquote, sondern den konkreten Teilschritt und die noch fehlende Evidenzart.';
   }
 
-  ParentLearningInsight parentInsight() {
-    final priority = parentPriorityMicroCompetency();
+  ParentLearningInsight parentInsight({
+    DateTime? now,
+  }) {
+    final priority = parentPriorityMicroCompetency(now: now);
     final strongestMicro = strongestMicroCompetency();
 
-    if (priority != null && priority.observations > 0) {
+    if (priority != null) {
       final currentFocus = currentMicroFocus();
-      final dueReview = dueReviewMicroCompetency();
+      final dueReview = dueReviewMicroCompetency(now: now);
       final transfer = transferCandidateMicroCompetency(
         excluding: dueReview?.definition.id,
       );
@@ -1675,7 +1677,7 @@ class AppController extends ChangeNotifier {
         trend: _weeklyTrendText(),
         mastery: _parentMasteryText(priority),
         evidence: _parentEvidenceText(priority),
-        selection: _parentSelectionText(),
+        selection: _parentSelectionText(now: now),
       );
     }
 
