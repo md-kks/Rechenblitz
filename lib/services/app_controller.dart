@@ -1590,6 +1590,12 @@ class AppController extends ChangeNotifier {
       parts.add(
         '${transfer.tasks} Aufgaben prüfen „$label“ in veränderter Form',
       );
+    } else if (transfer.targetCompetency != null) {
+      final label =
+          MicroCompetencyCatalog.definition(transfer.targetCompetency!).label;
+      parts.add(
+        '${transfer.tasks} Aufgaben führen vorsichtig in „$label“ ein',
+      );
     }
 
     return '${parts.join('; ')}. '
@@ -1673,8 +1679,9 @@ class AppController extends ChangeNotifier {
             'Eine kurze Abstandskontrolle ohne Starthilfe reicht. Entscheidend ist, ob der Rechenweg noch selbstständig abrufbar ist.';
       } else if (transfer != null &&
           transfer.definition.id == priority.definition.id) {
-        action =
-            'Zwei kurze Aufgaben in veränderter Form prüfen, ob dieselbe mathematische Idee übertragen werden kann.';
+        action = priority.state == MicroCompetencyState.mastered
+            ? 'Zwei kurze Aufgaben in veränderter Form halten die Anwendung flexibel. Sie dienen hier dem Erhalt, nicht einem noch fehlenden Nachweis.'
+            : 'Zwei kurze Aufgaben in veränderter Form prüfen, ob dieselbe mathematische Idee übertragen werden kann.';
       } else if (priority.state == MicroCompetencyState.newSkill) {
         action =
             'Den Teilschritt zunächst mit wenigen Aufgaben vorsichtig kennenlernen; daraus entsteht erst die Beobachtungsbasis.';
