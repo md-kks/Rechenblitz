@@ -70,6 +70,10 @@ enum MicroCompetencyId {
   proportionalUnit,
   perimeter,
   area,
+  lineRelations,
+  rightAngle,
+  figureClassification,
+  circleParts,
   geometryBodies,
   cubeNetFoldability,
   symmetryAxes,
@@ -632,6 +636,40 @@ class MicroCompetencyCatalog {
       minGrade: GradeLevel.third,
     ),
     MicroCompetencyDefinition(
+      id: MicroCompetencyId.lineRelations,
+      label: 'Parallel und senkrecht unterscheiden',
+      description: 'Lagebeziehungen von Geraden sicher erkennen und benennen.',
+      domain: MicroCompetencyDomain.geometry,
+      preferredMode: TrainingMode.geometryRelations,
+      minGrade: GradeLevel.third,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.rightAngle,
+      label: 'Rechte Winkel erkennen',
+      description: 'Rechte Winkel in Figuren und Alltagssituationen sicher erkennen.',
+      domain: MicroCompetencyDomain.geometry,
+      preferredMode: TrainingMode.geometryRelations,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.lineRelations],
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.figureClassification,
+      label: 'Dreiecke und Vierecke beschreiben',
+      description: 'Figuren über Seiten, Winkel und besondere Eigenschaften einordnen.',
+      domain: MicroCompetencyDomain.geometry,
+      preferredMode: TrainingMode.geometryRelations,
+      minGrade: GradeLevel.third,
+      prerequisites: [MicroCompetencyId.rightAngle],
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.circleParts,
+      label: 'Kreisbegriffe sicher verwenden',
+      description: 'Mittelpunkt, Radius und Durchmesser unterscheiden.',
+      domain: MicroCompetencyDomain.geometry,
+      preferredMode: TrainingMode.geometryRelations,
+      minGrade: GradeLevel.third,
+    ),
+    MicroCompetencyDefinition(
       id: MicroCompetencyId.geometryBodies,
       label: 'Körper und Netze untersuchen',
       description: 'Ecken, Kanten, Flächen und Netze räumlicher Körper erkennen.',
@@ -1061,6 +1099,17 @@ class MicroCompetencyCatalog {
               key.contains('area')
                   ? MicroCompetencyId.area
                   : MicroCompetencyId.perimeter,
+            ),
+          ],
+        TrainingMode.geometryRelations => [
+            MicroCompetencyTag(
+              key.startsWith('geomrel:lines:')
+                  ? MicroCompetencyId.lineRelations
+                  : key.startsWith('geomrel:angle:')
+                      ? MicroCompetencyId.rightAngle
+                      : key.startsWith('geomrel:figure:')
+                          ? MicroCompetencyId.figureClassification
+                          : MicroCompetencyId.circleParts,
             ),
           ],
         TrainingMode.geometryBodies =>
