@@ -1788,7 +1788,7 @@ class AppController extends ChangeNotifier {
       if (guidedFocus != null &&
           guidedFocus.competencyId == focus.targetCompetency) {
         parts.add(
-          '${focus.tasks} Aufgaben fokussieren „$label“, weil „${guidedFocus.label}“ in der geführten Hilfe wiederholt unsicher war',
+          '${focus.tasks} Aufgaben fokussieren „$label“, weil „${guidedFocus.label}“ in der geführten Hilfe wiederholt unsicher war; die Unterstützung wird dabei von Darstellung über Denkhinweis bis ohne Vorhilfe reduziert',
         );
       } else {
         parts.add('${focus.tasks} Aufgaben fokussieren „$label“');
@@ -1902,8 +1902,8 @@ class AppController extends ChangeNotifier {
           currentFocus?.definition.id == priority.definition.id &&
           guidedFocus.competencyId == priority.definition.id) {
         action =
-            'Kurze Aufgaben zu „${priority.definition.label}“ üben. In der Hilfe besonders auf „${guidedFocus.label}“ achten. '
-            'Die Teilfragen sind ein Hinweis aus einer Hilfesituation und kein selbstständiger Leistungsnachweis.';
+            'Kurze Aufgaben zu „${priority.definition.label}“ üben. Die Hilfe wird bewusst schrittweise zurückgenommen: zuerst Darstellung, dann nur Denkhinweis, danach ohne Vorhilfe. '
+            'Dabei besonders auf „${guidedFocus.label}“ achten. Die Teilfragen sind ein Hinweis aus einer Hilfesituation und kein selbstständiger Leistungsnachweis.';
       } else if (diagnosticIsActive) {
         action =
             'Im selben Übungsbereich ist das Muster „${diagnostic.pattern.label}“ wiederholt aufgefallen. '
