@@ -321,7 +321,7 @@ class _MicroStepTile extends StatelessWidget {
     final detail = progress.observations == 0
         ? progress.state.label
         : '${progress.state.label} · '
-            'direkt ${(progress.directAccuracy * 100).round()} % · '
+            'Basis ${(progress.baseAccuracy * 100).round()} % · '
             '${progress.observations} Beobachtungen\n'
             '$transferDetail';
     return ListTile(
