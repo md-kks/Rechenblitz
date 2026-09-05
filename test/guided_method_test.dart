@@ -515,6 +515,80 @@ void main() {
     expect(simple, isEmpty);
   });
 
+  test('Einmaleins-Teilfragen bleiben methodentreu und mikrogezielt', () {
+    final fact = MathFact(
+      a: 7,
+      b: 6,
+      operation: MathOperation.multiply,
+    );
+
+    final groups = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.multiply,
+      fact: fact,
+      preferences: const MethodPreferences(
+        multiplication: MultiplicationStrategy.groups,
+      ),
+      targetCompetency: MicroCompetencyId.multiplicationFacts,
+    );
+    final decompose = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.multiply,
+      fact: fact,
+      preferences: const MethodPreferences(
+        multiplication: MultiplicationStrategy.decompose,
+      ),
+      targetCompetency: MicroCompetencyId.multiplicationFacts,
+    );
+    final neighbor = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.multiply,
+      fact: fact,
+      preferences: const MethodPreferences(
+        multiplication: MultiplicationStrategy.neighborFacts,
+      ),
+      targetCompetency: MicroCompetencyId.multiplicationFacts,
+    );
+    final wrongTarget = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.multiply,
+      fact: fact,
+      preferences: const MethodPreferences(
+        multiplication: MultiplicationStrategy.decompose,
+      ),
+      targetCompetency: MicroCompetencyId.multiplicationGroups,
+    );
+    final timed = GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.speed,
+      fact: fact,
+      preferences: const MethodPreferences(
+        multiplication: MultiplicationStrategy.decompose,
+      ),
+      targetCompetency: MicroCompetencyId.multiplicationFacts,
+    );
+
+    expect(groups.map((step) => step.evidenceKey), ['anchorFact']);
+    expect(groups.single.choices[groups.single.correctChoice!], '30');
+    expect(
+      decompose.map((step) => step.evidenceKey),
+      ['firstPartialProduct', 'secondPartialProduct'],
+    );
+    expect(decompose[0].choices[decompose[0].correctChoice!], '21');
+    expect(decompose[1].choices[decompose[1].correctChoice!], '21');
+    expect(neighbor.map((step) => step.evidenceKey), ['anchorFact']);
+    expect(neighbor.single.choices[neighbor.single.correctChoice!], '35');
+    expect(
+      [
+        ...groups,
+        ...decompose,
+        ...neighbor,
+      ].every(
+        (step) =>
+            step.evidenceCompetency ==
+            MicroCompetencyId.multiplicationFacts,
+      ),
+      isTrue,
+    );
+    expect(wrongTarget, isEmpty);
+    expect(timed, isEmpty);
+  });
+
   test('Minus nutzt die gewählte Schulmethode und überspringt triviale Dekaden',
       () {
     const preferences = MethodPreferences(
@@ -1096,4 +1170,75 @@ class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {
     MicroCompetencyId? targetCompetency,
   }) =>
       exercise;
+
+  testWidgets(
+      'Training speichert Einmaleins-Ankerfehler getrennt von der Endlösung',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    await controller.setMultiplicationStrategy(
+      MultiplicationStrategy.neighborFacts,
+    );
+    controller.facts = [
+      MathFact(
+        a: 7,
+        b: 6,
+        operation: MathOperation.multiply,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainingScreen(
+          controller: controller,
+          mode: TrainingMode.multiply,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.multiplicationFacts,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 1'), findsOneWidget);
+    expect(find.text('Antwort eingeben'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, '34'));
+    await tester.pump();
+
+    final failedStep = controller.microObservations.firstWhere(
+      (entry) => entry.source == MicroEvidenceSource.independentStep,
+    );
+    expect(failedStep.id, MicroCompetencyId.multiplicationFacts);
+    expect(failedStep.correct, isFalse);
+    expect(failedStep.usedHelp, isFalse);
+    expect(
+      failedStep.taskKey,
+      'independent:anchorFact:multiply:7:6',
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, '35'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+
+    for (final label in ['4', '2', 'OK']) {
+      final button = find.widgetWithText(FilledButton, label);
+      await tester.ensureVisible(button);
+      await tester.pump();
+      await tester.tap(button);
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(find.text('0 davon waren direkt richtig.'), findsOneWidget);
+    expect(
+      controller
+          .recentTaskKeys(TrainingMode.multiply)
+          .where((key) => key == 'multiply:7:6')
+          .length,
+      1,
+    );
+  });
+
 }
