@@ -235,6 +235,21 @@ Unter **So rechnen wir** gibt es zwei Modi:
 - **Schulmethode** – die hinterlegte Methode wird konsequent genutzt.
 - **Automatisch / weiß ich nicht** – Rechenblitz darf verschiedene schulübliche Darstellungen vergleichen, ändert die gespeicherte Schulmethode aber niemals automatisch.
 
+### Darstellungskompetenz
+
+Rechenblitz beobachtet jetzt auch den prozessbezogenen **Darstellungswechsel** als eigenes Mikro-Lernziel. Dabei wird nicht nur gerechnet, sondern geprüft, ob dieselbe mathematische Idee in unterschiedlichen Formen wiedererkannt wird.
+
+Gezielte Aufgaben verbinden unter anderem:
+
+- Zahl ↔ Stellenwertdarstellung
+- Stellenwertdarstellung ↔ Zerlegung
+- Punktefeld bzw. gleich große Gruppen ↔ Malaufgabe
+- Malaufgabe ↔ sprachliche Gruppenbeschreibung
+
+Die Stellenwertdarstellung skaliert bis zum Millionenraum. Gleich große Gruppen werden ab Klasse 2 eingesetzt; Klasse 1 bleibt bei Zahl-, Stellenwert- und Zerlegungsdarstellungen.
+
+Darstellungsfehler erhalten eigene Mikro-Evidenz, einen passenden ersten Denkhinweis, visuelle Hilfe und bei wiederholtem Auftreten den bestehenden vierstufigen Förderpfad. Vorgegebene Darstellungen zuordnen und ineinander übertragen ist digital prüfbar. Eigene Darstellungen entwickeln, auswählen, zeichnen und begründen bleibt bewusst als praktisch zu ergänzende Unterrichtskompetenz gekennzeichnet.
+
 ### Modellierungskette in Sachaufgaben
 
 Sachaufgaben werden nicht mehr nur als Gesamtaufgabe bewertet. Rechenblitz kann die zentralen Modellierungsschritte gezielt und getrennt beobachten:
@@ -300,8 +315,9 @@ Klasse 3/4 enthält zusätzlich eigene Mikro-Lernziele für mathematisches Denke
 - **Rechenfehler erkennen**
 - **Ergebnisse per Überschlag auf Plausibilität prüfen**
 - **Rechenbeziehungen mathematisch begründen**
+- **zwischen mathematischen Darstellungen wechseln**
 
-Auch Begründungsaufgaben erhalten ein eigenes Mikro-Lernziel. Rechenblitz kann dabei digital prüfen, ob ein Kind eine passende mathematische Begründung erkennt und nachvollzieht. Das freie Formulieren, Austauschen und Verteidigen eigener Begründungen bleibt bewusst als praktisch zu ergänzende Unterrichtskompetenz gekennzeichnet.
+Auch Begründungs- und Darstellungsaufgaben erhalten eigene Mikro-Lernziele. Rechenblitz kann dabei digital prüfen, ob ein Kind eine passende mathematische Begründung erkennt und nachvollzieht. Das freie Formulieren, Austauschen und Verteidigen eigener Begründungen bleibt bewusst als praktisch zu ergänzende Unterrichtskompetenz gekennzeichnet.
 
 Diese Aufgaben sind nicht nur Multiple-Choice-Zusätze: Sie erhalten eigene Mikro-Evidenz, eigene Hilfestufen und – wo passend – konkrete visuelle Darstellungen. Wenn ein Kind nach einem ersten Fehler eine Hilfe nutzt und anschließend löst, wird diese Unterstützungs-Evidenz separat und schwächer gewichtet gespeichert, ohne die Direkt-richtig-Quote zu erhöhen.
 
@@ -318,6 +334,7 @@ Die Hilfestufe „Darstellung“ zeigt inzwischen aufgabenspezifische Mathematik
 - Zeitlinien mit echten Uhrzeiten und Teilstrecken
 - Rechtecke mit Maßen für Umfang und Fläche
 - Visualisierung von Rechenvorteil, Fehlerprüfung und Überschlag
+- Stellenwertdarstellungen und gleich große Punktgruppen für Darstellungswechsel
 
 ### Lokaler Lehrer-QR-Modus
 
