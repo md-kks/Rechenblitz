@@ -97,6 +97,11 @@ class GuidedStepCatalog {
     'nextMultiplierDigit': 'nächste Multiplikatorziffer bestimmen',
     'firstQuotientDigit': 'erste Quotientenziffer bestimmen',
     'firstDivisionRemainder': 'Rest nach dem ersten Divisionsschritt bestimmen',
+    'storyInfo': 'wichtige Angaben in der Sachaufgabe erkennen',
+    'storyOperation': 'passende Rechenart aus der Sachaufgabe wählen',
+    'storyEquation': 'Sachaufgabe als passende Rechnung darstellen',
+    'storyCalculation': 'modellierte Sachaufgabe korrekt ausrechnen',
+    'storyInterpretation': 'Ergebnis passend zur Sachfrage deuten',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -1138,25 +1143,210 @@ class GuidedMethodFactory {
                 : key.startsWith('story:divide:')
                     ? 'Geteilt'
                     : 'die passende Rechenart';
+    final evidenceStep = _wordProblemEvidenceStep(key);
     return GuidedMethodGuide(
       methodKey: 'wordProblem:meaning',
       methodLabel: 'Text zuerst verstehen',
-      nudge: 'Was verändert sich in der Geschichte: wird etwas mehr, weniger, gruppiert oder verteilt?',
+      nudge:
+          'Was verändert sich in der Geschichte: wird etwas mehr, weniger, gruppiert oder verteilt?',
       steps: [
         const GuidedMethodStep(
           title: 'Frage finden',
           instruction: 'Lies zuerst nur den letzten Satz: Was wird gesucht?',
         ),
-        GuidedMethodStep(
-          title: 'Handlung erkennen',
-          instruction: 'Hier passt $operation.',
-        ),
+        if (evidenceStep != null)
+          evidenceStep
+        else
+          GuidedMethodStep(
+            title: 'Handlung erkennen',
+            instruction: 'Hier passt $operation.',
+          ),
         const GuidedMethodStep(
           title: 'Angaben prüfen',
-          instruction: 'Nimm nur die Zahlen, die für die Frage wirklich gebraucht werden.',
+          instruction:
+              'Nimm nur die Zahlen, die für die Frage wirklich gebraucht werden.',
         ),
       ],
     );
+  }
+
+  static GuidedMethodStep? _wordProblemEvidenceStep(String key) {
+    final parts = key.split(':');
+    if (parts.length < 3 || parts.first != 'story') return null;
+
+    if (parts[1] == 'info' && parts.length >= 6) {
+      final kind = parts[2];
+      final a = int.tryParse(parts[3]);
+      final b = int.tryParse(parts[4]);
+      final distractor = int.tryParse(parts[5]);
+      if (a == null || b == null || distractor == null) return null;
+
+      final (question, correct, choices) = switch (kind) {
+        'trip' => (
+            'Welche Angaben brauchst du für die Anzahl der Personen?',
+            '$a Kinder und $b Erwachsene',
+            <String>[
+              '$a Kinder und $b Erwachsene',
+              '$a Kinder und $distractor Bälle',
+              '$b Erwachsene und $distractor Bälle',
+              'Nur die $distractor Bälle',
+            ],
+          ),
+        'pencils' => (
+            'Welche Angaben brauchst du für die Anzahl aller Stifte?',
+            '$a rote und $b blaue Stifte',
+            <String>[
+              '$a rote und $b blaue Stifte',
+              '$a rote Stifte und $distractor Schachteln',
+              '$b blaue Stifte und $distractor Schachteln',
+              'Nur die $distractor Schachteln',
+            ],
+          ),
+        'groups' => (
+            'Welche Angaben brauchst du für die Anzahl aller Kinder?',
+            '$a und $b Kinder',
+            <String>[
+              '$a und $b Kinder',
+              '$a Kinder und $distractor Seiten',
+              '$b Kinder und $distractor Seiten',
+              'Nur die $distractor Seiten',
+            ],
+          ),
+        _ => ('', '', const <String>[]),
+      };
+      if (choices.isEmpty) return null;
+      return GuidedMethodStep(
+        title: 'Wichtige Angaben auswählen',
+        instruction:
+            'Prüfe jede Zahl daran, ob sie wirklich zur gestellten Frage gehört.',
+        question: question,
+        choices: choices,
+        correctChoice: choices.indexOf(correct),
+        evidenceKey: 'storyInfo',
+        evidenceCompetency:
+            MicroCompetencyId.wordProblemRelevantInformation,
+      );
+    }
+
+    if (parts[1] == 'operation' && parts.length >= 5) {
+      final operation = parts[2];
+      final choices = operation == 'x' || operation == 'divide'
+          ? const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)']
+          : const ['Plus (+)', 'Minus (−)'];
+      final correct = switch (operation) {
+        '+' => 'Plus (+)',
+        '-' => 'Minus (−)',
+        'x' => 'Mal (×)',
+        'divide' => 'Geteilt (÷)',
+        _ => '',
+      };
+      if (correct.isEmpty) return null;
+      return GuidedMethodStep(
+        title: 'Rechenart wählen',
+        instruction:
+            'Entscheide nach der Handlung im Text, nicht nur nach einzelnen Signalwörtern.',
+        question: 'Welche Rechenart passt zur Handlung?',
+        choices: choices,
+        correctChoice: choices.indexOf(correct),
+        evidenceKey: 'storyOperation',
+        evidenceCompetency: MicroCompetencyId.wordProblemOperation,
+      );
+    }
+
+    if (parts[1] == 'equation' && parts.length >= 5) {
+      final operation = parts[2];
+      final a = int.tryParse(parts[3]);
+      final b = int.tryParse(parts[4]);
+      if (a == null || b == null) return null;
+      final correct = switch (operation) {
+        '+' => '$a + $b',
+        '-' => '$a − $b',
+        'x' => '$a × $b',
+        'divide' => '$a ÷ $b',
+        _ => '',
+      };
+      if (correct.isEmpty) return null;
+      final choices = switch (operation) {
+        '+' => <String>[correct, '$a − $b', '$a × $b', '$b + $a'],
+        '-' => <String>[correct, '$a + $b', '$b − $a', '$a × $b'],
+        'x' => <String>[correct, '$a + $b', '$a − $b', '$b ÷ $a'],
+        'divide' => <String>[correct, '$a − $b', '$a + $b', '$b ÷ $a'],
+        _ => <String>[],
+      };
+      return GuidedMethodStep(
+        title: 'Rechnung aufschreiben',
+        instruction:
+            'Ordne die wichtigen Zahlen in genau der Reihenfolge an, die zur Handlung passt.',
+        question: 'Welche Rechnung beschreibt die Sachlage?',
+        choices: choices,
+        correctChoice: choices.indexOf(correct),
+        evidenceKey: 'storyEquation',
+        evidenceCompetency: MicroCompetencyId.wordProblemModel,
+      );
+    }
+
+    if (parts[1] == 'calc' && parts.length >= 5) {
+      final operation = parts[2];
+      final a = int.tryParse(parts[3]);
+      final b = int.tryParse(parts[4]);
+      if (a == null || b == null) return null;
+      final result = switch (operation) {
+        '+' => a + b,
+        '-' => a - b,
+        'x' => a * b,
+        'divide' when b != 0 => a ~/ b,
+        _ => null,
+      };
+      if (result == null) return null;
+      final choices = _numberChoices(
+        result,
+        maxValue: max(20, result + 10),
+      );
+      return GuidedMethodStep(
+        title: 'Rechnung ausführen',
+        instruction:
+            'Die Sachlage ist modelliert. Rechne jetzt nur noch die passende Rechnung korrekt aus.',
+        question: 'Welches Rechenergebnis erhältst du?',
+        choices: choices,
+        correctChoice: choices.indexOf('$result'),
+        evidenceKey: 'storyCalculation',
+        evidenceCompetency: MicroCompetencyId.wordProblemCalculation,
+      );
+    }
+
+    if (parts[1] == 'interpret' && parts.length >= 6) {
+      final operation = parts[2];
+      final result = int.tryParse(parts[5]);
+      if (result == null) return null;
+      final correct = operation == '+'
+          ? 'Mara hat jetzt $result Sticker.'
+          : 'Es bleiben $result Karten übrig.';
+      final choices = operation == '+'
+          ? <String>[
+              correct,
+              'Mara hat $result Sticker abgegeben.',
+              'Es kommen noch $result Sticker dazu.',
+              'Im Raum sind $result Kinder.',
+            ]
+          : <String>[
+              correct,
+              'Es wurden $result Karten weggenommen.',
+              'Am Anfang lagen $result Karten dort.',
+              'Es kommen $result Karten dazu.',
+            ];
+      return GuidedMethodStep(
+        title: 'Ergebnis deuten',
+        instruction:
+            'Verbinde die Ergebniszahl wieder mit der Frage und der Sache, um die es geht.',
+        question: 'Welche Antwort passt wirklich zur Situation?',
+        choices: choices,
+        correctChoice: 0,
+        evidenceKey: 'storyInterpretation',
+        evidenceCompetency: MicroCompetencyId.wordProblemInterpretation,
+      );
+    }
+
+    return null;
   }
 
   static GuidedMethodGuide _unitConversion(String key) =>
