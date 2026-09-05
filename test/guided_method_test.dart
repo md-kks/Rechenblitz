@@ -1316,6 +1316,7 @@ void main() {
       steps.single.taskKey,
       startsWith('independent:storyOperation:story:operation:'),
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
 }
