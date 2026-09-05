@@ -345,6 +345,10 @@ class GuidedMethodFactory {
         final firstJump = bridge - b;
         final secondJump = a - bridge;
         final choices = _numberChoices(result, maxValue: max(20, a));
+        final firstJumpChoices =
+            _numberChoices(firstJump, maxValue: max(10, a));
+        final secondJumpChoices =
+            _numberChoices(secondJump, maxValue: max(10, a));
         return GuidedMethodGuide(
           methodKey: 'subtraction:${strategy.name}',
           methodLabel: strategy.label,
@@ -354,9 +358,8 @@ class GuidedMethodFactory {
               title: 'Bis zum Zehner ergänzen',
               instruction: 'Ergänze von $b bis zum nächsten vollen Zehner.',
               question: 'Wie groß ist der erste Sprung?',
-              choices: _numberChoices(firstJump, maxValue: max(10, a)),
-              correctChoice:
-                  _numberChoices(firstJump, maxValue: max(10, a)).indexOf('$firstJump'),
+              choices: firstJumpChoices,
+              correctChoice: firstJumpChoices.indexOf('$firstJump'),
               evidenceKey: 'firstComplementJump',
               evidenceCompetency: MicroCompetencyId.subtractionTenBridge,
             ),
@@ -364,9 +367,8 @@ class GuidedMethodFactory {
               title: 'Bis zur größeren Zahl',
               instruction: 'Ergänze vom vollen Zehner weiter bis $a.',
               question: 'Wie groß ist der zweite Sprung?',
-              choices: _numberChoices(secondJump, maxValue: max(10, a)),
-              correctChoice:
-                  _numberChoices(secondJump, maxValue: max(10, a)).indexOf('$secondJump'),
+              choices: secondJumpChoices,
+              correctChoice: secondJumpChoices.indexOf('$secondJump'),
               evidenceKey: 'secondComplementJump',
               evidenceCompetency: MicroCompetencyId.subtractionTenBridge,
             ),
