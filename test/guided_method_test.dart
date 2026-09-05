@@ -475,6 +475,13 @@ void main() {
       preferences: const MethodPreferences(),
       targetCompetency: MicroCompetencyId.additionTenBridge,
     );
+    final decompositionOnly =
+        GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.practice,
+      fact: bridge,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.numberDecomposition,
+    );
     final untargeted = GuidedMethodFactory.independentArithmeticStepsForTask(
       mode: TrainingMode.practice,
       fact: bridge,
@@ -497,6 +504,10 @@ void main() {
       'bridgeAmount',
       'remainingAddend',
     ]);
+    expect(
+      decompositionOnly.map((step) => step.evidenceKey),
+      ['remainingAddend'],
+    );
     expect(untargeted, isEmpty);
     expect(timed, isEmpty);
     expect(simple, isEmpty);
@@ -539,6 +550,58 @@ void main() {
     expect(steps[0].choices[steps[0].correctChoice!], '3');
     expect(steps[1].choices[steps[1].correctChoice!], '25');
     expect(trivial, isEmpty);
+  });
+
+  test('Arithmetische Teilfragen bleiben auf zwei Fokusaufgaben begrenzt', () {
+    expect(
+      IndependentArithmeticStepPolicy.shouldProbeTask(
+        0,
+        scaffoldFading: false,
+      ),
+      isTrue,
+    );
+    expect(
+      IndependentArithmeticStepPolicy.shouldProbeTask(
+        1,
+        scaffoldFading: false,
+      ),
+      isTrue,
+    );
+    expect(
+      IndependentArithmeticStepPolicy.shouldProbeTask(
+        2,
+        scaffoldFading: false,
+      ),
+      isFalse,
+    );
+    expect(
+      IndependentArithmeticStepPolicy.shouldProbeTask(
+        1,
+        scaffoldFading: true,
+      ),
+      isFalse,
+    );
+    expect(
+      IndependentArithmeticStepPolicy.shouldProbeTask(
+        2,
+        scaffoldFading: true,
+      ),
+      isTrue,
+    );
+    expect(
+      IndependentArithmeticStepPolicy.shouldProbeTask(
+        3,
+        scaffoldFading: true,
+      ),
+      isTrue,
+    );
+    expect(
+      IndependentArithmeticStepPolicy.shouldProbeTask(
+        4,
+        scaffoldFading: true,
+      ),
+      isFalse,
+    );
   });
 
   test('GuidedStepCatalog erkennt auch den Rest des zweiten Summanden', () {
