@@ -23,11 +23,15 @@ class MyRoundScreen extends StatefulWidget {
 class _MyRoundScreenState extends State<MyRoundScreen> {
   late List<GuidedRoundSegment> plan;
   final Set<int> completed = {};
+  late final bool hadStepRecoveryAtStart;
   bool stepRecoveryAttempted = false;
+  bool stepRecoveryCompleted = false;
 
   @override
   void initState() {
     super.initState();
+    hadStepRecoveryAtStart =
+        widget.controller.independentStepRecoveryFocus() != null;
     plan = widget.controller.buildMyRound();
   }
 
@@ -97,13 +101,18 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
     final reviewOnly = remediation == null
         ? false
         : widget.controller.remediationReviewOnly(remediation.pattern);
-    final doneTasks = [
+    final regularDoneTasks = [
       for (var i = 0; i < plan.length; i++)
         if (completed.contains(i)) plan[i].tasks,
     ].fold<int>(0, (a, b) => a + b);
-    final totalTasks =
+    final doneTasks =
+        regularDoneTasks + (stepRecoveryCompleted ? 3 : 0);
+    final regularTotalTasks =
         plan.fold<int>(0, (sum, segment) => sum + segment.tasks);
-    final allDone = completed.length == plan.length;
+    final totalTasks =
+        regularTotalTasks + (hadStepRecoveryAtStart ? 3 : 0);
+    final allDone = completed.length == plan.length &&
+        (!hadStepRecoveryAtStart || stepRecoveryCompleted);
     final hasTransfer = plan.any((segment) => segment.transferEmphasis);
 
     return Scaffold(
@@ -177,7 +186,8 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                     FilledButton.icon(
                       key: const ValueKey('step-recovery-button'),
                       onPressed: () async {
-                        await Navigator.of(context).push(
+                        final recoveryFinished =
+                            await Navigator.of(context).push<bool>(
                           MaterialPageRoute(
                             builder: (_) => StepRecoveryScreen(
                               controller: widget.controller,
@@ -185,9 +195,10 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                             ),
                           ),
                         );
-                        if (mounted) {
+                        if (mounted && recoveryFinished == true) {
                           setState(() {
                             stepRecoveryAttempted = true;
+                            stepRecoveryCompleted = true;
                           });
                         }
                       },
