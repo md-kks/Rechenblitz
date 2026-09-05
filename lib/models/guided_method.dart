@@ -174,22 +174,32 @@ class GuidedMethodFactory {
       final number = valueIndex >= 0 && valueIndex < parts.length
           ? int.tryParse(parts[valueIndex])
           : null;
+      final ones = number == null ? null : number % 10;
+      final onesChoices = ones == null
+          ? const <String>[]
+          : _numberChoices(ones, maxValue: 9);
       return GuidedMethodGuide(
         methodKey: 'representation:placeValue',
         methodLabel: 'Stellenwerte lesen',
         nudge:
             'Lies jede Stelle einzeln: Einer, Zehner, Hunderter und weiter nach links.',
         steps: [
-          const GuidedMethodStep(
+          GuidedMethodStep(
             title: 'Stellen benennen',
             instruction:
                 'Ordne jede sichtbare Ziffer zuerst ihrer Stelle zu. Eine 0 hält eine Stelle frei und darf nicht übersprungen werden.',
+            question: ones == null ? null : 'Welche Ziffer steht bei den Einern?',
+            choices: onesChoices,
+            correctChoice: ones == null ? null : onesChoices.indexOf('$ones'),
+            evidenceKey: ones == null ? null : 'onesDigit',
+            evidenceCompetency:
+                ones == null ? null : MicroCompetencyId.placeValueDigits,
           ),
           GuidedMethodStep(
             title: 'Wert zusammensetzen',
             instruction: number == null
                 ? 'Setze die Stellenwerte anschließend wieder zu einer Zahl oder Zerlegung zusammen.'
-                : 'Die Stellenwertdarstellung gehört zu $number. Prüfe, wie jeder Ziffernwert in der Zerlegung erscheint.',
+                : 'Setze danach alle Stellenwerte wieder zur Zahl $number zusammen.',
           ),
           const GuidedMethodStep(
             title: 'Darstellungen vergleichen',
@@ -208,6 +218,12 @@ class GuidedMethodFactory {
     final each = eachIndex >= 0 && eachIndex < parts.length
         ? int.tryParse(parts[eachIndex])
         : null;
+    final groupChoices = groups == null
+        ? const <String>[]
+        : _numberChoices(groups, maxValue: max(6, groups + 2));
+    final eachChoices = each == null
+        ? const <String>[]
+        : _numberChoices(each, maxValue: max(6, each + 2));
     return GuidedMethodGuide(
       methodKey: 'representation:equalGroups',
       methodLabel: 'Gleiche Gruppen lesen',
@@ -216,15 +232,24 @@ class GuidedMethodFactory {
       steps: [
         GuidedMethodStep(
           title: 'Gruppen zählen',
-          instruction: groups == null
-              ? 'Bestimme, wie viele gleich große Gruppen dargestellt sind.'
-              : 'Es sind $groups gleich große Gruppen.',
+          instruction: 'Bestimme zuerst nur die Anzahl der gleich großen Gruppen.',
+          question: groups == null ? null : 'Wie viele Gruppen siehst du?',
+          choices: groupChoices,
+          correctChoice:
+              groups == null ? null : groupChoices.indexOf('$groups'),
+          evidenceKey: groups == null ? null : 'groupCount',
+          evidenceCompetency:
+              groups == null ? null : MicroCompetencyId.multiplicationGroups,
         ),
         GuidedMethodStep(
           title: 'Inhalt jeder Gruppe',
-          instruction: each == null
-              ? 'Bestimme, wie viele Punkte in jeder Gruppe liegen.'
-              : 'In jeder Gruppe liegen $each Punkte.',
+          instruction: 'Schau jetzt nur auf eine Gruppe und zähle ihren Inhalt.',
+          question: each == null ? null : 'Wie viele Punkte sind in jeder Gruppe?',
+          choices: eachChoices,
+          correctChoice: each == null ? null : eachChoices.indexOf('$each'),
+          evidenceKey: each == null ? null : 'itemsPerGroup',
+          evidenceCompetency:
+              each == null ? null : MicroCompetencyId.multiplicationGroups,
         ),
         GuidedMethodStep(
           title: 'In Symbolsprache übersetzen',
