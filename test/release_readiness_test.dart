@@ -7,6 +7,7 @@ import 'package:rechenblitz/models/curriculum_audit.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/evidence_coverage_audit.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
+import 'package:rechenblitz/models/remediation_path.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/app_controller.dart';
