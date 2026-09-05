@@ -225,7 +225,7 @@ void main() {
       MicroCompetencyId.subtractionTenBridge,
     );
   });
-  test('Gemeistert verlangt sichere direkte Evidenz plus Transfer', () {
+  test('Gemeistert verlangt sichere Basisevidenz plus Transfer', () {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
@@ -248,7 +248,7 @@ void main() {
     final withoutTransfer =
         controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
     expect(withoutTransfer.state, MicroCompetencyState.secure);
-    expect(withoutTransfer.directEvidence, closeTo(6, 0.001));
+    expect(withoutTransfer.baseEvidence, closeTo(6, 0.001));
     expect(withoutTransfer.transferEvidence, 0);
 
     controller.microObservations.insertAll(
