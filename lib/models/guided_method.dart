@@ -285,10 +285,12 @@ class GuidedMethodFactory {
           steps: [
             GuidedMethodStep(
               title: 'Bis zum Zehner',
-              instruction: 'Von $a bis $bridge fehlen $toTen.',
+              instruction: 'Suche zuerst den vollen Zehner unter $a.',
               question: 'Wie viel musst du zuerst wegnehmen?',
               choices: choices1,
               correctChoice: choices1.indexOf('$toTen'),
+              evidenceKey: 'bridgeAmount',
+              evidenceCompetency: MicroCompetencyId.subtractionTenBridge,
             ),
             GuidedMethodStep(
               title: 'Rest bestimmen',
@@ -296,6 +298,8 @@ class GuidedMethodFactory {
               question: 'Wie viel musst du noch wegnehmen?',
               choices: choices2,
               correctChoice: choices2.indexOf('$rest'),
+              evidenceKey: 'remainingSubtrahend',
+              evidenceCompetency: MicroCompetencyId.numberDecomposition,
             ),
             GuidedMethodStep(
               title: 'Weiterrechnen',
@@ -320,10 +324,12 @@ class GuidedMethodFactory {
           steps: [
             GuidedMethodStep(
               title: 'Ersten Teil wegnehmen',
-              instruction: '$a − $first = $middle.',
+              instruction: 'Nimm zuerst $first von $a weg.',
               question: 'Wo landest du nach dem ersten Schritt?',
               choices: choices1,
               correctChoice: choices1.indexOf('$middle'),
+              evidenceKey: 'firstPartialSubtraction',
+              evidenceCompetency: MicroCompetencyId.numberDecomposition,
             ),
             GuidedMethodStep(
               title: 'Rest wegnehmen',
@@ -346,11 +352,23 @@ class GuidedMethodFactory {
           steps: [
             GuidedMethodStep(
               title: 'Bis zum Zehner ergänzen',
-              instruction: 'Von $b bis $bridge sind es $firstJump.',
+              instruction: 'Ergänze von $b bis zum nächsten vollen Zehner.',
+              question: 'Wie groß ist der erste Sprung?',
+              choices: _numberChoices(firstJump, maxValue: max(10, a)),
+              correctChoice:
+                  _numberChoices(firstJump, maxValue: max(10, a)).indexOf('$firstJump'),
+              evidenceKey: 'firstComplementJump',
+              evidenceCompetency: MicroCompetencyId.subtractionTenBridge,
             ),
             GuidedMethodStep(
               title: 'Bis zur größeren Zahl',
-              instruction: 'Von $bridge bis $a sind es noch $secondJump.',
+              instruction: 'Ergänze vom vollen Zehner weiter bis $a.',
+              question: 'Wie groß ist der zweite Sprung?',
+              choices: _numberChoices(secondJump, maxValue: max(10, a)),
+              correctChoice:
+                  _numberChoices(secondJump, maxValue: max(10, a)).indexOf('$secondJump'),
+              evidenceKey: 'secondComplementJump',
+              evidenceCompetency: MicroCompetencyId.subtractionTenBridge,
             ),
             GuidedMethodStep(
               title: 'Sprünge zusammenzählen',
