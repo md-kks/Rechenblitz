@@ -9,6 +9,7 @@ import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:rechenblitz/screens/curriculum_training_screen.dart';
+import 'package:rechenblitz/screens/structured_training_screen.dart';
 import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/widgets/guided_method_panel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1223,6 +1224,100 @@ void main() {
       1,
     );
   });
+
+  test('Sachaufgaben-Hilfe beobachtet die fünf Modellierungsschritte getrennt',
+      () {
+    const cases = [
+      (
+        taskKey: 'story:info:trip:5:2:3',
+        competency: MicroCompetencyId.wordProblemRelevantInformation,
+        stepKey: 'storyInfo',
+      ),
+      (
+        taskKey: 'story:operation:-:9:4',
+        competency: MicroCompetencyId.wordProblemOperation,
+        stepKey: 'storyOperation',
+      ),
+      (
+        taskKey: 'story:equation:+:7:5',
+        competency: MicroCompetencyId.wordProblemModel,
+        stepKey: 'storyEquation',
+      ),
+      (
+        taskKey: 'story:calc:x:4:3',
+        competency: MicroCompetencyId.wordProblemCalculation,
+        stepKey: 'storyCalculation',
+      ),
+      (
+        taskKey: 'story:interpret:+:7:5:12',
+        competency: MicroCompetencyId.wordProblemInterpretation,
+        stepKey: 'storyInterpretation',
+      ),
+    ];
+
+    for (final item in cases) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.wordProblems,
+        taskKey: item.taskKey,
+        expected: 0,
+        preferences: const MethodPreferences(),
+        targetCompetency: item.competency,
+      );
+      final evidenceSteps = guide.steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .toList();
+
+      expect(evidenceSteps, hasLength(1), reason: item.taskKey);
+      expect(evidenceSteps.single.evidenceKey, item.stepKey);
+      expect(evidenceSteps.single.evidenceCompetency, item.competency);
+      expect(
+        evidenceSteps.single.correctChoice,
+        inInclusiveRange(0, evidenceSteps.single.choices.length - 1),
+      );
+      expect(
+        GuidedStepCatalog.labelFor(item.stepKey),
+        isNot(item.stepKey),
+      );
+    }
+  });
+
+  testWidgets(
+      'Structured Training speichert ersten Sachaufgaben-Teilschritt eigenständig',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.twenty;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.wordProblems,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.wordProblemOperation,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final answerButtons = find.byType(FilledButton);
+    expect(answerButtons, findsWidgets);
+    await tester.tap(answerButtons.first);
+    await tester.pump();
+
+    final steps = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+        .toList();
+    expect(steps, hasLength(1));
+    expect(steps.single.id, MicroCompetencyId.wordProblemOperation);
+    expect(steps.single.usedHelp, isFalse);
+    expect(
+      steps.single.taskKey,
+      startsWith('independent:storyOperation:story:operation:'),
+    );
+  });
+
 }
 
 class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {
