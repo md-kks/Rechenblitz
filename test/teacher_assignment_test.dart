@@ -39,6 +39,7 @@ void main() {
     expect(parsed.targetCompetency,
         MicroCompetencyId.wordProblemCalculation);
     expect(parsed.transferEmphasis, isTrue);
+    expect(parsed.summary, contains('Transfer'));
     expect(
       parsed.methods.multiplication,
       MultiplicationStrategy.decompose,
@@ -86,4 +87,25 @@ void main() {
       SubtractionStrategy.complement,
     );
   });
+  test('Transferplanung verschiebt Grundrechenarten in Anwendungskontexte', () {
+    final controller = AppController();
+
+    expect(
+      controller.transferModeFor(MicroCompetencyId.additionTenBridge),
+      TrainingMode.wordProblems,
+    );
+    expect(
+      controller.transferModeFor(MicroCompetencyId.multiplicationFacts),
+      TrainingMode.wordProblems,
+    );
+    expect(
+      controller.transferModeFor(MicroCompetencyId.representationTranslation),
+      TrainingMode.wordProblems,
+    );
+    expect(
+      controller.transferModeFor(MicroCompetencyId.roundingPlace),
+      TrainingMode.rounding,
+    );
+  });
+
 }

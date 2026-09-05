@@ -314,11 +314,16 @@ class _MicroStepTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final transferDetail = progress.transferObservations == 0
+        ? 'Transfer noch offen'
+        : 'Transfer ${(progress.transferAccuracy * 100).round()} % · '
+            '${progress.transferObservations} Beobachtungen';
     final detail = progress.observations == 0
         ? progress.state.label
         : '${progress.state.label} · '
-            '${(progress.accuracy * 100).round()} % · '
-            '${progress.observations} Beobachtungen';
+            'Basis ${(progress.baseAccuracy * 100).round()} % · '
+            '${progress.observations} Beobachtungen\n'
+            '$transferDetail';
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,

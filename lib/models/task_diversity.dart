@@ -15,6 +15,12 @@ class TaskDiversity {
     final second = parts[1];
 
     if (head == 'story' || head == 'money' || head == 'measure') {
+      if (head == 'story' &&
+          second == 'transfer' &&
+          parts.length > 6 &&
+          parts[2] == 'skill') {
+        return 'story:transfer:${parts[3]}:${parts[5]}';
+      }
       if (parts.length > 2 && int.tryParse(parts[2]) == null) {
         return '$head:$second:${parts[2]}';
       }

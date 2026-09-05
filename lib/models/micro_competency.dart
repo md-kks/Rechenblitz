@@ -123,7 +123,7 @@ class MicroCompetencyTag {
   final double weight;
 }
 
-enum MicroEvidenceSource { practice, remediation }
+enum MicroEvidenceSource { practice, remediation, transfer }
 
 class MicroCompetencyObservation {
   const MicroCompetencyObservation({
@@ -225,7 +225,13 @@ class MicroCompetencyProgress {
     required this.accuracy,
     required this.evidence,
     required this.observations,
+    this.baseAccuracy = 0,
+    this.transferAccuracy = 0,
+    this.baseEvidence = 0,
+    this.transferEvidence = 0,
+    this.transferObservations = 0,
     this.lastSeen,
+    this.lastTransferSeen,
   });
 
   final MicroCompetencyDefinition definition;
@@ -233,7 +239,13 @@ class MicroCompetencyProgress {
   final double accuracy;
   final double evidence;
   final int observations;
+  final double baseAccuracy;
+  final double transferAccuracy;
+  final double baseEvidence;
+  final double transferEvidence;
+  final int transferObservations;
   final DateTime? lastSeen;
+  final DateTime? lastTransferSeen;
 }
 
 class MicroCompetencyCatalog {
@@ -1105,6 +1117,10 @@ class MicroCompetencyCatalog {
   }
 
   static List<MicroCompetencyTag> _storyTags(String key) {
+    if (key.startsWith('story:transfer:skill:')) {
+      return _transferStoryTags(key);
+    }
+
     if (key.startsWith('story:info:') ||
         key.startsWith('story:transfer:irrelevant:')) {
       return const [
@@ -1179,6 +1195,58 @@ class MicroCompetencyCatalog {
         const MicroCompetencyTag(
           MicroCompetencyId.divisionSharing,
           weight: 0.35,
+        ),
+      );
+    }
+    return tags;
+  }
+
+  static List<MicroCompetencyTag> _transferStoryTags(String key) {
+    final parts = key.split(':');
+    if (parts.length < 5) return const <MicroCompetencyTag>[];
+    MicroCompetencyId? target;
+    for (final id in MicroCompetencyId.values) {
+      if (id.name == parts[3]) {
+        target = id;
+        break;
+      }
+    }
+    if (target == null) return const <MicroCompetencyTag>[];
+
+    final tags = <MicroCompetencyTag>[
+      MicroCompetencyTag(target),
+      const MicroCompetencyTag(
+        MicroCompetencyId.wordProblemModel,
+        weight: 0.35,
+      ),
+    ];
+
+    if (target == MicroCompetencyId.multiplicationGroups) {
+      tags.add(
+        const MicroCompetencyTag(
+          MicroCompetencyId.multiplicationFacts,
+          weight: 0.35,
+        ),
+      );
+    } else if (target == MicroCompetencyId.multiplicationFacts) {
+      tags.add(
+        const MicroCompetencyTag(
+          MicroCompetencyId.multiplicationGroups,
+          weight: 0.45,
+        ),
+      );
+    } else if (target == MicroCompetencyId.divisionSharing) {
+      tags.add(
+        const MicroCompetencyTag(
+          MicroCompetencyId.divisionFacts,
+          weight: 0.35,
+        ),
+      );
+    } else if (target == MicroCompetencyId.divisionFacts) {
+      tags.add(
+        const MicroCompetencyTag(
+          MicroCompetencyId.divisionSharing,
+          weight: 0.45,
         ),
       );
     }

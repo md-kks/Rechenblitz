@@ -323,4 +323,68 @@ void main() {
     }
   });
 
+  test('Grundrechenarten wechseln im Transfer in Sachkontexte', () {
+    final generator = StructuredExerciseGenerator(random: Random(501));
+    const targets = [
+      MicroCompetencyId.additionNoBridge,
+      MicroCompetencyId.additionTenBridge,
+      MicroCompetencyId.subtractionNoBridge,
+      MicroCompetencyId.subtractionTenBridge,
+      MicroCompetencyId.multiplicationGroups,
+      MicroCompetencyId.multiplicationFacts,
+      MicroCompetencyId.divisionSharing,
+      MicroCompetencyId.divisionFacts,
+    ];
+
+    for (final maxValue in [10, 20, 100]) {
+      for (final target in targets) {
+        for (var i = 0; i < 25; i++) {
+          final exercise = generator.generate(
+            mode: TrainingMode.wordProblems,
+            maxValue: maxValue,
+            gradeLevel: GradeLevel.second,
+            targetCompetency: target,
+            transferEmphasis: true,
+          );
+          final tags = MicroCompetencyCatalog.tagsForTask(
+            mode: TrainingMode.wordProblems,
+            taskKey: exercise.key,
+          );
+
+          expect(
+            exercise.key,
+            startsWith('story:transfer:skill:${target.name}:'),
+          );
+          expect(tags.first.id, target);
+          expect(exercise.answer, inInclusiveRange(0, maxValue));
+
+          final parts = exercise.key.split(':');
+          final operation = parts[4];
+          final a = int.parse(parts[6]);
+          final b = int.parse(parts[7]);
+          if (target == MicroCompetencyId.additionTenBridge) {
+            expect((a % 10) + (b % 10), greaterThanOrEqualTo(10));
+          }
+          if (target == MicroCompetencyId.additionNoBridge) {
+            expect((a % 10) + (b % 10), lessThan(10));
+          }
+          if (target == MicroCompetencyId.subtractionTenBridge) {
+            expect(a % 10, lessThan(b % 10));
+          }
+          if (target == MicroCompetencyId.subtractionNoBridge) {
+            expect(a % 10, greaterThanOrEqualTo(b % 10));
+          }
+          if (operation == 'x') {
+            expect(a * b, exercise.answer);
+          }
+          if (operation == 'divide') {
+            expect(a % b, 0);
+            expect(a ~/ b, exercise.answer);
+          }
+        }
+      }
+    }
+  });
+
+
 }

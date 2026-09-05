@@ -41,6 +41,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             mode: segment.mode,
             targetTasks: segment.tasks,
             targetCompetency: segment.targetCompetency,
+            transferEmphasis: segment.transferEmphasis,
           ),
         ),
       );
@@ -64,6 +65,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             mode: segment.mode,
             targetTasks: segment.tasks,
             targetCompetency: segment.targetCompetency,
+            transferEmphasis: segment.transferEmphasis,
           ),
         ),
       );
@@ -88,6 +90,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
     final totalTasks =
         plan.fold<int>(0, (sum, segment) => sum + segment.tasks);
     final allDone = completed.length == plan.length;
+    final hasTransfer = plan.any((segment) => segment.transferEmphasis);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Meine Runde')),
@@ -110,8 +113,12 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                   const SizedBox(height: 8),
                   Text(
                     allDone
-                        ? 'Grundlage, Lernziel, Wiederholung und Transfer sind erledigt. Mehr ist heute nicht nötig.'
-                        : 'Rechenblitz stellt die Runde aus sicherer Grundlage, einem konkreten Teilschritt, fälliger Wiederholung und Transfer zusammen.',
+                        ? hasTransfer
+                            ? 'Grundlage, Lernziel, Wiederholung und Transfer sind erledigt. Mehr ist heute nicht nötig.'
+                            : 'Grundlage, Lernziel, Wiederholung und Abschluss sind erledigt. Mehr ist heute nicht nötig.'
+                        : hasTransfer
+                            ? 'Rechenblitz stellt die Runde aus sicherer Grundlage, einem konkreten Teilschritt, fälliger Wiederholung und Transfer zusammen.'
+                            : 'Rechenblitz stellt die Runde aus sicherer Grundlage, einem konkreten Teilschritt, fälliger Wiederholung und einem passenden Abschluss zusammen.',
                   ),
                   const SizedBox(height: 14),
                   LinearProgressIndicator(

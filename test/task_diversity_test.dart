@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
+import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/models/task_diversity.dart';
 import 'package:rechenblitz/models/training.dart';
@@ -207,4 +208,34 @@ void main() {
       expect(tester.takeException(), isNull, reason: pattern.name);
     }
   });
+  test('Transfer-Sachkontexte rotieren über verschiedene Familien', () {
+    final generator = StructuredExerciseGenerator(random: Random(9501));
+    final recent = <String>[];
+    final families = <String>{};
+
+    for (var i = 0; i < 30; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: 100,
+        recentKeys: recent,
+        gradeLevel: GradeLevel.second,
+        targetCompetency: MicroCompetencyId.additionTenBridge,
+        transferEmphasis: true,
+      );
+      families.add(TaskDiversity.familyForKey(exercise.key));
+      recent.insert(0, exercise.key);
+      if (recent.length > 40) recent.removeLast();
+    }
+
+    expect(families.length, greaterThanOrEqualTo(3));
+    expect(
+      families.every(
+        (family) => family.startsWith(
+          'story:transfer:additionTenBridge:',
+        ),
+      ),
+      isTrue,
+    );
+  });
+
 }

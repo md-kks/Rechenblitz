@@ -19,12 +19,14 @@ class CurriculumTrainingScreen extends StatefulWidget {
     required this.mode,
     this.targetTasks = 10,
     this.targetCompetency,
+    this.transferEmphasis = false,
   });
 
   final AppController controller;
   final TrainingMode mode;
   final int targetTasks;
   final MicroCompetencyId? targetCompetency;
+  final bool transferEmphasis;
 
   @override
   State<CurriculumTrainingScreen> createState() =>
@@ -112,6 +114,9 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         usedHelp: showHint,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
+        source: widget.transferEmphasis
+            ? MicroEvidenceSource.transfer
+            : MicroEvidenceSource.practice,
       );
     }
     if (answer != current.answer) {
@@ -140,6 +145,9 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         taskKey: current.key,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
+        source: widget.transferEmphasis
+            ? MicroEvidenceSource.transfer
+            : MicroEvidenceSource.practice,
       );
       if (!mounted || finishing) return;
     }

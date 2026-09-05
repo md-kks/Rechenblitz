@@ -115,6 +115,9 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         usedHelp: showHint,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
+        source: widget.transferEmphasis
+            ? MicroEvidenceSource.transfer
+            : MicroEvidenceSource.practice,
       );
     }
     if (answer != current.answer) {
@@ -137,6 +140,9 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         taskKey: current.key,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
+        source: widget.transferEmphasis
+            ? MicroEvidenceSource.transfer
+            : MicroEvidenceSource.practice,
       );
       if (!mounted || finishing) return;
     }

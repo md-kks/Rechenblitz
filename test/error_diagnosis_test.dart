@@ -404,4 +404,37 @@ void main() {
     );
   });
 
+  test('Transfer-Sachkontexte behalten konkrete Rechenfehler', () {
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.wordProblems,
+        taskKey:
+            'story:transfer:skill:additionTenBridge:+:books:47:38',
+        expected: 85,
+        actual: 75,
+      ),
+      ErrorPattern.carryOmitted,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.wordProblems,
+        taskKey:
+            'story:transfer:skill:multiplicationFacts:x:tables:6:4',
+        expected: 24,
+        actual: 10,
+      ),
+      ErrorPattern.multiplicationAsAddition,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.wordProblems,
+        taskKey:
+            'story:transfer:skill:divisionFacts:divide:teams:24:6',
+        expected: 4,
+        actual: 18,
+      ),
+      ErrorPattern.divisionAsSubtraction,
+    );
+  });
+
 }
