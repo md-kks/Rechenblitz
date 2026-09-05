@@ -310,6 +310,15 @@ void main() {
     );
     expect(transfer.mode, TrainingMode.wordProblems);
     expect(transfer.reason, contains('veränderten Aufgabe'));
+    expect(
+      plan.take(3).every(
+            (segment) =>
+                segment.targetCompetency !=
+                MicroCompetencyId.subtractionTenBridge,
+          ),
+      isTrue,
+      reason: 'Das Transferziel soll in derselben Runde nicht vorgeübt werden.',
+    );
   });
 
   test('ohne sichere Kompetenz bleibt der Abschluss Entdeckung statt Transfer',
