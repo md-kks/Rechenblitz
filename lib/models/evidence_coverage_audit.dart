@@ -178,6 +178,11 @@ abstract final class EvidenceCoverageAuditCatalog {
       'groupCount',
       'itemsPerGroup',
     ],
+    MicroCompetencyId.multiplicationFacts: [
+      'firstPartialProduct',
+      'secondPartialProduct',
+      'anchorFact',
+    ],
     MicroCompetencyId.writtenAlignment: [
       'onesAlignment',
     ],

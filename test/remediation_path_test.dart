@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
+import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/remediation_path.dart';
@@ -843,6 +844,66 @@ void main() {
         expect(task.maxAnswerValue, lessThanOrEqualTo(20));
       }
     }
+  });
+
+
+  test('Einmaleins-Recovery bleibt bei Teilprodukten und Ankern im Kopfrechnen',
+      () {
+    final generator = StepRecoveryGenerator(random: Random(610));
+    const cases = [
+      (key: 'firstPartialProduct', expectedText: 'Zerlege'),
+      (key: 'secondPartialProduct', expectedText: 'Zerlege'),
+      (key: 'anchorFact', expectedText: 'Anker'),
+    ];
+
+    for (final item in cases) {
+      final focus = IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.multiplicationFacts,
+        stepKey: item.key,
+        label: GuidedStepCatalog.labelFor(item.key),
+        mode: TrainingMode.multiply,
+        lastSeen: DateTime(2026, 9, 6, 20),
+        sourceTaskKey: 'independent:${item.key}:multiply:7:6',
+      );
+      final plan = generator.generate(
+        focus: focus,
+        range: NumberRangeLevel.hundred,
+      );
+
+      expect(plan.tasks, hasLength(3), reason: item.key);
+      expect(
+        plan.tasks.every(
+          (task) =>
+              task.mode == TrainingMode.multiply &&
+              task.prompt.contains(item.expectedText) &&
+              !task.prompt.contains('schriftlich') &&
+              task.answer >= 0 &&
+              task.answer <= task.maxAnswerValue,
+        ),
+        isTrue,
+        reason: item.key,
+      );
+    }
+  });
+
+  test('gleichnamiges Teilprodukt bleibt bei schriftlichem Mal schriftlich', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.writtenMultiplyProcedure,
+      stepKey: 'firstPartialProduct',
+      label: GuidedStepCatalog.labelFor('firstPartialProduct'),
+      mode: TrainingMode.writtenMultiply,
+      lastSeen: DateTime(2026, 9, 6, 20),
+      sourceTaskKey: 'independent:firstPartialProduct:written:x:237:4',
+    );
+    final plan = StepRecoveryGenerator(random: Random(611)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    expect(
+      plan.tasks.every((task) => task.prompt.contains('schriftlich')),
+      isTrue,
+    );
   });
 
 }

@@ -264,6 +264,23 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (fact.operation == MathOperation.multiply) {
+      if ((mode != TrainingMode.multiply && mode != TrainingMode.mixed) ||
+          targetCompetency != MicroCompetencyId.multiplicationFacts) {
+        return const <GuidedMethodStep>[];
+      }
+      return _multiplication(fact, preferences)
+          .steps
+          .where(
+            (step) =>
+                step.recordsIntermediateEvidence &&
+                step.evidenceCompetency ==
+                    MicroCompetencyId.multiplicationFacts,
+          )
+          .take(2)
+          .toList(growable: false);
+    }
+
     if (mode != TrainingMode.practice &&
         mode != TrainingMode.minus &&
         mode != TrainingMode.mixed) {
@@ -692,6 +709,27 @@ class GuidedMethodFactory {
         final partialGroups = b * firstGroupCount;
         final partialChoices =
             _numberChoices(partialGroups, maxValue: max(20, result));
+        final anchorA = a > 5
+            ? 5
+            : a > 2
+                ? 2
+                : a > 1
+                    ? 1
+                    : a;
+        final anchorB = anchorA != a
+            ? b
+            : b > 5
+                ? 5
+                : b > 2
+                    ? 2
+                    : b > 1
+                        ? 1
+                        : b;
+        final hasAnchor = anchorA != a || anchorB != b;
+        final anchorProduct = anchorA * anchorB;
+        final anchorChoices = hasAnchor
+            ? _numberChoices(anchorProduct, maxValue: max(100, result))
+            : const <String>[];
         return GuidedMethodGuide(
           methodKey: 'multiplication:${strategy.name}',
           methodLabel: strategy.label,
@@ -710,6 +748,20 @@ class GuidedMethodFactory {
                   ? MicroCompetencyId.multiplicationGroups
                   : null,
             ),
+            if (hasAnchor)
+              GuidedMethodStep(
+                title: 'Bekannte Gruppen als Anker',
+                instruction: anchorA != a
+                    ? 'Nutze zuerst $anchorA bekannte Gruppen mit je $b.'
+                    : 'Nutze in jeder der $a Gruppen zuerst $anchorB bekannte Elemente.',
+                question:
+                    'Wie groß ist die Ankeraufgabe $anchorA × $anchorB?',
+                choices: anchorChoices,
+                correctChoice: anchorChoices.indexOf('$anchorProduct'),
+                evidenceKey: 'anchorFact',
+                evidenceCompetency:
+                    MicroCompetencyId.multiplicationFacts,
+              ),
             GuidedMethodStep(
               title: 'Alle Gruppen sehen',
               instruction: '${List.filled(min(a, 6), '$b').join(' + ')}${a > 6 ? ' + …' : ''}',
