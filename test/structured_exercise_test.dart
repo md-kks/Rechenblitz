@@ -493,4 +493,77 @@ void main() {
     }
   });
 
+
+  test('fokussierte Sachaufgaben deklarieren genau ihren Modellierungsschritt',
+      () {
+    final generator = StructuredExerciseGenerator(random: Random(620));
+    const cases = [
+      (
+        competency: MicroCompetencyId.wordProblemRelevantInformation,
+        key: 'storyInfo',
+      ),
+      (
+        competency: MicroCompetencyId.wordProblemOperation,
+        key: 'storyOperation',
+      ),
+      (
+        competency: MicroCompetencyId.wordProblemModel,
+        key: 'storyEquation',
+      ),
+      (
+        competency: MicroCompetencyId.wordProblemCalculation,
+        key: 'storyCalculation',
+      ),
+      (
+        competency: MicroCompetencyId.wordProblemInterpretation,
+        key: 'storyInterpretation',
+      ),
+    ];
+
+    for (final item in cases) {
+      for (var i = 0; i < 20; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.wordProblems,
+          maxValue: 20,
+          gradeLevel: GradeLevel.first,
+          targetCompetency: item.competency,
+        );
+
+        expect(exercise.hasDirectIndependentStep, isTrue,
+            reason: item.competency.name);
+        expect(exercise.directIndependentStepKey, item.key,
+            reason: exercise.key);
+        expect(exercise.directIndependentStepCompetency, item.competency,
+            reason: exercise.key);
+      }
+    }
+  });
+
+  test('normale und Transfer-Sachaufgaben erzeugen keine direkte Step-Evidenz',
+      () {
+    final generator = StructuredExerciseGenerator(random: Random(621));
+
+    for (var i = 0; i < 40; i++) {
+      final normal = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: 100,
+        gradeLevel: GradeLevel.second,
+      );
+      expect(normal.hasDirectIndependentStep, isFalse, reason: normal.key);
+
+      final transfer = generator.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: 100,
+        gradeLevel: GradeLevel.second,
+        targetCompetency: MicroCompetencyId.additionTenBridge,
+        transferEmphasis: true,
+      );
+      expect(
+        transfer.hasDirectIndependentStep,
+        isFalse,
+        reason: transfer.key,
+      );
+    }
+  });
+
 }
