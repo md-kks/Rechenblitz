@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,6 +12,7 @@ import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../widgets/geometry_relation_visual.dart';
 import '../widgets/guided_method_panel.dart';
+import '../widgets/independent_step_card.dart';
 import '../widgets/number_answer_pad.dart';
 
 class CurriculumTrainingScreen extends StatefulWidget {
@@ -22,6 +25,7 @@ class CurriculumTrainingScreen extends StatefulWidget {
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
     this.scaffoldFading = false,
+    this.exerciseGenerator,
   });
 
   final AppController controller;
@@ -31,6 +35,7 @@ class CurriculumTrainingScreen extends StatefulWidget {
   final bool reviewEmphasis;
   final bool transferEmphasis;
   final bool scaffoldFading;
+  final CurriculumExerciseGenerator? exerciseGenerator;
 
   @override
   State<CurriculumTrainingScreen> createState() =>
@@ -44,7 +49,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
           ? MicroEvidenceSource.review
           : MicroEvidenceSource.practice;
 
-  final CurriculumExerciseGenerator generator = CurriculumExerciseGenerator();
+  late final CurriculumExerciseGenerator generator;
   late CurriculumExercise current;
   late DateTime startedAt;
   late DateTime shownAt;
@@ -60,10 +65,19 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   String feedback = '';
   ErrorPattern? currentErrorPattern;
   final List<int> responseTimes = [];
+  int taskIndex = 0;
+  int checkpointIndex = 0;
+  final Set<int> checkpointAttempted = <int>{};
+  final Map<int, int> checkpointWrongAttempts = <int, int>{};
+  bool checkpointLocked = false;
+  bool hadCheckpointError = false;
+  Future<void>? taskRememberFuture;
+  String checkpointFeedback = '';
 
   @override
   void initState() {
     super.initState();
+    generator = widget.exerciseGenerator ?? CurriculumExerciseGenerator();
     startedAt = DateTime.now();
     current = _next();
     _prepareHelpForCurrent();
@@ -74,6 +88,15 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   }
 
   void _prepareHelpForCurrent() {
+    taskIndex = completed;
+    checkpointIndex = 0;
+    checkpointAttempted.clear();
+    checkpointWrongAttempts.clear();
+    checkpointLocked = false;
+    hadCheckpointError = false;
+    taskRememberFuture = null;
+    checkpointFeedback = '';
+
     final fadingLevel = ScaffoldFadingPolicy.initialLevelForTask(
       completed,
       enabled: widget.scaffoldFading,
@@ -109,10 +132,108 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         targetCompetency: widget.targetCompetency,
       );
 
+  List<GuidedMethodStep> get _independentWrittenSteps {
+    if (widget.reviewEmphasis ||
+        widget.transferEmphasis ||
+        !IndependentArithmeticStepPolicy.shouldProbeTask(
+          taskIndex,
+          scaffoldFading: widget.scaffoldFading,
+        )) {
+      return const <GuidedMethodStep>[];
+    }
+    return GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: widget.mode,
+      taskKey: current.key,
+      expected: current.answer,
+      preferences: widget.controller.effectiveMethodPreferences,
+      targetCompetency: widget.targetCompetency,
+    );
+  }
 
+  bool get _checkpointsComplete =>
+      checkpointIndex >= _independentWrittenSteps.length;
+
+  Future<void> _rememberCurrentTaskOnce() {
+    final existing = taskRememberFuture;
+    if (existing != null) return existing;
+    final future = widget.controller.rememberPresentedTask(
+      widget.mode,
+      current.key,
+    );
+    taskRememberFuture = future;
+    return future;
+  }
+
+  Future<void> _answerCheckpoint(int choice) async {
+    if (locked ||
+        finishing ||
+        checkpointLocked ||
+        _checkpointsComplete) {
+      return;
+    }
+
+    final steps = _independentWrittenSteps;
+    final index = checkpointIndex;
+    final step = steps[index];
+    final correct = choice == step.correctChoice;
+    final firstAttempt = checkpointAttempted.add(index);
+
+    if (firstAttempt) {
+      unawaited(_rememberCurrentTaskOnce());
+      unawaited(
+        widget.controller.recordIndependentStepAttempt(
+          mode: widget.mode,
+          taskKey: current.key,
+          stepKey: step.evidenceKey!,
+          competencyId: step.evidenceCompetency!,
+          correct: correct,
+          usedHelp: showHint,
+          helpLevel: helpLevel,
+          methodKey: activeMethodKey,
+          evidenceWeight: step.evidenceWeight,
+        ),
+      );
+    }
+
+    if (!correct) {
+      hadCheckpointError = true;
+      final attempts = (checkpointWrongAttempts[index] ?? 0) + 1;
+      checkpointWrongAttempts[index] = attempts;
+      setState(() {
+        checkpointFeedback = attempts >= 2
+            ? 'Nutze bei Bedarf den Rechenhinweis und prüfe diesen Schritt noch einmal.'
+            : 'Noch nicht. Prüfe diesen Rechenschritt noch einmal.';
+        if (attempts >= 2) {
+          showHint = true;
+          if (helpLevel < HelpLevel.nudge.value) {
+            helpLevel = HelpLevel.nudge.value;
+          }
+          activeMethodKey ??= _guide.methodKey;
+        }
+      });
+      return;
+    }
+
+    setState(() {
+      checkpointLocked = true;
+      checkpointFeedback = 'Genau. Dieser Schritt stimmt.';
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!mounted ||
+        finishing ||
+        checkpointIndex != index ||
+        _independentWrittenSteps.length <= index) {
+      return;
+    }
+    setState(() {
+      checkpointIndex += 1;
+      checkpointLocked = false;
+      checkpointFeedback = '';
+    });
+  }
 
   Future<void> _answer(int answer) async {
-    if (locked || finishing) return;
+    if (locked || finishing || !_checkpointsComplete) return;
     final response = DateTime.now().difference(shownAt);
     final diagnosedPattern = answer == current.answer
         ? null
@@ -123,10 +244,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
             actual: answer,
           );
     if (wrongOnCurrent == 0) {
-      await widget.controller.rememberPresentedTask(
-        widget.mode,
-        current.key,
-      );
+      await _rememberCurrentTaskOnce();
       await widget.controller.recordDiagnosticAttempt(
         mode: widget.mode,
         taskKey: current.key,
@@ -172,7 +290,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     locked = true;
     completed += 1;
     responseTimes.add(response.inMilliseconds.clamp(0, 30000).toInt());
-    if (wrongOnCurrent == 0) correctFirstTry += 1;
+    final firstTry = wrongOnCurrent == 0 && !hadCheckpointError;
+    if (firstTry) correctFirstTry += 1;
     if (widget.controller.hapticEnabled) HapticFeedback.lightImpact();
     if (widget.controller.soundEnabled) {
       SystemSound.play(SystemSoundType.click);
@@ -362,6 +481,20 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               _CubeNetView(cells: current.cubeNetCells!),
             ],
             const SizedBox(height: 18),
+            if (!_checkpointsComplete) ...[
+              IndependentStepCard(
+                question:
+                    _independentWrittenSteps[checkpointIndex].question!,
+                choices:
+                    _independentWrittenSteps[checkpointIndex].choices,
+                index: checkpointIndex,
+                total: _independentWrittenSteps.length,
+                feedback: checkpointFeedback,
+                locked: checkpointLocked,
+                onChoice: _answerCheckpoint,
+              ),
+              const SizedBox(height: 10),
+            ],
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
               child: Text(
@@ -416,36 +549,38 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               ),
             ],
             const SizedBox(height: 18),
-            if (current.usesChoices)
-              ...List.generate(
-                current.choices!.length,
-                (index) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: FilledButton.tonal(
-                    onPressed: locked ? null : () => _answer(index),
-                    child: Text(
-                      current.choices![index],
-                      textAlign: TextAlign.center,
+            if (_checkpointsComplete)
+              if (current.usesChoices)
+                ...List.generate(
+                  current.choices!.length,
+                  (index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: FilledButton.tonal(
+                      onPressed: locked ? null : () => _answer(index),
+                      child: Text(
+                        current.choices![index],
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
-                ),
-              )
-            else ...[
-              if (current.answerSuffix != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'Antwort in ${current.answerSuffix}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                )
+              else ...[
+                if (current.answerSuffix != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Antwort in ${current.answerSuffix}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
+                NumberAnswerPad(
+                  key: ValueKey('${current.key}:$completed'),
+                  maxValue: current.maxAnswerValue ??
+                      widget.controller.effectiveMaxValue,
+                  onAnswer: _answer,
                 ),
-              NumberAnswerPad(
-                key: ValueKey('${current.key}:$completed'),
-                maxValue: current.maxAnswerValue ?? widget.controller.effectiveMaxValue,
-                onAnswer: _answer,
-              ),
-            ],
+              ],
           ],
         ),
       ),

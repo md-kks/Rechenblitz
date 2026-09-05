@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
@@ -7,6 +8,7 @@ import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/app_controller.dart';
+import 'package:rechenblitz/screens/curriculum_training_screen.dart';
 import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/widgets/guided_method_panel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -739,4 +741,178 @@ void main() {
     );
   });
 
+
+  test('Schriftliches Plus beobachtet Ausrichtung und echten Übertrag', () {
+    const preferences = MethodPreferences();
+
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'written:+:342:381',
+      expected: 723,
+      preferences: preferences,
+    );
+
+    expect(guide.methodKey, 'writtenAddition:standard');
+    expect(guide.steps[0].evidenceKey, 'onesAlignment');
+    expect(
+      guide.steps[0].evidenceCompetency,
+      MicroCompetencyId.writtenAlignment,
+    );
+    expect(guide.steps[0].choices[guide.steps[0].correctChoice!], '1');
+    expect(guide.steps[1].question, contains('Zehner-Spalte'));
+    expect(guide.steps[1].choices[guide.steps[1].correctChoice!], 'Ja');
+    expect(guide.steps[1].evidenceKey, 'carryDecision');
+    expect(
+      guide.steps[1].evidenceCompetency,
+      MicroCompetencyId.writtenRegrouping,
+    );
+  });
+
+  test('Schriftliche Teilfragen bleiben mikrogezielt und methodentreu', () {
+    const standard = MethodPreferences();
+    const complement = MethodPreferences(
+      writtenSubtraction: WrittenSubtractionStrategy.complement,
+    );
+
+    final regrouping = GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'written:+:47:38',
+      expected: 85,
+      preferences: standard,
+      targetCompetency: MicroCompetencyId.writtenRegrouping,
+    );
+    final alignment = GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'written:+:47:38',
+      expected: 85,
+      preferences: standard,
+      targetCompetency: MicroCompetencyId.writtenAlignment,
+    );
+    final noCarry = GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'written:+:42:13',
+      expected: 55,
+      preferences: standard,
+      targetCompetency: MicroCompetencyId.writtenRegrouping,
+    );
+    final complementSteps =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'written:-:352:168',
+      expected: 184,
+      preferences: complement,
+      targetCompetency: MicroCompetencyId.writtenRegrouping,
+    );
+
+    expect(
+      regrouping.map((step) => step.evidenceKey),
+      ['onesAlignment', 'carryDecision'],
+    );
+    expect(alignment.map((step) => step.evidenceKey), ['onesAlignment']);
+    expect(noCarry, isEmpty);
+    expect(
+      complementSteps.map((step) => step.evidenceKey),
+      ['onesAlignment', 'carryDecision'],
+    );
+    expect(complementSteps[1].question, contains('über 10 ergänzen'));
+  });
+
+  test('GuidedStepCatalog erkennt Übertragsentscheidungen', () {
+    const key = 'independent:carryDecision:written:+:47:38';
+
+    expect(GuidedStepCatalog.keyFromTaskKey(key), 'carryDecision');
+    expect(GuidedStepCatalog.labelFor('carryDecision'), contains('Übertrag'));
+  });
+
+  testWidgets(
+      'Curriculum speichert schriftlichen Teilfehler getrennt von der Endlösung',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.writtenAddSub,
+      prompt: 'Rechne schriftlich:\n47\n+ 38',
+      answer: 85,
+      hint: 'Achte auf Stellenwerte und Übertrag.',
+      key: 'written:+:47:38',
+      maxAnswerValue: 100,
+      method: 'Schriftliche Addition',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.writtenAddSub,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.writtenRegrouping,
+          exerciseGenerator: _FixedCurriculumExerciseGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 2'), findsOneWidget);
+    expect(find.text('Antwort eingeben'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, '7'));
+    await tester.pump();
+
+    final failedStep = controller.microObservations.firstWhere(
+      (entry) => entry.source == MicroEvidenceSource.independentStep,
+    );
+    expect(failedStep.id, MicroCompetencyId.writtenAlignment);
+    expect(failedStep.correct, isFalse);
+    expect(failedStep.usedHelp, isFalse);
+    expect(
+      failedStep.taskKey,
+      'independent:onesAlignment:written:+:47:38',
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, '8'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Schritt 2 von 2'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Ja'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+
+    for (final label in ['8', '5', 'OK']) {
+      final button = find.widgetWithText(FilledButton, label);
+      await tester.ensureVisible(button);
+      await tester.pump();
+      await tester.tap(button);
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(find.text('0 direkt richtig.'), findsOneWidget);
+    expect(
+      controller
+          .recentTaskKeys(TrainingMode.writtenAddSub)
+          .where((key) => key == 'written:+:47:38')
+          .length,
+      1,
+    );
+  });
+
+}
+
+class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {
+  _FixedCurriculumExerciseGenerator(this.exercise);
+
+  final CurriculumExercise exercise;
+
+  @override
+  CurriculumExercise generate({
+    required TrainingMode mode,
+    required GradeLevel gradeLevel,
+    required int maxValue,
+    Iterable<String> recentKeys = const <String>[],
+    MicroCompetencyId? targetCompetency,
+  }) =>
+      exercise;
 }
