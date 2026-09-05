@@ -65,10 +65,13 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
     final definition = target == null
         ? null
         : MicroCompetencyCatalog.definition(target!);
+    final mode = transferEmphasis && target != null
+        ? widget.controller.transferModeFor(target!)
+        : definition?.preferredMode ?? TrainingMode.practice;
     return TeacherAssignment(
       gradeLevel: grade,
       numberRange: range,
-      mode: definition?.preferredMode ?? TrainingMode.practice,
+      mode: mode,
       tasks: tasks,
       targetCompetency: target,
       transferEmphasis: transferEmphasis,
@@ -185,7 +188,7 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Transfer besonders betonen'),
             subtitle: const Text(
-              'Bei Sachaufgaben werden mehrstufige und ungewohnte Kontexte bevorzugt.',
+              'Bereits gelerntes Wissen wird in einer veränderten Aufgabenform oder einem Anwendungskontext geprüft.',
             ),
             value: transferEmphasis,
             onChanged: (value) =>
