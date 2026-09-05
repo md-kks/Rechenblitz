@@ -414,15 +414,12 @@ class StepRecoveryGenerator {
     RemediationStage stage,
     NumberRangeLevel range,
   ) {
-    final limit = max(100, min(range.maxValue, 1000));
+    final limit = max(20, min(range.maxValue, 1000));
     final minus = focus.sourceTaskKey.contains(':-:');
-    final maxB = minus
-        ? min(98, limit - 1)
-        : min(98, max(12, limit - 10));
-    final b = _between(12, maxB);
+    final b = _between(1, max(1, limit - 1));
     final a = minus
-        ? _between(b, limit)
-        : _between(10, max(10, limit - b));
+        ? _between(max(10, b), limit)
+        : _between(1, max(1, limit - b));
     final symbol = minus ? '−' : '+';
     return _numeric(
       focus: focus,
@@ -532,16 +529,10 @@ class StepRecoveryGenerator {
     NumberRangeLevel range,
   ) {
     final limit = max(20, min(range.maxValue, 100));
-    var ones = _between(2, 9);
-    var multiplier = _between(2, 9);
-    for (var attempt = 0;
-        attempt < 30 && ones * multiplier > limit;
-        attempt++) {
-      ones = _between(2, 9);
-      multiplier = _between(2, 9);
-    }
-    final tens = limit >= 20 ? 1 : 0;
-    final a = tens * 10 + ones;
+    final ones = _between(2, min(9, max(2, limit ~/ 2)));
+    final multiplier =
+        _between(2, min(9, max(2, limit ~/ ones)));
+    final a = min(limit, 10 + ones);
     final product = ones * multiplier;
     return _numeric(
       focus: focus,
@@ -562,15 +553,10 @@ class StepRecoveryGenerator {
     NumberRangeLevel range,
   ) {
     final limit = max(20, min(range.maxValue, 100));
-    var ones = _between(5, 9);
-    var multiplier = _between(2, 9);
-    for (var attempt = 0;
-        attempt < 30 &&
-            (ones * multiplier < 10 || ones * multiplier > limit);
-        attempt++) {
-      ones = _between(5, 9);
-      multiplier = _between(2, 9);
-    }
+    final ones = _between(5, min(9, max(5, limit ~/ 2)));
+    final minMultiplier = max(2, (10 + ones - 1) ~/ ones);
+    final maxMultiplier = min(9, max(minMultiplier, limit ~/ ones));
+    final multiplier = _between(minMultiplier, maxMultiplier);
     final product = ones * multiplier;
     return _numeric(
       focus: focus,
