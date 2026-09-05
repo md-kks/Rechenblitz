@@ -1695,7 +1695,10 @@ class AppController extends ChangeNotifier {
   List<GuidedRoundSegment> buildMyRound({
     DateTime? now,
   }) {
-    final microFocus = currentMicroFocus();
+    final stepRecovery = independentStepRecoveryFocus(now: now);
+    final microFocus = stepRecovery == null
+        ? currentMicroFocus()
+        : microCompetencyProgress(stepRecovery.competencyId);
     final guidedFocus = guidedStepFocus();
     final strongMicro = strongestMicroCompetency();
     final reviewMicro = dueReviewMicroCompetency(now: now);
@@ -1777,15 +1780,18 @@ class AppController extends ChangeNotifier {
       ),
       GuidedRoundSegment(
         mode: focus,
-        tasks: 5,
-        reason: microFocus == null
-            ? 'Das ist heute das wichtigste Lernziel.'
-            : guidedFocus != null &&
-                    guidedFocus.competencyId == microFocus.definition.id
-                ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt „${microFocus.definition.label}“ und nehmen die Hilfe schrittweise zurück.'
-                : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
+        tasks: stepRecovery == null ? 5 : 2,
+        reason: stepRecovery != null
+            ? 'Nach der kurzen Arbeit an „${stepRecovery.label}“ reichen zwei passende Gesamtaufgaben, damit die Runde kompakt bleibt.'
+            : microFocus == null
+                ? 'Das ist heute das wichtigste Lernziel.'
+                : guidedFocus != null &&
+                        guidedFocus.competencyId == microFocus.definition.id
+                    ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt „${microFocus.definition.label}“ und nehmen die Hilfe schrittweise zurück.'
+                    : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
         targetCompetency: microFocus?.definition.id,
-        scaffoldFading: guidedFocus != null &&
+        scaffoldFading: stepRecovery == null &&
+            guidedFocus != null &&
             microFocus != null &&
             guidedFocus.competencyId == microFocus.definition.id,
       ),
