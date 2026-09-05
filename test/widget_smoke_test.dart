@@ -108,5 +108,15 @@ void main() {
 
     expect(find.text('Elternbereich'), findsOneWidget);
     await gesture.up();
+
+    final parentScroll = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.text('Warum gerade diese Aufgaben?'),
+      450,
+      scrollable: parentScroll,
+    );
+    expect(find.text('Auswahl der nächsten Runde'), findsOneWidget);
+    expect(find.text('Warum dieser Lernstatus?'), findsOneWidget);
+    expect(find.text('Worauf stützt sich das?'), findsOneWidget);
   });
 }
