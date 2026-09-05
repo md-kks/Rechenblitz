@@ -325,6 +325,15 @@ class StructuredExerciseGenerator {
     bool transferEmphasis,
     MicroCompetencyId? targetCompetency,
   ) {
+    if (transferEmphasis &&
+        targetCompetency != null &&
+        _isArithmeticTransferTarget(targetCompetency)) {
+      return _arithmeticTransferWordProblem(
+        maxValue,
+        targetCompetency,
+      );
+    }
+
     if (targetCompetency == MicroCompetencyId.representationTranslation) {
       return _representationTranslation(
         maxValue,
@@ -437,6 +446,177 @@ class StructuredExerciseGenerator {
       answer: each,
       hint: 'Gleichmäßig verteilen passt zu Teilen.',
       key: 'story:divide:${template.$1}:$total:$groups',
+    );
+  }
+
+  bool _isArithmeticTransferTarget(MicroCompetencyId id) => const {
+        MicroCompetencyId.additionNoBridge,
+        MicroCompetencyId.additionTenBridge,
+        MicroCompetencyId.subtractionNoBridge,
+        MicroCompetencyId.subtractionTenBridge,
+        MicroCompetencyId.multiplicationGroups,
+        MicroCompetencyId.multiplicationFacts,
+        MicroCompetencyId.divisionSharing,
+        MicroCompetencyId.divisionFacts,
+      }.contains(id);
+
+  StructuredExercise _arithmeticTransferWordProblem(
+    int maxValue,
+    MicroCompetencyId target,
+  ) {
+    final limit = max(10, maxValue);
+
+    if (target == MicroCompetencyId.additionNoBridge ||
+        target == MicroCompetencyId.additionTenBridge) {
+      final needsBridge = target == MicroCompetencyId.additionTenBridge;
+      var a = 1;
+      var b = 1;
+      for (var attempt = 0; attempt < 120; attempt++) {
+        final candidateA = _between(1, max(1, limit - 1));
+        final candidateB = _between(1, max(1, limit - candidateA));
+        final bridge =
+            (candidateA % 10) + (candidateB % 10) >= 10;
+        if (bridge == needsBridge) {
+          a = candidateA;
+          b = candidateB;
+          break;
+        }
+      }
+      if (needsBridge && (a % 10) + (b % 10) < 10) {
+        a = min(limit - 1, 7);
+        b = min(limit - a, 3);
+      }
+      final contexts = [
+        (
+          'stickers',
+          'In einer Sammelmappe sind $a Sticker. $b neue kommen dazu. Wie viele Sticker sind es jetzt?',
+        ),
+        (
+          'books',
+          'Auf einem Wagen liegen $a Bücher. $b weitere werden dazugestellt. Wie viele Bücher liegen danach dort?',
+        ),
+        (
+          'children',
+          'Auf dem Hof spielen $a Kinder. $b Kinder kommen dazu. Wie viele Kinder sind jetzt dort?',
+        ),
+      ];
+      final context = contexts[_random.nextInt(contexts.length)];
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt: context.$2,
+        answer: a + b,
+        hint:
+            'Übertrage die bekannte Plusidee auf die Situation: Die Menge wird größer.',
+        key:
+            'story:transfer:skill:${target.name}:+:${context.$1}:$a:$b',
+        maxAnswerValue: limit,
+      );
+    }
+
+    if (target == MicroCompetencyId.subtractionNoBridge ||
+        target == MicroCompetencyId.subtractionTenBridge) {
+      final needsBridge = target == MicroCompetencyId.subtractionTenBridge;
+      var a = 2;
+      var b = 1;
+      for (var attempt = 0; attempt < 120; attempt++) {
+        final candidateA = _between(2, limit);
+        final candidateB = _between(1, candidateA);
+        final bridge = (candidateA % 10) < (candidateB % 10);
+        if (bridge == needsBridge) {
+          a = candidateA;
+          b = candidateB;
+          break;
+        }
+      }
+      if (needsBridge && (a % 10) >= (b % 10)) {
+        a = min(limit, 10);
+        b = min(a, 3);
+      }
+      final contexts = [
+        (
+          'cards',
+          'Auf einem Tisch liegen $a Karten. $b werden weggenommen. Wie viele bleiben?',
+        ),
+        (
+          'blocks',
+          'Ein Bauwerk hat $a Steine. $b Steine werden abgebaut. Wie viele bleiben übrig?',
+        ),
+        (
+          'seats',
+          '$a Plätze sind besetzt. $b Kinder gehen nach Hause. Wie viele Plätze bleiben besetzt?',
+        ),
+      ];
+      final context = contexts[_random.nextInt(contexts.length)];
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt: context.$2,
+        answer: a - b,
+        hint:
+            'Übertrage die bekannte Minusidee auf die Situation: Die Menge wird kleiner.',
+        key:
+            'story:transfer:skill:${target.name}:-:${context.$1}:$a:$b',
+        maxAnswerValue: limit,
+      );
+    }
+
+    final groups = _between(2, min(8, max(2, limit ~/ 2)));
+    final maxEach = max(2, min(10, limit ~/ groups));
+    final each = _between(2, maxEach);
+    final total = groups * each;
+
+    if (target == MicroCompetencyId.multiplicationGroups ||
+        target == MicroCompetencyId.multiplicationFacts) {
+      final contexts = [
+        (
+          'tables',
+          'An $groups Tischen sitzen jeweils $each Kinder. Wie viele Kinder sitzen dort insgesamt?',
+        ),
+        (
+          'packs',
+          '$groups Päckchen enthalten jeweils $each Karten. Wie viele Karten sind das zusammen?',
+        ),
+        (
+          'rows',
+          'Es stehen $groups Reihen mit jeweils $each Stühlen bereit. Wie viele Stühle sind es?',
+        ),
+      ];
+      final context = contexts[_random.nextInt(contexts.length)];
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt: context.$2,
+        answer: total,
+        hint:
+            'Nutze die bekannte Malidee in der neuen Situation: gleich viele in mehreren Gruppen.',
+        key:
+            'story:transfer:skill:${target.name}:x:${context.$1}:$groups:$each',
+        maxAnswerValue: limit,
+      );
+    }
+
+    final contexts = [
+      (
+        'teams',
+        '$total Kinder werden gleichmäßig auf $groups Teams verteilt. Wie viele Kinder sind in jedem Team?',
+      ),
+      (
+        'bags',
+        '$total Murmeln werden gleichmäßig auf $groups Beutel verteilt. Wie viele kommen in jeden Beutel?',
+      ),
+      (
+        'plates',
+        '$total Kekse werden gleichmäßig auf $groups Teller verteilt. Wie viele liegen auf jedem Teller?',
+      ),
+    ];
+    final context = contexts[_random.nextInt(contexts.length)];
+    return StructuredExercise(
+      mode: TrainingMode.wordProblems,
+      prompt: context.$2,
+      answer: each,
+      hint:
+          'Nutze die bekannte Geteiltidee in der neuen Situation: gleichmäßig verteilen.',
+      key:
+          'story:transfer:skill:${target.name}:divide:${context.$1}:$total:$groups',
+      maxAnswerValue: limit,
     );
   }
 
