@@ -971,8 +971,8 @@ class AppController extends ChangeNotifier {
 
     var evidence = 0.0;
     var correctEvidence = 0.0;
-    var directEvidence = 0.0;
-    var directCorrectEvidence = 0.0;
+    var baseEvidence = 0.0;
+    var baseCorrectEvidence = 0.0;
     var transferEvidence = 0.0;
     var transferCorrectEvidence = 0.0;
     var transferObservations = 0;
@@ -991,28 +991,28 @@ class AppController extends ChangeNotifier {
         }
         lastTransferSeen ??= observation.occurredAt;
       } else {
-        directEvidence += observation.evidenceWeight;
+        baseEvidence += observation.evidenceWeight;
         if (observation.correct) {
-          directCorrectEvidence += observation.evidenceWeight;
+          baseCorrectEvidence += observation.evidenceWeight;
         }
       }
     }
 
     final accuracy = evidence == 0 ? 0.0 : correctEvidence / evidence;
-    final directAccuracy =
-        directEvidence == 0 ? 0.0 : directCorrectEvidence / directEvidence;
+    final baseAccuracy =
+        baseEvidence == 0 ? 0.0 : baseCorrectEvidence / baseEvidence;
     final transferAccuracy = transferEvidence == 0
         ? 0.0
         : transferCorrectEvidence / transferEvidence;
 
     final state = evidence < 1.5
         ? MicroCompetencyState.discovering
-        : directEvidence >= 6 &&
-                directAccuracy >= 0.88 &&
+        : baseEvidence >= 6 &&
+                baseAccuracy >= 0.88 &&
                 transferEvidence >= 1.5 &&
                 transferAccuracy >= 0.80
             ? MicroCompetencyState.mastered
-            : directEvidence >= 4 && directAccuracy >= 0.80
+            : baseEvidence >= 4 && baseAccuracy >= 0.80
                 ? MicroCompetencyState.secure
                 : MicroCompetencyState.practicing;
 
@@ -1022,9 +1022,9 @@ class AppController extends ChangeNotifier {
       accuracy: accuracy,
       evidence: evidence,
       observations: observations.length,
-      directAccuracy: directAccuracy,
+      baseAccuracy: baseAccuracy,
       transferAccuracy: transferAccuracy,
-      directEvidence: directEvidence,
+      baseEvidence: baseEvidence,
       transferEvidence: transferEvidence,
       transferObservations: transferObservations,
       lastSeen: observations.first.occurredAt,
@@ -1125,7 +1125,7 @@ class AppController extends ChangeNotifier {
               a.lastTransferSeen!.compareTo(b.lastTransferSeen!);
           if (ageOrder != 0) return ageOrder;
         }
-        return b.directEvidence.compareTo(a.directEvidence);
+        return b.baseEvidence.compareTo(a.baseEvidence);
       });
     return candidates.isEmpty ? null : candidates.first;
   }
@@ -1169,10 +1169,10 @@ class AppController extends ChangeNotifier {
       return 'Noch keine einzelne Teilkompetenz ist klar auffällig. '
           'Weitere abwechslungsreiche Aufgaben machen die Lernkarte genauer.';
     }
-    final percentage = (focus.directAccuracy * 100).round();
+    final percentage = (focus.baseAccuracy * 100).round();
     return '„${focus.definition.label}“ ist aktuell der sinnvollste '
         'Teilschritt: ${focus.observations} passende Beobachtungen, '
-        '$percentage % direkt richtig.';
+        '$percentage % gewichtete Basissicherheit.';
   }
 
   CompetencyProgress competencyProgress(TrainingMode mode) {
