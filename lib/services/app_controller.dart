@@ -904,7 +904,9 @@ class AppController extends ChangeNotifier {
   }) {
     final sourceWeight = switch (source) {
       MicroEvidenceSource.remediation => 0.65,
-      MicroEvidenceSource.practice || MicroEvidenceSource.transfer => 1.0,
+      MicroEvidenceSource.practice ||
+      MicroEvidenceSource.review ||
+      MicroEvidenceSource.transfer => 1.0,
     };
     final helpWeight = !correct
         ? 1.0
@@ -973,9 +975,21 @@ class AppController extends ChangeNotifier {
     var correctEvidence = 0.0;
     var baseEvidence = 0.0;
     var baseCorrectEvidence = 0.0;
+    var independentEvidence = 0.0;
+    var independentCorrectEvidence = 0.0;
+    var aidedEvidence = 0.0;
+    var aidedObservations = 0;
+    var reviewEvidence = 0.0;
+    var reviewCorrectEvidence = 0.0;
+    var reviewIndependentEvidence = 0.0;
+    var reviewIndependentCorrectEvidence = 0.0;
+    var reviewObservations = 0;
     var transferEvidence = 0.0;
     var transferCorrectEvidence = 0.0;
+    var transferIndependentEvidence = 0.0;
+    var transferIndependentCorrectEvidence = 0.0;
     var transferObservations = 0;
+    DateTime? lastReviewSeen;
     DateTime? lastTransferSeen;
 
     for (final observation in observations) {
@@ -983,36 +997,82 @@ class AppController extends ChangeNotifier {
       if (observation.correct) {
         correctEvidence += observation.evidenceWeight;
       }
-      if (observation.source == MicroEvidenceSource.transfer) {
-        transferEvidence += observation.evidenceWeight;
-        transferObservations += 1;
-        if (observation.correct) {
-          transferCorrectEvidence += observation.evidenceWeight;
-        }
-        lastTransferSeen ??= observation.occurredAt;
-      } else {
-        baseEvidence += observation.evidenceWeight;
-        if (observation.correct) {
-          baseCorrectEvidence += observation.evidenceWeight;
-        }
+      if (observation.usedHelp) {
+        aidedEvidence += observation.evidenceWeight;
+        aidedObservations += 1;
+      }
+
+      switch (observation.source) {
+        case MicroEvidenceSource.review:
+          reviewEvidence += observation.evidenceWeight;
+          reviewObservations += 1;
+          if (observation.correct) {
+            reviewCorrectEvidence += observation.evidenceWeight;
+          }
+          if (!observation.usedHelp) {
+            reviewIndependentEvidence += observation.evidenceWeight;
+            if (observation.correct) {
+              reviewIndependentCorrectEvidence += observation.evidenceWeight;
+            }
+          }
+          lastReviewSeen ??= observation.occurredAt;
+        case MicroEvidenceSource.transfer:
+          transferEvidence += observation.evidenceWeight;
+          transferObservations += 1;
+          if (observation.correct) {
+            transferCorrectEvidence += observation.evidenceWeight;
+          }
+          if (!observation.usedHelp) {
+            transferIndependentEvidence += observation.evidenceWeight;
+            if (observation.correct) {
+              transferIndependentCorrectEvidence +=
+                  observation.evidenceWeight;
+            }
+          }
+          lastTransferSeen ??= observation.occurredAt;
+        case MicroEvidenceSource.practice:
+        case MicroEvidenceSource.remediation:
+          baseEvidence += observation.evidenceWeight;
+          if (observation.correct) {
+            baseCorrectEvidence += observation.evidenceWeight;
+          }
+          if (!observation.usedHelp) {
+            independentEvidence += observation.evidenceWeight;
+            if (observation.correct) {
+              independentCorrectEvidence += observation.evidenceWeight;
+            }
+          }
       }
     }
 
     final accuracy = evidence == 0 ? 0.0 : correctEvidence / evidence;
     final baseAccuracy =
         baseEvidence == 0 ? 0.0 : baseCorrectEvidence / baseEvidence;
+    final independentAccuracy = independentEvidence == 0
+        ? 0.0
+        : independentCorrectEvidence / independentEvidence;
+    final reviewAccuracy =
+        reviewEvidence == 0 ? 0.0 : reviewCorrectEvidence / reviewEvidence;
+    final reviewIndependentAccuracy = reviewIndependentEvidence == 0
+        ? 0.0
+        : reviewIndependentCorrectEvidence / reviewIndependentEvidence;
     final transferAccuracy = transferEvidence == 0
         ? 0.0
         : transferCorrectEvidence / transferEvidence;
+    final transferIndependentAccuracy = transferIndependentEvidence == 0
+        ? 0.0
+        : transferIndependentCorrectEvidence / transferIndependentEvidence;
 
     final state = evidence < 1.5
         ? MicroCompetencyState.discovering
-        : baseEvidence >= 6 &&
-                baseAccuracy >= 0.88 &&
-                transferEvidence >= 1.5 &&
-                transferAccuracy >= 0.80
+        : independentEvidence >= 6 &&
+                independentAccuracy >= 0.88 &&
+                reviewIndependentEvidence >= 1.5 &&
+                reviewIndependentAccuracy >= 0.80 &&
+                transferIndependentEvidence >= 1.5 &&
+                transferIndependentAccuracy >= 0.80
             ? MicroCompetencyState.mastered
-            : baseEvidence >= 4 && baseAccuracy >= 0.80
+            : independentEvidence >= 4 && independentAccuracy >= 0.80
                 ? MicroCompetencyState.secure
                 : MicroCompetencyState.practicing;
 
@@ -1023,11 +1083,23 @@ class AppController extends ChangeNotifier {
       evidence: evidence,
       observations: observations.length,
       baseAccuracy: baseAccuracy,
+      independentAccuracy: independentAccuracy,
+      reviewAccuracy: reviewAccuracy,
+      reviewIndependentAccuracy: reviewIndependentAccuracy,
       transferAccuracy: transferAccuracy,
+      transferIndependentAccuracy: transferIndependentAccuracy,
       baseEvidence: baseEvidence,
+      independentEvidence: independentEvidence,
+      aidedEvidence: aidedEvidence,
+      reviewEvidence: reviewEvidence,
+      reviewIndependentEvidence: reviewIndependentEvidence,
       transferEvidence: transferEvidence,
+      transferIndependentEvidence: transferIndependentEvidence,
+      aidedObservations: aidedObservations,
+      reviewObservations: reviewObservations,
       transferObservations: transferObservations,
       lastSeen: observations.first.occurredAt,
+      lastReviewSeen: lastReviewSeen,
       lastTransferSeen: lastTransferSeen,
     );
   }
@@ -1086,25 +1158,38 @@ class AppController extends ChangeNotifier {
     return candidates.isEmpty ? null : candidates.first;
   }
 
-  MicroCompetencyProgress? dueReviewMicroCompetency() {
+  MicroCompetencyProgress? dueReviewMicroCompetency({
+    DateTime? now,
+  }) {
+    final reference = now ?? DateTime.now();
     final secure = microCompetenciesForGrade()
         .where(
-          (progress) =>
-              progress.lastSeen != null &&
-              (progress.state == MicroCompetencyState.secure ||
-                  progress.state == MicroCompetencyState.mastered),
+          (progress) {
+            if (progress.lastSeen == null ||
+                (progress.state != MicroCompetencyState.secure &&
+                    progress.state != MicroCompetencyState.mastered)) {
+              return false;
+            }
+            final requiredGap = progress.reviewObservations == 0
+                ? const Duration(days: 2)
+                : const Duration(days: 7);
+            return reference.difference(progress.lastSeen!) >= requiredGap;
+          },
         )
         .toList()
       ..sort((a, b) => a.lastSeen!.compareTo(b.lastSeen!));
     return secure.isEmpty ? null : secure.first;
   }
 
-  MicroCompetencyProgress? transferCandidateMicroCompetency() {
+  MicroCompetencyProgress? transferCandidateMicroCompetency({
+    MicroCompetencyId? excluding,
+  }) {
     final candidates = microCompetenciesForGrade()
         .where(
           (progress) =>
-              progress.state == MicroCompetencyState.secure ||
-              progress.state == MicroCompetencyState.mastered,
+              progress.definition.id != excluding &&
+              (progress.state == MicroCompetencyState.secure ||
+                  progress.state == MicroCompetencyState.mastered),
         )
         .toList()
       ..sort((a, b) {
@@ -1234,7 +1319,9 @@ class AppController extends ChangeNotifier {
     final microFocus = currentMicroFocus();
     final strongMicro = strongestMicroCompetency();
     final reviewMicro = dueReviewMicroCompetency();
-    final transferMicro = transferCandidateMicroCompetency();
+    final transferMicro = transferCandidateMicroCompetency(
+      excluding: reviewMicro?.definition.id,
+    );
     final newMicro = nextNewMicroCompetency();
 
     var focus =
@@ -1287,13 +1374,13 @@ class AppController extends ChangeNotifier {
       }
     }
 
+    final reviewTarget = reviewMicro?.definition.id;
     final transferTarget = transferMicro?.definition.id;
-    final warmUpTarget = strongMicro?.definition.id == transferTarget
-        ? null
-        : strongMicro?.definition.id;
-    final reviewTarget = reviewMicro?.definition.id == transferTarget
-        ? null
-        : reviewMicro?.definition.id;
+    final strongTarget = strongMicro?.definition.id;
+    final warmUpTarget =
+        strongTarget == transferTarget || strongTarget == reviewTarget
+            ? null
+            : strongTarget;
     final discoveryTarget =
         transferTarget == null ? newMicro?.definition.id : null;
 
@@ -1323,8 +1410,9 @@ class AppController extends ChangeNotifier {
         tasks: 3,
         reason: reviewTarget == null
             ? 'Eine wichtige Grundlage wird wiederholt.'
-            : 'Dieser sichere Lernschritt ist wieder für Wiederholung dran.',
+            : 'Dieser sichere Lernschritt wird nach zeitlichem Abstand erneut geprüft.',
         targetCompetency: reviewTarget,
+        reviewEmphasis: reviewTarget != null,
       ),
       GuidedRoundSegment(
         mode: transferTarget != null
