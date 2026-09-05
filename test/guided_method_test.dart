@@ -1154,23 +1154,6 @@ void main() {
     );
   });
 
-}
-
-class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {
-  _FixedCurriculumExerciseGenerator(this.exercise);
-
-  final CurriculumExercise exercise;
-
-  @override
-  CurriculumExercise generate({
-    required TrainingMode mode,
-    required GradeLevel gradeLevel,
-    required int maxValue,
-    Iterable<String> recentKeys = const <String>[],
-    MicroCompetencyId? targetCompetency,
-  }) =>
-      exercise;
-
   testWidgets(
       'Training speichert Einmaleins-Ankerfehler getrennt von der Endlösung',
       (tester) async {
@@ -1240,5 +1223,23 @@ class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {
       1,
     );
   });
+}
+
+class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {
+  _FixedCurriculumExerciseGenerator(this.exercise);
+
+  final CurriculumExercise exercise;
+
+  @override
+  CurriculumExercise generate({
+    required TrainingMode mode,
+    required GradeLevel gradeLevel,
+    required int maxValue,
+    Iterable<String> recentKeys = const <String>[],
+    MicroCompetencyId? targetCompetency,
+  }) =>
+      exercise;
+
+
 
 }
