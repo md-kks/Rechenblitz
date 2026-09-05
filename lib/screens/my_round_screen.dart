@@ -23,6 +23,7 @@ class MyRoundScreen extends StatefulWidget {
 class _MyRoundScreenState extends State<MyRoundScreen> {
   late List<GuidedRoundSegment> plan;
   final Set<int> completed = {};
+  bool stepRecoveryAttempted = false;
 
   @override
   void initState() {
@@ -86,9 +87,13 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final stepRecovery = widget.controller.independentStepRecoveryFocus();
-    final remediation =
-        stepRecovery == null ? widget.controller.remediationCandidate() : null;
+    final unresolvedStepRecovery =
+        widget.controller.independentStepRecoveryFocus();
+    final stepRecovery =
+        stepRecoveryAttempted ? null : unresolvedStepRecovery;
+    final remediation = unresolvedStepRecovery == null
+        ? widget.controller.remediationCandidate()
+        : null;
     final reviewOnly = remediation == null
         ? false
         : widget.controller.remediationReviewOnly(remediation.pattern);
@@ -182,7 +187,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                         );
                         if (mounted) {
                           setState(() {
-                            plan = widget.controller.buildMyRound();
+                            stepRecoveryAttempted = true;
                           });
                         }
                       },
