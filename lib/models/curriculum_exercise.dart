@@ -142,7 +142,11 @@ class CurriculumExerciseGenerator {
               ? _reasoningJustification(maxValue)
               : _arithmeticLaws(gradeLevel, maxValue),
         TrainingMode.romanNumerals => _romanNumerals(gradeLevel),
-        TrainingMode.fractions => _fractions(gradeLevel, maxValue),
+        TrainingMode.fractions => _fractions(
+            gradeLevel,
+            maxValue,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.advancedMeasures => _advancedMeasures(
             gradeLevel,
             targetCompetency: targetCompetency,
@@ -815,7 +819,15 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _fractions(GradeLevel grade, int maxValue) {
+  CurriculumExercise _fractions(
+    GradeLevel grade,
+    int maxValue, {
+    MicroCompetencyId? targetCompetency,
+  }) {
+    if (targetCompetency == MicroCompetencyId.fractionEqualParts) {
+      return _fractionEqualPartsDiagnostic(grade, maxValue);
+    }
+
     final kind = _random.nextInt(4);
     if (kind == 0) {
       final whole = _between(1, 100) * 2;
@@ -863,6 +875,30 @@ class CurriculumExerciseGenerator {
       key: 'fraction:volume',
       choices: choices,
       method: 'Bruchteile bei Größen',
+    );
+  }
+
+  CurriculumExercise _fractionEqualPartsDiagnostic(
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    const denominator = 4;
+    final numerator = _random.nextBool() ? 2 : 3;
+    final limit = min(max(20, maxValue), 100);
+    final maxPart = max(2, min(25, limit ~/ denominator));
+    final partSize = _between(2, maxPart);
+    final whole = partSize * denominator;
+    final answer = partSize * numerator;
+
+    return CurriculumExercise(
+      mode: TrainingMode.fractions,
+      prompt: 'Wie viel sind $numerator/$denominator von $whole?',
+      answer: answer,
+      hint:
+          'Teile $whole zuerst in $denominator gleich große Teile. Bestimme dann den Wert von $numerator Teilen.',
+      key: 'fraction:parts:$numerator:$denominator:$whole',
+      maxAnswerValue: whole,
+      method: 'Bruchteile als gleich große Teile',
     );
   }
 
