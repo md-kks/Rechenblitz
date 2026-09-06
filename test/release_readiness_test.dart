@@ -135,31 +135,31 @@ void main() {
     const expected = {
       GradeLevel.first: (
         total: 21,
-        fullTaskOnly: 12,
+        fullTaskOnly: 11,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 9,
+        targetedRecovery: 10,
       ),
       GradeLevel.second: (
         total: 26,
-        fullTaskOnly: 13,
+        fullTaskOnly: 12,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 13,
+        targetedRecovery: 14,
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 41,
+        fullTaskOnly: 40,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 23,
+        targetedRecovery: 24,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 43,
+        fullTaskOnly: 42,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 23,
+        targetedRecovery: 24,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Uhr-Minutenzeiger bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.clockReading,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('minuteHandMinutes'));
+    expect(item.independentStepKeys, contains('minuteHandMinutes'));
+    expect(item.recoveryStepKeys, contains('minuteHandMinutes'));
   });
 
   test('Audit führt Rundungsentscheidung bis zur gezielten Recovery', () {
