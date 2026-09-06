@@ -100,6 +100,40 @@ void main() {
   });
 
 
+
+  test('Strategiewahl beobachtet zuerst die Ergänzung zur glatten Zielzahl',
+      () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.mentalStrategies,
+      taskKey: 'process:strategy:Hunderter:672:45:700',
+      expected: 717,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.strategyChoice,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'process:strategyChoice');
+    expect(evidence.evidenceKey, 'gapToAnchor');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.strategyChoice);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.question, contains('672'));
+    expect(evidence.question, contains('700'));
+    expect(evidence.choices[evidence.correctChoice!], '28');
+    expect(evidence.instruction, isNot(contains('28')));
+    expect(guide.steps[1].instruction, contains('17'));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.mentalStrategies,
+      taskKey: 'process:strategy:Hunderter:672:45:700',
+      expected: 717,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.strategyChoice,
+    );
+    expect(independent.map((step) => step.evidenceKey), ['gapToAnchor']);
+  });
+
   test('Stellenwertzerlegung beobachtet zuerst den Wert einer Ziffer', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.largeNumbers,
