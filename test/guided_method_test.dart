@@ -1414,6 +1414,146 @@ void main() {
     );
   });
 
+  test('Zeitspanne beobachtet den ersten Sprung bis zur vollen Stunde', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.timeDurations,
+      taskKey: 'duration:875:45',
+      expected: 45,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.timeDuration,
+    );
+    final evidenceSteps = guide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .toList();
+
+    expect(evidenceSteps, hasLength(1));
+    expect(evidenceSteps.single.evidenceKey, 'minutesToNextHour');
+    expect(
+      evidenceSteps.single.evidenceCompetency,
+      MicroCompetencyId.timeDuration,
+    );
+    expect(
+      evidenceSteps.single.choices[evidenceSteps.single.correctChoice!],
+      '25',
+    );
+    expect(evidenceSteps.single.evidenceWeight, 0.40);
+    expect(guide.nudge, contains('14:35'));
+    expect(guide.nudge, contains('15:00'));
+    expect(
+      GuidedStepCatalog.labelFor('minutesToNextHour'),
+      contains('vollen Stunde'),
+    );
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.timeDurations,
+      taskKey: 'duration:875:45',
+      expected: 45,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.timeDuration,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['minutesToNextHour'],
+    );
+  });
+
+  test('Zeitspanne erfindet keinen Null-Schritt an voller Stunde', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.timeDurations,
+      taskKey: 'duration:840:45',
+      expected: 45,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.timeDuration,
+    );
+
+    expect(guide.nudge, contains('schon eine volle Stunde'));
+    expect(
+      guide.steps.where((step) => step.recordsIntermediateEvidence),
+      isEmpty,
+    );
+    expect(
+      GuidedMethodFactory.independentWrittenStepsForTask(
+        mode: TrainingMode.timeDurations,
+        taskKey: 'duration:840:45',
+        expected: 45,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.timeDuration,
+      ),
+      isEmpty,
+    );
+  });
+
+  test('Zeitspanne innerhalb einer Stunde nutzt keinen falschen Stundenstopp',
+      () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.timeDurations,
+      taskKey: 'duration:855:30',
+      expected: 30,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.timeDuration,
+    );
+
+    expect(guide.nudge, contains('vor der nächsten vollen Stunde'));
+    expect(
+      guide.steps.where((step) => step.recordsIntermediateEvidence),
+      isEmpty,
+    );
+  });
+
+  testWidgets(
+      'Curriculum speichert ersten Zeitspannen-Sprung selbstständig',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.timeDurations,
+      prompt:
+          'Beginn: 14:35 Uhr\nEnde: 15:20 Uhr\nWie viele Minuten dauert es?',
+      answer: 45,
+      hint: 'Rechne zuerst 25 Minuten bis 15:00 Uhr und dann weiter.',
+      key: 'duration:875:45',
+      answerSuffix: 'min',
+      maxAnswerValue: 240,
+      method: 'Zeitdauer berechnen',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.timeDurations,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.timeDuration,
+          exerciseGenerator: _FixedCurriculumExerciseGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 1'), findsOneWidget);
+    expect(find.text('Antwort eingeben'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, '25'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final steps = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+        .toList();
+    expect(steps, hasLength(1));
+    expect(steps.single.id, MicroCompetencyId.timeDuration);
+    expect(steps.single.correct, isTrue);
+    expect(steps.single.usedHelp, isFalse);
+    expect(
+      steps.single.taskKey,
+      'independent:minutesToNextHour:duration:875:45',
+    );
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+  });
+
   test('Proportionalität beobachtet den Wert für eine Einheit getrennt', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.proportionality,
