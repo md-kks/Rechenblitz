@@ -806,27 +806,18 @@ class StepRecoveryGenerator {
 
     final limit = max(place + 1, range.maxValue);
     final decisionPlace = place ~/ 10;
-    final block = place * 10;
-    final prefixMax = max(1, limit ~/ block);
-    final prefix = _between(1, prefixMax);
-    final roundingDigit = _between(0, 9);
     final decisionDigit = _between(1, 9);
     final suffix = decisionPlace == 1
         ? 0
         : _between(0, decisionPlace - 1);
-    var number = prefix * block +
-        roundingDigit * place +
+    final maxMultiplier = max(
+      1,
+      (limit - 9 * decisionPlace - suffix) ~/ place,
+    );
+    final multiplier = _between(1, maxMultiplier);
+    final number = multiplier * place +
         decisionDigit * decisionPlace +
         suffix;
-    while (number > limit && prefix > 1) {
-      number -= block;
-    }
-    if (number > limit) {
-      number = max(
-        place + decisionPlace,
-        min(limit, place * (limit ~/ place) + decisionPlace),
-      );
-    }
 
     final placeLabel = switch (place) {
       10 => 'Zehner',
