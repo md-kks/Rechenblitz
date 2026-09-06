@@ -221,6 +221,7 @@ class StepRecoveryGenerator {
     'wallOperationChoice',
     'moneyOperationChoice',
     'measureOperationChoice',
+    'doubleHalfMeaning',
     'unitValue',
     'minutesToNextHour',
     'equalPartSize',
@@ -342,6 +343,8 @@ class StepRecoveryGenerator {
           _moneyOperationChoiceStep(focus, stage, range),
         'measureOperationChoice' =>
           _measureOperationChoiceStep(focus, stage, range),
+        'doubleHalfMeaning' =>
+          _doubleHalfMeaningStep(focus, stage, range),
         'unitValue' => _proportionalUnitValueStep(focus, stage, range),
         'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
         'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
@@ -810,6 +813,44 @@ class StepRecoveryGenerator {
     final hidden = int.tryParse(parts[index + 2]);
     if (hidden == null || hidden < 0 || hidden > 5) return null;
     return hidden >= 3;
+  }
+
+  RemediationTask _doubleHalfMeaningStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final sourceDouble = focus.sourceTaskKey.contains('double:');
+    final useDouble = switch (stage) {
+      RemediationStage.supported => sourceDouble,
+      RemediationStage.transfer => !sourceDouble,
+      RemediationStage.check => _random.nextBool(),
+      _ => sourceDouble,
+    };
+    final maxHalf = max(1, min(range.maxValue, 100) ~/ 2);
+    final base = _between(1, maxHalf);
+    final shown = useDouble ? base : base * 2;
+    final choices = <String>[
+      'zweimal dieselbe Menge zusammen',
+      'in zwei gleich große Teile teilen',
+    ]..shuffle(_random);
+    final correct = useDouble
+        ? 'zweimal dieselbe Menge zusammen'
+        : 'in zwei gleich große Teile teilen';
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'double-half-meaning:${useDouble ? 'double' : 'half'}:$shown',
+      prompt: useDouble
+          ? 'Bei „das Doppelte von $shown“: Was bedeutet „doppelt“?'
+          : 'Bei „die Hälfte von $shown“: Was bedeutet „Hälfte“?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint: useDouble
+          ? 'Denke an zwei gleich große Mengen mit derselben Anzahl.'
+          : 'Denke an zwei gleich große Teile, die zusammen wieder das Ganze ergeben.',
+    );
   }
 
   RemediationTask _measureOperationChoiceStep(

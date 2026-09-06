@@ -169,6 +169,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.measurementCalculation: [
       'measureOperationChoice',
     ],
+    MicroCompetencyId.doublesHalves: [
+      'doubleHalfMeaning',
+    ],
     MicroCompetencyId.proportionalUnit: [
       'unitValue',
     ],
@@ -272,6 +275,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.measurementCalculation: [
       'measureOperationChoice',
+    ],
+    MicroCompetencyId.doublesHalves: [
+      'doubleHalfMeaning',
     ],
     MicroCompetencyId.proportionalUnit: [
       'unitValue',

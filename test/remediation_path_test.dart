@@ -1782,4 +1782,58 @@ void main() {
   });
 
 
+  test('Doppeln-Halbieren-Recovery überträgt zwischen beiden Beziehungen', () {
+    const cases = [
+      (
+        source: 'double:7',
+        supported: 'zweimal dieselbe Menge zusammen',
+        transfer: 'in zwei gleich große Teile teilen',
+      ),
+      (
+        source: 'half:14',
+        supported: 'in zwei gleich große Teile teilen',
+        transfer: 'zweimal dieselbe Menge zusammen',
+      ),
+    ];
+
+    for (var i = 0; i < cases.length; i++) {
+      final item = cases[i];
+      final focus = IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.doublesHalves,
+        stepKey: 'doubleHalfMeaning',
+        label: GuidedStepCatalog.labelFor('doubleHalfMeaning'),
+        mode: TrainingMode.doublesHalves,
+        lastSeen: DateTime(2026, 9, 6, 23, i),
+        sourceTaskKey: item.source,
+      );
+      final plan = StepRecoveryGenerator(random: Random(710 + i)).generate(
+        focus: focus,
+        range: NumberRangeLevel.twenty,
+      );
+
+      expect(plan.tasks.map((task) => task.stage), [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ]);
+      expect(plan.tasks[0].choices![plan.tasks[0].answer], item.supported);
+      expect(plan.tasks[1].choices![plan.tasks[1].answer], item.transfer);
+
+      for (final task in plan.tasks) {
+        expect(task.mode, TrainingMode.doublesHalves);
+        expect(
+          task.taskKey,
+          startsWith(
+            'step-recovery:doubleHalfMeaning:double-half-meaning:',
+          ),
+        );
+        expect(task.choices!.toSet(), {
+          'zweimal dieselbe Menge zusammen',
+          'in zwei gleich große Teile teilen',
+        });
+      }
+    }
+  });
+
+
 }

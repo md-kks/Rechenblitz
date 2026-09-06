@@ -1730,6 +1730,45 @@ void main() {
   });
 
 
+
+  test('Doppeln-und-Halbieren-Hilfe beobachtet zuerst die Begriffsbeziehung',
+      () {
+    const cases = [
+      (
+        key: 'double:7',
+        expected: 14,
+        correct: 'zweimal dieselbe Menge zusammen',
+      ),
+      (
+        key: 'half:14',
+        expected: 7,
+        correct: 'in zwei gleich große Teile teilen',
+      ),
+    ];
+
+    for (final item in cases) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.doublesHalves,
+        taskKey: item.key,
+        expected: item.expected,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.doublesHalves,
+      );
+      final evidence =
+          guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+      expect(guide.methodKey, 'doublesHalves:relationship');
+      expect(evidence.evidenceKey, 'doubleHalfMeaning');
+      expect(evidence.evidenceCompetency, MicroCompetencyId.doublesHalves);
+      expect(evidence.evidenceWeight, 0.40);
+      expect(evidence.choices[evidence.correctChoice!], item.correct);
+      expect(
+        evidence.instruction,
+        isNot(contains(item.expected.toString())),
+      );
+    }
+  });
+
   test('Längen-Hilfe trennt Rechenplan vom Ausrechnen', () {
     const cases = [
       (
