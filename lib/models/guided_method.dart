@@ -729,6 +729,117 @@ class GuidedMethodFactory {
     }
   }
 
+  static GuidedMethodGuide _subtractionFromFullTen(MathFact fact) {
+    final a = fact.a;
+    final b = fact.b;
+    final result = a - b;
+    final resultChoices = _numberChoices(result, maxValue: max(20, a));
+
+    return GuidedMethodGuide(
+      methodKey: 'subtraction:bridgeToTen',
+      methodLabel: 'Erst zum Zehner',
+      nudge:
+          '$a ist schon ein voller Zehner. Du kannst $b direkt von $a wegnehmen.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Voller Zehner ist schon da',
+          instruction:
+              'Du startest bereits bei $a. Ein zusätzlicher Null-Schritt bis zum Zehner ist nicht nötig.',
+        ),
+        GuidedMethodStep(
+          title: 'Direkt abziehen',
+          instruction: '$a − $b = $result.',
+          question: 'Wie lautet das Ergebnis?',
+          choices: resultChoices,
+          correctChoice: resultChoices.indexOf('$result'),
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _subtractionWithoutBridge(
+    MathFact fact,
+    MethodPreferences preferences,
+  ) {
+    final a = fact.a;
+    final b = fact.b;
+    final result = a - b;
+    final strategy = preferences.effectiveSubtraction(taskKey: fact.key);
+
+    if (strategy == SubtractionStrategy.takeAway && b > 1) {
+      final first = max(1, b ~/ 2);
+      final second = b - first;
+      final middle = a - first;
+      final middleChoices = _numberChoices(middle, maxValue: max(20, a));
+      final resultChoices = _numberChoices(result, maxValue: max(20, a));
+      return GuidedMethodGuide(
+        methodKey: 'subtraction:${strategy.name}',
+        methodLabel: strategy.label,
+        nudge: 'Zerlege $b in zwei kleine, gut rechenbare Teile.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Ersten Teil wegnehmen',
+            instruction: '$a − $first = $middle.',
+            question: 'Wo landest du zuerst?',
+            choices: middleChoices,
+            correctChoice: middleChoices.indexOf('$middle'),
+          ),
+          GuidedMethodStep(
+            title: 'Rest wegnehmen',
+            instruction: '$middle − $second = $result.',
+            question: 'Wie lautet das Ergebnis?',
+            choices: resultChoices,
+            correctChoice: resultChoices.indexOf('$result'),
+          ),
+        ],
+      );
+    }
+
+    if (strategy == SubtractionStrategy.complement) {
+      final resultChoices = _numberChoices(result, maxValue: max(20, a));
+      return GuidedMethodGuide(
+        methodKey: 'subtraction:${strategy.name}',
+        methodLabel: strategy.label,
+        nudge:
+            'Starte bei $b und ergänze bis $a. Die gesamte Ergänzung ist der Unterschied.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Von der kleineren Zahl starten',
+            instruction: 'Beginne bei $b und ergänze schrittweise bis $a.',
+          ),
+          GuidedMethodStep(
+            title: 'Unterschied bestimmen',
+            instruction: 'Die Ergänzung von $b bis $a ist $result.',
+            question: 'Wie groß ist der Unterschied?',
+            choices: resultChoices,
+            correctChoice: resultChoices.indexOf('$result'),
+          ),
+        ],
+      );
+    }
+
+    final resultChoices = _numberChoices(result, maxValue: max(20, a));
+    return GuidedMethodGuide(
+      methodKey: 'subtraction:direct',
+      methodLabel: 'Direkt abziehen',
+      nudge:
+          'Du musst keinen Zehner überschreiten. Ziehe $b direkt von $a ab.',
+      steps: [
+        const GuidedMethodStep(
+          title: 'Einer prüfen',
+          instruction:
+              'Die Einer reichen aus. Du brauchst keinen Zehner als Zwischenstopp.',
+        ),
+        GuidedMethodStep(
+          title: 'Direkt rechnen',
+          instruction: '$a − $b = $result.',
+          question: 'Wie lautet das Ergebnis?',
+          choices: resultChoices,
+          correctChoice: resultChoices.indexOf('$result'),
+        ),
+      ],
+    );
+  }
   static GuidedMethodGuide _multiplication(
     MathFact fact,
     MethodPreferences preferences,
