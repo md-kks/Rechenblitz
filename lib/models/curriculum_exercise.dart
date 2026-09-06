@@ -971,7 +971,7 @@ class CurriculumExerciseGenerator {
     MicroCompetencyId? targetCompetency,
   }) {
     if (targetCompetency == MicroCompetencyId.secondsConversion) {
-      return _secondsConversion(grade);
+      return _secondsConversion(grade, diagnostic: true);
     }
     if (targetCompetency == MicroCompetencyId.unitConversion) {
       return _unitConversionDiagnostic(grade);
@@ -1103,10 +1103,15 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _secondsConversion(GradeLevel grade) {
+  CurriculumExercise _secondsConversion(
+    GradeLevel grade, {
+    bool diagnostic = false,
+  }) {
     final toSeconds = _random.nextBool();
+    final minimumMinutes = diagnostic ? 2 : 1;
     if (toSeconds) {
-      final minutes = _between(1, grade == GradeLevel.third ? 6 : 12);
+      final minutes =
+          _between(minimumMinutes, grade == GradeLevel.third ? 6 : 12);
       return _conversion(
         '$minutes min sind wie viele Sekunden?',
         minutes * 60,
@@ -1116,7 +1121,8 @@ class CurriculumExerciseGenerator {
         900,
       );
     }
-    final minutes = _between(1, grade == GradeLevel.third ? 6 : 12);
+    final minutes =
+        _between(minimumMinutes, grade == GradeLevel.third ? 6 : 12);
     final seconds = minutes * 60;
     return _conversion(
       '$seconds s sind wie viele Minuten?',

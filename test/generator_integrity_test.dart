@@ -276,6 +276,19 @@ void main() {
           tags.map((tag) => tag.id),
           isNot(contains(MicroCompetencyId.unitConversion)),
         );
+
+        final parts = exercise.key.split(':');
+        final value = int.parse(parts.last);
+        if (parts[2] == 'min-to-sec') {
+          expect(value, greaterThanOrEqualTo(2));
+          expect(exercise.answer, value * 60);
+        } else {
+          expect(parts[2], 'sec-to-min');
+          expect(value, greaterThanOrEqualTo(120));
+          expect(value % 60, 0);
+          expect(exercise.answer, greaterThanOrEqualTo(2));
+          expect(exercise.answer * 60, value);
+        }
       }
     }
   });

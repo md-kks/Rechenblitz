@@ -110,6 +110,7 @@ class GuidedStepCatalog {
     'equalPartSize': 'Größe eines gleich großen Bruchteils bestimmen',
     'decidingPlace': 'erste unterschiedliche Stelle beim Vergleichen finden',
     'unitRelation': 'passende Beziehung zwischen zwei Einheiten erkennen',
+    'minuteSecondRelation': 'Beziehung zwischen Minuten und Sekunden erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -233,6 +234,11 @@ class GuidedMethodFactory {
 
     if (mode == TrainingMode.largeNumbers) {
       return _largeNumbers(taskKey);
+    }
+
+    if (targetCompetency == MicroCompetencyId.secondsConversion ||
+        taskKey.startsWith('time:seconds:')) {
+      return _minuteSecondConversion(taskKey);
     }
 
     if (mode == TrainingMode.advancedMeasures ||
@@ -359,6 +365,14 @@ class GuidedMethodFactory {
     MicroCompetencyId? targetCompetency,
   }) {
     if (mode == TrainingMode.advancedMeasures) {
+      if (targetCompetency == MicroCompetencyId.secondsConversion &&
+          taskKey.startsWith('time:seconds:')) {
+        return _minuteSecondConversion(taskKey)
+            .steps
+            .where((step) => step.recordsIntermediateEvidence)
+            .take(1)
+            .toList(growable: false);
+      }
       if (targetCompetency != MicroCompetencyId.unitConversion ||
           taskKey.startsWith('time:seconds:')) {
         return const <GuidedMethodStep>[];
@@ -1779,6 +1793,70 @@ class GuidedMethodFactory {
         10 => 'Zehnerstelle',
         _ => 'Einerstelle',
       };
+  static GuidedMethodGuide _minuteSecondConversion(String key) {
+    final parts = key.split(':');
+    if (!key.startsWith('time:seconds:') || parts.length < 4) {
+      return const GuidedMethodGuide(
+        methodKey: 'measure:minuteSecond',
+        methodLabel: 'Minuten und Sekunden',
+        nudge:
+            'Prüfe zuerst die feste Beziehung zwischen Minuten und Sekunden.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Einheitenbeziehung erkennen',
+            instruction:
+                'Überlege, wie viele Sekunden zu genau einer Minute gehören.',
+          ),
+          GuidedMethodStep(
+            title: 'Richtung beachten',
+            instruction:
+                'Entscheide danach, ob du mit 60 multiplizieren oder durch 60 teilen musst.',
+          ),
+        ],
+      );
+    }
+
+    final direction = parts[2];
+    final value = int.tryParse(parts.last);
+    const choices = [
+      '1 min = 6 s',
+      '1 min = 60 s',
+      '1 min = 100 s',
+    ];
+    final toSeconds = direction == 'min-to-sec';
+    final calculationHint = value == null
+        ? (toSeconds
+            ? 'Von Minuten zu Sekunden wird mit 60 multipliziert.'
+            : 'Von Sekunden zu Minuten wird durch 60 geteilt.')
+        : (toSeconds
+            ? '$value × 60 ergibt die Anzahl der Sekunden.'
+            : '$value ÷ 60 ergibt die Anzahl der Minuten.');
+
+    return GuidedMethodGuide(
+      methodKey: 'measure:minuteSecond',
+      methodLabel: 'Minuten und Sekunden',
+      nudge:
+          'Bestimme zuerst die feste Beziehung zwischen Minute und Sekunde.',
+      steps: [
+        const GuidedMethodStep(
+          title: 'Minuten-Sekunden-Beziehung erkennen',
+          instruction:
+              'Denke an genau eine volle Minute und entscheide, welche Beziehung stimmt.',
+          question: 'Welche Beziehung zwischen Minuten und Sekunden stimmt?',
+          choices: choices,
+          correctChoice: 1,
+          evidenceKey: 'minuteSecondRelation',
+          evidenceCompetency: MicroCompetencyId.secondsConversion,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Umrechnungsrichtung anwenden',
+          instruction: calculationHint,
+        ),
+      ],
+    );
+  }
+
   static GuidedMethodGuide _unitConversion(String key) {
     final relation = _unitRelationForKey(key);
     if (relation == null) {
