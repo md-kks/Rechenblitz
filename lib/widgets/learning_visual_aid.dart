@@ -811,7 +811,9 @@ class _UnitLadderAid extends StatelessWidget {
         : taskKey.startsWith('volume:')
             ? const ['l', 'ml']
             : secondsTask
-                ? const ['min', 's']
+                ? (taskKey.contains(':sec-to-min:')
+                    ? const ['s', 'min']
+                    : const ['min', 's'])
                 : taskKey.startsWith('time:')
                     ? const ['h', 'min']
                     : taskKey.startsWith('money:')
