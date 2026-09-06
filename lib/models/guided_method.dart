@@ -108,6 +108,7 @@ class GuidedStepCatalog {
     'minutesToNextHour':
         'Minuten bis zur nächsten vollen Stunde bestimmen',
     'equalPartSize': 'Größe eines gleich großen Bruchteils bestimmen',
+    'decidingPlace': 'erste unterschiedliche Stelle beim Vergleichen finden',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -356,6 +357,18 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.largeNumbers) {
+      if (targetCompetency != MicroCompetencyId.largeNumberCompare ||
+          !taskKey.startsWith('large:compare:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _largeNumbers(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
     if (mode == TrainingMode.fractions) {
       if (targetCompetency != MicroCompetencyId.fractionEqualParts ||
           !taskKey.startsWith('fraction:parts:')) {
@@ -1554,16 +1567,29 @@ class GuidedMethodFactory {
         final place = _firstDifferentPlace(a, b);
         final aDigit = (a ~/ place) % 10;
         final bDigit = (b ~/ place) % 10;
+        final placeChoices = _largePlaceChoices(a, b);
+        final placeLabel = _largePlaceLabel(place);
         return GuidedMethodGuide(
           methodKey: 'largeNumbers:compare',
           methodLabel: 'Zahlen vergleichen',
           nudge:
-              'Vergleiche von links nach rechts. Suche die erste Stelle, an der sich die Zahlen unterscheiden.',
+              'Vergleiche von links nach rechts. Überspringe Stellen, an denen beide Ziffern gleich sind.',
           steps: [
             GuidedMethodStep(
-              title: 'Erste unterschiedliche Stelle',
+              title: 'Erste unterschiedliche Stelle finden',
               instruction:
-                  'Hier entscheidet die ${_largePlaceLabel(place)}: $aDigit steht dort $bDigit gegenüber.',
+                  'Beginne ganz links und gehe erst eine Stelle weiter, wenn beide Ziffern dort gleich sind.',
+              question: 'Welche Stelle entscheidet bei diesem Vergleich zuerst?',
+              choices: placeChoices,
+              correctChoice: placeChoices.indexOf(placeLabel),
+              evidenceKey: 'decidingPlace',
+              evidenceCompetency: MicroCompetencyId.largeNumberCompare,
+              evidenceWeight: 0.40,
+            ),
+            GuidedMethodStep(
+              title: 'Ziffern an dieser Stelle vergleichen',
+              instruction:
+                  'An der $placeLabel stehen $aDigit und $bDigit gegenüber.',
             ),
             GuidedMethodStep(
               title: 'Zeichen wählen',
@@ -1714,6 +1740,21 @@ class GuidedMethodFactory {
       place ~/= 10;
     }
     return place;
+  }
+
+  static List<String> _largePlaceChoices(int a, int b) {
+    var highest = 1;
+    var largest = max(a, b);
+    while (largest >= 10) {
+      highest *= 10;
+      largest ~/= 10;
+    }
+    final values = <String>[];
+    for (var place = highest; place >= 1; place ~/= 10) {
+      values.add(_largePlaceLabel(place));
+      if (place == 1) break;
+    }
+    return values;
   }
 
   static String _largePlaceLabel(int place) => switch (place) {
