@@ -970,8 +970,13 @@ class CurriculumExerciseGenerator {
     GradeLevel grade, {
     MicroCompetencyId? targetCompetency,
   }) {
-    if (targetCompetency == MicroCompetencyId.secondsConversion ||
-        _random.nextDouble() < 0.14) {
+    if (targetCompetency == MicroCompetencyId.secondsConversion) {
+      return _secondsConversion(grade);
+    }
+    if (targetCompetency == MicroCompetencyId.unitConversion) {
+      return _unitConversionDiagnostic(grade);
+    }
+    if (_random.nextDouble() < 0.14) {
       return _secondsConversion(grade);
     }
     final kind = _random.nextInt(grade == GradeLevel.fourth ? 8 : 6);
@@ -1005,6 +1010,97 @@ class CurriculumExerciseGenerator {
     }
     final value = _between(1, 50);
     return _conversion('$value € sind wie viele Cent?', value * 100, '1 € = 100 ct.', 'ct', 'money:euro:$value', 5000);
+  }
+
+  CurriculumExercise _unitConversionDiagnostic(GradeLevel grade) {
+    final kind = _random.nextInt(grade == GradeLevel.fourth ? 8 : 6);
+    if (kind == 0) {
+      final value = _between(2, grade == GradeLevel.third ? 9 : 50);
+      return _conversion(
+        '$value m sind wie viele cm?',
+        value * 100,
+        '1 m = 100 cm. Nutze diese Beziehung für den Zahlenwert.',
+        'cm',
+        'length:m:$value',
+        5000,
+      );
+    }
+    if (kind == 1) {
+      final value = _between(2, grade == GradeLevel.third ? 5 : 20);
+      return _conversion(
+        '$value km sind wie viele m?',
+        value * 1000,
+        '1 km = 1000 m. Nutze diese Beziehung für den Zahlenwert.',
+        'm',
+        'length:km:$value',
+        20000,
+      );
+    }
+    if (kind == 2) {
+      final value = _between(2, 20);
+      return _conversion(
+        '$value kg sind wie viele g?',
+        value * 1000,
+        '1 kg = 1000 g. Nutze diese Beziehung für den Zahlenwert.',
+        'g',
+        'mass:kg:$value',
+        20000,
+      );
+    }
+    if (kind == 3) {
+      final value = _between(2, 10);
+      return _conversion(
+        '$value l sind wie viele ml?',
+        value * 1000,
+        '1 l = 1000 ml. Nutze diese Beziehung für den Zahlenwert.',
+        'ml',
+        'volume:l:$value',
+        10000,
+      );
+    }
+    if (kind == 4) {
+      final value = _between(2, 9);
+      return _conversion(
+        '$value cm sind wie viele mm?',
+        value * 10,
+        '1 cm = 10 mm. Nutze diese Beziehung für den Zahlenwert.',
+        'mm',
+        'length:cm-mm:$value',
+        100,
+      );
+    }
+    if (kind == 5 && grade == GradeLevel.fourth) {
+      final value = _between(2, 9);
+      return _conversion(
+        '$value t sind wie viele kg?',
+        value * 1000,
+        '1 t = 1000 kg. Nutze diese Beziehung für den Zahlenwert.',
+        'kg',
+        'mass:t-kg:$value',
+        10000,
+      );
+    }
+    if (kind == 6) {
+      final hours = _between(2, 5);
+      final value = hours * 60;
+      return _conversion(
+        '$value min sind wie viele Stunden?',
+        hours,
+        '1 h = 60 min. Nutze diese Beziehung rückwärts.',
+        'h',
+        'time:min:$value',
+        10,
+      );
+    }
+    final value = _between(2, 50);
+    return _conversion(
+      '$value € sind wie viele Cent?',
+      value * 100,
+      '1 € = 100 ct. Nutze diese Beziehung für den Zahlenwert.',
+      'ct',
+      'money:euro:$value',
+      5000,
+    );
   }
 
   CurriculumExercise _secondsConversion(GradeLevel grade) {
