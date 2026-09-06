@@ -213,6 +213,46 @@ void main() {
     }
   });
 
+  test('Gezieltes Runden enthält immer eine echte Entscheidungsziffer', () {
+    final generator = CurriculumExerciseGenerator(random: Random(99117));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      final maxValue = grade.recommendedRange.maxValue;
+      for (var i = 0; i < 80; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.rounding,
+          gradeLevel: grade,
+          maxValue: maxValue,
+          targetCompetency: MicroCompetencyId.roundingPlace,
+        );
+        final parts = exercise.key.split(':');
+
+        expect(parts, hasLength(3));
+        expect(parts.first, 'round');
+
+        final number = int.parse(parts[1]);
+        final place = int.parse(parts[2]);
+        final decisionPlace = place ~/ 10;
+        final decisionDigit = (number ~/ decisionPlace) % 10;
+        final expected = ((number + place ~/ 2) ~/ place) * place;
+
+        expect(place, lessThan(maxValue), reason: exercise.key);
+        expect(number % place, isNot(0), reason: exercise.key);
+        expect(decisionDigit, inInclusiveRange(1, 9), reason: exercise.key);
+        expect(exercise.answer, expected, reason: exercise.key);
+
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: TrainingMode.rounding,
+          taskKey: exercise.key,
+        );
+        expect(
+          tags.map((tag) => tag.id),
+          contains(MicroCompetencyId.roundingPlace),
+        );
+      }
+    }
+  });
+
   test('Gezielte Einheitenumrechnung bleibt von Sekunden-Aufgaben getrennt',
       () {
     final generator = CurriculumExerciseGenerator(random: Random(99118));
