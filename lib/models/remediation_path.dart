@@ -226,6 +226,7 @@ class StepRecoveryGenerator {
     'minutesToNextHour',
     'equalPartSize',
     'decidingPlace',
+    'placeValueContribution',
     'unitRelation',
     'minuteSecondRelation',
     'roundingDecisionDigit',
@@ -349,6 +350,8 @@ class StepRecoveryGenerator {
         'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
         'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
         'decidingPlace' => _largeNumberDecidingPlaceStep(focus, stage, range),
+        'placeValueContribution' =>
+          _placeValueContributionStep(focus, stage, range),
         'unitRelation' => _unitRelationStep(focus, stage, range),
         'minuteSecondRelation' => _minuteSecondRelationStep(focus, stage),
         'roundingDecisionDigit' =>
@@ -1565,6 +1568,82 @@ class StepRecoveryGenerator {
       hint:
           'Merke dir zuerst die feste Beziehung zwischen den beiden Einheiten. Rechne den Zahlenwert erst danach um.',
     );
+  }
+
+  RemediationTask _placeValueContributionStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final upper = max(999, min(range.maxValue, 999999));
+    final sourcePlace = _placeValueContributionSourcePlace(
+      focus.sourceTaskKey,
+    );
+    final places = <int>[];
+    for (var place = 10; place * 10 <= upper; place *= 10) {
+      places.add(place);
+    }
+    if (places.isEmpty) places.add(10);
+
+    final validSource =
+        sourcePlace != null && places.contains(sourcePlace) ? sourcePlace : null;
+    final place = switch (stage) {
+      RemediationStage.supported => validSource ?? places.first,
+      RemediationStage.transfer =>
+        places.firstWhere(
+          (value) => value != validSource,
+          orElse: () => places.last,
+        ),
+      RemediationStage.check => places[_random.nextInt(places.length)],
+      _ => validSource ?? places.first,
+    };
+
+    final digit = _between(2, 9);
+    final suffix = _between(1, max(1, place - 1));
+    final number = digit * place + suffix;
+    final contribution = digit * place;
+    final values = <int>{
+      contribution,
+      digit,
+      digit * 10,
+      digit * 100,
+      digit * 1000,
+      digit * 10000,
+      digit * 100000,
+    }.where((value) => value > 0).toList()
+      ..sort();
+    var next = contribution + place;
+    while (values.length < 4) {
+      if (!values.contains(next)) values.add(next);
+      next += place;
+    }
+    final choices = values.take(4).map((value) => '$value').toList();
+    if (!choices.contains('$contribution')) {
+      choices[choices.length - 1] = '$contribution';
+      choices.sort(
+        (a, b) => int.parse(a).compareTo(int.parse(b)),
+      );
+    }
+    final label = _largePlaceLabelForRecovery(place);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'place-value-contribution:$place:$number',
+      prompt:
+          'In ${_formatLargeNumber(number)} steht die Ziffer $digit an der $label. Welchen Wert trägt sie zur Zahl bei?',
+      choices: choices,
+      answer: choices.indexOf('$contribution'),
+      hint:
+          'Die Ziffer allein reicht nicht. Multipliziere sie gedanklich mit dem Wert ihrer Stelle.',
+    );
+  }
+
+  int? _placeValueContributionSourcePlace(String sourceTaskKey) {
+    final parts = sourceTaskKey.split(':');
+    final index = parts.indexOf('decompose');
+    if (index < 0 || index + 2 >= parts.length) return null;
+    return int.tryParse(parts[index + 2]);
   }
 
   RemediationTask _largeNumberDecidingPlaceStep(

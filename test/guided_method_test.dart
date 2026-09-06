@@ -99,6 +99,57 @@ void main() {
     expect(guide.steps.last.instruction, '47 − 3 = 44.');
   });
 
+
+  test('Stellenwertzerlegung beobachtet zuerst den Wert einer Ziffer', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:decompose:724:100',
+      expected: 724,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.placeValueDecompose,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'largeNumbers:decompose');
+    expect(evidence.evidenceKey, 'placeValueContribution');
+    expect(
+      evidence.evidenceCompetency,
+      MicroCompetencyId.placeValueDecompose,
+    );
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.question, contains('Ziffer 7'));
+    expect(evidence.question, contains('Hunderterstelle'));
+    expect(evidence.choices[evidence.correctChoice!], '700');
+    expect(evidence.instruction, isNot(contains('700')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:decompose:724:100',
+      expected: 724,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.placeValueDecompose,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['placeValueContribution'],
+    );
+  });
+
+  test('Normale Stellenwertzerlegung bleibt ohne Pflicht-Zwischenschritt', () {
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:decompose:724',
+      expected: 724,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.placeValueDecompose,
+    );
+
+    expect(independent, isEmpty);
+  });
+
   test('Große Zahlen beobachten die erste unterschiedliche Stelle', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.largeNumbers,

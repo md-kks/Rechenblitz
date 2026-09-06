@@ -1250,6 +1250,55 @@ void main() {
     );
   });
 
+
+  test('Stellenwert-Recovery überträgt den Ziffernwert auf eine andere Stelle',
+      () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.placeValueDecompose,
+      stepKey: 'placeValueContribution',
+      label: GuidedStepCatalog.labelFor('placeValueContribution'),
+      mode: TrainingMode.largeNumbers,
+      lastSeen: DateTime(2026, 9, 6, 23, 30),
+      sourceTaskKey:
+          'independent:placeValueContribution:large:decompose:724:100',
+    );
+    final plan = StepRecoveryGenerator(random: Random(813)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int place(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('place-value-contribution');
+      return int.parse(parts[index + 1]);
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(place(plan.tasks[0]), 100);
+    expect(place(plan.tasks[1]), isNot(100));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.largeNumbers);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:placeValueContribution:place-value-contribution:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.prompt, contains('Welchen Wert trägt sie'));
+      expect(task.answer, inInclusiveRange(0, task.choices!.length - 1));
+      expect(
+        int.parse(task.choices![task.answer]),
+        greaterThanOrEqualTo(20),
+      );
+    }
+  });
+
   test('Zahlenvergleich-Recovery wechselt die entscheidende Stelle', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.largeNumberCompare,
