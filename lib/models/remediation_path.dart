@@ -233,6 +233,7 @@ class StepRecoveryGenerator {
     'gapToAnchor',
     'referenceEstimate',
     'roundedSummands',
+    'romanSubtractivePair',
     'errorPlace',
     'unitRelation',
     'minuteSecondRelation',
@@ -368,6 +369,8 @@ class StepRecoveryGenerator {
           _plausibilityReferenceEstimateStep(focus, stage, range),
         'roundedSummands' =>
           _estimationRoundedSummandsStep(focus, stage, range),
+        'romanSubtractivePair' =>
+          _romanSubtractivePairStep(focus, stage),
         'errorPlace' => _errorPlaceStep(focus, stage, range),
         'unitRelation' => _unitRelationStep(focus, stage, range),
         'minuteSecondRelation' => _minuteSecondRelationStep(focus, stage),
@@ -1668,6 +1671,83 @@ class StepRecoveryGenerator {
       hint:
           'Prüfe die schriftliche Addition von rechts nach links und suche zuerst die fehlerhafte Stellenwertstelle.',
     );
+  }
+
+  RemediationTask _romanSubtractivePairStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourcePair = _romanSourcePair(focus.sourceTaskKey);
+    final pool = sourcePair == 90
+        ? const <int>[4, 9, 40, 90]
+        : const <int>[4, 9, 40];
+    final validSource =
+        sourcePair != null && pool.contains(sourcePair) ? sourcePair : pool.first;
+    final transfer = pool.where((value) => value != validSource).toList();
+    final pairValue = switch (stage) {
+      RemediationStage.supported => validSource,
+      RemediationStage.transfer =>
+        transfer[_random.nextInt(transfer.length)],
+      RemediationStage.check => pool[_random.nextInt(pool.length)],
+      _ => validSource,
+    };
+    final contexts = switch (pairValue) {
+      4 => const <int>[14, 24, 34],
+      9 => const <int>[19, 29, 39],
+      40 => const <int>[41, 42, 43, 46, 47, 48],
+      90 => const <int>[91, 92, 93, 96, 97, 98],
+      _ => const <int>[14],
+    };
+    final value = contexts[_random.nextInt(contexts.length)];
+    final pair = switch (pairValue) {
+      4 => 'IV',
+      9 => 'IX',
+      40 => 'XL',
+      90 => 'XC',
+      _ => 'IV',
+    };
+    final fullRoman = _romanForRecovery(value);
+    final rawChoices = switch (pairValue) {
+      4 => <String>['4', '6', '5', '1'],
+      9 => <String>['9', '11', '10', '1'],
+      40 => <String>['40', '60', '50', '10'],
+      90 => <String>['90', '110', '100', '10'],
+      _ => <String>['4', '6', '5', '1'],
+    };
+    final choices = rawChoices.toList()..shuffle(_random);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'roman-subtractive:$pairValue:$value',
+      prompt:
+          'In $fullRoman: Welchen Wert hat $pair als zusammengehöriges Paar?',
+      choices: choices,
+      answer: choices.indexOf('$pairValue'),
+      hint:
+          'Wenn ein kleineres Zeichen direkt vor einem größeren steht, ziehst du seinen Wert vom größeren ab.',
+    );
+  }
+
+  int? _romanSourcePair(String sourceTaskKey) {
+    final parts = sourceTaskKey.split(':');
+    final romanIndex = parts.indexOf('roman');
+    if (romanIndex < 0 || romanIndex + 3 >= parts.length) return null;
+    return int.tryParse(parts[romanIndex + 3]);
+  }
+
+  String _romanForRecovery(int value) {
+    const values = [100, 90, 50, 40, 10, 9, 5, 4, 1];
+    const symbols = ['C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+    var rest = value;
+    final buffer = StringBuffer();
+    for (var i = 0; i < values.length; i++) {
+      while (rest >= values[i]) {
+        buffer.write(symbols[i]);
+        rest -= values[i];
+      }
+    }
+    return buffer.toString();
   }
 
   RemediationTask _estimationRoundedSummandsStep(

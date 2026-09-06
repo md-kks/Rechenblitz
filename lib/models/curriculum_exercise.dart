@@ -161,7 +161,10 @@ class CurriculumExerciseGenerator {
           targetCompetency == MicroCompetencyId.reasoningJustification
               ? _reasoningJustification(maxValue)
               : _arithmeticLaws(gradeLevel, maxValue),
-        TrainingMode.romanNumerals => _romanNumerals(gradeLevel),
+        TrainingMode.romanNumerals => _romanNumerals(
+            gradeLevel,
+            targeted: targetCompetency == MicroCompetencyId.romanNumeral,
+          ),
         TrainingMode.fractions => _fractions(
             gradeLevel,
             maxValue,
@@ -1038,21 +1041,65 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _romanNumerals(GradeLevel grade) {
+  CurriculumExercise _romanNumerals(
+    GradeLevel grade, {
+    bool targeted = false,
+  }) {
     final limit = grade == GradeLevel.third ? 50 : 100;
-    final value = _between(1, limit);
+    final targetedCases = grade == GradeLevel.third
+        ? const <(int, int)>[
+            (14, 4),
+            (19, 9),
+            (24, 4),
+            (29, 9),
+            (34, 4),
+            (39, 9),
+            (41, 40),
+            (42, 40),
+            (43, 40),
+            (46, 40),
+            (47, 40),
+            (48, 40),
+          ]
+        : const <(int, int)>[
+            (14, 4),
+            (19, 9),
+            (24, 4),
+            (29, 9),
+            (34, 4),
+            (39, 9),
+            (41, 40),
+            (47, 40),
+            (91, 90),
+            (92, 90),
+            (93, 90),
+            (96, 90),
+            (97, 90),
+            (98, 90),
+          ];
+    final selected = targeted
+        ? targetedCases[_random.nextInt(targetedCases.length)]
+        : null;
+    final value = selected?.$1 ?? _between(1, limit);
+    final pairValue = selected?.$2;
     final roman = _roman(value);
-    if (_random.nextBool()) {
+    final read = _random.nextBool();
+    final keySuffix = pairValue == null ? '$value' : '$value:$pairValue';
+
+    if (read) {
       return CurriculumExercise(
         mode: TrainingMode.romanNumerals,
         prompt: 'Welche Zahl bedeutet $roman?',
         answer: value,
-        hint: 'I = 1, V = 5, X = 10, L = 50, C = 100.',
-        key: 'roman:read:$value',
+        hint: targeted
+            ? 'Achte besonders auf ein kleineres Zeichen direkt vor einem größeren: Dieses Paar wird zusammen gelesen.'
+            : 'I = 1, V = 5, X = 10, L = 50, C = 100.',
+        key: 'roman:read:$keySuffix',
         maxAnswerValue: limit,
         method: 'Römische Zahlen lesen',
       );
     }
+
     final options = <String>{roman};
     while (options.length < 4) {
       options.add(_roman(_between(1, limit)));
@@ -1062,8 +1109,10 @@ class CurriculumExerciseGenerator {
       mode: TrainingMode.romanNumerals,
       prompt: 'Wie schreibt man $value als römische Zahl?',
       answer: choices.indexOf(roman),
-      hint: 'I = 1, V = 5, X = 10, L = 50, C = 100.',
-      key: 'roman:write:$value',
+      hint: targeted
+          ? 'Achte besonders auf Subtraktionspaare wie IV, IX, XL oder XC.'
+          : 'I = 1, V = 5, X = 10, L = 50, C = 100.',
+      key: 'roman:write:$keySuffix',
       choices: choices,
       method: 'Römische Zahlen darstellen',
     );

@@ -134,6 +134,8 @@ class GuidedStepCatalog {
         'Referenz-Überschlag für die Plausibilitätsprüfung bilden',
     'roundedSummands':
         'beide Summanden passend für den Überschlag runden',
+    'romanSubtractivePair':
+        'Subtraktionspaar in einer römischen Zahl erkennen',
     'errorPlace':
         'erste falsche Stellenwertstelle in einer Rechnung erkennen',
     'unitRelation': 'passende Beziehung zwischen zwei Einheiten erkennen',
@@ -298,6 +300,10 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.estimation &&
         taskKey.startsWith('estimate:')) {
       return _estimationGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.romanNumerals) {
+      return _romanGuide(taskKey);
     }
 
     if (mode == TrainingMode.rounding ||
@@ -558,6 +564,18 @@ class GuidedMethodFactory {
         return const <GuidedMethodStep>[];
       }
       return _largeNumbers(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.romanNumerals) {
+      if (targetCompetency != MicroCompetencyId.romanNumeral ||
+          !taskKey.startsWith('roman:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _romanGuide(taskKey)
           .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3454,6 +3472,107 @@ class GuidedMethodFactory {
         ),
       ],
     );
+  }
+
+  static GuidedMethodGuide _romanGuide(String key) {
+    final parts = key.split(':');
+    final value = parts.length >= 3 ? int.tryParse(parts[2]) : null;
+    final pairValue = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+    if (value == null || pairValue == null) {
+      return const GuidedMethodGuide(
+        methodKey: 'roman:subtractivePair',
+        methodLabel: 'Römische Zahlen in Bausteinen lesen',
+        nudge:
+            'Prüfe zuerst, ob ein kleineres Zeichen direkt vor einem größeren steht.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Zeichen oder Paar erkennen',
+            instruction:
+                'IV, IX, XL und XC werden als zusammengehörige Subtraktionspaare gelesen.',
+          ),
+          GuidedMethodStep(
+            title: 'Bausteine zusammensetzen',
+            instruction:
+                'Addiere danach die Werte der gelesenen Zeichen und Paare.',
+          ),
+        ],
+      );
+    }
+
+    final pair = switch (pairValue) {
+      4 => 'IV',
+      9 => 'IX',
+      40 => 'XL',
+      90 => 'XC',
+      _ => '',
+    };
+    if (pair.isEmpty) {
+      return const GuidedMethodGuide(
+        methodKey: 'roman:subtractivePair',
+        methodLabel: 'Römische Zahlen in Bausteinen lesen',
+        nudge: 'Lies die römischen Zeichen in sinnvollen Bausteinen.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Bausteine erkennen',
+            instruction: 'Lies zuerst zusammengehörige Zeichen.',
+          ),
+        ],
+      );
+    }
+
+    final fullRoman = _romanForGuide(value);
+    final baseChoices = switch (pairValue) {
+      4 => <String>['4', '6', '5', '1'],
+      9 => <String>['9', '11', '10', '1'],
+      40 => <String>['40', '60', '50', '10'],
+      90 => <String>['90', '110', '100', '10'],
+      _ => <String>['$pairValue'],
+    };
+    final shift = value % baseChoices.length;
+    final choices = <String>[
+      ...baseChoices.skip(shift),
+      ...baseChoices.take(shift),
+    ];
+
+    return GuidedMethodGuide(
+      methodKey: 'roman:subtractivePair',
+      methodLabel: 'Römische Zahlen in Bausteinen lesen',
+      nudge:
+          'Lies in $fullRoman zuerst das zusammengehörige Paar $pair. Die ganze Zahl kommt erst danach.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Subtraktionspaar lesen',
+          instruction:
+              'Steht ein kleineres Zeichen direkt vor einem größeren, wird der kleinere Wert vom größeren abgezogen.',
+          question:
+              'Welchen Wert hat $pair als zusammengehöriges Paar in $fullRoman?',
+          choices: choices,
+          correctChoice: choices.indexOf('$pairValue'),
+          evidenceKey: 'romanSubtractivePair',
+          evidenceCompetency: MicroCompetencyId.romanNumeral,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Übrige Zeichen lesen',
+          instruction:
+              'Lies danach die übrigen Zeichen und setze alle Bausteine zur vollständigen Zahl zusammen.',
+        ),
+      ],
+    );
+  }
+
+  static String _romanForGuide(int value) {
+    const values = [100, 90, 50, 40, 10, 9, 5, 4, 1];
+    const symbols = ['C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+    var rest = value;
+    final buffer = StringBuffer();
+    for (var i = 0; i < values.length; i++) {
+      while (rest >= values[i]) {
+        buffer.write(symbols[i]);
+        rest -= values[i];
+      }
+    }
+    return buffer.toString();
   }
 
   static GuidedMethodGuide _estimationGuide(String key) {

@@ -1405,6 +1405,51 @@ void main() {
   });
 
 
+
+  test('Römische-Zahlen-Recovery überträgt Subtraktionspaare', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.romanNumeral,
+      stepKey: 'romanSubtractivePair',
+      label: GuidedStepCatalog.labelFor('romanSubtractivePair'),
+      mode: TrainingMode.romanNumerals,
+      lastSeen: DateTime(2026, 9, 6, 23, 30),
+      sourceTaskKey:
+          'independent:romanSubtractivePair:roman:read:47:40',
+    );
+    final plan = StepRecoveryGenerator(random: Random(852)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int pair(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('roman-subtractive');
+      return int.parse(parts[index + 1]);
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(pair(plan.tasks[0]), 40);
+    expect(pair(plan.tasks[1]), isNot(40));
+    expect(pair(plan.tasks[1]), isNot(90));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.romanNumerals);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:romanSubtractivePair:roman-subtractive:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices, hasLength(4));
+      expect(task.prompt, contains('zusammengehöriges Paar'));
+    }
+  });
+
   test('Überschlag-Recovery überträgt das Runden der Summanden', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.estimation,

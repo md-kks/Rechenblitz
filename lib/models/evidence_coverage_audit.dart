@@ -142,6 +142,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.estimation: [
       'roundedSummands',
     ],
+    MicroCompetencyId.romanNumeral: [
+      'romanSubtractivePair',
+    ],
     MicroCompetencyId.errorChecking: [
       'errorPlace',
     ],
@@ -270,6 +273,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.estimation: [
       'roundedSummands',
+    ],
+    MicroCompetencyId.romanNumeral: [
+      'romanSubtractivePair',
     ],
     MicroCompetencyId.errorChecking: [
       'errorPlace',

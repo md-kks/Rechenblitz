@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 26,
+        fullTaskOnly: 25,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 38,
+        targetedRecovery: 39,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 28,
+        fullTaskOnly: 27,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 38,
+        targetedRecovery: 39,
       ),
     };
 
@@ -257,6 +257,17 @@ void main() {
     expect(item.guidedStepKeys, contains('errorPlace'));
     expect(item.independentStepKeys, contains('errorPlace'));
     expect(item.recoveryStepKeys, contains('errorPlace'));
+  });
+
+  test('Audit führt römische Zahlen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.romanNumeral,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('romanSubtractivePair'));
+    expect(item.independentStepKeys, contains('romanSubtractivePair'));
+    expect(item.recoveryStepKeys, contains('romanSubtractivePair'));
   });
 
   test('Audit führt Überschlag bis zur gezielten Recovery', () {

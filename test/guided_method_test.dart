@@ -218,6 +218,44 @@ void main() {
   });
 
 
+
+  test('Römische Zahlen beobachten zuerst das Subtraktionspaar', () {
+    for (final item in [
+      (key: 'roman:read:47:40', expected: 47, pair: 'XL', value: '40'),
+      (key: 'roman:write:29:9', expected: 0, pair: 'IX', value: '9'),
+    ]) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.romanNumerals,
+        taskKey: item.key,
+        expected: item.expected,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.romanNumeral,
+      );
+      final evidence =
+          guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+      expect(guide.methodKey, 'roman:subtractivePair');
+      expect(evidence.evidenceKey, 'romanSubtractivePair');
+      expect(evidence.evidenceCompetency, MicroCompetencyId.romanNumeral);
+      expect(evidence.evidenceWeight, 0.40);
+      expect(evidence.question, contains(item.pair));
+      expect(evidence.choices[evidence.correctChoice!], item.value);
+
+      final independent =
+          GuidedMethodFactory.independentWrittenStepsForTask(
+        mode: TrainingMode.romanNumerals,
+        taskKey: item.key,
+        expected: item.expected,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.romanNumeral,
+      );
+      expect(
+        independent.map((step) => step.evidenceKey),
+        ['romanSubtractivePair'],
+      );
+    }
+  });
+
   test('Überschlag beobachtet zuerst die beiden gerundeten Summanden', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.estimation,

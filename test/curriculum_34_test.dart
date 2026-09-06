@@ -137,6 +137,50 @@ void main() {
   });
 
 
+
+  test('Gezielte römische Zahlen enthalten echte Subtraktionspaare', () {
+    final generator = CurriculumExerciseGenerator(random: Random(851));
+    final thirdPairs = <int>{};
+    final fourthPairs = <int>{};
+    final kinds = <String>{};
+
+    for (final config in [
+      (GradeLevel.third, 1000, thirdPairs),
+      (GradeLevel.fourth, 1000000, fourthPairs),
+    ]) {
+      for (var i = 0; i < 160; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.romanNumerals,
+          gradeLevel: config.$1,
+          maxValue: config.$2,
+          targetCompetency: MicroCompetencyId.romanNumeral,
+        );
+        final parts = exercise.key.split(':');
+        final kind = parts[1];
+        final value = int.parse(parts[2]);
+        final pair = int.parse(parts[3]);
+
+        kinds.add(kind);
+        config.$3.add(pair);
+        expect(value, greaterThan(pair));
+        expect(pair, isIn([4, 9, 40, 90]));
+        if (config.$1 == GradeLevel.third) {
+          expect(pair, isNot(90));
+        }
+        if (kind == 'read') {
+          expect(exercise.prompt, contains('Welche Zahl bedeutet'));
+          expect(exercise.answer, value);
+        } else {
+          expect(exercise.choices, hasLength(4));
+        }
+      }
+    }
+
+    expect(kinds, {'read', 'write'});
+    expect(thirdPairs, containsAll({4, 9, 40}));
+    expect(fourthPairs, contains(90));
+  });
+
   test('Gezielter Überschlag bleibt im echten Estimation-Pfad', () {
     final generator = CurriculumExerciseGenerator(random: Random(841));
 
