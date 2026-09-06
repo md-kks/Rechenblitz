@@ -767,7 +767,7 @@ class StepRecoveryGenerator {
     IndependentStepRecoveryFocus focus,
     RemediationStage stage,
   ) {
-    const minuteOptions = [15, 30, 45];
+    const minuteOptions = [10, 15, 20, 25, 30, 35, 40, 45, 50];
     final parts = focus.sourceTaskKey.split(':');
     final durationIndex = parts.indexOf('duration');
     final sourceStart = durationIndex >= 0 &&
@@ -775,9 +775,10 @@ class StepRecoveryGenerator {
         ? int.tryParse(parts[durationIndex + 1])
         : null;
     final sourceMinute = sourceStart == null ? null : sourceStart % 60;
-    final validSourceMinute = minuteOptions.contains(sourceMinute)
-        ? sourceMinute!
-        : 30;
+    final validSourceMinute =
+        sourceMinute != null && sourceMinute > 0 && sourceMinute < 60
+            ? sourceMinute
+            : 30;
     final transferMinutes = minuteOptions
         .where((value) => value != validSourceMinute)
         .toList();
