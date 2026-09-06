@@ -1564,7 +1564,37 @@ void main() {
     expect(guide.steps.last.instruction, contains('180 ÷ 60'));
   });
 
-  test('Sekunden-Kompetenz bekommt keinen Unit-Conversion-Step', () {
+  test('Sekunden-Kompetenz beobachtet die 60er-Beziehung unabhängig',
+      () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.advancedMeasures,
+      taskKey: 'time:seconds:min-to-sec:4',
+      expected: 240,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.secondsConversion,
+    );
+    final evidence = guide.steps.singleWhere(
+      (step) => step.evidenceKey == 'minuteSecondRelation',
+    );
+
+    expect(guide.methodKey, 'measure:minuteSecond');
+    expect(guide.methodLabel, 'Minuten und Sekunden');
+    expect(
+      evidence.evidenceCompetency,
+      MicroCompetencyId.secondsConversion,
+    );
+    expect(evidence.evidenceWeight, 0.40);
+    expect(
+      evidence.choices[evidence.correctChoice!],
+      '1 min = 60 s',
+    );
+    expect(evidence.instruction, isNot(contains('60')));
+    expect(guide.steps.last.instruction, contains('4 × 60'));
+    expect(
+      GuidedStepCatalog.labelFor('minuteSecondRelation'),
+      contains('Minuten und Sekunden'),
+    );
+
     final independent =
         GuidedMethodFactory.independentWrittenStepsForTask(
       mode: TrainingMode.advancedMeasures,
@@ -1573,8 +1603,103 @@ void main() {
       preferences: const MethodPreferences(),
       targetCompetency: MicroCompetencyId.secondsConversion,
     );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['minuteSecondRelation'],
+    );
+  });
 
-    expect(independent, isEmpty);
+  test('Sekunden zu Minuten wendet die 60er-Beziehung rückwärts an', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.advancedMeasures,
+      taskKey: 'time:seconds:sec-to-min:240',
+      expected: 4,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.secondsConversion,
+    );
+
+    expect(
+      guide.steps
+          .singleWhere((step) => step.evidenceKey == 'minuteSecondRelation')
+          .choices[1],
+      '1 min = 60 s',
+    );
+    expect(guide.steps.last.instruction, contains('240 ÷ 60'));
+  });
+
+  testWidgets('Sekunden-Darstellung zeigt beide Einheiten in Rechenrichtung',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.unitConversion,
+            taskKey: 'time:seconds:sec-to-min:240',
+            expected: 4,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Minuten und Sekunden'), findsOneWidget);
+    expect(find.text('1 min = 60 s'), findsOneWidget);
+    final secondsX = tester.getCenter(find.text('s')).dx;
+    final minutesX = tester.getCenter(find.text('min')).dx;
+    expect(secondsX, lessThan(minutesX));
+  });
+
+  testWidgets('Curriculum speichert Minuten-Sekunden-Beziehung selbstständig',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.advancedMeasures,
+      prompt: '4 min sind wie viele Sekunden?',
+      answer: 240,
+      hint: '1 Minute = 60 Sekunden.',
+      key: 'time:seconds:min-to-sec:4',
+      answerSuffix: 's',
+      maxAnswerValue: 900,
+      method: 'Größen umwandeln',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.advancedMeasures,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.secondsConversion,
+          exerciseGenerator: _FixedCurriculumExerciseGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 1'), findsOneWidget);
+    expect(find.text('Antwort eingeben'), findsNothing);
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, '1 min = 60 s'),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final steps = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+        .toList();
+    expect(steps, hasLength(1));
+    expect(steps.single.id, MicroCompetencyId.secondsConversion);
+    expect(steps.single.correct, isTrue);
+    expect(steps.single.usedHelp, isFalse);
+    expect(
+      steps.single.taskKey,
+      'independent:minuteSecondRelation:time:seconds:min-to-sec:4',
+    );
+    expect(find.text('Antwort eingeben'), findsOneWidget);
   });
 
   testWidgets('Curriculum speichert Einheitenbeziehung selbstständig',
