@@ -437,7 +437,12 @@ class CurriculumExerciseGenerator {
   }) {
     final limit = _safeMax(maxValue, grade);
     final places = [10, 100, 1000, 10000, 100000]
-        .where((value) => value <= limit)
+        .where(
+          (value) =>
+              value <= limit &&
+              (targetCompetency != MicroCompetencyId.roundingPlace ||
+                  value < limit),
+        )
         .toList();
     final place = places[_random.nextInt(places.length)];
     var number = _between(place, limit);
