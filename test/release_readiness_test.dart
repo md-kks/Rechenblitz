@@ -135,31 +135,31 @@ void main() {
     const expected = {
       GradeLevel.first: (
         total: 21,
-        fullTaskOnly: 7,
+        fullTaskOnly: 6,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 14,
+        targetedRecovery: 15,
       ),
       GradeLevel.second: (
         total: 26,
-        fullTaskOnly: 7,
+        fullTaskOnly: 6,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 19,
+        targetedRecovery: 20,
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 35,
+        fullTaskOnly: 34,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 29,
+        targetedRecovery: 30,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 37,
+        fullTaskOnly: 36,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 29,
+        targetedRecovery: 30,
       ),
     };
 
@@ -336,6 +336,17 @@ void main() {
     expect(item.guidedStepKeys, contains('wallOperationChoice'));
     expect(item.independentStepKeys, contains('wallOperationChoice'));
     expect(item.recoveryStepKeys, contains('wallOperationChoice'));
+  });
+
+  test('Audit führt Längen-Rechenplan bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.measurementCalculation,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('measureOperationChoice'));
+    expect(item.independentStepKeys, contains('measureOperationChoice'));
+    expect(item.recoveryStepKeys, contains('measureOperationChoice'));
   });
 
   test('Audit führt Geld-Rechenplan bis zur gezielten Recovery', () {

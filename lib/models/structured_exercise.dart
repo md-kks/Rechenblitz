@@ -212,7 +212,10 @@ class StructuredExerciseGenerator {
             maxValue,
             targetCompetency: targetCompetency,
           ),
-        TrainingMode.measures => _measures(maxValue),
+        TrainingMode.measures => _measures(
+            maxValue,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.geometry => _geometry(maxValue),
         _ => throw ArgumentError('$mode ist kein strukturierter Aufgabentyp.'),
       };
@@ -1853,12 +1856,23 @@ class StructuredExerciseGenerator {
   String _formatTime(int hour, int minute) =>
       '$hour:${minute.toString().padLeft(2, '0')} Uhr';
 
-  StructuredExercise _measures(int maxValue) {
-    final kind = _random.nextInt(maxValue >= 100 ? 6 : 3);
+  StructuredExercise _measures(
+    int maxValue, {
+    MicroCompetencyId? targetCompetency,
+  }) {
+    final targeted =
+        targetCompetency == MicroCompetencyId.measurementCalculation;
+    final kind = targeted
+        ? _random.nextInt(2)
+        : _random.nextInt(maxValue >= 100 ? 6 : 3);
 
     if (kind == 0) {
-      final first = _random.nextInt(maxValue + 1);
-      final second = _random.nextInt(maxValue - first + 1);
+      final first = targeted
+          ? 1 + _random.nextInt(max(1, maxValue - 1))
+          : _random.nextInt(maxValue + 1);
+      final second = targeted
+          ? 1 + _random.nextInt(max(1, maxValue - first))
+          : _random.nextInt(maxValue - first + 1);
       final contexts = <(String, String)>[
         ('ribbon', 'Ein Band ist $first cm lang. Ein zweites Stück ist $second cm lang. Wie lang sind beide zusammen?'),
         ('string', 'Eine Schnur misst $first cm, eine zweite $second cm. Wie lang sind beide zusammen?'),
@@ -1869,22 +1883,36 @@ class StructuredExerciseGenerator {
         mode: TrainingMode.measures,
         prompt: context.$2,
         answer: first + second,
-        hint: 'Längen mit derselben Einheit können direkt addiert werden.',
+        hint: targeted
+            ? 'Beide Längen haben dieselbe Einheit. Überlege zuerst, ob die Stücke zusammenkommen oder ob etwas weggenommen wird.'
+            : 'Längen mit derselben Einheit können direkt addiert werden.',
         key: 'measure:add:${context.$1}:$first:$second',
         answerSuffix: 'cm',
+        checkpoints: targeted
+            ? [_measurementOperationCheckpoint(addition: true)]
+            : const <ExerciseCheckpoint>[],
       );
     }
 
     if (kind == 1) {
-      final whole = 1 + _random.nextInt(max(1, maxValue));
-      final cut = _random.nextInt(whole + 1);
+      final whole = targeted
+          ? 2 + _random.nextInt(max(1, maxValue - 1))
+          : 1 + _random.nextInt(max(1, maxValue));
+      final cut = targeted
+          ? 1 + _random.nextInt(max(1, whole - 1))
+          : _random.nextInt(whole + 1);
       return StructuredExercise(
         mode: TrainingMode.measures,
         prompt: 'Ein Seil ist $whole cm lang. $cut cm werden abgeschnitten. Wie viele cm bleiben?',
         answer: whole - cut,
-        hint: 'Die abgeschnittene Länge wird von der ganzen Länge abgezogen.',
+        hint: targeted
+            ? 'Beide Längen haben dieselbe Einheit. Überlege zuerst, ob die Stücke zusammenkommen oder ob etwas weggenommen wird.'
+            : 'Die abgeschnittene Länge wird von der ganzen Länge abgezogen.',
         key: 'measure:subtract:rope:$whole:$cut',
         answerSuffix: 'cm',
+        checkpoints: targeted
+            ? [_measurementOperationCheckpoint(addition: false)]
+            : const <ExerciseCheckpoint>[],
       );
     }
 
@@ -1938,6 +1966,21 @@ class StructuredExerciseGenerator {
       key: 'measure:convert:cm-m:$centimeters',
       answerSuffix: 'm',
       maxAnswerValue: meters,
+    );
+  }
+
+  ExerciseCheckpoint _measurementOperationCheckpoint({
+    required bool addition,
+  }) {
+    final choices = <String>['Plus (+)', 'Minus (−)']..shuffle(_random);
+    final correct = addition ? 'Plus (+)' : 'Minus (−)';
+    return ExerciseCheckpoint(
+      key: 'measureOperationChoice',
+      question: 'Welche Rechenart passt zu dieser Längensituation?',
+      choices: choices,
+      correctChoice: choices.indexOf(correct),
+      competencyId: MicroCompetencyId.measurementCalculation,
+      evidenceWeight: 0.40,
     );
   }
 

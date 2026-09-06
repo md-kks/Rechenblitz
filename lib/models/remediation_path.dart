@@ -220,6 +220,7 @@ class StepRecoveryGenerator {
     'inverseOperationChoice',
     'wallOperationChoice',
     'moneyOperationChoice',
+    'measureOperationChoice',
     'unitValue',
     'minutesToNextHour',
     'equalPartSize',
@@ -339,6 +340,8 @@ class StepRecoveryGenerator {
           _wallOperationChoiceStep(focus, stage, range),
         'moneyOperationChoice' =>
           _moneyOperationChoiceStep(focus, stage, range),
+        'measureOperationChoice' =>
+          _measureOperationChoiceStep(focus, stage, range),
         'unitValue' => _proportionalUnitValueStep(focus, stage, range),
         'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
         'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
@@ -807,6 +810,81 @@ class StepRecoveryGenerator {
     final hidden = int.tryParse(parts[index + 2]);
     if (hidden == null || hidden < 0 || hidden > 5) return null;
     return hidden >= 3;
+  }
+
+  RemediationTask _measureOperationChoiceStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(2, min(range.maxValue, 100));
+    final source = _measurementCalculationSource(focus.sourceTaskKey);
+    final sourceAddition = source?.addition ?? true;
+    final addition = switch (stage) {
+      RemediationStage.supported => sourceAddition,
+      RemediationStage.transfer => !sourceAddition,
+      RemediationStage.check => _random.nextBool(),
+      _ => sourceAddition,
+    };
+
+    var first = addition
+        ? _between(1, max(1, limit - 1))
+        : _between(2, limit);
+    var second = addition
+        ? _between(1, max(1, limit - first))
+        : _between(1, first - 1);
+
+    if (source != null &&
+        source.addition == addition &&
+        source.first == first &&
+        source.second == second) {
+      if (addition) {
+        if (second < limit - first) {
+          second += 1;
+        } else if (first > 1) {
+          first -= 1;
+        }
+      } else if (second < first - 1) {
+        second += 1;
+      } else if (first < limit) {
+        first += 1;
+      }
+    }
+
+    final choices = <String>['Plus (+)', 'Minus (−)']..shuffle(_random);
+    final correct = addition ? 'Plus (+)' : 'Minus (−)';
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key:
+          'measurement-plan:${addition ? 'add' : 'subtract'}:$first:$second',
+      prompt: addition
+          ? 'Ein Band ist $first cm lang, ein zweites $second cm. Welche Rechenart brauchst du für die Gesamtlänge?'
+          : 'Ein Seil ist $first cm lang. $second cm werden abgeschnitten. Welche Rechenart brauchst du für die Restlänge?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Prüfe, ob gleichartige Längen zusammenkommen oder ob von einer ganzen Länge ein Stück weggenommen wird.',
+    );
+  }
+
+  ({bool addition, int first, int second})? _measurementCalculationSource(
+    String sourceTaskKey,
+  ) {
+    final parts = sourceTaskKey.split(':');
+    final index = parts.indexOf('measure');
+    if (index < 0 || index + 2 >= parts.length) return null;
+    final family = parts[index + 1];
+    if (family != 'add' && family != 'subtract') return null;
+    final first = int.tryParse(parts[parts.length - 2]);
+    final second = int.tryParse(parts.last);
+    if (first == null || second == null) return null;
+    return (
+      addition: family == 'add',
+      first: first,
+      second: second,
+    );
   }
 
   RemediationTask _moneyOperationChoiceStep(

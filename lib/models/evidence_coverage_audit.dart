@@ -166,6 +166,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.moneyCalculation: [
       'moneyOperationChoice',
     ],
+    MicroCompetencyId.measurementCalculation: [
+      'measureOperationChoice',
+    ],
     MicroCompetencyId.proportionalUnit: [
       'unitValue',
     ],
@@ -266,6 +269,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.moneyCalculation: [
       'moneyOperationChoice',
+    ],
+    MicroCompetencyId.measurementCalculation: [
+      'measureOperationChoice',
     ],
     MicroCompetencyId.proportionalUnit: [
       'unitValue',

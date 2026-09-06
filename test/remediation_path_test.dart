@@ -1718,4 +1718,68 @@ void main() {
   });
 
 
+  test('Längen-Recovery wechselt zwischen Zusammenfügen und Wegnehmen', () {
+    const cases = [
+      (
+        source: 'measure:add:ribbon:7:5',
+        supported: 'Plus (+)',
+        transfer: 'Minus (−)',
+      ),
+      (
+        source: 'measure:subtract:rope:12:5',
+        supported: 'Minus (−)',
+        transfer: 'Plus (+)',
+      ),
+    ];
+
+    for (var i = 0; i < cases.length; i++) {
+      final item = cases[i];
+      final focus = IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.measurementCalculation,
+        stepKey: 'measureOperationChoice',
+        label: GuidedStepCatalog.labelFor('measureOperationChoice'),
+        mode: TrainingMode.measures,
+        lastSeen: DateTime(2026, 9, 6, 22 + i),
+        sourceTaskKey: item.source,
+      );
+      final plan = StepRecoveryGenerator(random: Random(700 + i)).generate(
+        focus: focus,
+        range: NumberRangeLevel.twenty,
+      );
+
+      expect(plan.tasks, hasLength(3));
+      expect(
+        plan.tasks.map((task) => task.stage),
+        [
+          RemediationStage.supported,
+          RemediationStage.transfer,
+          RemediationStage.check,
+        ],
+      );
+      expect(
+        plan.tasks[0].choices![plan.tasks[0].answer],
+        item.supported,
+      );
+      expect(
+        plan.tasks[1].choices![plan.tasks[1].answer],
+        item.transfer,
+      );
+
+      for (final task in plan.tasks) {
+        expect(task.mode, TrainingMode.measures);
+        expect(
+          task.taskKey,
+          startsWith(
+            'step-recovery:measureOperationChoice:measurement-plan:',
+          ),
+        );
+        expect(task.usesChoices, isTrue);
+        expect(task.choices!.toSet(), {'Plus (+)', 'Minus (−)'});
+        expect(task.prompt, contains('cm'));
+        expect(task.hint, contains('Längen'));
+      }
+    }
+  });
+
+
 }
