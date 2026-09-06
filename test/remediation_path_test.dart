@@ -1592,4 +1592,68 @@ void main() {
   });
 
 
+  test('Geld-Rechenplan-Recovery wechselt zwischen Gesamtpreis und Restgeld',
+      () {
+    const cases = [
+      (
+        source: 'money:add:school:7:5',
+        supported: 'Plus (+)',
+        transfer: 'Minus (−)',
+      ),
+      (
+        source: 'money:change:kiosk:12:5',
+        supported: 'Minus (−)',
+        transfer: 'Plus (+)',
+      ),
+    ];
+
+    for (var i = 0; i < cases.length; i++) {
+      final item = cases[i];
+      final focus = IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.moneyCalculation,
+        stepKey: 'moneyOperationChoice',
+        label: GuidedStepCatalog.labelFor('moneyOperationChoice'),
+        mode: TrainingMode.money,
+        lastSeen: DateTime(2026, 9, 6, 18 + i),
+        sourceTaskKey: item.source,
+      );
+      final plan = StepRecoveryGenerator(random: Random(680 + i)).generate(
+        focus: focus,
+        range: NumberRangeLevel.twenty,
+      );
+
+      expect(plan.tasks, hasLength(3));
+      expect(
+        plan.tasks.map((task) => task.stage),
+        [
+          RemediationStage.supported,
+          RemediationStage.transfer,
+          RemediationStage.check,
+        ],
+      );
+      expect(
+        plan.tasks[0].choices![plan.tasks[0].answer],
+        item.supported,
+      );
+      expect(
+        plan.tasks[1].choices![plan.tasks[1].answer],
+        item.transfer,
+      );
+
+      for (final task in plan.tasks) {
+        expect(task.mode, TrainingMode.money);
+        expect(
+          task.taskKey,
+          startsWith('step-recovery:moneyOperationChoice:money-plan:'),
+        );
+        expect(task.usesChoices, isTrue);
+        expect(task.choices, hasLength(2));
+        expect(task.choices!.toSet(), {'Plus (+)', 'Minus (−)'});
+        expect(task.prompt, contains('€'));
+        expect(task.hint, contains('Geldbeträge'));
+      }
+    }
+  });
+
+
 }

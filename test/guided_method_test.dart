@@ -2594,6 +2594,71 @@ void main() {
     }
   });
 
+  test('Geld-Hilfe trennt Rechenplan vom Ausrechnen', () {
+    const cases = [
+      (
+        key: 'money:add:school:7:5',
+        expected: 12,
+        correct: 'Plus (+)',
+      ),
+      (
+        key: 'money:change:kiosk:12:5',
+        expected: 7,
+        correct: 'Minus (−)',
+      ),
+      (
+        key: 'money:missing:item:12:5',
+        expected: 7,
+        correct: 'Minus (−)',
+      ),
+    ];
+
+    for (final item in cases) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.money,
+        taskKey: item.key,
+        expected: item.expected,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.moneyCalculation,
+      );
+
+      expect(guide.methodKey, 'money:calculationPlan');
+      final evidenceStep =
+          guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+      expect(evidenceStep.evidenceKey, 'moneyOperationChoice');
+      expect(
+        evidenceStep.evidenceCompetency,
+        MicroCompetencyId.moneyCalculation,
+      );
+      expect(evidenceStep.evidenceWeight, 0.40);
+      expect(evidenceStep.choices.toSet(), {'Plus (+)', 'Minus (−)'});
+      expect(
+        evidenceStep.choices[evidenceStep.correctChoice!],
+        item.correct,
+      );
+    }
+  });
+
+  test('Geldumwandlung behält eine eigene schulische Hilfe ohne Step-Evidenz',
+      () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.money,
+      taskKey: 'money:convert:euro-cent:4',
+      expected: 400,
+      preferences: const MethodPreferences(),
+    );
+
+    expect(guide.methodKey, 'money:representAndCalculate');
+    expect(
+      guide.steps.where((step) => step.recordsIntermediateEvidence),
+      isEmpty,
+    );
+    expect(
+      guide.steps.any((step) => step.instruction.contains('1 € = 100 ct')),
+      isTrue,
+    );
+  });
+
 }
 
 class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {

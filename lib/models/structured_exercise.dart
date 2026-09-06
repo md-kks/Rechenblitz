@@ -201,7 +201,10 @@ class StructuredExerciseGenerator {
             transferEmphasis,
             targetCompetency,
           ),
-        TrainingMode.money => _money(maxValue),
+        TrainingMode.money => _money(
+            maxValue,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.clock => _clock(
             maxValue,
             targetCompetency: targetCompetency,
@@ -1606,13 +1609,21 @@ class StructuredExerciseGenerator {
   int _between(int low, int high) =>
       high <= low ? low : low + _random.nextInt(high - low + 1);
 
-  StructuredExercise _money(int maxValue) {
+  StructuredExercise _money(
+    int maxValue, {
+    MicroCompetencyId? targetCompetency,
+  }) {
     final budget = max(2, maxValue);
-    final kind = _random.nextInt(maxValue >= 100 ? 5 : 4);
+    final targeted =
+        targetCompetency == MicroCompetencyId.moneyCalculation;
+    final kind =
+        targeted ? _random.nextInt(3) : _random.nextInt(maxValue >= 100 ? 5 : 4);
 
     if (kind == 0) {
-      final paid = 1 + _random.nextInt(budget);
-      final price = _random.nextInt(paid + 1);
+      final paid =
+          targeted ? _between(2, budget) : 1 + _random.nextInt(budget);
+      final price =
+          targeted ? _between(1, paid - 1) : _random.nextInt(paid + 1);
       final contexts = <(String, String)>[
         ('kiosk', 'Du hast $paid €. Am Kiosk gibst du $price € aus. Wie viele Euro bleiben?'),
         ('bookshop', 'Du hast $paid €. Ein Buch kostet $price €. Wie viel Geld bleibt übrig?'),
@@ -1627,12 +1638,19 @@ class StructuredExerciseGenerator {
         key: 'money:change:${context.$1}:$paid:$price',
         answerSuffix: '€',
         moneyPartsCents: _moneyPartsForEuros(paid),
+        checkpoints: targeted
+            ? [_moneyOperationCheckpoint(addition: false)]
+            : const <ExerciseCheckpoint>[],
       );
     }
 
     if (kind == 1) {
-      final first = _random.nextInt(budget + 1);
-      final second = _random.nextInt(budget - first + 1);
+      final first = targeted
+          ? _between(1, max(1, budget - 1))
+          : _random.nextInt(budget + 1);
+      final second = targeted
+          ? _between(1, max(1, budget - first))
+          : _random.nextInt(budget - first + 1);
       final contexts = <(String, String)>[
         ('school', 'Ein Heft kostet $first € und ein Buch $second €. Wie viel kosten beide zusammen?'),
         ('toys', 'Ein Ball kostet $first € und ein Springseil $second €. Wie viel kosten beide zusammen?'),
@@ -1647,12 +1665,16 @@ class StructuredExerciseGenerator {
         key: 'money:add:${context.$1}:$first:$second',
         answerSuffix: '€',
         moneyPartsCents: _moneyPartsForEuros(first + second),
+        checkpoints: targeted
+            ? [_moneyOperationCheckpoint(addition: true)]
+            : const <ExerciseCheckpoint>[],
       );
     }
 
     if (kind == 2) {
       final total = 2 + _random.nextInt(max(1, budget - 1));
-      final known = _random.nextInt(total + 1);
+      final known =
+          targeted ? _between(1, total - 1) : _random.nextInt(total + 1);
       return StructuredExercise(
         mode: TrainingMode.money,
         prompt:
@@ -1661,6 +1683,9 @@ class StructuredExerciseGenerator {
         hint: 'Vom Gesamtpreis wird der bekannte Preis abgezogen.',
         key: 'money:missing:item:$total:$known',
         answerSuffix: '€',
+        checkpoints: targeted
+            ? [_moneyOperationCheckpoint(addition: false)]
+            : const <ExerciseCheckpoint>[],
       );
     }
 
@@ -1687,6 +1712,21 @@ class StructuredExerciseGenerator {
       answerSuffix: 'ct',
       maxAnswerValue: euros * 100,
       moneyPartsCents: _moneyPartsForEuros(euros),
+    );
+  }
+
+  ExerciseCheckpoint _moneyOperationCheckpoint({
+    required bool addition,
+  }) {
+    final choices = <String>['Plus (+)', 'Minus (−)']..shuffle(_random);
+    final correct = addition ? 'Plus (+)' : 'Minus (−)';
+    return ExerciseCheckpoint(
+      key: 'moneyOperationChoice',
+      question: 'Welche Rechenart passt zu dieser Geldsituation?',
+      choices: choices,
+      correctChoice: choices.indexOf(correct),
+      competencyId: MicroCompetencyId.moneyCalculation,
+      evidenceWeight: 0.40,
     );
   }
 

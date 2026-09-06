@@ -811,4 +811,75 @@ void main() {
   });
 
 
+  test('Gezielte Geldaufgaben prüfen zuerst den Rechenplan', () {
+    final generator = StructuredExerciseGenerator(random: Random(711));
+    final families = <String>{};
+
+    for (var i = 0; i < 140; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.money,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+        targetCompetency: MicroCompetencyId.moneyCalculation,
+      );
+      final parts = exercise.key.split(':');
+      final family = parts[1];
+      final first = int.parse(parts[parts.length - 2]);
+      final second = int.parse(parts.last);
+      families.add(family);
+
+      expect(
+        family == 'add' || family == 'change' || family == 'missing',
+        isTrue,
+        reason: exercise.key,
+      );
+      expect(first, greaterThanOrEqualTo(1));
+      expect(second, greaterThanOrEqualTo(1));
+      expect(exercise.prompt, isNot(contains(' + ')));
+      expect(exercise.prompt, isNot(contains(' − ')));
+      expect(exercise.checkpoints, hasLength(1));
+
+      final checkpoint = exercise.checkpoints.single;
+      expect(checkpoint.key, 'moneyOperationChoice');
+      expect(
+        checkpoint.competencyId,
+        MicroCompetencyId.moneyCalculation,
+      );
+      expect(checkpoint.evidenceWeight, 0.40);
+      expect(checkpoint.choices.toSet(), {'Plus (+)', 'Minus (−)'});
+
+      if (family == 'add') {
+        expect(first + second, lessThanOrEqualTo(20));
+        expect(exercise.answer, first + second);
+        expect(
+          checkpoint.choices[checkpoint.correctChoice],
+          'Plus (+)',
+        );
+      } else {
+        expect(first, greaterThan(second));
+        expect(exercise.answer, first - second);
+        expect(
+          checkpoint.choices[checkpoint.correctChoice],
+          'Minus (−)',
+        );
+      }
+    }
+
+    expect(families, containsAll(['add', 'change', 'missing']));
+  });
+
+  test('Normales Geldtraining bleibt ohne Pflicht-Checkpoint', () {
+    final generator = StructuredExerciseGenerator(random: Random(712));
+
+    for (var i = 0; i < 100; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.money,
+        maxValue: 100,
+        gradeLevel: GradeLevel.second,
+      );
+      expect(exercise.checkpoints, isEmpty, reason: exercise.key);
+    }
+  });
+
+
 }
