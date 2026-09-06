@@ -145,6 +145,19 @@ class AdaptiveEngine {
           .toList(),
     };
 
+    if (mode == TrainingMode.divide &&
+        targetCompetency == MicroCompetencyId.divisionFacts) {
+      final diagnosticFacts = candidates
+          .where(
+            (fact) =>
+                fact.operation == MathOperation.divide &&
+                fact.b >= 2 &&
+                fact.result >= 2,
+          )
+          .toList();
+      if (diagnosticFacts.isNotEmpty) candidates = diagnosticFacts;
+    }
+
     if (targetCompetency != null && candidates.length > 1) {
       final targeted = candidates.where((fact) {
         return MicroCompetencyCatalog.tagsForTask(

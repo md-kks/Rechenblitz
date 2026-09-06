@@ -2494,6 +2494,62 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
   });
 
+  test(
+      'Geteilt-Grundaufgabe prüft die Mal-Umkehraufgabe ohne Quotienten-Leak',
+      () {
+    final fact = MathFact(
+      a: 42,
+      b: 6,
+      operation: MathOperation.divide,
+    );
+
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.divide,
+      taskKey: fact.key,
+      expected: fact.result,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.divisionFacts,
+      fact: fact,
+    );
+
+    expect(guide.methodKey, 'division:inverseMultiplication');
+    final evidenceStep =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+    expect(evidenceStep.evidenceKey, 'matchingMultiplicationFact');
+    expect(evidenceStep.evidenceCompetency, MicroCompetencyId.divisionFacts);
+    expect(evidenceStep.evidenceWeight, 0.40);
+    expect(
+      evidenceStep.choices[evidenceStep.correctChoice!],
+      '6 × ? = 42',
+    );
+    expect(evidenceStep.choices, hasLength(4));
+    expect(evidenceStep.choices.toSet(), hasLength(4));
+    expect(evidenceStep.choices.every((choice) => choice.contains('?')), isTrue);
+    expect(guide.nudge, isNot(contains('7')));
+    expect(
+      guide.steps.map((step) => step.instruction).join(' '),
+      isNot(contains('= 7')),
+    );
+
+    final independent =
+        GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.divide,
+      fact: fact,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.divisionFacts,
+    );
+    expect(independent, hasLength(1));
+    expect(independent.single.evidenceKey, 'matchingMultiplicationFact');
+
+    final untargeted =
+        GuidedMethodFactory.independentArithmeticStepsForTask(
+      mode: TrainingMode.divide,
+      fact: fact,
+      preferences: const MethodPreferences(),
+    );
+    expect(untargeted, isEmpty);
+  });
+
 }
 
 class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {

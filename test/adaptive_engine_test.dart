@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/math_fact.dart';
+import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/adaptive_engine.dart';
 
@@ -25,6 +26,26 @@ void main() {
       expect(multiply.every((f) => f.a <= 10 && f.b <= 10 && f.result <= 100), isTrue);
       expect(divide.every((f) => f.b > 0 && f.a % f.b == 0 && f.a <= 100), isTrue);
     });
+  });
+
+  test('Gezielte Geteilt-Grundaufgaben vermeiden triviale Umkehraufgaben',
+      () {
+    final engine = AdaptiveEngine(random: Random(202609061));
+    final facts = AdaptiveEngine.buildFactPool(maxValue: 100);
+
+    for (var i = 0; i < 120; i++) {
+      final fact = engine.selectNext(
+        facts: facts,
+        mode: TrainingMode.divide,
+        maxValue: 100,
+        targetCompetency: MicroCompetencyId.divisionFacts,
+      );
+
+      expect(fact.operation, MathOperation.divide);
+      expect(fact.b, greaterThanOrEqualTo(2));
+      expect(fact.result, greaterThanOrEqualTo(2));
+      expect(fact.a, greaterThan(fact.b));
+    }
   });
 
   test('Auswahl respektiert Zahlenraum 10, 20 und 100', () {

@@ -104,6 +104,8 @@ class GuidedStepCatalog {
     'storyInterpretation': 'Ergebnis passend zur Sachfrage deuten',
     'divisionTargetQuantity':
         'gesuchte Größe beim Teilen erkennen',
+    'matchingMultiplicationFact':
+        'passende Mal-Umkehraufgabe erkennen',
     'unitValue': 'Wert für eine Einheit bestimmen',
     'minutesToNextHour':
         'Minuten bis zur nächsten vollen Stunde bestimmen',
@@ -185,6 +187,10 @@ class GuidedMethodFactory {
 
     if (fact != null && fact.operation == MathOperation.multiply) {
       return _multiplication(fact, preferences);
+    }
+
+    if (fact != null && fact.operation == MathOperation.divide) {
+      return _divisionFact(fact);
     }
 
     if (mode == TrainingMode.writtenAddSub &&
@@ -311,6 +317,22 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (fact.operation == MathOperation.divide) {
+      if ((mode != TrainingMode.divide && mode != TrainingMode.mixed) ||
+          targetCompetency != MicroCompetencyId.divisionFacts) {
+        return const <GuidedMethodStep>[];
+      }
+      return _divisionFact(fact)
+          .steps
+          .where(
+            (step) =>
+                step.recordsIntermediateEvidence &&
+                step.evidenceCompetency == MicroCompetencyId.divisionFacts,
+          )
+          .take(1)
+          .toList(growable: false);
+    }
+
     if (fact.operation == MathOperation.multiply) {
       if ((mode != TrainingMode.multiply && mode != TrainingMode.mixed) ||
           targetCompetency != MicroCompetencyId.multiplicationFacts) {
@@ -1366,6 +1388,49 @@ class GuidedMethodFactory {
           ],
         );
     }
+  }
+
+  static GuidedMethodGuide _divisionFact(MathFact fact) {
+    final dividend = fact.a;
+    final divisor = fact.b;
+    final correct = '$divisor × ? = $dividend';
+    final rawChoices = <String>[
+      correct,
+      '$dividend × ? = $divisor',
+      '$divisor + ? = $dividend',
+      '$dividend − ? = $divisor',
+    ];
+    final shift = (dividend + divisor) % rawChoices.length;
+    final choices = <String>[
+      ...rawChoices.skip(shift),
+      ...rawChoices.take(shift),
+    ];
+
+    return GuidedMethodGuide(
+      methodKey: 'division:inverseMultiplication',
+      methodLabel: 'Geteilt mit der Mal-Umkehraufgabe',
+      nudge:
+          'Suche die passende Malaufgabe mit einer Lücke. Der Teiler wird dabei zu einem bekannten Faktor.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Mal-Umkehraufgabe finden',
+          instruction:
+              'Forme $dividend ÷ $divisor zuerst in eine passende Malaufgabe mit einer Lücke um.',
+          question:
+              'Welche Mal-Umkehraufgabe passt zu $dividend ÷ $divisor?',
+          choices: choices,
+          correctChoice: choices.indexOf(correct),
+          evidenceKey: 'matchingMultiplicationFact',
+          evidenceCompetency: MicroCompetencyId.divisionFacts,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Fehlenden Faktor bestimmen',
+          instruction:
+              'Bestimme erst danach den fehlenden Faktor. Dieser ist der Quotient der Geteilt-Aufgabe.',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _writtenMultiplication(
