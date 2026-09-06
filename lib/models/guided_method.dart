@@ -167,10 +167,11 @@ class GuidedMethodFactory {
       return _additionBridge(fact);
     }
 
-    if (fact != null &&
-        fact.operation == MathOperation.minus &&
-        _needsSubtractionBridge(fact)) {
-      return _subtractionBridge(fact, preferences);
+    if (fact != null && fact.operation == MathOperation.minus) {
+      if (_needsSubtractionBridge(fact)) {
+        return _subtractionBridge(fact, preferences);
+      }
+      return _subtractionWithoutBridge(fact, preferences);
     }
 
     if (fact != null && fact.operation == MathOperation.multiply) {
@@ -223,6 +224,10 @@ class GuidedMethodFactory {
         targetCompetency == MicroCompetencyId.wordProblemOperation ||
         taskKey.startsWith('story:')) {
       return _wordProblem(taskKey);
+    }
+
+    if (mode == TrainingMode.largeNumbers) {
+      return _largeNumbers(taskKey);
     }
 
     if (mode == TrainingMode.advancedMeasures ||
@@ -607,6 +612,10 @@ class GuidedMethodFactory {
     final rest = b - toTen;
 
     final strategy = preferences.effectiveSubtraction(taskKey: fact.key);
+    if (strategy == SubtractionStrategy.bridgeToTen && toTen == 0) {
+      return _subtractionFromFullTen(fact);
+    }
+
     switch (strategy) {
       case SubtractionStrategy.bridgeToTen:
         final choices1 = _numberChoices(toTen, maxValue: max(10, b));
@@ -615,11 +624,13 @@ class GuidedMethodFactory {
         return GuidedMethodGuide(
           methodKey: 'subtraction:${strategy.name}',
           methodLabel: strategy.label,
-          nudge: 'Wo liegt der nächste volle Zehner unter $a?',
+          nudge:
+              'Gehe von $a zuerst bis zum vorherigen vollen Zehner $bridge.',
           steps: [
             GuidedMethodStep(
               title: 'Bis zum Zehner',
-              instruction: 'Suche zuerst den vollen Zehner unter $a.',
+              instruction:
+                  'Von $a gehst du zuerst bis $bridge. So wird der Zehner zum Zwischenstopp.',
               question: 'Wie viel musst du zuerst wegnehmen?',
               choices: choices1,
               correctChoice: choices1.indexOf('$toTen'),
