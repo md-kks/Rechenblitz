@@ -152,7 +152,11 @@ class CurriculumExerciseGenerator {
         TrainingMode.estimation =>
           targetCompetency == MicroCompetencyId.plausibilityCheck
               ? _plausibilityCheck(gradeLevel, maxValue)
-              : _estimation(gradeLevel, maxValue),
+              : _estimation(
+                  gradeLevel,
+                  maxValue,
+                  targeted: targetCompetency == MicroCompetencyId.estimation,
+                ),
         TrainingMode.arithmeticLaws =>
           targetCompetency == MicroCompetencyId.reasoningJustification
               ? _reasoningJustification(maxValue)
@@ -689,8 +693,12 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _estimation(GradeLevel grade, int maxValue) {
-    if (_random.nextDouble() < 0.25) {
+  CurriculumExercise _estimation(
+    GradeLevel grade,
+    int maxValue, {
+    bool targeted = false,
+  }) {
+    if (!targeted && _random.nextDouble() < 0.25) {
       return _plausibilityCheck(grade, maxValue);
     }
     final limit = _safeMax(maxValue, grade);
@@ -700,8 +708,18 @@ class CurriculumExerciseGenerator {
             ? 1000
             : 100;
     final minimum = max(1, place ~/ 2);
-    final a = _between(minimum, max(minimum, limit ~/ 2));
-    final b = _between(minimum, max(minimum, limit - a));
+    var a = _between(minimum, max(minimum, limit ~/ 2));
+    var b = _between(minimum, max(minimum, limit - a));
+    if (targeted) {
+      for (var attempt = 0;
+          attempt < 50 && (a % place == 0 || b % place == 0);
+          attempt++) {
+        a = _between(minimum, max(minimum, limit ~/ 2));
+        b = _between(minimum, max(minimum, limit - a));
+      }
+      if (a % place == 0 && a + 1 <= limit - minimum) a += 1;
+      if (b % place == 0 && b > minimum) b -= 1;
+    }
     final estimate = _roundTo(a, place) + _roundTo(b, place);
     final values = <int>{estimate, max(0, estimate - place), estimate + place, estimate + 2 * place}.toList()
       ..shuffle(_random);

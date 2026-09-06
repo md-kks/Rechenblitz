@@ -136,6 +136,34 @@ void main() {
     expect(kinds, containsAll({'read', 'write'}));
   });
 
+
+  test('Gezielter Überschlag bleibt im echten Estimation-Pfad', () {
+    final generator = CurriculumExerciseGenerator(random: Random(841));
+
+    for (final config in [
+      (GradeLevel.third, 1000),
+      (GradeLevel.fourth, 1000000),
+    ]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.estimation,
+          gradeLevel: config.$1,
+          maxValue: config.$2,
+          targetCompetency: MicroCompetencyId.estimation,
+        );
+        final parts = exercise.key.split(':');
+        final a = int.parse(parts[1]);
+        final b = int.parse(parts[2]);
+        final place = int.parse(parts[3]);
+
+        expect(exercise.key, startsWith('estimate:'));
+        expect(exercise.key, isNot(startsWith('process:plausibility:')));
+        expect(a % place == 0 && b % place == 0, isFalse);
+        expect(exercise.choices, hasLength(4));
+      }
+    }
+  });
+
   test('Gezielte Strategiewahl baut korrekt über eine glatte Zielzahl auf', () {
     final generator = CurriculumExerciseGenerator(random: Random(821));
 

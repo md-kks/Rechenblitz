@@ -139,6 +139,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.plausibilityCheck: [
       'referenceEstimate',
     ],
+    MicroCompetencyId.estimation: [
+      'roundedSummands',
+    ],
     MicroCompetencyId.errorChecking: [
       'errorPlace',
     ],
@@ -264,6 +267,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.plausibilityCheck: [
       'referenceEstimate',
+    ],
+    MicroCompetencyId.estimation: [
+      'roundedSummands',
     ],
     MicroCompetencyId.errorChecking: [
       'errorPlace',

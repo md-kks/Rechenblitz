@@ -132,6 +132,8 @@ class GuidedStepCatalog {
         'Ergänzung bis zur glatten Zielzahl bestimmen',
     'referenceEstimate':
         'Referenz-Überschlag für die Plausibilitätsprüfung bilden',
+    'roundedSummands':
+        'beide Summanden passend für den Überschlag runden',
     'errorPlace':
         'erste falsche Stellenwertstelle in einer Rechnung erkennen',
     'unitRelation': 'passende Beziehung zwischen zwei Einheiten erkennen',
@@ -291,6 +293,11 @@ class GuidedMethodFactory {
 
     if (mode == TrainingMode.largeNumbers) {
       return _largeNumbers(taskKey);
+    }
+
+    if (mode == TrainingMode.estimation &&
+        taskKey.startsWith('estimate:')) {
+      return _estimationGuide(taskKey);
     }
 
     if (mode == TrainingMode.rounding ||
@@ -501,12 +508,19 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.estimation) {
-      if (targetCompetency != MicroCompetencyId.plausibilityCheck ||
-          !taskKey.startsWith('process:plausibility:')) {
+      final validPlausibility =
+          targetCompetency == MicroCompetencyId.plausibilityCheck &&
+              taskKey.startsWith('process:plausibility:');
+      final validEstimation =
+          targetCompetency == MicroCompetencyId.estimation &&
+              taskKey.startsWith('estimate:');
+      if (!validPlausibility && !validEstimation) {
         return const <GuidedMethodStep>[];
       }
-      return _plausibilityGuide(taskKey)
-          .steps
+      final guide = validEstimation
+          ? _estimationGuide(taskKey)
+          : _plausibilityGuide(taskKey);
+      return guide.steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
           .toList(growable: false);
@@ -3437,6 +3451,89 @@ class GuidedMethodFactory {
           title: 'Fehler beschreiben',
           instruction:
               'Benenne möglichst genau, ob das Ergebnis zu groß, zu klein oder korrekt ist.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _estimationGuide(String key) {
+    final numbers = _numbers(key);
+    if (numbers.length < 3) {
+      return const GuidedMethodGuide(
+        methodKey: 'estimation:roundedSummands',
+        methodLabel: 'Überschlag schrittweise bilden',
+        nudge:
+            'Runde zuerst beide Ausgangszahlen auf dieselbe sinnvolle Stelle.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Beide Zahlen runden',
+            instruction:
+                'Bestimme für jeden Summanden getrennt den passenden Rundungswert.',
+          ),
+          GuidedMethodStep(
+            title: 'Gerundete Werte addieren',
+            instruction:
+                'Erst danach addierst du die beiden gerundeten Werte zum Überschlag.',
+          ),
+        ],
+      );
+    }
+
+    final a = numbers[numbers.length - 3];
+    final b = numbers[numbers.length - 2];
+    final place = numbers.last;
+    int rounded(int value) => ((value + place ~/ 2) ~/ place) * place;
+    int down(int value) => (value ~/ place) * place;
+    int up(int value) => ((value + place - 1) ~/ place) * place;
+    final roundedA = rounded(a);
+    final roundedB = rounded(b);
+    final correct = '$roundedA und $roundedB';
+    final pairs = <String>{
+      correct,
+      '${down(a)} und $roundedB',
+      '${up(a)} und $roundedB',
+      '$roundedA und ${down(b)}',
+      '$roundedA und ${up(b)}',
+      '${down(a)} und ${down(b)}',
+      '${up(a)} und ${up(b)}',
+    };
+    var shift = place;
+    while (pairs.length < 4) {
+      pairs.add('${max(0, roundedA - shift)} und ${roundedB + shift}');
+      shift += place;
+    }
+    final choices = pairs.take(4).toList();
+    final placeLabel = switch (place) {
+      10 => 'Zehner',
+      100 => 'Hunderter',
+      1000 => 'Tausender',
+      10000 => 'Zehntausender',
+      100000 => 'Hunderttausender',
+      _ => 'gleiche Stelle',
+    };
+
+    return GuidedMethodGuide(
+      methodKey: 'estimation:roundedSummands',
+      methodLabel: 'Überschlag schrittweise bilden',
+      nudge:
+          'Runde $a und $b zuerst getrennt auf $placeLabel. Addiere noch nicht.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Rundungswerte bestimmen',
+          instruction:
+              'Bestimme nur die beiden gerundeten Summanden. Der Überschlag selbst kommt erst im nächsten Schritt.',
+          question:
+              'Auf welche beiden Zahlen rundest du $a und $b für diesen Überschlag?',
+          choices: choices,
+          correctChoice: choices.indexOf(correct),
+          evidenceKey: 'roundedSummands',
+          evidenceCompetency: MicroCompetencyId.estimation,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Überschlag bilden',
+          instruction:
+              'Addiere jetzt $roundedA und $roundedB. So erhältst du eine grobe Erwartung.',
         ),
       ],
     );

@@ -1404,6 +1404,51 @@ void main() {
     }
   });
 
+
+  test('Überschlag-Recovery überträgt das Runden der Summanden', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.estimation,
+      stepKey: 'roundedSummands',
+      label: GuidedStepCatalog.labelFor('roundedSummands'),
+      mode: TrainingMode.estimation,
+      lastSeen: DateTime(2026, 9, 6, 23, 10),
+      sourceTaskKey:
+          'independent:roundedSummands:estimate:672:245:100',
+    );
+    final plan = StepRecoveryGenerator(random: Random(842)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int place(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('estimation-rounded');
+      return int.parse(parts[index + 1]);
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(place(plan.tasks[0]), 100);
+    expect(place(plan.tasks[1]), isNot(100));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.estimation);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:roundedSummands:estimation-rounded:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices, hasLength(4));
+      expect(task.prompt, contains('Auf welche beiden Zahlen'));
+      expect(task.hint, contains('jeden Summanden'));
+    }
+  });
+
   test('Zahlenordnungs-Recovery festigt zuerst die kleinste Zahl', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.largeNumberOrder,

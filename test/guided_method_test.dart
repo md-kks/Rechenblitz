@@ -217,6 +217,38 @@ void main() {
     }
   });
 
+
+  test('Überschlag beobachtet zuerst die beiden gerundeten Summanden', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.estimation,
+      taskKey: 'estimate:672:245:100',
+      expected: 900,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.estimation,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'estimation:roundedSummands');
+    expect(evidence.evidenceKey, 'roundedSummands');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.estimation);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices[evidence.correctChoice!], '700 und 200');
+    expect(evidence.question, contains('672'));
+    expect(evidence.question, contains('245'));
+    expect(evidence.instruction, isNot(contains('900')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.estimation,
+      taskKey: 'estimate:672:245:100',
+      expected: 900,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.estimation,
+    );
+    expect(independent.map((step) => step.evidenceKey), ['roundedSummands']);
+  });
+
   test('Große Zahlen ordnen beobachtet zuerst die kleinste Zahl', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.largeNumbers,
