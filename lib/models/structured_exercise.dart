@@ -195,7 +195,10 @@ class StructuredExerciseGenerator {
             targetCompetency,
           ),
         TrainingMode.money => _money(maxValue),
-        TrainingMode.clock => _clock(maxValue),
+        TrainingMode.clock => _clock(
+            maxValue,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.measures => _measures(maxValue),
         TrainingMode.geometry => _geometry(maxValue),
         _ => throw ArgumentError('$mode ist kein strukturierter Aufgabentyp.'),
@@ -1578,10 +1581,17 @@ class StructuredExerciseGenerator {
     return parts;
   }
 
-  StructuredExercise _clock(int maxValue) {
+  StructuredExercise _clock(
+    int maxValue, {
+    MicroCompetencyId? targetCompetency,
+  }) {
     final minuteOptions = maxValue >= 100 ? [0, 15, 30, 45] : [0, 30];
+    final diagnosticMinutes = minuteOptions.where((minute) => minute != 0).toList();
     final hour = 1 + _random.nextInt(12);
-    final minute = minuteOptions[_random.nextInt(minuteOptions.length)];
+    final minute = targetCompetency == MicroCompetencyId.clockReading &&
+            diagnosticMinutes.isNotEmpty
+        ? diagnosticMinutes[_random.nextInt(diagnosticMinutes.length)]
+        : minuteOptions[_random.nextInt(minuteOptions.length)];
     final correct = _formatTime(hour, minute);
     final optionSet = <String>{correct};
     while (optionSet.length < 4) {
@@ -1599,6 +1609,24 @@ class StructuredExerciseGenerator {
       choices: options,
       clockHour: hour,
       clockMinute: minute,
+      checkpoints: targetCompetency == MicroCompetencyId.clockReading
+          ? [_clockMinuteCheckpoint(minute, minuteOptions)]
+          : const <ExerciseCheckpoint>[],
+    );
+  }
+
+  ExerciseCheckpoint _clockMinuteCheckpoint(
+    int minute,
+    List<int> minuteOptions,
+  ) {
+    final choices = minuteOptions.map((value) => '$value Minuten').toList();
+    return ExerciseCheckpoint(
+      key: 'minuteHandMinutes',
+      question: 'Wie viele Minuten zeigt der lange Zeiger?',
+      choices: choices,
+      correctChoice: choices.indexOf('$minute Minuten'),
+      competencyId: MicroCompetencyId.clockReading,
+      evidenceWeight: 0.40,
     );
   }
 
