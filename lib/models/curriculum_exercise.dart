@@ -1005,6 +1005,14 @@ class CurriculumExerciseGenerator {
     final end = start + duration;
     final endHour = (end ~/ 60) % 24;
     final endMinute = end % 60;
+    final minutesToNextHour = minute == 0 ? 0 : 60 - minute;
+    final hint = minute == 0
+        ? 'Du startest schon an einer vollen Stunde. Rechne die Zeitspanne in passenden Etappen weiter.'
+        : duration < minutesToNextHour
+            ? 'Start und Ende liegen in derselben Stunde. Zähle die Minuten direkt weiter.'
+            : duration == minutesToNextHour
+                ? 'Zähle vom Start direkt bis zur nächsten vollen Stunde.'
+                : 'Rechne zuerst $minutesToNextHour Minuten bis zur nächsten vollen Stunde und dann weiter.';
     return CurriculumExercise(
       mode: TrainingMode.timeDurations,
       prompt: 'Beginn: ' +
@@ -1013,7 +1021,7 @@ class CurriculumExerciseGenerator {
           _clock(endHour, endMinute) +
           ' Uhr\nWie viele Minuten dauert es?',
       answer: duration,
-      hint: 'Rechne zuerst bis zur nächsten vollen Stunde und dann weiter.',
+      hint: hint,
       key: 'duration:$start:$duration',
       answerSuffix: 'min',
       maxAnswerValue: 240,
