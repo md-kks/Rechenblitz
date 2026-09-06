@@ -142,24 +142,24 @@ void main() {
       ),
       GradeLevel.second: (
         total: 26,
-        fullTaskOnly: 15,
+        fullTaskOnly: 14,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 11,
+        targetedRecovery: 12,
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 49,
+        fullTaskOnly: 48,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 15,
+        targetedRecovery: 16,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 51,
+        fullTaskOnly: 50,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 15,
+        targetedRecovery: 16,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Divisionsverständnis bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.divisionSharing,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('divisionTargetQuantity'));
+    expect(item.independentStepKeys, contains('divisionTargetQuantity'));
+    expect(item.recoveryStepKeys, contains('divisionTargetQuantity'));
   });
 
   test('Evidence-Audit prüft bekannte Step-Keys und Recovery-Konsistenz', () {
