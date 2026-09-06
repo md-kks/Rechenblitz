@@ -1009,6 +1009,47 @@ void main() {
   });
 
 
+  test('Zeitspannen-Recovery festigt den ersten Sprung bis zur vollen Stunde',
+      () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.timeDuration,
+      stepKey: 'minutesToNextHour',
+      label: GuidedStepCatalog.labelFor('minutesToNextHour'),
+      mode: TrainingMode.timeDurations,
+      lastSeen: DateTime(2026, 9, 6, 10),
+      sourceTaskKey:
+          'independent:minutesToNextHour:duration:875:45',
+    );
+    final plan = StepRecoveryGenerator(random: Random(642)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+    expect(plan.tasks[0].answer, 25);
+    expect(plan.tasks[1].answer, isNot(25));
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.timeDurations);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:minutesToNextHour:time-first-jump:'),
+      );
+      expect(task.usesChoices, isFalse);
+      expect(task.answer, isIn([15, 30, 45]));
+      expect(task.maxAnswerValue, 60);
+      expect(task.prompt, contains('Wie viele Minuten'));
+      expect(task.hint, contains('nächsten vollen Stunde'));
+    }
+  });
+
   test('Proportionalitäts-Recovery festigt zuerst den Einheitswert', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.proportionalUnit,
