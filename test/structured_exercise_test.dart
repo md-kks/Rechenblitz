@@ -64,6 +64,62 @@ void main() {
     }
   });
 
+  test('Gezielte Zahlenfolgen prüfen Richtung und Schrittweite getrennt', () {
+    final generator = StructuredExerciseGenerator(random: Random(174));
+
+    for (final maxValue in [10, 20, 100]) {
+      for (var i = 0; i < 80; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.sequences,
+          maxValue: maxValue,
+          gradeLevel: GradeLevel.first,
+          targetCompetency: MicroCompetencyId.numberPatterns,
+        );
+        final parts = exercise.key.split(':');
+        final direction = parts[1];
+        final start = int.parse(parts[2]);
+        final step = int.parse(parts[3]);
+        final checkpoint = exercise.checkpoints.single;
+        final correctRule = direction == '-'
+            ? 'immer −$step'
+            : 'immer +$step';
+
+        expect(exercise.key, startsWith('sequence:'));
+        expect(exercise.checkpoints, hasLength(1));
+        expect(checkpoint.key, 'sequenceStepSize');
+        expect(checkpoint.competencyId, MicroCompetencyId.numberPatterns);
+        expect(checkpoint.evidenceWeight, 0.40);
+        expect(checkpoint.choices, hasLength(4));
+        expect(checkpoint.choices.toSet(), hasLength(4));
+        expect(
+          checkpoint.choices[checkpoint.correctChoice],
+          correctRule,
+          reason: exercise.key,
+        );
+
+        if (direction == '-') {
+          expect(exercise.answer, start - step * 3);
+        } else {
+          expect(direction, '+');
+          expect(exercise.answer, start + step * 3);
+        }
+      }
+    }
+  });
+
+  test('Normales Folgentraining bleibt ohne Pflicht-Checkpoint', () {
+    final generator = StructuredExerciseGenerator(random: Random(175));
+
+    for (var i = 0; i < 40; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.sequences,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+      );
+      expect(exercise.checkpoints, isEmpty);
+    }
+  });
+
   test('Uhrzeit-Aufgaben besitzen vier eindeutige Antwortoptionen', () {
     final generator = StructuredExerciseGenerator(random: Random(17));
     for (var i = 0; i < 50; i++) {
