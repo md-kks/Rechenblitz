@@ -1009,6 +1009,56 @@ void main() {
   });
 
 
+  test('Folgen-Recovery wechselt die Richtung bei gleicher Schrittweite', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.numberPatterns,
+      stepKey: 'sequenceStepSize',
+      label: GuidedStepCatalog.labelFor('sequenceStepSize'),
+      mode: TrainingMode.sequences,
+      lastSeen: DateTime(2026, 9, 6, 14),
+      sourceTaskKey:
+          'independent:sequenceStepSize:sequence:+:8:2',
+    );
+    final plan = StepRecoveryGenerator(random: Random(649)).generate(
+      focus: focus,
+      range: NumberRangeLevel.twenty,
+    );
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+    expect(plan.tasks[0].taskKey, contains(':sequence-rule:+:'));
+    expect(plan.tasks[1].taskKey, contains(':sequence-rule:-:'));
+    expect(
+      plan.tasks[0].choices![plan.tasks[0].answer],
+      'immer +2',
+    );
+    expect(
+      plan.tasks[1].choices![plan.tasks[1].answer],
+      'immer −2',
+    );
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.sequences);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:sequenceStepSize:sequence-rule:'),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices, hasLength(4));
+      expect(task.choices!.toSet(), hasLength(4));
+      expect(task.answer, inInclusiveRange(0, 3));
+      expect(task.prompt, contains('Welche Regel'));
+      expect(task.hint, contains('größer oder kleiner'));
+    }
+  });
+
   test('Uhr-Recovery festigt den Minutenwert des langen Zeigers', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.clockReading,
