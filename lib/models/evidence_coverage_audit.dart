@@ -139,6 +139,9 @@ abstract final class EvidenceCoverageAuditCatalog {
       'secondPartialProduct',
       'anchorFact',
     ],
+    MicroCompetencyId.divisionSharing: [
+      'divisionTargetQuantity',
+    ],
     MicroCompetencyId.writtenAlignment: [
       'onesAlignment',
     ],
@@ -197,6 +200,9 @@ abstract final class EvidenceCoverageAuditCatalog {
       'firstPartialProduct',
       'secondPartialProduct',
       'anchorFact',
+    ],
+    MicroCompetencyId.divisionSharing: [
+      'divisionTargetQuantity',
     ],
     MicroCompetencyId.writtenAlignment: [
       'onesAlignment',
