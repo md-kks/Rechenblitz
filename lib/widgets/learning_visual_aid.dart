@@ -273,7 +273,32 @@ class LearningVisualAid extends StatelessWidget {
     final a = numbers[numbers.length - 2];
     final b = numbers.last;
     final minus = taskKey.contains(':-:') || taskKey.startsWith('minus:');
-    final bridge = minus ? (a ~/ 10) * 10 : ((a ~/ 10) + 1) * 10;
+    if (minus) {
+      final toTen = a % 10;
+      final crossesTen = toTen > 0 && b > toTen;
+      if (crossesTen) {
+        final bridge = a - toTen;
+        final rest = b - toTen;
+        return _ProcessAid(
+          title: 'Rechenweg',
+          text:
+              'Lies von links nach rechts: Startzahl, voller Zehner, Ergebnis.',
+          nodes: [a, bridge, expected],
+          nodeLabels: const ['Start', 'voller Zehner', 'Ergebnis'],
+          operations: ['−$toTen', '−$rest'],
+          footer: '$a − $b = $expected',
+        );
+      }
+      return _ProcessAid(
+        title: 'Rechenweg',
+        text: 'Lies den Minus-Rechenweg von links nach rechts.',
+        nodes: [a, expected],
+        nodeLabels: const ['Start', 'Ergebnis'],
+        operations: ['−$b'],
+        footer: '$a − $b = $expected',
+      );
+    }
+    final bridge = ((a ~/ 10) + 1) * 10;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
