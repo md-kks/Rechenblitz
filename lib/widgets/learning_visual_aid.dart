@@ -805,27 +805,41 @@ class _UnitLadderAid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = taskKey.split(RegExp(r'[:\\-]'));
+    final secondsTask = taskKey.startsWith('time:seconds:');
     final units = taskKey.startsWith('mass:')
         ? const ['t', 'kg', 'g']
         : taskKey.startsWith('volume:')
             ? const ['l', 'ml']
-            : taskKey.startsWith('time:')
-                ? const ['h', 'min']
-                : taskKey.startsWith('money:')
-                    ? const ['€', 'ct']
-                    : const ['km', 'm', 'dm', 'cm', 'mm'];
+            : secondsTask
+                ? const ['min', 's']
+                : taskKey.startsWith('time:')
+                    ? const ['h', 'min']
+                    : taskKey.startsWith('money:')
+                        ? const ['€', 'ct']
+                        : const ['km', 'm', 'dm', 'cm', 'mm'];
 
     String? startUnit;
     String? targetUnit;
     for (final raw in tokens) {
-      final normalized = raw == 'euro' ? '€' : raw;
+      final normalized = raw == 'euro'
+          ? '€'
+          : raw == 'sec'
+              ? 's'
+              : raw;
       if (units.contains(normalized)) {
         startUnit ??= normalized;
         if (normalized != startUnit) targetUnit ??= normalized;
       }
     }
+    if (secondsTask && taskKey.contains(':min-to-sec:')) {
+      startUnit = 'min';
+      targetUnit = 's';
+    } else if (secondsTask && taskKey.contains(':sec-to-min:')) {
+      startUnit = 's';
+      targetUnit = 'min';
+    }
     if (taskKey.startsWith('money:euro')) targetUnit ??= 'ct';
-    if (taskKey.startsWith('time:min')) targetUnit ??= 'h';
+    if (!secondsTask && taskKey.startsWith('time:min')) targetUnit ??= 'h';
     if (taskKey.startsWith('volume:l')) targetUnit ??= 'ml';
     if (taskKey.startsWith('mass:kg')) targetUnit ??= 'g';
     if (taskKey.startsWith('mass:t-kg')) targetUnit ??= 'kg';
@@ -837,7 +851,7 @@ class _UnitLadderAid extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _AidLabel(
-          title: 'Einheitenleiter',
+          title: secondsTask ? 'Minuten und Sekunden' : 'Einheitenleiter',
           text: startUnit == null || targetUnit == null
               ? 'Markiere Start- und Zieleinheit und gehe Schritt für Schritt.'
               : 'Gehe von $startUnit zu $targetUnit. Jeder Schritt verändert den Zahlenwert passend zur Einheit.',
@@ -875,6 +889,13 @@ class _UnitLadderAid extends StatelessWidget {
             ],
           ],
         ),
+        if (secondsTask) ...[
+          const SizedBox(height: 10),
+          const Text(
+            '1 min = 60 s',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ],
       ],
     );
   }
