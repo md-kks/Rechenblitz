@@ -218,6 +218,7 @@ class StepRecoveryGenerator {
     'divisionTargetQuantity',
     'matchingMultiplicationFact',
     'inverseOperationChoice',
+    'moneyOperationChoice',
     'unitValue',
     'minutesToNextHour',
     'equalPartSize',
@@ -333,6 +334,8 @@ class StepRecoveryGenerator {
           _matchingMultiplicationFactStep(focus, stage, range),
         'inverseOperationChoice' =>
           _inverseOperationChoiceStep(focus, stage, range),
+        'moneyOperationChoice' =>
+          _moneyOperationChoiceStep(focus, stage, range),
         'unitValue' => _proportionalUnitValueStep(focus, stage, range),
         'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
         'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
@@ -742,6 +745,83 @@ class StepRecoveryGenerator {
       hint: askForRemainder
           ? 'Rechne $chunk − ($quotientDigit × $divisor).'
           : 'Suche die größte Malaufgabe mit $divisor, die $chunk nicht überschreitet.',
+    );
+  }
+
+  RemediationTask _moneyOperationChoiceStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(2, min(range.maxValue, 100));
+    final source = _moneyCalculationSource(focus.sourceTaskKey);
+    final sourceAddition = source?.addition ?? false;
+    final addition = switch (stage) {
+      RemediationStage.supported => sourceAddition,
+      RemediationStage.transfer => !sourceAddition,
+      RemediationStage.check => _random.nextBool(),
+      _ => sourceAddition,
+    };
+
+    var first = addition
+        ? _between(1, max(1, limit - 1))
+        : _between(2, limit);
+    var second = addition
+        ? _between(1, max(1, limit - first))
+        : _between(1, first - 1);
+
+    if (source != null &&
+        source.addition == addition &&
+        source.first == first &&
+        source.second == second) {
+      if (addition) {
+        if (second < limit - first) {
+          second += 1;
+        } else if (first > 1) {
+          first -= 1;
+        }
+      } else if (second < first - 1) {
+        second += 1;
+      } else if (first < limit) {
+        first += 1;
+      }
+    }
+
+    final choices = <String>['Plus (+)', 'Minus (−)']..shuffle(_random);
+    final correct = addition ? 'Plus (+)' : 'Minus (−)';
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key:
+          'money-plan:${addition ? 'add' : 'change'}:$first:$second',
+      prompt: addition
+          ? 'Ein Heft kostet $first € und ein Stift $second €. Welche Rechenart brauchst du für den Gesamtpreis?'
+          : 'Du hast $first € und gibst $second € aus. Welche Rechenart brauchst du für das Restgeld?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Prüfe zuerst, ob Geldbeträge zusammenkommen oder ob ein Betrag von einem vorhandenen Betrag weggeht.',
+    );
+  }
+
+  ({bool addition, int first, int second})? _moneyCalculationSource(
+    String sourceTaskKey,
+  ) {
+    final parts = sourceTaskKey.split(':');
+    final index = parts.indexOf('money');
+    if (index < 0 || index + 2 >= parts.length) return null;
+    final family = parts[index + 1];
+    if (family != 'add' && family != 'change' && family != 'missing') {
+      return null;
+    }
+    final first = int.tryParse(parts[parts.length - 2]);
+    final second = int.tryParse(parts.last);
+    if (first == null || second == null) return null;
+    return (
+      addition: family == 'add',
+      first: first,
+      second: second,
     );
   }
 

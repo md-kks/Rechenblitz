@@ -108,6 +108,8 @@ class GuidedStepCatalog {
         'passende Mal-Umkehraufgabe erkennen',
     'inverseOperationChoice':
         'passende Umkehroperation erkennen',
+    'moneyOperationChoice':
+        'passende Rechenart bei Geldaufgaben erkennen',
     'unitValue': 'Wert für eine Einheit bestimmen',
     'minutesToNextHour':
         'Minuten bis zur nächsten vollen Stunde bestimmen',
@@ -241,6 +243,12 @@ class GuidedMethodFactory {
         targetCompetency == MicroCompetencyId.inverseRelationship ||
         taskKey.startsWith('family:')) {
       return _inverseRelationshipGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.money ||
+        targetCompetency == MicroCompetencyId.moneyCalculation ||
+        taskKey.startsWith('money:')) {
+      return _moneyGuide(taskKey);
     }
 
     if (mode == TrainingMode.wordProblems ||
@@ -1396,6 +1404,70 @@ class GuidedMethodFactory {
           ],
         );
     }
+  }
+
+  static GuidedMethodGuide _moneyGuide(String taskKey) {
+    final parts = taskKey.split(':');
+    final family = parts.length >= 2 ? parts[1] : '';
+    final addition = family == 'add';
+    final subtraction = family == 'change' || family == 'missing';
+
+    if (!addition && !subtraction) {
+      return GuidedMethodGuide(
+        methodKey: 'money:representAndCalculate',
+        methodLabel: 'Geldbetrag darstellen und rechnen',
+        nudge:
+            'Stelle den Geldbetrag zuerst mit passenden Münzen oder der Beziehung zwischen Euro und Cent dar.',
+        steps: [
+          const GuidedMethodStep(
+            title: 'Geldwert klären',
+            instruction:
+                'Achte darauf, welche Münzen oder welche Einheit angegeben sind.',
+          ),
+          GuidedMethodStep(
+            title: 'Passend rechnen',
+            instruction: family == 'convert'
+                ? 'Nutze die Grundbeziehung 1 € = 100 ct.'
+                : 'Bestimme danach den gesamten dargestellten Geldwert.',
+          ),
+        ],
+      );
+    }
+
+    final numbers = _numbers(taskKey);
+    final shift = numbers.fold<int>(0, (sum, value) => sum + value) % 2;
+    final rawChoices = <String>['Plus (+)', 'Minus (−)'];
+    final choices = <String>[
+      ...rawChoices.skip(shift),
+      ...rawChoices.take(shift),
+    ];
+    final correct = addition ? 'Plus (+)' : 'Minus (−)';
+
+    return GuidedMethodGuide(
+      methodKey: 'money:calculationPlan',
+      methodLabel: 'Geldaufgabe zuerst als Rechenplan lesen',
+      nudge:
+          'Überlege zuerst: Werden Geldbeträge zusammengelegt, oder geht ein Betrag von einem vorhandenen bzw. gesamten Betrag weg?',
+      steps: [
+        GuidedMethodStep(
+          title: 'Rechenart erkennen',
+          instruction:
+              'Entscheide vor dem Rechnen, welche Veränderung mit dem Geld beschrieben wird.',
+          question: 'Welche Rechenart passt zu dieser Geldsituation?',
+          choices: choices,
+          correctChoice: choices.indexOf(correct),
+          evidenceKey: 'moneyOperationChoice',
+          evidenceCompetency: MicroCompetencyId.moneyCalculation,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Mit den Geldbeträgen rechnen',
+          instruction: addition
+              ? 'Lege beide Preise zusammen und addiere erst jetzt die Beträge.'
+              : 'Ziehe den bekannten oder ausgegebenen Betrag erst jetzt vom vorhandenen Gesamtbetrag ab.',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _inverseRelationshipGuide(
