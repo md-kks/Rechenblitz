@@ -1619,7 +1619,10 @@ class StructuredExerciseGenerator {
     int minute,
     List<int> minuteOptions,
   ) {
-    final choices = minuteOptions.map((value) => '$value Minuten').toList();
+    final relevantMinutes = minute == 0 || minute == 30
+        ? <int>[0, 30]
+        : minuteOptions;
+    final choices = relevantMinutes.map((value) => '$value Minuten').toList();
     return ExerciseCheckpoint(
       key: 'minuteHandMinutes',
       question: 'Wie viele Minuten zeigt der lange Zeiger?',
