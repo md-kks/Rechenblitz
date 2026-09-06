@@ -124,7 +124,11 @@ class CurriculumExerciseGenerator {
                   : targetCompetency == MicroCompetencyId.largeNumberOrder
                       ? _largeNumberOrder(gradeLevel, maxValue)
                       : targetCompetency == MicroCompetencyId.numberWordReading
-                          ? _numberWord(gradeLevel, maxValue)
+                          ? _numberWord(
+                              gradeLevel,
+                              maxValue,
+                              targeted: true,
+                            )
                           : _largeNumbers(gradeLevel, maxValue),
         TrainingMode.rounding => _rounding(
             gradeLevel,
@@ -450,10 +454,27 @@ class CurriculumExerciseGenerator {
 
   CurriculumExercise _numberWord(
     GradeLevel grade,
-    int maxValue,
-  ) {
+    int maxValue, {
+    bool targeted = false,
+  }) {
     final limit = _safeMax(maxValue, grade);
-    final number = _between(1, limit);
+    var number = _between(1, limit);
+    if (targeted && limit >= 121) {
+      final suffixLimit = min(99, limit - 100);
+      var suffix = 21;
+      for (var attempt = 0; attempt < 60; attempt++) {
+        final tens = _between(2, 9);
+        final ones = _between(1, 9);
+        final candidate = tens * 10 + ones;
+        if (candidate <= suffixLimit && tens != ones) {
+          suffix = candidate;
+          break;
+        }
+      }
+      final maxPrefix = max(1, (limit - suffix) ~/ 100);
+      final prefix = _between(1, maxPrefix);
+      number = prefix * 100 + suffix;
+    }
     final word = GermanNumberWords.spell(number);
     final readWord = _random.nextBool();
 

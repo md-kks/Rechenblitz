@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'german_number_words.dart';
 import 'learning_methods.dart';
 import 'math_fact.dart';
 import 'micro_competency.dart';
@@ -123,6 +124,8 @@ class GuidedStepCatalog {
     'decidingPlace': 'erste unterschiedliche Stelle beim Vergleichen finden',
     'smallestOrderedNumber':
         'kleinste Zahl vor dem vollständigen Ordnen bestimmen',
+    'numberWordTensOnes':
+        'Einer und Zehner im deutschen Zahlwort zuordnen',
     'placeValueContribution':
         'Wert einer Ziffer an ihrer Stelle bestimmen',
     'gapToAnchor':
@@ -505,7 +508,13 @@ class GuidedMethodFactory {
       final validOrder =
           targetCompetency == MicroCompetencyId.largeNumberOrder &&
               taskKey.startsWith('large:order:');
-      if (!validCompare && !validDecompose && !validOrder) {
+      final validNumberWord =
+          targetCompetency == MicroCompetencyId.numberWordReading &&
+              taskKey.startsWith('large:word:');
+      if (!validCompare &&
+          !validDecompose &&
+          !validOrder &&
+          !validNumberWord) {
         return const <GuidedMethodStep>[];
       }
       return _largeNumbers(taskKey)
@@ -2532,6 +2541,58 @@ class GuidedMethodFactory {
     }
 
     if (taskKey.startsWith('large:word:')) {
+      final values = _numbers(taskKey);
+      final number = values.isEmpty ? null : values.last;
+      if (number != null) {
+        final suffix = number % 100;
+        final tens = suffix ~/ 10;
+        final ones = suffix % 10;
+        if (tens >= 2 && ones > 0 && tens != ones) {
+          final suffixWord = GermanNumberWords.spell(suffix);
+          final correct = '$tens Zehner und $ones Einer';
+          final rawChoices = <String>[
+            correct,
+            '$ones Zehner und $tens Einer',
+            '$tens Zehner und $tens Einer',
+            '$ones Zehner und $ones Einer',
+          ];
+          final shift = number % rawChoices.length;
+          final choices = <String>[
+            ...rawChoices.skip(shift),
+            ...rawChoices.take(shift),
+          ];
+          return GuidedMethodGuide(
+            methodKey: 'largeNumbers:numberWord',
+            methodLabel: 'Zahlwort lesen',
+            nudge:
+                'Achte beim letzten zweistelligen Wortteil besonders auf die deutsche Reihenfolge von Einern und Zehnern.',
+            steps: [
+              GuidedMethodStep(
+                title: 'Einer und Zehner entschlüsseln',
+                instruction:
+                    'Bestimme nur die beiden letzten Stellen. Die übrigen Stellenwertgruppen brauchst du erst danach.',
+                question:
+                    'Im Wortteil „$suffixWord“: Welche Zuordnung zu Zehnern und Einern ist richtig?',
+                choices: choices,
+                correctChoice: choices.indexOf(correct),
+                evidenceKey: 'numberWordTensOnes',
+                evidenceCompetency: MicroCompetencyId.numberWordReading,
+                evidenceWeight: 0.40,
+              ),
+              GuidedMethodStep(
+                title: 'Übrige Stellenwertgruppen ergänzen',
+                instruction:
+                    'Im Deutschen wird bei $suffixWord der Einer vor dem Zehner gesprochen. Ergänze danach Hunderter, Tausender und weitere Gruppen.',
+              ),
+              const GuidedMethodStep(
+                title: 'Gesamte Zahl zuordnen',
+                instruction:
+                    'Setze erst am Ende alle Stellenwertgruppen zur vollständigen Zahl oder zum vollständigen Zahlwort zusammen.',
+              ),
+            ],
+          );
+        }
+      }
       return const GuidedMethodGuide(
         methodKey: 'largeNumbers:numberWord',
         methodLabel: 'Zahlwort lesen',

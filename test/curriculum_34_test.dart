@@ -39,6 +39,43 @@ void main() {
 
 
 
+
+  test('Gezielte Zahlwort-Aufgaben enthalten ein echtes Einer-Zehner-Ende',
+      () {
+    final generator = CurriculumExerciseGenerator(random: Random(841));
+    final kinds = <String>{};
+
+    for (final config in [
+      (GradeLevel.third, 1000),
+      (GradeLevel.fourth, 1000000),
+    ]) {
+      for (var i = 0; i < 120; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.largeNumbers,
+          gradeLevel: config.$1,
+          maxValue: config.$2,
+          targetCompetency: MicroCompetencyId.numberWordReading,
+        );
+        final parts = exercise.key.split(':');
+        final number = int.parse(parts.last);
+        final suffix = number % 100;
+        final tens = suffix ~/ 10;
+        final ones = suffix % 10;
+
+        kinds.add(parts[2]);
+        expect(exercise.key, startsWith('large:word:'));
+        expect(number, greaterThanOrEqualTo(100));
+        expect(number, lessThanOrEqualTo(config.$2));
+        expect(tens, inInclusiveRange(2, 9));
+        expect(ones, inInclusiveRange(1, 9));
+        expect(tens, isNot(ones));
+        expect(exercise.usesChoices, isTrue);
+      }
+    }
+
+    expect(kinds, containsAll({'read', 'write'}));
+  });
+
   test('Gezielte Strategiewahl baut korrekt über eine glatte Zielzahl auf', () {
     final generator = CurriculumExerciseGenerator(random: Random(821));
 
