@@ -112,6 +112,7 @@ class GuidedStepCatalog {
     'unitRelation': 'passende Beziehung zwischen zwei Einheiten erkennen',
     'minuteSecondRelation': 'Beziehung zwischen Minuten und Sekunden erkennen',
     'roundingDecisionDigit': 'entscheidende Ziffer beim Runden erkennen',
+    'minuteHandMinutes': 'Minutenwert des langen Zeigers erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -240,6 +241,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.rounding ||
         targetCompetency == MicroCompetencyId.roundingPlace) {
       return _roundingGuide(taskKey, expected);
+    }
+
+    if (mode == TrainingMode.clock ||
+        targetCompetency == MicroCompetencyId.clockReading) {
+      return _clockReadingGuide(taskKey);
     }
 
     if (targetCompetency == MicroCompetencyId.secondsConversion ||
@@ -530,6 +536,88 @@ class GuidedMethodFactory {
         )
         .take(2)
         .toList(growable: false);
+  }
+
+  static GuidedMethodGuide _clockReadingGuide(String taskKey) {
+    final parts = taskKey.split(':');
+    if (!taskKey.startsWith('clock:') || parts.length < 3) {
+      return const GuidedMethodGuide(
+        methodKey: 'clock:readHands',
+        methodLabel: 'Uhrzeiger lesen',
+        nudge:
+            'Lies zuerst den langen Minutenzeiger und danach den kurzen Stundenzeiger.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Langen Zeiger lesen',
+            instruction:
+                'Der lange Zeiger zeigt die Minuten. Lies ihn zuerst getrennt ab.',
+          ),
+          GuidedMethodStep(
+            title: 'Kurzen Zeiger lesen',
+            instruction:
+                'Der kurze Zeiger zeigt die Stunde. Lies ihn erst nach den Minuten.',
+          ),
+        ],
+      );
+    }
+
+    final hour = int.tryParse(parts[1]);
+    final minute = int.tryParse(parts[2]);
+    if (hour == null || minute == null) {
+      return const GuidedMethodGuide(
+        methodKey: 'clock:readHands',
+        methodLabel: 'Uhrzeiger lesen',
+        nudge:
+            'Lies zuerst den langen Minutenzeiger und danach den kurzen Stundenzeiger.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Langen Zeiger lesen',
+            instruction:
+                'Der lange Zeiger zeigt die Minuten. Lies ihn zuerst getrennt ab.',
+          ),
+          GuidedMethodStep(
+            title: 'Kurzen Zeiger lesen',
+            instruction:
+                'Der kurze Zeiger zeigt die Stunde. Lies ihn erst nach den Minuten.',
+          ),
+        ],
+      );
+    }
+
+    final minuteChoices = (minute == 0 || minute == 30)
+        ? const ['0 Minuten', '30 Minuten']
+        : const ['0 Minuten', '15 Minuten', '30 Minuten', '45 Minuten'];
+
+    return GuidedMethodGuide(
+      methodKey: 'clock:readHands',
+      methodLabel: 'Uhrzeiger lesen',
+      nudge:
+          'Lies die beiden Zeiger getrennt: zuerst den langen Minutenzeiger, dann den kurzen Stundenzeiger.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Minutenzeiger lesen',
+          instruction:
+              'Schau nur auf den langen Zeiger. Die Stunde ist für diesen Schritt noch nicht wichtig.',
+          question: 'Wie viele Minuten zeigt der lange Zeiger?',
+          choices: minuteChoices,
+          correctChoice: minuteChoices.indexOf('$minute Minuten'),
+          evidenceKey: 'minuteHandMinutes',
+          evidenceCompetency: MicroCompetencyId.clockReading,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Stundenzeiger lesen',
+          instruction: minute == 30
+              ? 'Der kurze Zeiger steht bei einer halben Stunde schon zwischen zwei Zahlen. Die begonnene Stunde ist $hour.'
+              : 'Lies jetzt den kurzen Zeiger als Stunde $hour.',
+        ),
+        GuidedMethodStep(
+          title: 'Uhrzeit zusammensetzen',
+          instruction:
+              'Verbinde Stunde und Minuten zu $hour:${minute.toString().padLeft(2, '0')} Uhr.',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _roundingGuide(
