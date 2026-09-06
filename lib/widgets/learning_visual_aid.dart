@@ -10,23 +10,65 @@ class LearningVisualAid extends StatelessWidget {
     required this.pattern,
     required this.taskKey,
     required this.expected,
+    this.methodKey,
   });
 
   final ErrorPattern pattern;
   final String taskKey;
   final int expected;
+  final String? methodKey;
+
+  static bool canRender({
+    required ErrorPattern pattern,
+    required String taskKey,
+  }) {
+    if (taskKey.startsWith('minus:') ||
+        taskKey.startsWith('process:strategy:') ||
+        taskKey.startsWith('process:error:') ||
+        taskKey.startsWith('process:plausibility:') ||
+        taskKey.startsWith('process:representation:')) {
+      return true;
+    }
+    return switch (pattern) {
+      ErrorPattern.tenBridge ||
+      ErrorPattern.carryOmitted ||
+      ErrorPattern.borrowAvoided ||
+      ErrorPattern.partialOperand ||
+      ErrorPattern.multiplicationFact ||
+      ErrorPattern.multiplicationAsAddition ||
+      ErrorPattern.placeValue ||
+      ErrorPattern.writtenRegrouping ||
+      ErrorPattern.writtenProcedure ||
+      ErrorPattern.unitConversion ||
+      ErrorPattern.fractionPart ||
+      ErrorPattern.timeDuration ||
+      ErrorPattern.perimeterArea ||
+      ErrorPattern.operationChoice ||
+      ErrorPattern.divisionAsSubtraction ||
+      ErrorPattern.wordProblem ||
+      ErrorPattern.wordProblemRelevantInformation ||
+      ErrorPattern.wordProblemModel ||
+      ErrorPattern.wordProblemInterpretation ||
+      ErrorPattern.representationTranslation => true,
+      _ => false,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
-    final processChild = taskKey.startsWith('process:strategy:')
-        ? _strategyProcessAid()
-        : taskKey.startsWith('process:error:')
-            ? _writtenColumnAid()
-            : taskKey.startsWith('process:plausibility:')
-                ? _plausibilityAid()
-                : taskKey.startsWith('process:representation:')
-                    ? _representationAid()
-                    : null;
+    final processChild = taskKey.startsWith('minus:')
+        ? _subtractionProcessAid()
+        : taskKey.startsWith('large:compare:')
+            ? _largeNumberCompareAid()
+            : taskKey.startsWith('process:strategy:')
+                ? _strategyProcessAid()
+                : taskKey.startsWith('process:error:')
+                    ? _writtenColumnAid()
+                    : taskKey.startsWith('process:plausibility:')
+                        ? _plausibilityAid()
+                        : taskKey.startsWith('process:representation:')
+                            ? _representationAid()
+                            : null;
     final child = processChild ?? switch (pattern) {
       ErrorPattern.tenBridge ||
       ErrorPattern.carryOmitted ||
@@ -61,6 +103,165 @@ class LearningVisualAid extends StatelessWidget {
     );
   }
 
+  Widget _subtractionProcessAid() {
+    final numbers = _numbers(taskKey);
+    if (numbers.length < 2) {
+      return const _AidLabel(
+        title: 'Rechenweg',
+        text: 'Lies den Minus-Rechenweg von links nach rechts.',
+      );
+    }
+    final a = numbers[numbers.length - 2];
+    final b = numbers.last;
+    final result = expected;
+
+    if (methodKey?.endsWith('complement') ?? false) {
+      final nextTen = ((b ~/ 10) + 1) * 10;
+      if (nextTen > b && nextTen < a) {
+        return _ProcessAid(
+          title: 'Ergänzweg',
+          text:
+              'Beim Ergänzen startest du bei der kleineren Zahl und gehst in Rechenschritten bis zur größeren Zahl.',
+          nodes: [b, nextTen, a],
+          nodeLabels: const ['Start', 'voller Zehner', 'Ziel'],
+          operations: ['+${nextTen - b}', '+${a - nextTen}'],
+          footer: 'Die Sprünge zusammen ergeben den Unterschied $result.',
+        );
+      }
+      return _ProcessAid(
+        title: 'Ergänzweg',
+        text:
+            'Beim Ergänzen startest du bei der kleineren Zahl und gehst bis zur größeren Zahl.',
+        nodes: [b, a],
+        nodeLabels: const ['Start', 'Ziel'],
+        operations: ['+$result'],
+        footer: 'Die Ergänzung ist der Unterschied $result.',
+      );
+    }
+
+    if (methodKey?.endsWith('takeAway') ?? false) {
+      final first = math.min(b, math.max(1, b ~/ 2));
+      final second = b - first;
+      final middle = a - first;
+      if (second > 0) {
+        return _ProcessAid(
+          title: 'Rechenweg',
+          text:
+              'Lies die Rechenschritte von links nach rechts: Start, Zwischenergebnis, Ergebnis.',
+          nodes: [a, middle, result],
+          nodeLabels: const ['Start', 'Zwischenschritt', 'Ergebnis'],
+          operations: ['−$first', '−$second'],
+          footer: '$a − $b = $result',
+        );
+      }
+    }
+
+    final toTen = a % 10;
+    final crossesTen = toTen > 0 && b > toTen;
+    if (crossesTen) {
+      final bridge = a - toTen;
+      final rest = b - toTen;
+      return _ProcessAid(
+        title: 'Rechenweg',
+        text:
+            'Lies von links nach rechts: Startzahl, voller Zehner, Ergebnis.',
+        nodes: [a, bridge, result],
+        nodeLabels: const ['Start', 'voller Zehner', 'Ergebnis'],
+        operations: ['−$toTen', '−$rest'],
+        footer: '$a − $b: zuerst bis $bridge, dann weiter bis $result.',
+      );
+    }
+
+    return _ProcessAid(
+      title: 'Rechenweg',
+      text: a % 10 == 0
+          ? '$a ist schon ein voller Zehner. Ein zusätzlicher Zwischenstopp ist nicht nötig.'
+          : 'Diese Aufgabe braucht keinen Zehner-Zwischenstopp.',
+      nodes: [a, result],
+      nodeLabels: const ['Start', 'Ergebnis'],
+      operations: ['−$b'],
+      footer: '$a − $b = $result',
+    );
+  }
+
+  Widget _largeNumberCompareAid() {
+    final numbers = _numbers(taskKey);
+    if (numbers.length < 2) return _placeValueAid();
+    final a = numbers[numbers.length - 2];
+    final b = numbers.last;
+    final place = _firstDifferentPlace(a, b);
+    final aDigit = (a ~/ place) % 10;
+    final bDigit = (b ~/ place) % 10;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(
+          title: 'Stellenwerte vergleichen',
+          text:
+              'Vergleiche beide Zahlen von links nach rechts. Die erste unterschiedliche Stelle entscheidet.',
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _NumberCompareCard(
+                value: _formatNumber(a),
+                digit: aDigit,
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: Text('↔', style: TextStyle(fontSize: 22)),
+            ),
+            Expanded(
+              child: _NumberCompareCard(
+                value: _formatNumber(b),
+                digit: bDigit,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '${_largePlaceLabel(place)}: $aDigit und $bDigit',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ],
+    );
+  }
+
+  int _firstDifferentPlace(int a, int b) {
+    var place = 1;
+    var largest = math.max(a, b);
+    while (largest >= 10) {
+      place *= 10;
+      largest ~/= 10;
+    }
+    while (place > 1 && (a ~/ place) % 10 == (b ~/ place) % 10) {
+      place ~/= 10;
+    }
+    return place;
+  }
+
+  String _largePlaceLabel(int place) => switch (place) {
+        1000000 => 'Millionenstelle',
+        100000 => 'Hunderttausenderstelle',
+        10000 => 'Zehntausenderstelle',
+        1000 => 'Tausenderstelle',
+        100 => 'Hunderterstelle',
+        10 => 'Zehnerstelle',
+        _ => 'Einerstelle',
+      };
+
+  String _formatNumber(int value) {
+    final raw = value.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < raw.length; i++) {
+      if (i > 0 && (raw.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(raw[i]);
+    }
+    return buffer.toString();
+  }
   Widget _numberLineAid() {
     final numbers = _numbers(taskKey);
     if (numbers.length < 2) {
