@@ -224,6 +224,7 @@ class StepRecoveryGenerator {
     'minuteSecondRelation',
     'roundingDecisionDigit',
     'minuteHandMinutes',
+    'sequenceStepSize',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -335,6 +336,7 @@ class StepRecoveryGenerator {
         'roundingDecisionDigit' =>
           _roundingDecisionDigitStep(focus, stage, range),
         'minuteHandMinutes' => _minuteHandMinutesStep(focus, stage, range),
+        'sequenceStepSize' => _sequenceStepSizeStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -773,6 +775,71 @@ class StepRecoveryGenerator {
       hint: sharing
           ? 'Die Anzahl der Gruppen ist bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
           : 'Die Gruppengröße ist bekannt. Gesucht ist, wie viele Gruppen entstehen.',
+    );
+  }
+
+  RemediationTask _sequenceStepSizeStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(4, range.maxValue);
+    var allowedSteps =
+        [1, 2, 5, 10].where((step) => step * 3 <= limit).toList();
+    if (allowedSteps.isEmpty) allowedSteps = [1];
+
+    final parts = focus.sourceTaskKey.split(':');
+    final sequenceIndex = parts.indexOf('sequence');
+    final sourceDirection =
+        sequenceIndex >= 0 && sequenceIndex + 1 < parts.length
+            ? parts[sequenceIndex + 1]
+            : '+';
+    final parsedStep =
+        sequenceIndex >= 0 && sequenceIndex + 3 < parts.length
+            ? int.tryParse(parts[sequenceIndex + 3])
+            : null;
+    final sourceStep =
+        parsedStep != null && allowedSteps.contains(parsedStep)
+            ? parsedStep
+            : allowedSteps.first;
+
+    final backwards = switch (stage) {
+      RemediationStage.supported => sourceDirection == '-',
+      RemediationStage.transfer => sourceDirection != '-',
+      RemediationStage.check => _random.nextBool(),
+      _ => sourceDirection == '-',
+    };
+    final step = stage == RemediationStage.check
+        ? allowedSteps[_random.nextInt(allowedSteps.length)]
+        : sourceStep;
+
+    final start = backwards
+        ? _between(step * 2, limit)
+        : _between(0, max(0, limit - step * 2));
+    final second = backwards ? start - step : start + step;
+    final third = backwards ? start - step * 2 : start + step * 2;
+    final alternative = allowedSteps.firstWhere(
+      (value) => value != step,
+      orElse: () => step + 1,
+    );
+    final choices = <String>[
+      'immer +$step',
+      'immer −$step',
+      'immer +$alternative',
+      'immer −$alternative',
+    ]..shuffle(_random);
+    final correct = backwards ? 'immer −$step' : 'immer +$step';
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'sequence-rule:${backwards ? '-' : '+'}:$start:$step',
+      prompt:
+          '$start, $second, $third: Welche Regel beschreibt die Schrittweite?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Vergleiche zwei Nachbarzahlen. Prüfe zuerst, ob die Folge größer oder kleiner wird, und dann um wie viel.',
     );
   }
 
