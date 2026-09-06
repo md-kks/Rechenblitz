@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 30,
+        fullTaskOnly: 29,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 34,
+        targetedRecovery: 35,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 32,
+        fullTaskOnly: 31,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 34,
+        targetedRecovery: 35,
       ),
     };
 
@@ -246,6 +246,17 @@ void main() {
     expect(item.guidedStepKeys, contains('unitRelation'));
     expect(item.independentStepKeys, contains('unitRelation'));
     expect(item.recoveryStepKeys, contains('unitRelation'));
+  });
+
+  test('Audit führt Zahlwortlesen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.numberWordReading,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('numberWordTensOnes'));
+    expect(item.independentStepKeys, contains('numberWordTensOnes'));
+    expect(item.recoveryStepKeys, contains('numberWordTensOnes'));
   });
 
   test('Audit führt das Ordnen großer Zahlen bis zur gezielten Recovery', () {

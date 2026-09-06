@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'curriculum_exercise.dart';
+import 'german_number_words.dart';
 import 'error_diagnosis.dart';
 import 'learning_methods.dart';
 import 'micro_competency.dart';
@@ -227,6 +228,7 @@ class StepRecoveryGenerator {
     'equalPartSize',
     'decidingPlace',
     'smallestOrderedNumber',
+    'numberWordTensOnes',
     'placeValueContribution',
     'gapToAnchor',
     'unitRelation',
@@ -354,6 +356,8 @@ class StepRecoveryGenerator {
         'decidingPlace' => _largeNumberDecidingPlaceStep(focus, stage, range),
         'smallestOrderedNumber' =>
           _largeNumberSmallestStep(focus, stage, range),
+        'numberWordTensOnes' =>
+          _numberWordTensOnesStep(focus, stage),
         'placeValueContribution' =>
           _placeValueContributionStep(focus, stage, range),
         'gapToAnchor' => _strategyGapToAnchorStep(focus, stage, range),
@@ -1752,6 +1756,76 @@ class StepRecoveryGenerator {
     final index = parts.indexOf('decompose');
     if (index < 0 || index + 2 >= parts.length) return null;
     return int.tryParse(parts[index + 2]);
+  }
+
+  RemediationTask _numberWordTensOnesStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList();
+    final sourceNumber =
+        sourceNumbers.isEmpty ? null : sourceNumbers.last;
+    final sourceSuffix = sourceNumber == null ? null : sourceNumber % 100;
+    final sourceTens = sourceSuffix == null ? null : sourceSuffix ~/ 10;
+    final sourceOnes = sourceSuffix == null ? null : sourceSuffix % 10;
+    final validSource = sourceTens != null &&
+            sourceOnes != null &&
+            sourceTens >= 2 &&
+            sourceOnes > 0 &&
+            sourceTens != sourceOnes
+        ? sourceSuffix
+        : null;
+
+    int freshSuffix({int? avoid}) {
+      var tens = _between(2, 9);
+      var ones = _between(1, 9);
+      var suffix = tens * 10 + ones;
+      for (var attempt = 0;
+          attempt < 30 && (suffix == avoid || tens == ones);
+          attempt++) {
+        tens = _between(2, 9);
+        ones = _between(1, 9);
+        suffix = tens * 10 + ones;
+      }
+      if (tens == ones) {
+        ones = ones == 9 ? 1 : ones + 1;
+        suffix = tens * 10 + ones;
+      }
+      return suffix;
+    }
+
+    final suffix = switch (stage) {
+      RemediationStage.supported => validSource ?? freshSuffix(),
+      RemediationStage.transfer => freshSuffix(avoid: validSource),
+      RemediationStage.check => freshSuffix(),
+      _ => validSource ?? freshSuffix(),
+    };
+    final tens = suffix ~/ 10;
+    final ones = suffix % 10;
+    final word = GermanNumberWords.spell(suffix);
+    final correct = '$tens Zehner und $ones Einer';
+    final choices = <String>{
+      correct,
+      '$ones Zehner und $tens Einer',
+      '$tens Zehner und $tens Einer',
+      '$ones Zehner und $ones Einer',
+    }.toList()
+      ..shuffle(_random);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'number-word-tens-ones:$suffix',
+      prompt:
+          'Im Wortteil „$word“: Welche Zuordnung zu Zehnern und Einern ist richtig?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Bei deutschen Zahlwörtern wie „siebenundvierzig“ wird der Einer vor dem Zehner gesprochen.',
+    );
   }
 
   RemediationTask _largeNumberSmallestStep(

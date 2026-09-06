@@ -127,6 +127,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeNumberOrder: [
       'smallestOrderedNumber',
     ],
+    MicroCompetencyId.numberWordReading: [
+      'numberWordTensOnes',
+    ],
     MicroCompetencyId.placeValueDecompose: [
       'placeValueContribution',
     ],
@@ -243,6 +246,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.largeNumberOrder: [
       'smallestOrderedNumber',
+    ],
+    MicroCompetencyId.numberWordReading: [
+      'numberWordTensOnes',
     ],
     MicroCompetencyId.placeValueDecompose: [
       'placeValueContribution',

@@ -1253,6 +1253,57 @@ void main() {
 
 
 
+
+  test('Zahlwort-Recovery überträgt die Einer-Zehner-Zuordnung', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.numberWordReading,
+      stepKey: 'numberWordTensOnes',
+      label: GuidedStepCatalog.labelFor('numberWordTensOnes'),
+      mode: TrainingMode.largeNumbers,
+      lastSeen: DateTime(2026, 9, 6, 20, 45),
+      sourceTaskKey:
+          'independent:numberWordTensOnes:large:word:read:347',
+    );
+    final plan = StepRecoveryGenerator(random: Random(842)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int suffix(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('number-word-tens-ones');
+      return int.parse(parts[index + 1]);
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(suffix(plan.tasks[0]), 47);
+    expect(suffix(plan.tasks[1]), isNot(47));
+
+    for (final task in plan.tasks) {
+      final value = suffix(task);
+      final tens = value ~/ 10;
+      final ones = value % 10;
+      expect(task.mode, TrainingMode.largeNumbers);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:numberWordTensOnes:number-word-tens-ones:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(
+        task.choices![task.answer],
+        '$tens Zehner und $ones Einer',
+      );
+      expect(task.prompt, contains('Zuordnung'));
+      expect(task.hint, contains('Einer vor dem Zehner'));
+    }
+  });
+
   test('Zahlenordnungs-Recovery festigt zuerst die kleinste Zahl', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.largeNumberOrder,

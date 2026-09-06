@@ -102,6 +102,52 @@ void main() {
 
 
 
+
+  test('Zahlwort-Hilfe beobachtet zuerst die deutsche Einer-Zehner-Reihenfolge',
+      () {
+    for (final key in [
+      'large:word:read:347',
+      'large:word:write:347',
+    ]) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.largeNumbers,
+        taskKey: key,
+        expected: 0,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.numberWordReading,
+      );
+      final evidence =
+          guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+      expect(guide.methodKey, 'largeNumbers:numberWord');
+      expect(evidence.evidenceKey, 'numberWordTensOnes');
+      expect(
+        evidence.evidenceCompetency,
+        MicroCompetencyId.numberWordReading,
+      );
+      expect(evidence.evidenceWeight, 0.40);
+      expect(evidence.question, contains('siebenundvierzig'));
+      expect(
+        evidence.choices[evidence.correctChoice!],
+        '4 Zehner und 7 Einer',
+      );
+      expect(evidence.instruction, isNot(contains('347')));
+
+      final independent =
+          GuidedMethodFactory.independentWrittenStepsForTask(
+        mode: TrainingMode.largeNumbers,
+        taskKey: key,
+        expected: 0,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.numberWordReading,
+      );
+      expect(
+        independent.map((step) => step.evidenceKey),
+        ['numberWordTensOnes'],
+      );
+    }
+  });
+
   test('Große Zahlen ordnen beobachtet zuerst die kleinste Zahl', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.largeNumbers,
