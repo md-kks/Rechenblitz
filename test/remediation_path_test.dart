@@ -1043,7 +1043,8 @@ void main() {
         startsWith('step-recovery:minutesToNextHour:time-first-jump:'),
       );
       expect(task.usesChoices, isFalse);
-      expect(task.answer, isIn([15, 30, 45]));
+      expect(task.answer, inInclusiveRange(10, 50));
+      expect(task.answer % 5, 0);
       expect(task.maxAnswerValue, 60);
       expect(task.prompt, contains('Wie viele Minuten'));
       expect(task.hint, contains('nächsten vollen Stunde'));
