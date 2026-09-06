@@ -216,6 +216,7 @@ class StepRecoveryGenerator {
     'storyCalculation',
     'storyInterpretation',
     'divisionTargetQuantity',
+    'matchingMultiplicationFact',
     'unitValue',
     'minutesToNextHour',
     'equalPartSize',
@@ -327,6 +328,8 @@ class StepRecoveryGenerator {
           _storyInterpretationStep(focus, stage, range),
         'divisionTargetQuantity' =>
           _divisionTargetQuantityStep(focus, stage, range),
+        'matchingMultiplicationFact' =>
+          _matchingMultiplicationFactStep(focus, stage, range),
         'unitValue' => _proportionalUnitValueStep(focus, stage, range),
         'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
         'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
@@ -737,6 +740,82 @@ class StepRecoveryGenerator {
           ? 'Rechne $chunk − ($quotientDigit × $divisor).'
           : 'Suche die größte Malaufgabe mit $divisor, die $chunk nicht überschreitet.',
     );
+  }
+
+  RemediationTask _matchingMultiplicationFactStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(10, min(range.maxValue, 100));
+    final maxDivisor = min(10, max(2, limit ~/ 2));
+    final source = _divisionFactFromSource(focus.sourceTaskKey);
+    final baseDivisor = source != null &&
+            source.divisor >= 2 &&
+            source.divisor <= maxDivisor
+        ? source.divisor
+        : min(5, maxDivisor);
+
+    final divisor = switch (stage) {
+      RemediationStage.supported => baseDivisor,
+      RemediationStage.transfer => [
+          for (var value = 2; value <= maxDivisor; value++)
+            if (value != baseDivisor) value,
+        ][_random.nextInt(maxDivisor - 2)],
+      RemediationStage.check => _between(2, maxDivisor),
+      _ => baseDivisor,
+    };
+
+    final maxQuotient = min(10, max(2, limit ~/ divisor));
+    final sourceQuotient = source == null || source.divisor == 0
+        ? null
+        : source.dividend ~/ source.divisor;
+    var quotientCandidates = [
+      for (var value = 2; value <= maxQuotient; value++)
+        if (!(stage == RemediationStage.supported &&
+            divisor == source?.divisor &&
+            value == sourceQuotient))
+          value,
+    ];
+    if (quotientCandidates.isEmpty) {
+      quotientCandidates = [
+        for (var value = 2; value <= maxQuotient; value++) value,
+      ];
+    }
+    final quotient =
+        quotientCandidates[_random.nextInt(quotientCandidates.length)];
+    final dividend = divisor * quotient;
+    final correct = '$divisor × ? = $dividend';
+    final choices = <String>[
+      correct,
+      '$dividend × ? = $divisor',
+      '$divisor + ? = $dividend',
+      '$dividend − ? = $divisor',
+    ]..shuffle(_random);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'division-inverse:$dividend:$divisor',
+      prompt:
+          'Welche Mal-Umkehraufgabe passt zu $dividend ÷ $divisor?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Der Teiler wird zum bekannten Faktor: Teiler × ? = Gesamtzahl.',
+    );
+  }
+
+  ({int dividend, int divisor})? _divisionFactFromSource(
+    String sourceTaskKey,
+  ) {
+    final parts = sourceTaskKey.split(':');
+    final index = parts.indexOf('divide');
+    if (index < 0 || index + 2 >= parts.length) return null;
+    final dividend = int.tryParse(parts[index + 1]);
+    final divisor = int.tryParse(parts[index + 2]);
+    if (dividend == null || divisor == null || divisor <= 0) return null;
+    return (dividend: dividend, divisor: divisor);
   }
 
   RemediationTask _divisionTargetQuantityStep(

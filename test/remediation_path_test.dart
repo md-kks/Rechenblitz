@@ -1464,4 +1464,65 @@ void main() {
     }
   });
 
+  test('Geteilt-Grundaufgaben-Recovery überträgt die Mal-Umkehraufgabe',
+      () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.divisionFacts,
+      stepKey: 'matchingMultiplicationFact',
+      label: GuidedStepCatalog.labelFor('matchingMultiplicationFact'),
+      mode: TrainingMode.divide,
+      lastSeen: DateTime(2026, 9, 6, 15),
+      sourceTaskKey:
+          'independent:matchingMultiplicationFact:divide:42:6',
+    );
+    final plan = StepRecoveryGenerator(random: Random(650)).generate(
+      focus: focus,
+      range: NumberRangeLevel.hundred,
+    );
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+
+    ({int dividend, int divisor}) values(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('division-inverse');
+      return (
+        dividend: int.parse(parts[index + 1]),
+        divisor: int.parse(parts[index + 2]),
+      );
+    }
+
+    expect(values(plan.tasks[0]).divisor, 6);
+    expect(values(plan.tasks[1]).divisor, isNot(6));
+
+    for (final task in plan.tasks) {
+      final pair = values(task);
+      expect(task.mode, TrainingMode.divide);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:matchingMultiplicationFact:division-inverse:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices, hasLength(4));
+      expect(task.choices!.toSet(), hasLength(4));
+      expect(task.choices!.every((choice) => choice.contains('?')), isTrue);
+      expect(
+        task.choices![task.answer],
+        '${pair.divisor} × ? = ${pair.dividend}',
+      );
+      expect(task.prompt, contains('Mal-Umkehraufgabe'));
+      expect(task.hint, contains('Teiler'));
+    }
+  });
+
+
 }
