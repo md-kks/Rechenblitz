@@ -186,7 +186,10 @@ class StructuredExerciseGenerator {
         TrainingMode.neighbors => _neighbors(maxValue),
         TrainingMode.placeValue => _placeValue(maxValue),
         TrainingMode.doublesHalves => _doublesHalves(maxValue),
-        TrainingMode.sequences => _sequence(maxValue),
+        TrainingMode.sequences => _sequence(
+            maxValue,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.factFamilies => _factFamily(maxValue),
         TrainingMode.wordProblems => _wordProblem(
             maxValue,
@@ -319,11 +322,18 @@ class StructuredExerciseGenerator {
     );
   }
 
-  StructuredExercise _sequence(int maxValue) {
+  StructuredExercise _sequence(
+    int maxValue, {
+    MicroCompetencyId? targetCompetency,
+  }) {
     var allowedSteps = [1, 2, 5, 10].where((s) => s * 3 <= maxValue).toList();
     if (allowedSteps.isEmpty) allowedSteps = [1];
     final step = allowedSteps[_random.nextInt(allowedSteps.length)];
     final backwards = _random.nextBool();
+    final checkpoints = targetCompetency == MicroCompetencyId.numberPatterns
+        ? [_sequenceStepCheckpoint(step, backwards, allowedSteps)]
+        : const <ExerciseCheckpoint>[];
+
     if (backwards) {
       final minStart = step * 3;
       final start = minStart + _random.nextInt(maxValue - minStart + 1);
@@ -331,8 +341,10 @@ class StructuredExerciseGenerator {
         mode: TrainingMode.sequences,
         prompt: '$start, ${start - step}, ${start - step * 2}, ?',
         answer: start - step * 3,
-        hint: 'Die Zahlen werden immer um $step kleiner.',
+        hint:
+            'Vergleiche zwei Nachbarzahlen. Die Folge verändert sich immer um denselben Schritt.',
         key: 'sequence:-:$start:$step',
+        checkpoints: checkpoints,
       );
     }
     final maxStart = maxValue - step * 3;
@@ -341,8 +353,35 @@ class StructuredExerciseGenerator {
       mode: TrainingMode.sequences,
       prompt: '$start, ${start + step}, ${start + step * 2}, ?',
       answer: start + step * 3,
-      hint: 'Die Zahlen werden immer um $step größer.',
+      hint:
+          'Vergleiche zwei Nachbarzahlen. Die Folge verändert sich immer um denselben Schritt.',
       key: 'sequence:+:$start:$step',
+      checkpoints: checkpoints,
+    );
+  }
+
+  ExerciseCheckpoint _sequenceStepCheckpoint(
+    int step,
+    bool backwards,
+    List<int> allowedSteps,
+  ) {
+    final alternative =
+        allowedSteps.firstWhere((value) => value != step, orElse: () => step + 1);
+    final choices = <String>[
+      'immer +$step',
+      'immer −$step',
+      'immer +$alternative',
+      'immer −$alternative',
+    ]..shuffle(_random);
+    final correct = backwards ? 'immer −$step' : 'immer +$step';
+
+    return ExerciseCheckpoint(
+      key: 'sequenceStepSize',
+      question: 'Welche Regel beschreibt die Schrittweite der Folge?',
+      choices: choices,
+      correctChoice: choices.indexOf(correct),
+      competencyId: MicroCompetencyId.numberPatterns,
+      evidenceWeight: 0.40,
     );
   }
 

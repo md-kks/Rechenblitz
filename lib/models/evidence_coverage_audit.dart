@@ -130,6 +130,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.clockReading: [
       'minuteHandMinutes',
     ],
+    MicroCompetencyId.numberPatterns: [
+      'sequenceStepSize',
+    ],
     MicroCompetencyId.additionTenBridge: [
       'bridgeAmount',
     ],
@@ -216,6 +219,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.clockReading: [
       'minuteHandMinutes',
+    ],
+    MicroCompetencyId.numberPatterns: [
+      'sequenceStepSize',
     ],
     MicroCompetencyId.additionTenBridge: [
       'bridgeAmount',

@@ -1500,6 +1500,56 @@ void main() {
     );
   });
 
+  test('Zahlenfolgen beobachten die gerichtete Schrittweite', () {
+    final forward = GuidedMethodFactory.forTask(
+      mode: TrainingMode.sequences,
+      taskKey: 'sequence:+:8:2',
+      expected: 14,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.numberPatterns,
+    );
+    final forwardEvidence = forward.steps.singleWhere(
+      (step) => step.evidenceKey == 'sequenceStepSize',
+    );
+
+    expect(forward.methodKey, 'sequence:constantStep');
+    expect(forward.methodLabel, 'Musterregel finden');
+    expect(
+      forwardEvidence.evidenceCompetency,
+      MicroCompetencyId.numberPatterns,
+    );
+    expect(forwardEvidence.evidenceWeight, 0.40);
+    expect(
+      forwardEvidence.choices[forwardEvidence.correctChoice!],
+      'immer +2',
+    );
+    expect(forwardEvidence.instruction, isNot(contains('+2')));
+    expect(forward.steps[1].instruction, contains('um 2 größer'));
+    expect(forward.steps.last.instruction, contains('12 + 2 = 14'));
+    expect(
+      GuidedStepCatalog.labelFor('sequenceStepSize'),
+      contains('Schrittweite'),
+    );
+
+    final backward = GuidedMethodFactory.forTask(
+      mode: TrainingMode.sequences,
+      taskKey: 'sequence:-:20:5',
+      expected: 5,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.numberPatterns,
+    );
+    final backwardEvidence = backward.steps.singleWhere(
+      (step) => step.evidenceKey == 'sequenceStepSize',
+    );
+
+    expect(
+      backwardEvidence.choices[backwardEvidence.correctChoice!],
+      'immer −5',
+    );
+    expect(backward.steps[1].instruction, contains('um 5 kleiner'));
+    expect(backward.steps.last.instruction, contains('10 − 5 = 5'));
+  });
+
   test('Uhrlesen trennt Minutenzeiger von der ganzen Uhrzeit', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.clock,

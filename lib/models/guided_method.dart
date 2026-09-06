@@ -113,6 +113,7 @@ class GuidedStepCatalog {
     'minuteSecondRelation': 'Beziehung zwischen Minuten und Sekunden erkennen',
     'roundingDecisionDigit': 'entscheidende Ziffer beim Runden erkennen',
     'minuteHandMinutes': 'Minutenwert des langen Zeigers erkennen',
+    'sequenceStepSize': 'Richtung und Schrittweite einer Zahlenfolge erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -241,6 +242,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.rounding ||
         targetCompetency == MicroCompetencyId.roundingPlace) {
       return _roundingGuide(taskKey, expected);
+    }
+
+    if (mode == TrainingMode.sequences ||
+        targetCompetency == MicroCompetencyId.numberPatterns) {
+      return _sequenceGuide(taskKey, expected);
     }
 
     if (mode == TrainingMode.clock ||
@@ -536,6 +542,102 @@ class GuidedMethodFactory {
         )
         .take(2)
         .toList(growable: false);
+  }
+
+  static GuidedMethodGuide _sequenceGuide(
+    String taskKey,
+    int expected,
+  ) {
+    final parts = taskKey.split(':');
+    if (!taskKey.startsWith('sequence:') || parts.length < 4) {
+      return const GuidedMethodGuide(
+        methodKey: 'sequence:constantStep',
+        methodLabel: 'Musterregel finden',
+        nudge:
+            'Vergleiche immer zwei benachbarte Zahlen. Suche eine Veränderung, die jedes Mal gleich bleibt.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Nachbarzahlen vergleichen',
+            instruction:
+                'Prüfe, ob die Zahlen immer um denselben Betrag größer oder kleiner werden.',
+          ),
+          GuidedMethodStep(
+            title: 'Regel anwenden',
+            instruction:
+                'Wende die gefundene Regel erst danach auf die letzte sichtbare Zahl an.',
+          ),
+        ],
+      );
+    }
+
+    final direction = parts[1];
+    final start = int.tryParse(parts[2]);
+    final step = int.tryParse(parts[3]);
+    if (start == null || step == null || step <= 0) {
+      return const GuidedMethodGuide(
+        methodKey: 'sequence:constantStep',
+        methodLabel: 'Musterregel finden',
+        nudge:
+            'Vergleiche immer zwei benachbarte Zahlen. Suche eine Veränderung, die jedes Mal gleich bleibt.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Nachbarzahlen vergleichen',
+            instruction:
+                'Prüfe, ob die Zahlen immer um denselben Betrag größer oder kleiner werden.',
+          ),
+          GuidedMethodStep(
+            title: 'Regel anwenden',
+            instruction:
+                'Wende die gefundene Regel erst danach auf die letzte sichtbare Zahl an.',
+          ),
+        ],
+      );
+    }
+
+    final backwards = direction == '-';
+    final alternative = [1, 2, 5, 10]
+        .firstWhere((value) => value != step, orElse: () => step + 1);
+    final choices = <String>[
+      'immer +$step',
+      'immer −$step',
+      'immer +$alternative',
+      'immer −$alternative',
+    ];
+    final correct = backwards ? 'immer −$step' : 'immer +$step';
+    final second = backwards ? start - step : start + step;
+    final third = backwards ? start - step * 2 : start + step * 2;
+
+    return GuidedMethodGuide(
+      methodKey: 'sequence:constantStep',
+      methodLabel: 'Musterregel finden',
+      nudge:
+          'Vergleiche $start mit $second und danach $second mit $third. Dieselbe Veränderung muss beide Male passen.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Schrittweite erkennen',
+          instruction:
+              'Vergleiche die sichtbaren Nachbarzahlen. Entscheide gleichzeitig, ob die Folge wächst oder fällt.',
+          question: 'Welche Regel beschreibt die Schrittweite der Folge?',
+          choices: choices,
+          correctChoice: choices.indexOf(correct),
+          evidenceKey: 'sequenceStepSize',
+          evidenceCompetency: MicroCompetencyId.numberPatterns,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Regel benennen',
+          instruction: backwards
+              ? 'Die Folge wird jedes Mal um $step kleiner: $correct.'
+              : 'Die Folge wird jedes Mal um $step größer: $correct.',
+        ),
+        GuidedMethodStep(
+          title: 'Regel fortsetzen',
+          instruction: backwards
+              ? '$third − $step = $expected.'
+              : '$third + $step = $expected.',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _clockReadingGuide(String taskKey) {
