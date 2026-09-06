@@ -114,6 +114,8 @@ class GuidedStepCatalog {
         'passende Rechenart bei Geldaufgaben erkennen',
     'measureOperationChoice':
         'passende Rechenart bei Längenaufgaben erkennen',
+    'doubleHalfMeaning':
+        'Bedeutung von Doppeln und Halbieren erkennen',
     'unitValue': 'Wert für eine Einheit bestimmen',
     'minutesToNextHour':
         'Minuten bis zur nächsten vollen Stunde bestimmen',
@@ -241,6 +243,13 @@ class GuidedMethodFactory {
           numbers.last,
         );
       }
+    }
+
+    if (mode == TrainingMode.doublesHalves ||
+        targetCompetency == MicroCompetencyId.doublesHalves ||
+        taskKey.startsWith('double:') ||
+        taskKey.startsWith('half:')) {
+      return _doublesHalvesGuide(taskKey);
     }
 
     if (mode == TrainingMode.factFamilies ||
@@ -1569,6 +1578,68 @@ class GuidedMethodFactory {
           instruction: addition
               ? 'Lege beide Preise zusammen und addiere erst jetzt die Beträge.'
               : 'Ziehe den bekannten oder ausgegebenen Betrag erst jetzt vom vorhandenen Gesamtbetrag ab.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _doublesHalvesGuide(String taskKey) {
+    final isDouble = taskKey.startsWith('double:');
+    final isHalf = taskKey.startsWith('half:');
+    final values = _numbers(taskKey);
+    final value = values.isEmpty ? null : values.last;
+
+    if (!isDouble && !isHalf) {
+      return const GuidedMethodGuide(
+        methodKey: 'doublesHalves:relationship',
+        methodLabel: 'Doppeln und Halbieren verstehen',
+        nudge:
+            'Überlege zuerst, ob dieselbe Menge zweimal gebraucht oder eine Menge in zwei gleich große Teile geteilt wird.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Beziehung klären',
+            instruction:
+                'Doppeln und Halbieren sind zwei verschiedene Beziehungen zwischen gleich großen Mengen.',
+          ),
+        ],
+      );
+    }
+
+    final choices = <String>[
+      'zweimal dieselbe Menge zusammen',
+      'in zwei gleich große Teile teilen',
+    ];
+    final correct = isDouble
+        ? 'zweimal dieselbe Menge zusammen'
+        : 'in zwei gleich große Teile teilen';
+
+    return GuidedMethodGuide(
+      methodKey: 'doublesHalves:relationship',
+      methodLabel: 'Doppeln und Halbieren verstehen',
+      nudge: isDouble
+          ? 'Beim Doppeln brauchst du dieselbe Menge zweimal.'
+          : 'Bei der Hälfte entstehen zwei gleich große Teile.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Beziehung erkennen',
+          instruction:
+              'Entscheide zuerst, was das Wort in der Aufgabe mathematisch bedeutet.',
+          question: isDouble
+              ? 'Was bedeutet „das Doppelte“?'
+              : 'Was bedeutet „die Hälfte“?',
+          choices: choices,
+          correctChoice: choices.indexOf(correct),
+          evidenceKey: 'doubleHalfMeaning',
+          evidenceCompetency: MicroCompetencyId.doublesHalves,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Beziehung anwenden',
+          instruction: value == null
+              ? 'Wende die erkannte Beziehung jetzt auf die Zahl an.'
+              : isDouble
+                  ? 'Nimm $value zweimal: $value + $value.'
+                  : 'Teile $value in zwei gleich große Teile.',
         ),
       ],
     );

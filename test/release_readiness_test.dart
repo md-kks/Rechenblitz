@@ -135,31 +135,31 @@ void main() {
     const expected = {
       GradeLevel.first: (
         total: 21,
-        fullTaskOnly: 6,
+        fullTaskOnly: 5,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 15,
+        targetedRecovery: 16,
       ),
       GradeLevel.second: (
         total: 26,
-        fullTaskOnly: 6,
+        fullTaskOnly: 5,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 20,
+        targetedRecovery: 21,
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 34,
+        fullTaskOnly: 33,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 30,
+        targetedRecovery: 31,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 36,
+        fullTaskOnly: 35,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 30,
+        targetedRecovery: 31,
       ),
     };
 
@@ -336,6 +336,17 @@ void main() {
     expect(item.guidedStepKeys, contains('wallOperationChoice'));
     expect(item.independentStepKeys, contains('wallOperationChoice'));
     expect(item.recoveryStepKeys, contains('wallOperationChoice'));
+  });
+
+  test('Audit führt Doppeln und Halbieren bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.doublesHalves,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('doubleHalfMeaning'));
+    expect(item.independentStepKeys, contains('doubleHalfMeaning'));
+    expect(item.recoveryStepKeys, contains('doubleHalfMeaning'));
   });
 
   test('Audit führt Längen-Rechenplan bis zur gezielten Recovery', () {

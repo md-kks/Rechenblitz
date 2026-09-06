@@ -188,7 +188,10 @@ class StructuredExerciseGenerator {
         TrainingMode.missingNumber => _missingNumber(maxValue),
         TrainingMode.neighbors => _neighbors(maxValue),
         TrainingMode.placeValue => _placeValue(maxValue),
-        TrainingMode.doublesHalves => _doublesHalves(maxValue),
+        TrainingMode.doublesHalves => _doublesHalves(
+            maxValue,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.sequences => _sequence(
             maxValue,
             targetCompetency: targetCompetency,
@@ -365,19 +368,32 @@ class StructuredExerciseGenerator {
     );
   }
 
-  StructuredExercise _doublesHalves(int maxValue) {
+  StructuredExercise _doublesHalves(
+    int maxValue, {
+    MicroCompetencyId? targetCompetency,
+  }) {
+    final targeted = targetCompetency == MicroCompetencyId.doublesHalves;
     final useDouble = _random.nextBool();
     if (useDouble) {
-      final value = _random.nextInt(max(1, maxValue ~/ 2) + 1);
+      final maxBase = max(1, maxValue ~/ 2);
+      final value = targeted
+          ? 1 + _random.nextInt(maxBase)
+          : _random.nextInt(maxBase + 1);
       return StructuredExercise(
         mode: TrainingMode.doublesHalves,
         prompt: 'Was ist das Doppelte von $value?',
         answer: value * 2,
         hint: 'Doppelt bedeutet: $value + $value.',
         key: 'double:$value',
+        checkpoints: targeted
+            ? [_doubleHalfMeaningCheckpoint(double: true)]
+            : const <ExerciseCheckpoint>[],
       );
     }
-    final half = _random.nextInt(max(1, maxValue ~/ 2) + 1);
+    final maxHalf = max(1, maxValue ~/ 2);
+    final half = targeted
+        ? 1 + _random.nextInt(maxHalf)
+        : _random.nextInt(maxHalf + 1);
     final value = half * 2;
     return StructuredExercise(
       mode: TrainingMode.doublesHalves,
@@ -385,6 +401,31 @@ class StructuredExerciseGenerator {
       answer: half,
       hint: 'Teile $value in zwei gleich große Teile.',
       key: 'half:$value',
+      checkpoints: targeted
+          ? [_doubleHalfMeaningCheckpoint(double: false)]
+          : const <ExerciseCheckpoint>[],
+    );
+  }
+
+  ExerciseCheckpoint _doubleHalfMeaningCheckpoint({
+    required bool double,
+  }) {
+    final choices = <String>[
+      'zweimal dieselbe Menge zusammen',
+      'in zwei gleich große Teile teilen',
+    ]..shuffle(_random);
+    final correct = double
+        ? 'zweimal dieselbe Menge zusammen'
+        : 'in zwei gleich große Teile teilen';
+    return ExerciseCheckpoint(
+      key: 'doubleHalfMeaning',
+      question: double
+          ? 'Was bedeutet „das Doppelte“?'
+          : 'Was bedeutet „die Hälfte“?',
+      choices: choices,
+      correctChoice: choices.indexOf(correct),
+      competencyId: MicroCompetencyId.doublesHalves,
+      evidenceWeight: 0.40,
     );
   }
 

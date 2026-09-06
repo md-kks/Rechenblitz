@@ -320,6 +320,58 @@ void main() {
     }
   });
 
+
+  test('Gezieltes Doppeln und Halbieren prüft zuerst die Bedeutung', () {
+    final generator = StructuredExerciseGenerator(random: Random(740));
+    final seen = <String>{};
+
+    for (final maxValue in [10, 20, 100]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.doublesHalves,
+          maxValue: maxValue,
+          gradeLevel: GradeLevel.first,
+          targetCompetency: MicroCompetencyId.doublesHalves,
+        );
+        final checkpoint = exercise.checkpoints.single;
+        final isDouble = exercise.key.startsWith('double:');
+        seen.add(isDouble ? 'double' : 'half');
+
+        expect(checkpoint.key, 'doubleHalfMeaning');
+        expect(checkpoint.competencyId, MicroCompetencyId.doublesHalves);
+        expect(checkpoint.evidenceWeight, 0.40);
+        expect(checkpoint.choices.toSet(), {
+          'zweimal dieselbe Menge zusammen',
+          'in zwei gleich große Teile teilen',
+        });
+        expect(
+          checkpoint.choices[checkpoint.correctChoice],
+          isDouble
+              ? 'zweimal dieselbe Menge zusammen'
+              : 'in zwei gleich große Teile teilen',
+        );
+        expect(int.parse(exercise.key.split(':').last), greaterThan(0));
+        expect(exercise.answer, greaterThan(0));
+        expect(exercise.answer, lessThanOrEqualTo(maxValue));
+      }
+    }
+
+    expect(seen, {'double', 'half'});
+  });
+
+  test('Normales Doppeln-und-Halbieren-Training bleibt checkpoint-frei', () {
+    final generator = StructuredExerciseGenerator(random: Random(741));
+
+    for (var i = 0; i < 120; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.doublesHalves,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+      );
+      expect(exercise.checkpoints, isEmpty);
+    }
+  });
+
   test('Geometrie verwendet Grundformen und gültige Antworten', () {
     final generator = StructuredExerciseGenerator(random: Random(23));
     for (var i = 0; i < 80; i++) {
