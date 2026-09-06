@@ -218,6 +218,49 @@ void main() {
   });
 
 
+  test('Umfang beobachtet zuerst die vier Randstrecken', () {
+    const key = 'rect:perimeter:beet:8:5';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.perimeterArea,
+      taskKey: key,
+      expected: 26,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.perimeter,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'geometry:perimeter');
+    expect(evidence.evidenceKey, 'perimeterEdges');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.perimeter);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(
+      evidence.choices[evidence.correctChoice!],
+      '8 cm + 5 cm + 8 cm + 5 cm',
+    );
+    expect(evidence.instruction, isNot(contains('26')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.perimeterArea,
+      taskKey: key,
+      expected: 26,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.perimeter,
+    );
+    expect(independent.map((step) => step.evidenceKey), ['perimeterEdges']);
+
+    final areaIndependent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.perimeterArea,
+      taskKey: 'rect:area:beet:8:5',
+      expected: 40,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.area,
+    );
+    expect(areaIndependent, isEmpty);
+  });
+
   test('Überschlag beobachtet zuerst die beiden gerundeten Summanden', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.estimation,

@@ -147,6 +147,7 @@ class GuidedStepCatalog {
     'roundingDecisionDigit': 'entscheidende Ziffer beim Runden erkennen',
     'minuteHandMinutes': 'Minutenwert des langen Zeigers erkennen',
     'sequenceStepSize': 'Richtung und Schrittweite einer Zahlenfolge erkennen',
+    'perimeterEdges': 'vier Randstrecken für den Umfang erfassen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -645,6 +646,18 @@ class GuidedMethodFactory {
         return const <GuidedMethodStep>[];
       }
       return _proportionalUnit(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.perimeterArea) {
+      if (targetCompetency != MicroCompetencyId.perimeter ||
+          !taskKey.startsWith('rect:perimeter:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _perimeterArea(taskKey)
           .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3311,7 +3324,20 @@ class GuidedMethodFactory {
   }
 
   static GuidedMethodGuide _perimeterArea(String key) {
-    final area = key.contains('area');
+    final area = key.contains(':area:');
+    final numbers = _numbers(key);
+    final width =
+        numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+    final height = numbers.isNotEmpty ? numbers.last : null;
+    final perimeterChoices = width == null || height == null
+        ? const <String>[]
+        : <String>[
+            '$width cm + $height cm + $width cm + $height cm',
+            '$width cm + $height cm',
+            '$width cm × $height cm',
+            '$width cm + $width cm + $height cm',
+          ];
+
     return GuidedMethodGuide(
       methodKey: area ? 'geometry:area' : 'geometry:perimeter',
       methodLabel: area ? 'Fläche = Inneres' : 'Umfang = Rand',
@@ -3319,17 +3345,33 @@ class GuidedMethodFactory {
           ? 'Gesucht ist das Innere der Figur.'
           : 'Gesucht ist die Länge des Randes.',
       steps: [
-        GuidedMethodStep(
-          title: area ? 'Innenfläche markieren' : 'Rand nachfahren',
-          instruction: area
-              ? 'Markiere die Fläche innerhalb des Rechtecks.'
-              : 'Fahre alle vier Seiten einmal entlang.',
-        ),
+        if (area)
+          const GuidedMethodStep(
+            title: 'Innenfläche markieren',
+            instruction: 'Markiere die Fläche innerhalb des Rechtecks.',
+          )
+        else
+          GuidedMethodStep(
+            title: 'Randstrecken erfassen',
+            instruction:
+                'Nimm jede der vier Seiten genau einmal auf. Rechne die Summe noch nicht aus.',
+            question: perimeterChoices.isEmpty
+                ? null
+                : 'Welche Rechnung enthält genau die vier Randstrecken?',
+            choices: perimeterChoices,
+            correctChoice: perimeterChoices.isEmpty ? null : 0,
+            evidenceKey:
+                perimeterChoices.isEmpty ? null : 'perimeterEdges',
+            evidenceCompetency: perimeterChoices.isEmpty
+                ? null
+                : MicroCompetencyId.perimeter,
+            evidenceWeight: 0.40,
+          ),
         GuidedMethodStep(
           title: 'Passende Rechnung',
           instruction: area
               ? 'Länge × Breite.'
-              : 'Alle Seiten addieren oder 2 × (Länge + Breite).',
+              : 'Addiere jetzt die vier Randstrecken oder fasse sie als 2 × (Länge + Breite) zusammen.',
         ),
       ],
     );

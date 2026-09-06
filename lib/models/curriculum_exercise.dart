@@ -195,7 +195,10 @@ class CurriculumExerciseGenerator {
               : _probability(gradeLevel),
         TrainingMode.combinatorics => _combinatorics(gradeLevel),
         TrainingMode.proportionality => _proportionality(gradeLevel, maxValue),
-        TrainingMode.perimeterArea => _perimeterArea(gradeLevel),
+        TrainingMode.perimeterArea => _perimeterArea(
+            gradeLevel,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.geometryRelations => _geometryRelations(
             gradeLevel,
             targetCompetency: targetCompetency,
@@ -1802,10 +1805,15 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _perimeterArea(GradeLevel grade) {
+  CurriculumExercise _perimeterArea(
+    GradeLevel grade, {
+    MicroCompetencyId? targetCompetency,
+  }) {
     final width = _between(2, grade == GradeLevel.third ? 12 : 25);
     final height = _between(2, grade == GradeLevel.third ? 12 : 25);
-    final area = _random.nextBool();
+    final area = targetCompetency == MicroCompetencyId.perimeter
+        ? false
+        : _random.nextBool();
     final context = _random.nextInt(4);
     final object = ['Rechteck', 'Bild', 'Beet', 'Spielteppich'][context];
     final prompt = area

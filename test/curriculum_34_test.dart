@@ -43,6 +43,25 @@ void main() {
 
 
 
+  test('Gezielte Umfangsaufgaben bleiben beim Umfang', () {
+    final generator = CurriculumExerciseGenerator(random: Random(892));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 80; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.perimeterArea,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.perimeter,
+        );
+
+        expect(exercise.key, startsWith('rect:perimeter:'));
+        expect(exercise.answerSuffix, 'cm');
+        expect(exercise.method, 'Umfang');
+      }
+    }
+  });
+
   test('Gezielte Rechengesetze bleiben in den drei Rechenideen', () {
     final generator = CurriculumExerciseGenerator(random: Random(881));
     final families = <String>{};
