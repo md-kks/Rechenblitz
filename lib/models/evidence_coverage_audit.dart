@@ -136,6 +136,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.strategyChoice: [
       'gapToAnchor',
     ],
+    MicroCompetencyId.plausibilityCheck: [
+      'referenceEstimate',
+    ],
     MicroCompetencyId.roundingPlace: [
       'roundingDecisionDigit',
     ],
@@ -255,6 +258,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.strategyChoice: [
       'gapToAnchor',
+    ],
+    MicroCompetencyId.plausibilityCheck: [
+      'referenceEstimate',
     ],
     MicroCompetencyId.roundingPlace: [
       'roundingDecisionDigit',

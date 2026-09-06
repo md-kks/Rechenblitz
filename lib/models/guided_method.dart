@@ -130,6 +130,8 @@ class GuidedStepCatalog {
         'Wert einer Ziffer an ihrer Stelle bestimmen',
     'gapToAnchor':
         'Ergänzung bis zur glatten Zielzahl bestimmen',
+    'referenceEstimate':
+        'Referenz-Überschlag für die Plausibilitätsprüfung bilden',
     'unitRelation': 'passende Beziehung zwischen zwei Einheiten erkennen',
     'minuteSecondRelation': 'Beziehung zwischen Minuten und Sekunden erkennen',
     'roundingDecisionDigit': 'entscheidende Ziffer beim Runden erkennen',
@@ -480,6 +482,18 @@ class GuidedMethodFactory {
         return const <GuidedMethodStep>[];
       }
       return _unitConversion(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.estimation) {
+      if (targetCompetency != MicroCompetencyId.plausibilityCheck ||
+          !taskKey.startsWith('process:plausibility:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _plausibilityGuide(taskKey)
           .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3365,6 +3379,67 @@ class GuidedMethodFactory {
   static GuidedMethodGuide _plausibilityGuide(String key) {
     final numbers = _numbers(key);
     final candidate = numbers.length >= 3 ? numbers[numbers.length - 2] : null;
+
+    if (numbers.length >= 4) {
+      final a = numbers[numbers.length - 4];
+      final b = numbers[numbers.length - 3];
+      final place = numbers.last;
+      if (place > 0) {
+        int rounded(int value) =>
+            ((value + place ~/ 2) ~/ place) * place;
+        final roundedA = rounded(a);
+        final roundedB = rounded(b);
+        final estimate = roundedA + roundedB;
+        final placeLabel = switch (place) {
+          10 => 'Zehner',
+          100 => 'Hunderter',
+          1000 => 'Tausender',
+          10000 => 'Zehntausender',
+          100000 => 'Hunderttausender',
+          _ => 'passende Stelle',
+        };
+        final choices = _numberChoices(
+          estimate,
+          maxValue: max(
+            estimate + 2 * place,
+            (candidate ?? estimate) + 2 * place,
+          ),
+        );
+
+        return GuidedMethodGuide(
+          methodKey: 'process:plausibility',
+          methodLabel: 'Mit Überschlag kontrollieren',
+          nudge:
+              'Bilde zuerst eine grobe Referenz. Erst danach vergleichst du das vorgeschlagene Ergebnis damit.',
+          steps: [
+            GuidedMethodStep(
+              title: 'Referenz-Überschlag bilden',
+              instruction:
+                  'Runde beide Ausgangszahlen auf $placeLabel und addiere nur die gerundeten Werte.',
+              question:
+                  'Welcher Überschlag passt zu $a + $b beim Runden auf $placeLabel?',
+              choices: choices,
+              correctChoice: choices.indexOf('$estimate'),
+              evidenceKey: 'referenceEstimate',
+              evidenceCompetency: MicroCompetencyId.plausibilityCheck,
+              evidenceWeight: 0.40,
+            ),
+            GuidedMethodStep(
+              title: 'Vorschlag vergleichen',
+              instruction: candidate == null
+                  ? 'Vergleiche das vorgeschlagene Ergebnis mit dem Referenz-Überschlag.'
+                  : 'Vergleiche $candidate mit dem Referenz-Überschlag $estimate.',
+            ),
+            const GuidedMethodStep(
+              title: 'Plausibilität entscheiden',
+              instruction:
+                  'Erst jetzt entscheidest du, ob das vorgeschlagene Ergebnis zur erwarteten Größenordnung passt.',
+            ),
+          ],
+        );
+      }
+    }
+
     return GuidedMethodGuide(
       methodKey: 'process:plausibility',
       methodLabel: 'Mit Überschlag kontrollieren',

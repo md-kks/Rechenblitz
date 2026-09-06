@@ -1254,6 +1254,64 @@ void main() {
 
 
 
+
+  test('Plausibilitäts-Recovery festigt den Referenz-Überschlag', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.plausibilityCheck,
+      stepKey: 'referenceEstimate',
+      label: GuidedStepCatalog.labelFor('referenceEstimate'),
+      mode: TrainingMode.estimation,
+      lastSeen: DateTime(2026, 9, 6, 21, 45),
+      sourceTaskKey:
+          'independent:referenceEstimate:process:plausibility:462:337:1200:100',
+    );
+    final plan = StepRecoveryGenerator(random: Random(851)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int place(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('plausibility-estimate');
+      return int.parse(parts[index + 1]);
+    }
+
+    int expectedEstimate(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('plausibility-estimate');
+      final p = int.parse(parts[index + 1]);
+      final a = int.parse(parts[index + 2]);
+      final b = int.parse(parts[index + 3]);
+      int rounded(int value) => ((value + p ~/ 2) ~/ p) * p;
+      return rounded(a) + rounded(b);
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(place(plan.tasks[0]), 100);
+    expect(place(plan.tasks[1]), isNot(100));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.estimation);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:referenceEstimate:plausibility-estimate:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      final chosen = int.parse(
+        task.choices![task.answer].replaceAll('.', ''),
+      );
+      expect(chosen, expectedEstimate(task));
+      expect(task.prompt, contains('Überschlag'));
+      expect(task.hint, contains('gerundeten Werte'));
+    }
+  });
+
   test('Zahlwort-Recovery überträgt die Einer-Zehner-Zuordnung', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.numberWordReading,

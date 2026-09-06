@@ -231,6 +231,7 @@ class StepRecoveryGenerator {
     'numberWordTensOnes',
     'placeValueContribution',
     'gapToAnchor',
+    'referenceEstimate',
     'unitRelation',
     'minuteSecondRelation',
     'roundingDecisionDigit',
@@ -361,6 +362,8 @@ class StepRecoveryGenerator {
         'placeValueContribution' =>
           _placeValueContributionStep(focus, stage, range),
         'gapToAnchor' => _strategyGapToAnchorStep(focus, stage, range),
+        'referenceEstimate' =>
+          _plausibilityReferenceEstimateStep(focus, stage, range),
         'unitRelation' => _unitRelationStep(focus, stage, range),
         'minuteSecondRelation' => _minuteSecondRelationStep(focus, stage),
         'roundingDecisionDigit' =>
@@ -1577,6 +1580,81 @@ class StepRecoveryGenerator {
       hint:
           'Merke dir zuerst die feste Beziehung zwischen den beiden Einheiten. Rechne den Zahlenwert erst danach um.',
     );
+  }
+
+  RemediationTask _plausibilityReferenceEstimateStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(100, min(range.maxValue, 1000000));
+    final sourcePlace = _plausibilitySourcePlace(focus.sourceTaskKey);
+    final availablePlaces = <int>[
+      10,
+      if (limit >= 400) 100,
+      if (limit >= 4000) 1000,
+    ];
+    final validSource = sourcePlace != null &&
+            availablePlaces.contains(sourcePlace)
+        ? sourcePlace
+        : null;
+    final transferPlaces =
+        availablePlaces.where((place) => place != validSource).toList();
+    final place = switch (stage) {
+      RemediationStage.supported => validSource ?? availablePlaces.first,
+      RemediationStage.transfer => transferPlaces.isEmpty
+          ? (validSource ?? availablePlaces.first)
+          : transferPlaces[_random.nextInt(transferPlaces.length)],
+      RemediationStage.check =>
+        availablePlaces[_random.nextInt(availablePlaces.length)],
+      _ => validSource ?? availablePlaces.first,
+    };
+
+    var a = _between(place, max(place, limit ~/ 2));
+    var b = _between(place, max(place, limit - a));
+    for (var attempt = 0;
+        attempt < 30 && a % place == 0 && b % place == 0;
+        attempt++) {
+      a = _between(place, max(place, limit ~/ 2));
+      b = _between(place, max(place, limit - a));
+    }
+
+    int rounded(int value) =>
+        ((value + place ~/ 2) ~/ place) * place;
+    final estimate = rounded(a) + rounded(b);
+    final values = <int>{
+      estimate,
+      max(0, estimate - place),
+      estimate + place,
+      estimate + 2 * place,
+    }.toList()
+      ..shuffle(_random);
+    final choices =
+        values.map((value) => _formatLargeNumber(value)).toList();
+    final placeLabel = switch (place) {
+      10 => 'Zehner',
+      100 => 'Hunderter',
+      _ => 'Tausender',
+    };
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'plausibility-estimate:$place:$a:$b',
+      prompt:
+          'Welcher Überschlag entsteht bei $a + $b, wenn du beide Zahlen auf $placeLabel rundest?',
+      choices: choices,
+      answer: values.indexOf(estimate),
+      hint:
+          'Runde beide Ausgangszahlen zuerst auf dieselbe Stelle und addiere erst dann die gerundeten Werte.',
+    );
+  }
+
+  int? _plausibilitySourcePlace(String sourceTaskKey) {
+    final parts = sourceTaskKey.split(':');
+    final index = parts.indexOf('plausibility');
+    if (index < 0 || index + 4 >= parts.length) return null;
+    return int.tryParse(parts[index + 4]);
   }
 
   RemediationTask _strategyGapToAnchorStep(

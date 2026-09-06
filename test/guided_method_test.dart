@@ -103,6 +103,44 @@ void main() {
 
 
 
+
+  test('Plausibilitätsprüfung beobachtet zuerst den Referenz-Überschlag', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.estimation,
+      taskKey: 'process:plausibility:462:337:1200:100',
+      expected: 1,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.plausibilityCheck,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'process:plausibility');
+    expect(evidence.evidenceKey, 'referenceEstimate');
+    expect(
+      evidence.evidenceCompetency,
+      MicroCompetencyId.plausibilityCheck,
+    );
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.question, contains('462 + 337'));
+    expect(evidence.question, contains('Hunderter'));
+    expect(evidence.choices[evidence.correctChoice!], '800');
+    expect(evidence.question, isNot(contains('1200')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.estimation,
+      taskKey: 'process:plausibility:462:337:1200:100',
+      expected: 1,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.plausibilityCheck,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['referenceEstimate'],
+    );
+  });
+
   test('Zahlwort-Hilfe beobachtet zuerst die deutsche Einer-Zehner-Reihenfolge',
       () {
     for (final key in [
