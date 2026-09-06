@@ -213,6 +213,43 @@ void main() {
     }
   });
 
+  test('Gezielte Zeitspannen enthalten immer einen echten Stundenübergang',
+      () {
+    final generator = CurriculumExerciseGenerator(random: Random(99121));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 40; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.timeDurations,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.timeDuration,
+        );
+        final parts = exercise.key.split(':');
+        expect(parts, hasLength(3));
+        expect(parts.first, 'duration');
+
+        final start = int.parse(parts[1]);
+        final duration = int.parse(parts[2]);
+        final minute = start % 60;
+        final minutesToNextHour = 60 - minute;
+
+        expect(minute, isIn([15, 30, 45]));
+        expect(duration, greaterThan(minutesToNextHour));
+        expect(exercise.hint, contains('$minutesToNextHour Minuten'));
+
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: TrainingMode.timeDurations,
+          taskKey: exercise.key,
+        );
+        expect(
+          tags.map((tag) => tag.id),
+          contains(MicroCompetencyId.timeDuration),
+        );
+      }
+    }
+  });
+
   testWidgets('Geometrie-Darstellungen rendern alle vier Aufgabentypen',
       (tester) async {
     const keys = [

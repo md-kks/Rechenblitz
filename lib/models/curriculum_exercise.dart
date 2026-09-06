@@ -956,10 +956,13 @@ class CurriculumExerciseGenerator {
     MicroCompetencyId? targetCompetency,
   }) {
     if (targetCompetency == MicroCompetencyId.calendarDate ||
-        _random.nextDouble() < 0.18) {
+        (targetCompetency != MicroCompetencyId.timeDuration &&
+            _random.nextDouble() < 0.18)) {
       return _calendarDate(grade);
     }
-    if (grade == GradeLevel.fourth && _random.nextDouble() < 0.25) {
+    if (targetCompetency != MicroCompetencyId.timeDuration &&
+        grade == GradeLevel.fourth &&
+        _random.nextDouble() < 0.25) {
       if (_random.nextBool()) {
         final weeks = _between(1, 6);
         return CurriculumExercise(
@@ -986,15 +989,30 @@ class CurriculumExerciseGenerator {
       );
     }
     final hour = _between(7, 17);
-    final minute = [0, 15, 30, 45][_random.nextInt(4)];
+    final minuteOptions = targetCompetency == MicroCompetencyId.timeDuration
+        ? const [15, 30, 45]
+        : const [0, 15, 30, 45];
+    final minute = minuteOptions[_random.nextInt(minuteOptions.length)];
     final options = grade == GradeLevel.third
         ? [15, 30, 45, 60, 75, 90]
         : [15, 25, 30, 45, 60, 75, 90, 105, 120, 135];
-    final duration = options[_random.nextInt(options.length)];
+    final usableOptions = targetCompetency == MicroCompetencyId.timeDuration
+        ? options.where((value) => value > 60 - minute).toList()
+        : options;
+    final duration =
+        usableOptions[_random.nextInt(usableOptions.length)];
     final start = hour * 60 + minute;
     final end = start + duration;
     final endHour = (end ~/ 60) % 24;
     final endMinute = end % 60;
+    final minutesToNextHour = minute == 0 ? 0 : 60 - minute;
+    final hint = minute == 0
+        ? 'Du startest schon an einer vollen Stunde. Rechne die Zeitspanne in passenden Etappen weiter.'
+        : duration < minutesToNextHour
+            ? 'Start und Ende liegen in derselben Stunde. Zähle die Minuten direkt weiter.'
+            : duration == minutesToNextHour
+                ? 'Zähle vom Start direkt bis zur nächsten vollen Stunde.'
+                : 'Rechne zuerst $minutesToNextHour Minuten bis zur nächsten vollen Stunde und dann weiter.';
     return CurriculumExercise(
       mode: TrainingMode.timeDurations,
       prompt: 'Beginn: ' +
@@ -1003,7 +1021,7 @@ class CurriculumExerciseGenerator {
           _clock(endHour, endMinute) +
           ' Uhr\nWie viele Minuten dauert es?',
       answer: duration,
-      hint: 'Rechne zuerst bis zur nächsten vollen Stunde und dann weiter.',
+      hint: hint,
       key: 'duration:$start:$duration',
       answerSuffix: 'min',
       maxAnswerValue: 240,

@@ -894,7 +894,7 @@ class _TimelineAid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final numbers = RegExp(r'\\d+')
+    final numbers = RegExp(r'\d+')
         .allMatches(taskKey)
         .map((match) => int.parse(match.group(0)!))
         .toList();

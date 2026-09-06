@@ -145,6 +145,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.proportionalUnit: [
       'unitValue',
     ],
+    MicroCompetencyId.timeDuration: [
+      'minutesToNextHour',
+    ],
     MicroCompetencyId.writtenAlignment: [
       'onesAlignment',
     ],
@@ -209,6 +212,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.proportionalUnit: [
       'unitValue',
+    ],
+    MicroCompetencyId.timeDuration: [
+      'minutesToNextHour',
     ],
     MicroCompetencyId.writtenAlignment: [
       'onesAlignment',
