@@ -1225,6 +1225,44 @@ void main() {
     );
   });
 
+  test('Teilen-Hilfe unterscheidet gesuchte Gruppen und Gruppengröße', () {
+    const cases = [
+      (
+        taskKey: 'story:sharing:children:12:3',
+        correctChoice: 1,
+      ),
+      (
+        taskKey: 'story:grouping:blocks:12:4',
+        correctChoice: 0,
+      ),
+    ];
+
+    for (final item in cases) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.wordProblems,
+        taskKey: item.taskKey,
+        expected: 4,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.divisionSharing,
+      );
+      final evidenceSteps = guide.steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .toList();
+
+      expect(evidenceSteps, hasLength(1), reason: item.taskKey);
+      expect(evidenceSteps.single.evidenceKey, 'divisionTargetQuantity');
+      expect(
+        evidenceSteps.single.evidenceCompetency,
+        MicroCompetencyId.divisionSharing,
+      );
+      expect(evidenceSteps.single.correctChoice, item.correctChoice);
+      expect(
+        GuidedStepCatalog.labelFor('divisionTargetQuantity'),
+        contains('gesuchte Größe'),
+      );
+    }
+  });
+
   test('Sachaufgaben-Hilfe beobachtet die fünf Modellierungsschritte getrennt',
       () {
     const cases = [

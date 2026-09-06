@@ -215,6 +215,7 @@ class StepRecoveryGenerator {
     'storyEquation',
     'storyCalculation',
     'storyInterpretation',
+    'divisionTargetQuantity',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -315,6 +316,8 @@ class StepRecoveryGenerator {
         'storyCalculation' => _storyCalculationStep(focus, stage, range),
         'storyInterpretation' =>
           _storyInterpretationStep(focus, stage, range),
+        'divisionTargetQuantity' =>
+          _divisionTargetQuantityStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -714,6 +717,45 @@ class StepRecoveryGenerator {
       hint: askForRemainder
           ? 'Rechne $chunk − ($quotientDigit × $divisor).'
           : 'Suche die größte Malaufgabe mit $divisor, die $chunk nicht überschreitet.',
+    );
+  }
+
+  RemediationTask _divisionTargetQuantityStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(10, min(range.maxValue, 100));
+    final sourceSharing = focus.sourceTaskKey.contains(':story:sharing:');
+    final sharing = switch (stage) {
+      RemediationStage.supported => sourceSharing,
+      RemediationStage.transfer => !sourceSharing,
+      RemediationStage.check => _random.nextBool(),
+      _ => sourceSharing,
+    };
+    final groups = _between(2, min(8, max(2, limit ~/ 2)));
+    final maxEach = max(2, min(10, limit ~/ groups));
+    final each = _between(2, maxEach);
+    final total = groups * each;
+    const choices = [
+      'Anzahl der Gruppen',
+      'Menge in jeder Gruppe',
+      'Gesamtmenge',
+    ];
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key:
+          'division-target:${sharing ? 'sharing' : 'grouping'}:$total:${sharing ? groups : each}',
+      prompt: sharing
+          ? '$total Plättchen werden gleichmäßig auf $groups Kinder verteilt. Welche Größe musst du herausfinden?'
+          : '$total Plättchen werden in Gruppen zu je $each Plättchen gelegt. Welche Größe musst du herausfinden?',
+      choices: choices,
+      answer: sharing ? 1 : 0,
+      hint: sharing
+          ? 'Die Anzahl der Gruppen ist bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
+          : 'Die Gruppengröße ist bekannt. Gesucht ist, wie viele Gruppen entstehen.',
     );
   }
 

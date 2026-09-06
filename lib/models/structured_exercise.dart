@@ -510,32 +510,81 @@ class StructuredExerciseGenerator {
   StructuredExercise _divisionSharingWordProblem(int maxValue) {
     final limit = max(10, maxValue);
     final groups = _between(2, min(8, max(2, limit ~/ 2)));
-    final maxEach = max(1, min(10, limit ~/ groups));
-    final each = _between(1, maxEach);
+    final maxEach = max(2, min(10, limit ~/ groups));
+    final each = _between(2, maxEach);
     final total = groups * each;
+    final sharing = _random.nextBool();
+
+    if (sharing) {
+      final contexts = [
+        (
+          'children',
+          '$total Bausteine werden gleichmäßig auf $groups Kinder verteilt. Wie viele Bausteine bekommt jedes Kind?',
+        ),
+        (
+          'bags',
+          '$total Murmeln werden gleichmäßig auf $groups Beutel verteilt. Wie viele Murmeln kommen in jeden Beutel?',
+        ),
+        (
+          'plates',
+          '$total Kekse werden gleichmäßig auf $groups Teller verteilt. Wie viele Kekse liegen auf jedem Teller?',
+        ),
+      ];
+      final context = contexts[_random.nextInt(contexts.length)];
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt: context.$2,
+        answer: each,
+        hint:
+            'Die Anzahl der Gruppen ist bekannt. Verteile die Gesamtmenge gleichmäßig und bestimme, wie viel in jede Gruppe kommt.',
+        key: 'story:sharing:${context.$1}:$total:$groups',
+        maxAnswerValue: limit,
+        checkpoints: [_divisionTargetCheckpoint(sharing: true)],
+      );
+    }
+
     final contexts = [
       (
-        'children',
-        '$total Bausteine werden gleichmäßig auf $groups Kinder verteilt. Wie viele Bausteine bekommt jedes Kind?',
+        'blocks',
+        '$total Bausteine werden in Gruppen zu je $each Bausteinen gepackt. Wie viele Gruppen entstehen?',
       ),
       (
         'bags',
-        '$total Murmeln werden gleichmäßig auf $groups Beutel verteilt. Wie viele Murmeln kommen in jeden Beutel?',
+        '$total Murmeln kommen in Beutel mit jeweils $each Murmeln. Wie viele Beutel werden gefüllt?',
       ),
       (
         'plates',
-        '$total Kekse werden gleichmäßig auf $groups Teller verteilt. Wie viele Kekse liegen auf jedem Teller?',
+        '$total Kekse werden mit jeweils $each Keksen auf einen Teller gelegt. Wie viele Teller werden gebraucht?',
       ),
     ];
     final context = contexts[_random.nextInt(contexts.length)];
     return StructuredExercise(
       mode: TrainingMode.wordProblems,
       prompt: context.$2,
-      answer: each,
+      answer: groups,
       hint:
-          'Verteile die Gesamtmenge gleichmäßig auf alle Gruppen. Jede Gruppe bekommt gleich viel.',
-      key: 'story:sharing:${context.$1}:$total:$groups',
+          'Die Größe jeder Gruppe ist bekannt. Finde heraus, wie viele gleich große Gruppen aus der Gesamtmenge entstehen.',
+      key: 'story:grouping:${context.$1}:$total:$each',
       maxAnswerValue: limit,
+      checkpoints: [_divisionTargetCheckpoint(sharing: false)],
+    );
+  }
+
+  ExerciseCheckpoint _divisionTargetCheckpoint({
+    required bool sharing,
+  }) {
+    const choices = [
+      'Anzahl der Gruppen',
+      'Menge in jeder Gruppe',
+      'Gesamtmenge',
+    ];
+    return ExerciseCheckpoint(
+      key: 'divisionTargetQuantity',
+      question: 'Welche Größe musst du in dieser Aufgabe herausfinden?',
+      choices: choices,
+      correctChoice: sharing ? 1 : 0,
+      competencyId: MicroCompetencyId.divisionSharing,
+      evidenceWeight: 0.40,
     );
   }
 
@@ -683,6 +732,36 @@ class StructuredExerciseGenerator {
       );
     }
 
+    final groupingTransfer =
+        target == MicroCompetencyId.divisionSharing && _random.nextBool();
+    if (groupingTransfer) {
+      final contexts = [
+        (
+          'groups',
+          '$total Kinder bilden Teams mit jeweils $each Kindern. Wie viele Teams entstehen?',
+        ),
+        (
+          'packs',
+          '$total Karten werden in Päckchen mit jeweils $each Karten gepackt. Wie viele Päckchen entstehen?',
+        ),
+        (
+          'rows',
+          '$total Stühle werden in Reihen mit jeweils $each Stühlen gestellt. Wie viele Reihen entstehen?',
+        ),
+      ];
+      final context = contexts[_random.nextInt(contexts.length)];
+      return StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt: context.$2,
+        answer: groups,
+        hint:
+            'Nutze die bekannte Geteiltidee: Die Gruppengröße ist bekannt, gesucht ist die Anzahl der Gruppen.',
+        key:
+            'story:transfer:skill:${target.name}:divide:${context.$1}:$total:$each',
+        maxAnswerValue: limit,
+      );
+    }
+
     final contexts = [
       (
         'teams',
@@ -703,7 +782,7 @@ class StructuredExerciseGenerator {
       prompt: context.$2,
       answer: each,
       hint:
-          'Nutze die bekannte Geteiltidee in der neuen Situation: gleichmäßig verteilen.',
+          'Nutze die bekannte Geteiltidee: Die Anzahl der Gruppen ist bekannt, gesucht ist die Menge je Gruppe.',
       key:
           'story:transfer:skill:${target.name}:divide:${context.$1}:$total:$groups',
       maxAnswerValue: limit,
