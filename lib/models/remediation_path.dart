@@ -219,6 +219,7 @@ class StepRecoveryGenerator {
     'unitValue',
     'minutesToNextHour',
     'equalPartSize',
+    'decidingPlace',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -324,6 +325,7 @@ class StepRecoveryGenerator {
         'unitValue' => _proportionalUnitValueStep(focus, stage, range),
         'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
         'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
+        'decidingPlace' => _largeNumberDecidingPlaceStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -763,6 +765,144 @@ class StepRecoveryGenerator {
           ? 'Die Anzahl der Gruppen ist bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
           : 'Die Gruppengröße ist bekannt. Gesucht ist, wie viele Gruppen entstehen.',
     );
+  }
+
+  RemediationTask _largeNumberDecidingPlaceStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    var upper = max(99, min(range.maxValue, 999999));
+    if (_isLargePowerOfTen(upper)) upper -= 1;
+
+    var highestPlace = 1;
+    while (highestPlace * 10 <= upper) {
+      highestPlace *= 10;
+    }
+    final availablePlaces = <int>[];
+    for (var place = highestPlace ~/ 10; place >= 1; place ~/= 10) {
+      availablePlaces.add(place);
+      if (place == 1) break;
+    }
+
+    final parts = focus.sourceTaskKey.split(':');
+    final largeIndex = parts.indexOf('large');
+    final sourceA = largeIndex >= 0 && largeIndex + 3 < parts.length
+        ? int.tryParse(parts[largeIndex + 2])
+        : null;
+    final sourceB = largeIndex >= 0 && largeIndex + 3 < parts.length
+        ? int.tryParse(parts[largeIndex + 3])
+        : null;
+    final sourcePlace = sourceA == null || sourceB == null
+        ? availablePlaces.first
+        : _firstDifferentLargePlace(sourceA, sourceB);
+    final supportedPlace = availablePlaces.contains(sourcePlace)
+        ? sourcePlace
+        : availablePlaces.first;
+    final transferPlaces =
+        availablePlaces.where((place) => place != supportedPlace).toList();
+    final decidingPlace = switch (stage) {
+      RemediationStage.supported => supportedPlace,
+      RemediationStage.transfer => transferPlaces.isEmpty
+          ? supportedPlace
+          : transferPlaces[_random.nextInt(transferPlaces.length)],
+      RemediationStage.check =>
+        availablePlaces[_random.nextInt(availablePlaces.length)],
+      _ => supportedPlace,
+    };
+
+    final pair = _largeComparisonPair(
+      decidingPlace: decidingPlace,
+      highestPlace: highestPlace,
+      upper: upper,
+    );
+    final choices = _largePlaceChoicesForRecovery(highestPlace);
+    final label = _largePlaceLabelForRecovery(decidingPlace);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key:
+          'large-deciding-place:$decidingPlace:${pair.$1}:${pair.$2}',
+      prompt:
+          '${_formatLargeNumber(pair.$1)} und ${_formatLargeNumber(pair.$2)}: Welche Stelle entscheidet beim Vergleich zuerst?',
+      choices: choices,
+      answer: choices.indexOf(label),
+      hint:
+          'Vergleiche von links nach rechts. Gleiche Ziffern überspringst du, bis sich zwei Ziffern unterscheiden.',
+    );
+  }
+
+  (int, int) _largeComparisonPair({
+    required int decidingPlace,
+    required int highestPlace,
+    required int upper,
+  }) {
+    final block = decidingPlace * 10;
+    final minPrefix = max(1, highestPlace ~/ block);
+    final maxPrefix = upper ~/ block;
+    final prefix = _between(minPrefix, max(minPrefix, maxPrefix));
+    final firstDigit = _between(0, 9);
+    var secondDigit = _between(0, 8);
+    if (secondDigit >= firstDigit) secondDigit += 1;
+    final suffixA =
+        decidingPlace == 1 ? 0 : _between(0, decidingPlace - 1);
+    final suffixB =
+        decidingPlace == 1 ? 0 : _between(0, decidingPlace - 1);
+    return (
+      prefix * block + firstDigit * decidingPlace + suffixA,
+      prefix * block + secondDigit * decidingPlace + suffixB,
+    );
+  }
+
+  int _firstDifferentLargePlace(int a, int b) {
+    var place = 1;
+    var largest = max(a, b);
+    while (largest >= 10) {
+      place *= 10;
+      largest ~/= 10;
+    }
+    while (place > 1 && (a ~/ place) % 10 == (b ~/ place) % 10) {
+      place ~/= 10;
+    }
+    return place;
+  }
+
+  List<String> _largePlaceChoicesForRecovery(int highestPlace) {
+    final choices = <String>[];
+    for (var place = highestPlace; place >= 1; place ~/= 10) {
+      choices.add(_largePlaceLabelForRecovery(place));
+      if (place == 1) break;
+    }
+    return choices;
+  }
+
+  String _largePlaceLabelForRecovery(int place) => switch (place) {
+        100000 => 'Hunderttausenderstelle',
+        10000 => 'Zehntausenderstelle',
+        1000 => 'Tausenderstelle',
+        100 => 'Hunderterstelle',
+        10 => 'Zehnerstelle',
+        _ => 'Einerstelle',
+      };
+
+  bool _isLargePowerOfTen(int value) {
+    if (value < 10) return false;
+    var current = value;
+    while (current % 10 == 0) {
+      current ~/= 10;
+    }
+    return current == 1;
+  }
+
+  String _formatLargeNumber(int value) {
+    final raw = value.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < raw.length; i++) {
+      if (i > 0 && (raw.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(raw[i]);
+    }
+    return buffer.toString();
   }
 
   RemediationTask _fractionEqualPartSizeStep(
