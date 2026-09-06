@@ -1501,6 +1501,28 @@ void main() {
     );
   });
 
+  testWidgets('Zeitlinie zeigt den konkreten Stundenübergang', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.timeDuration,
+            taskKey: 'duration:875:45',
+            expected: 45,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('14:35'), findsOneWidget);
+    expect(find.text('15:00'), findsOneWidget);
+    expect(find.text('15:20'), findsOneWidget);
+    expect(find.text('+25 min'), findsOneWidget);
+    expect(find.text('+20 min'), findsOneWidget);
+    expect(find.text('volle Stunde'), findsOneWidget);
+  });
+
   testWidgets(
       'Curriculum speichert ersten Zeitspannen-Sprung selbstständig',
       (tester) async {
