@@ -710,4 +710,105 @@ void main() {
     }
   });
 
+  test('Gezielte Umkehraufgaben Klasse 1 verraten Minus nicht vor dem Step',
+      () {
+    final generator = StructuredExerciseGenerator(random: Random(701));
+
+    for (var i = 0; i < 80; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.factFamilies,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+        targetCompetency: MicroCompetencyId.inverseRelationship,
+      );
+      final parts = exercise.key.split(':');
+      final a = int.parse(parts[2]);
+      final b = int.parse(parts[3]);
+
+      expect(exercise.key, startsWith('family:+:'));
+      expect(a, greaterThanOrEqualTo(1));
+      expect(b, greaterThanOrEqualTo(1));
+      expect(a + b, lessThanOrEqualTo(20));
+      expect(exercise.answer, a);
+      expect(exercise.prompt, isNot(contains('−')));
+      expect(exercise.prompt, isNot(contains('÷')));
+      expect(exercise.checkpoints, hasLength(1));
+
+      final checkpoint = exercise.checkpoints.single;
+      expect(checkpoint.key, 'inverseOperationChoice');
+      expect(
+        checkpoint.competencyId,
+        MicroCompetencyId.inverseRelationship,
+      );
+      expect(checkpoint.evidenceWeight, 0.40);
+      expect(checkpoint.choices.toSet(), {'+$b', '−$b'});
+      expect(
+        checkpoint.choices[checkpoint.correctChoice],
+        '−$b',
+      );
+    }
+  });
+
+  test('Gezielte Umkehraufgaben Klasse 2 trennen Plus-Minus und Mal-Teilen',
+      () {
+    final generator = StructuredExerciseGenerator(random: Random(702));
+    final families = <String>{};
+
+    for (var i = 0; i < 160; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.factFamilies,
+        maxValue: 100,
+        gradeLevel: GradeLevel.second,
+        targetCompetency: MicroCompetencyId.inverseRelationship,
+      );
+      final parts = exercise.key.split(':');
+      final family = parts[1];
+      final a = int.parse(parts[2]);
+      final b = int.parse(parts[3]);
+      families.add(family);
+
+      expect(exercise.checkpoints, hasLength(1));
+      final checkpoint = exercise.checkpoints.single;
+      expect(checkpoint.key, 'inverseOperationChoice');
+      expect(checkpoint.choices, hasLength(4));
+      expect(checkpoint.choices.toSet(), hasLength(4));
+      expect(exercise.answer, a);
+
+      if (family == 'x') {
+        expect(a, greaterThanOrEqualTo(2));
+        expect(b, greaterThanOrEqualTo(2));
+        expect(a * b, lessThanOrEqualTo(100));
+        expect(exercise.prompt, isNot(contains('÷')));
+        expect(
+          checkpoint.choices[checkpoint.correctChoice],
+          '÷$b',
+        );
+      } else {
+        expect(family, '+');
+        expect(a + b, lessThanOrEqualTo(100));
+        expect(exercise.prompt, isNot(contains('−')));
+        expect(
+          checkpoint.choices[checkpoint.correctChoice],
+          '−$b',
+        );
+      }
+    }
+
+    expect(families, containsAll(['+', 'x']));
+  });
+
+  test('Normales Umkehraufgaben-Training bleibt ohne Pflicht-Checkpoint', () {
+    final generator = StructuredExerciseGenerator(random: Random(703));
+
+    for (var i = 0; i < 50; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.factFamilies,
+        maxValue: 100,
+        gradeLevel: GradeLevel.second,
+      );
+      expect(exercise.checkpoints, isEmpty, reason: exercise.key);
+    }
+  });
+
+
 }

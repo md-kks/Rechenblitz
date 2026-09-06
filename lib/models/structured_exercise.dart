@@ -190,7 +190,11 @@ class StructuredExerciseGenerator {
             maxValue,
             targetCompetency: targetCompetency,
           ),
-        TrainingMode.factFamilies => _factFamily(maxValue),
+        TrainingMode.factFamilies => _factFamily(
+            maxValue,
+            gradeLevel: gradeLevel,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.wordProblems => _wordProblem(
             maxValue,
             gradeLevel,
@@ -385,14 +389,61 @@ class StructuredExerciseGenerator {
     );
   }
 
-  StructuredExercise _factFamily(int maxValue) {
-    final useMultiply = maxValue >= 20 && _random.nextDouble() < 0.30;
+  StructuredExercise _factFamily(
+    int maxValue, {
+    required GradeLevel gradeLevel,
+    MicroCompetencyId? targetCompetency,
+  }) {
+    final targeted =
+        targetCompetency == MicroCompetencyId.inverseRelationship;
+    final useMultiply = maxValue >= 20 &&
+        (!targeted || gradeLevel.index >= GradeLevel.second.index) &&
+        _random.nextDouble() < 0.30;
+
     if (useMultiply) {
+      if (targeted) {
+        final pairs = <(int, int)>[
+          for (var a = 2; a <= 10; a++)
+            for (var b = 2; b <= 10; b++)
+              if (a * b <= maxValue) (a, b),
+        ];
+        if (pairs.isNotEmpty) {
+          final pair = pairs[_random.nextInt(pairs.length)];
+          final a = pair.$1;
+          final b = pair.$2;
+          final product = a * b;
+          final correct = '÷$b';
+          final choices = <String>['+$b', '−$b', '×$b', '÷$b']
+            ..shuffle(_random);
+          return StructuredExercise(
+            mode: TrainingMode.factFamilies,
+            prompt:
+                'Wenn $a × $b = $product: Mit der passenden Umkehroperation kommst du von $product zurück zu welcher Zahl?',
+            answer: a,
+            hint:
+                'Suche zuerst die Gegenrechenart zur angegebenen Rechenoperation.',
+            key: 'family:x:$a:$b',
+            checkpoints: [
+              ExerciseCheckpoint(
+                key: 'inverseOperationChoice',
+                question:
+                    'Welche Rechenoperation macht ×$b wieder rückgängig?',
+                choices: choices,
+                correctChoice: choices.indexOf(correct),
+                competencyId: MicroCompetencyId.inverseRelationship,
+                evidenceWeight: 0.40,
+              ),
+            ],
+          );
+        }
+      }
+
       final a = 1 + _random.nextInt(10);
       final possibleB = [1, 2, 3, 4, 5, 10]
           .where((b) => a * b <= maxValue)
           .toList();
-      final b = possibleB.isEmpty ? 1 : possibleB[_random.nextInt(possibleB.length)];
+      final b =
+          possibleB.isEmpty ? 1 : possibleB[_random.nextInt(possibleB.length)];
       final product = a * b;
       return StructuredExercise(
         mode: TrainingMode.factFamilies,
@@ -400,6 +451,37 @@ class StructuredExerciseGenerator {
         answer: a,
         hint: 'Malnehmen und Teilen sind Umkehraufgaben.',
         key: 'family:x:$a:$b',
+      );
+    }
+
+    if (targeted) {
+      final a = _between(1, max(1, maxValue - 1));
+      final b = _between(1, max(1, maxValue - a));
+      final sum = a + b;
+      final correct = '−$b';
+      final choices = gradeLevel == GradeLevel.first
+          ? <String>['+$b', '−$b']
+          : <String>['+$b', '−$b', '×$b', '÷$b'];
+      choices.shuffle(_random);
+      return StructuredExercise(
+        mode: TrainingMode.factFamilies,
+        prompt:
+            'Wenn $a + $b = $sum: Mit der passenden Umkehroperation kommst du von $sum zurück zu welcher Zahl?',
+        answer: a,
+        hint:
+            'Suche zuerst die Gegenrechenart zur angegebenen Rechenoperation.',
+        key: 'family:+:$a:$b',
+        checkpoints: [
+          ExerciseCheckpoint(
+            key: 'inverseOperationChoice',
+            question:
+                'Welche Rechenoperation macht +$b wieder rückgängig?',
+            choices: choices,
+            correctChoice: choices.indexOf(correct),
+            competencyId: MicroCompetencyId.inverseRelationship,
+            evidenceWeight: 0.40,
+          ),
+        ],
       );
     }
 

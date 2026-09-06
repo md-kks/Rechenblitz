@@ -2550,6 +2550,50 @@ void main() {
     expect(untargeted, isEmpty);
   });
 
+  test('Umkehraufgaben-Hilfe diagnostiziert zuerst die Gegenoperation', () {
+    const cases = [
+      (
+        key: 'family:+:7:5',
+        expected: 7,
+        correct: '−5',
+        source: '+5',
+      ),
+      (
+        key: 'family:x:6:4',
+        expected: 6,
+        correct: '÷4',
+        source: '×4',
+      ),
+    ];
+
+    for (final item in cases) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.factFamilies,
+        taskKey: item.key,
+        expected: item.expected,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.inverseRelationship,
+      );
+
+      expect(guide.methodKey, 'inverse:operationRelationship');
+      expect(guide.nudge, isNot(contains(item.correct)));
+      final evidenceStep =
+          guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+      expect(evidenceStep.evidenceKey, 'inverseOperationChoice');
+      expect(
+        evidenceStep.evidenceCompetency,
+        MicroCompetencyId.inverseRelationship,
+      );
+      expect(evidenceStep.evidenceWeight, 0.40);
+      expect(evidenceStep.question, contains(item.source));
+      expect(
+        evidenceStep.choices[evidenceStep.correctChoice!],
+        item.correct,
+      );
+      expect(evidenceStep.choices.toSet(), hasLength(2));
+    }
+  });
+
 }
 
 class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {

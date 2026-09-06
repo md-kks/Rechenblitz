@@ -135,31 +135,31 @@ void main() {
     const expected = {
       GradeLevel.first: (
         total: 21,
-        fullTaskOnly: 10,
+        fullTaskOnly: 9,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 11,
+        targetedRecovery: 12,
       ),
       GradeLevel.second: (
         total: 26,
-        fullTaskOnly: 10,
+        fullTaskOnly: 9,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 16,
+        targetedRecovery: 17,
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 38,
+        fullTaskOnly: 37,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 26,
+        targetedRecovery: 27,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 40,
+        fullTaskOnly: 39,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 26,
+        targetedRecovery: 27,
       ),
     };
 
@@ -314,6 +314,17 @@ void main() {
     expect(item.guidedStepKeys, contains('matchingMultiplicationFact'));
     expect(item.independentStepKeys, contains('matchingMultiplicationFact'));
     expect(item.recoveryStepKeys, contains('matchingMultiplicationFact'));
+  });
+
+  test('Audit führt Umkehroperationen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.inverseRelationship,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('inverseOperationChoice'));
+    expect(item.independentStepKeys, contains('inverseOperationChoice'));
+    expect(item.recoveryStepKeys, contains('inverseOperationChoice'));
   });
 
   test('Evidence-Audit prüft bekannte Step-Keys und Recovery-Konsistenz', () {
