@@ -118,7 +118,9 @@ void main() {
       );
       expect(
         checkpoint.choices,
-        ['0 Minuten', '15 Minuten', '30 Minuten', '45 Minuten'],
+        exercise.clockMinute == 30
+            ? ['0 Minuten', '30 Minuten']
+            : ['0 Minuten', '15 Minuten', '30 Minuten', '45 Minuten'],
       );
     }
   });
