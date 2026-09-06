@@ -141,7 +141,11 @@ class CurriculumExerciseGenerator {
               : _mentalStrategies(gradeLevel, maxValue),
         TrainingMode.writtenAddSub =>
           targetCompetency == MicroCompetencyId.errorChecking
-              ? _errorChecking(gradeLevel, maxValue)
+              ? _errorChecking(
+                  gradeLevel,
+                  maxValue,
+                  targeted: true,
+                )
               : _writtenAddSub(gradeLevel, maxValue),
         TrainingMode.writtenMultiply => _writtenMultiply(gradeLevel, maxValue),
         TrainingMode.writtenDivide => _writtenDivide(gradeLevel, maxValue),
@@ -899,21 +903,75 @@ class CurriculumExerciseGenerator {
 
   CurriculumExercise _errorChecking(
     GradeLevel grade,
-    int maxValue,
-  ) {
+    int maxValue, {
+    bool targeted = false,
+  }) {
     final limit = _safeMax(maxValue, grade);
-    final a = _between(40, max(40, min(limit - 20, 9000)));
-    final b = _between(10, max(10, min(limit - a, 900)));
-    final correct = a + b;
-    final tooLarge = correct + 10 <= limit && _random.nextBool();
-    final wrong = tooLarge ? correct + 10 : max(0, correct - 10);
+
+    if (!targeted) {
+      final a = _between(40, max(40, min(limit - 20, 9000)));
+      final b = _between(10, max(10, min(limit - a, 900)));
+      final correct = a + b;
+      final tooLarge = correct + 10 <= limit && _random.nextBool();
+      final wrong = tooLarge ? correct + 10 : max(0, correct - 10);
+      final correctText = tooLarge
+          ? 'Das Ergebnis ist um 10 zu groß.'
+          : 'Das Ergebnis ist um 10 zu klein.';
+      final options = <String>[
+        'Die Rechnung stimmt.',
+        'Das Ergebnis ist um 10 zu groß.',
+        'Das Ergebnis ist um 10 zu klein.',
+        'Die Zahlen dürfen so nicht addiert werden.',
+      ]..shuffle(_random);
+
+      return CurriculumExercise(
+        mode: TrainingMode.writtenAddSub,
+        prompt:
+            'Prüfe die Rechnung:\n$a + $b = $wrong\nWelche Aussage beschreibt den Fehler?',
+        answer: options.indexOf(correctText),
+        hint:
+            'Rechne nicht sofort alles neu. Vergleiche zuerst Einer und Zehner mit dem erwarteten Ergebnis.',
+        key: 'process:error:add:$a:$b:$wrong',
+        choices: options,
+        method: 'Fehler finden und begründen',
+      );
+    }
+
+    final places = [1, 10, 100, 1000]
+        .where((place) => place <= max(1, limit ~/ 10))
+        .toList();
+    final errorPlace = places[_random.nextInt(places.length)];
+    final minimumCorrect = max(50, errorPlace);
+    var correct = _between(minimumCorrect, limit);
+    var digit = (correct ~/ errorPlace) % 10;
+    var canGrow = digit < 9 && correct + errorPlace <= limit;
+    var canShrink = digit > 0 && correct - errorPlace >= 50;
+    for (var attempt = 0;
+        attempt < 50 && !canGrow && !canShrink;
+        attempt++) {
+      correct = _between(minimumCorrect, limit);
+      digit = (correct ~/ errorPlace) % 10;
+      canGrow = digit < 9 && correct + errorPlace <= limit;
+      canShrink = digit > 0 && correct - errorPlace >= 50;
+    }
+    if (!canGrow && !canShrink) {
+      correct = max(minimumCorrect, limit - errorPlace);
+      digit = (correct ~/ errorPlace) % 10;
+      canGrow = digit < 9 && correct + errorPlace <= limit;
+      canShrink = digit > 0 && correct - errorPlace >= 50;
+    }
+
+    final tooLarge = canGrow && (!canShrink || _random.nextBool());
+    final wrong = tooLarge ? correct + errorPlace : correct - errorPlace;
+    final a = _between(40, max(40, correct - 10));
+    final b = correct - a;
     final correctText = tooLarge
-        ? 'Das Ergebnis ist um 10 zu groß.'
-        : 'Das Ergebnis ist um 10 zu klein.';
+        ? 'Das Ergebnis ist um $errorPlace zu groß.'
+        : 'Das Ergebnis ist um $errorPlace zu klein.';
     final options = <String>[
       'Die Rechnung stimmt.',
-      'Das Ergebnis ist um 10 zu groß.',
-      'Das Ergebnis ist um 10 zu klein.',
+      'Das Ergebnis ist um $errorPlace zu groß.',
+      'Das Ergebnis ist um $errorPlace zu klein.',
       'Die Zahlen dürfen so nicht addiert werden.',
     ]..shuffle(_random);
 
@@ -923,8 +981,8 @@ class CurriculumExerciseGenerator {
           'Prüfe die Rechnung:\n$a + $b = $wrong\nWelche Aussage beschreibt den Fehler?',
       answer: options.indexOf(correctText),
       hint:
-          'Rechne nicht sofort alles neu. Vergleiche zuerst Einer und Zehner mit dem erwarteten Ergebnis.',
-      key: 'process:error:add:$a:$b:$wrong',
+          'Prüfe die schriftliche Addition Stelle für Stelle von rechts nach links. Finde zuerst die falsche Stelle.',
+      key: 'process:error:add:place:$errorPlace:$a:$b:$wrong',
       choices: options,
       method: 'Fehler finden und begründen',
     );

@@ -232,6 +232,7 @@ class StepRecoveryGenerator {
     'placeValueContribution',
     'gapToAnchor',
     'referenceEstimate',
+    'errorPlace',
     'unitRelation',
     'minuteSecondRelation',
     'roundingDecisionDigit',
@@ -364,6 +365,7 @@ class StepRecoveryGenerator {
         'gapToAnchor' => _strategyGapToAnchorStep(focus, stage, range),
         'referenceEstimate' =>
           _plausibilityReferenceEstimateStep(focus, stage, range),
+        'errorPlace' => _errorPlaceStep(focus, stage, range),
         'unitRelation' => _unitRelationStep(focus, stage, range),
         'minuteSecondRelation' => _minuteSecondRelationStep(focus, stage),
         'roundingDecisionDigit' =>
@@ -1579,6 +1581,89 @@ class StepRecoveryGenerator {
       answer: choices.indexOf(selected.correct),
       hint:
           'Merke dir zuerst die feste Beziehung zwischen den beiden Einheiten. Rechne den Zahlenwert erst danach um.',
+    );
+  }
+
+  RemediationTask _errorPlaceStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(100, min(range.maxValue, 999999));
+    final places = <int>[
+      1,
+      10,
+      if (limit >= 100) 100,
+      if (limit >= 10000) 1000,
+    ];
+    final sourceParts = focus.sourceTaskKey.split(':');
+    final placeIndex = sourceParts.indexOf('place');
+    final sourcePlace = placeIndex >= 0 && placeIndex + 1 < sourceParts.length
+        ? int.tryParse(sourceParts[placeIndex + 1])
+        : null;
+    final supportedPlace =
+        sourcePlace != null && places.contains(sourcePlace)
+            ? sourcePlace
+            : places.first;
+    final transferPlaces =
+        places.where((place) => place != supportedPlace).toList();
+    final place = switch (stage) {
+      RemediationStage.supported => supportedPlace,
+      RemediationStage.transfer => transferPlaces.isEmpty
+          ? supportedPlace
+          : transferPlaces[_random.nextInt(transferPlaces.length)],
+      RemediationStage.check => places[_random.nextInt(places.length)],
+      _ => supportedPlace,
+    };
+
+    final minimumCorrect = max(50, place);
+    var correct = _between(minimumCorrect, limit);
+    var digit = (correct ~/ place) % 10;
+    var canGrow = digit < 9 && correct + place <= limit;
+    var canShrink = digit > 0 && correct - place >= 50;
+    for (var attempt = 0;
+        attempt < 50 && !canGrow && !canShrink;
+        attempt++) {
+      correct = _between(minimumCorrect, limit);
+      digit = (correct ~/ place) % 10;
+      canGrow = digit < 9 && correct + place <= limit;
+      canShrink = digit > 0 && correct - place >= 50;
+    }
+    if (!canGrow && !canShrink) {
+      correct = max(minimumCorrect, limit - place);
+      digit = (correct ~/ place) % 10;
+      canGrow = digit < 9 && correct + place <= limit;
+      canShrink = digit > 0 && correct - place >= 50;
+    }
+    final grow = canGrow && (!canShrink || _random.nextBool());
+    final wrong = grow ? correct + place : correct - place;
+    final a = _between(40, max(40, correct - 10));
+    final b = correct - a;
+
+    final choices = <String>[
+      'Einerstelle',
+      'Zehnerstelle',
+      if (place >= 100 || correct >= 100) 'Hunderterstelle',
+      if (place >= 1000 || correct >= 1000) 'Tausenderstelle',
+    ];
+    final correctLabel = switch (place) {
+      1 => 'Einerstelle',
+      10 => 'Zehnerstelle',
+      100 => 'Hunderterstelle',
+      1000 => 'Tausenderstelle',
+      _ => 'Einerstelle',
+    };
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'error-place:$place:$a:$b:$wrong',
+      prompt:
+          'Prüfe die Rechnung: $a + $b = $wrong. Welche Stelle ist in der angegebenen Summe falsch?',
+      choices: choices,
+      answer: choices.indexOf(correctLabel),
+      hint:
+          'Prüfe die schriftliche Addition von rechts nach links und suche zuerst die fehlerhafte Stellenwertstelle.',
     );
   }
 

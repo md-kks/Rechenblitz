@@ -40,6 +40,66 @@ void main() {
 
 
 
+
+  test('Gezielte Fehlerprüfung variiert genau eine Stellenwertstelle', () {
+    final generator = CurriculumExerciseGenerator(random: Random(861));
+    final places = <int>{};
+
+    for (final config in [
+      (GradeLevel.third, 1000),
+      (GradeLevel.fourth, 1000000),
+    ]) {
+      for (var i = 0; i < 160; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.writtenAddSub,
+          gradeLevel: config.$1,
+          maxValue: config.$2,
+          targetCompetency: MicroCompetencyId.errorChecking,
+        );
+        final parts = exercise.key.split(':');
+        final placeIndex = parts.indexOf('place');
+        final place = int.parse(parts[placeIndex + 1]);
+        final a = int.parse(parts[parts.length - 3]);
+        final b = int.parse(parts[parts.length - 2]);
+        final wrong = int.parse(parts.last);
+        final correct = a + b;
+
+        places.add(place);
+        expect(exercise.key, startsWith('process:error:add:'));
+        expect((correct - wrong).abs(), place);
+        expect(correct % place, wrong % place);
+        expect(correct ~/ (place * 10), wrong ~/ (place * 10));
+        expect(exercise.usesChoices, isTrue);
+        expect(
+          exercise.choices![exercise.answer],
+          correct < wrong
+              ? 'Das Ergebnis ist um $place zu groß.'
+              : 'Das Ergebnis ist um $place zu klein.',
+        );
+      }
+    }
+
+    expect(places, containsAll({1, 10, 100}));
+  });
+
+  test('Normale Fehlerprüfungen behalten den bisherigen Task-Key', () {
+    final generator = CurriculumExerciseGenerator(random: Random(862));
+    var seen = 0;
+
+    for (var i = 0; i < 400; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.writtenAddSub,
+        gradeLevel: GradeLevel.third,
+        maxValue: 1000,
+      );
+      if (!exercise.key.startsWith('process:error:add:')) continue;
+      seen += 1;
+      expect(exercise.key.split(':'), hasLength(6));
+    }
+
+    expect(seen, greaterThan(0));
+  });
+
   test('Gezielte Zahlwort-Aufgaben enthalten ein echtes Einer-Zehner-Ende',
       () {
     final generator = CurriculumExerciseGenerator(random: Random(841));

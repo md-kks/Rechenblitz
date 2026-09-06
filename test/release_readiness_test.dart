@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 28,
+        fullTaskOnly: 27,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 36,
+        targetedRecovery: 37,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 30,
+        fullTaskOnly: 29,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 36,
+        targetedRecovery: 37,
       ),
     };
 
@@ -246,6 +246,17 @@ void main() {
     expect(item.guidedStepKeys, contains('unitRelation'));
     expect(item.independentStepKeys, contains('unitRelation'));
     expect(item.recoveryStepKeys, contains('unitRelation'));
+  });
+
+  test('Audit führt Fehlerprüfung bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.errorChecking,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('errorPlace'));
+    expect(item.independentStepKeys, contains('errorPlace'));
+    expect(item.recoveryStepKeys, contains('errorPlace'));
   });
 
   test('Audit führt Plausibilitätsprüfung bis zur gezielten Recovery', () {

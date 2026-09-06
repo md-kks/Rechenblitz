@@ -132,6 +132,8 @@ class GuidedStepCatalog {
         'Ergänzung bis zur glatten Zielzahl bestimmen',
     'referenceEstimate':
         'Referenz-Überschlag für die Plausibilitätsprüfung bilden',
+    'errorPlace':
+        'erste falsche Stellenwertstelle in einer Rechnung erkennen',
     'unitRelation': 'passende Beziehung zwischen zwei Einheiten erkennen',
     'minuteSecondRelation': 'Beziehung zwischen Minuten und Sekunden erkennen',
     'roundingDecisionDigit': 'entscheidende Ziffer beim Runden erkennen',
@@ -482,6 +484,16 @@ class GuidedMethodFactory {
         return const <GuidedMethodStep>[];
       }
       return _unitConversion(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.writtenAddSub &&
+        targetCompetency == MicroCompetencyId.errorChecking &&
+        taskKey.startsWith('process:error:')) {
+      return _errorCheckingGuide(taskKey)
           .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3349,7 +3361,61 @@ class GuidedMethodFactory {
 
   static GuidedMethodGuide _errorCheckingGuide(String key) {
     final numbers = _numbers(key);
+    final parts = key.split(':');
+    final placeIndex = parts.indexOf('place');
+    final targeted = placeIndex >= 0 && placeIndex + 1 < parts.length;
     final shown = numbers.length >= 3 ? numbers.last : null;
+
+    if (targeted) {
+      final place = int.tryParse(parts[placeIndex + 1]) ?? 1;
+      final label = switch (place) {
+        1 => 'Einerstelle',
+        10 => 'Zehnerstelle',
+        100 => 'Hunderterstelle',
+        1000 => 'Tausenderstelle',
+        _ => 'betroffene Stelle',
+      };
+      final choices = <String>[
+        'Einerstelle',
+        'Zehnerstelle',
+        if (place >= 100 || numbers.take(2).any((value) => value >= 100))
+          'Hunderterstelle',
+        if (place >= 1000 || numbers.take(2).any((value) => value >= 1000))
+          'Tausenderstelle',
+      ];
+      if (!choices.contains(label)) choices.add(label);
+
+      return GuidedMethodGuide(
+        methodKey: 'process:errorChecking',
+        methodLabel: 'Rechenfehler finden',
+        nudge:
+            'Prüfe die Rechnung von rechts nach links und lokalisiere zuerst die falsche Stelle.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Fehlerstelle finden',
+            instruction:
+                'Rechne die Spalten einzeln. Entscheide zunächst nur, an welcher Stellenwertstelle die angegebene Summe falsch wird.',
+            question: 'Welche Stelle ist in der angegebenen Summe falsch?',
+            choices: choices,
+            correctChoice: choices.indexOf(label),
+            evidenceKey: 'errorPlace',
+            evidenceCompetency: MicroCompetencyId.errorChecking,
+            evidenceWeight: 0.40,
+          ),
+          GuidedMethodStep(
+            title: 'Abweichung an der Stelle prüfen',
+            instruction:
+                'Die $label ist betroffen. Prüfe jetzt, ob die angegebene Ziffer dort zu groß oder zu klein ist.',
+          ),
+          const GuidedMethodStep(
+            title: 'Fehler beschreiben',
+            instruction:
+                'Benenne anschließend die Richtung und Größe des Fehlers.',
+          ),
+        ],
+      );
+    }
+
     return GuidedMethodGuide(
       methodKey: 'process:errorChecking',
       methodLabel: 'Rechenfehler finden',
