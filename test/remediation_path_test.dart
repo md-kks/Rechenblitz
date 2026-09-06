@@ -1451,6 +1451,53 @@ void main() {
 
 
 
+
+  test('Begründungs-Recovery überträgt auf eine andere Beziehungsart', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.reasoningJustification,
+      stepKey: 'reasoningRelationType',
+      label: GuidedStepCatalog.labelFor('reasoningRelationType'),
+      mode: TrainingMode.arithmeticLaws,
+      lastSeen: DateTime(2026, 9, 7, 1, 20),
+      sourceTaskKey:
+          'independent:reasoningRelationType:process:reasoning:compensate:27:35:2',
+    );
+    final plan = StepRecoveryGenerator(random: Random(891)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    String family(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('reasoning-relation');
+      return parts[index + 1];
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(family(plan.tasks[0]), 'compensate');
+    expect(family(plan.tasks[1]), isNot('compensate'));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.arithmeticLaws);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:reasoningRelationType:reasoning-relation:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices!.toSet(), {
+        'ein Summand kleiner, der andere gleich viel größer',
+        'gleiche Faktoren, nur vertauscht',
+        'ein Faktor wird auf zwei Teile angewendet',
+      });
+    }
+  });
+
   test('Rechengesetz-Recovery überträgt auf eine andere Rechenidee', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.arithmeticLaw,

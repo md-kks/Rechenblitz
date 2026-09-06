@@ -142,6 +142,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.arithmeticLaw: [
       'lawStructureChoice',
     ],
+    MicroCompetencyId.reasoningJustification: [
+      'reasoningRelationType',
+    ],
     MicroCompetencyId.plausibilityCheck: [
       'referenceEstimate',
     ],
@@ -276,6 +279,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.arithmeticLaw: [
       'lawStructureChoice',
+    ],
+    MicroCompetencyId.reasoningJustification: [
+      'reasoningRelationType',
     ],
     MicroCompetencyId.plausibilityCheck: [
       'referenceEstimate',

@@ -134,6 +134,8 @@ class GuidedStepCatalog {
         'ersten Stellenwertblock beim halbschriftlichen Rechnen wählen',
     'lawStructureChoice':
         'passende Rechenidee eines Rechengesetzes erkennen',
+    'reasoningRelationType':
+        'Art einer Rechenbeziehung vor der Begründung erkennen',
     'referenceEstimate':
         'Referenz-Überschlag für die Plausibilitätsprüfung bilden',
     'roundedSummands':
@@ -192,6 +194,11 @@ class GuidedMethodFactory {
         (taskKey.startsWith('mental:+:') ||
             taskKey.startsWith('mental:-:'))) {
       return _mentalStrategyGuide(taskKey, expected);
+    }
+
+    if (mode == TrainingMode.arithmeticLaws &&
+        taskKey.startsWith('process:reasoning:')) {
+      return _reasoningJustificationGuide(taskKey);
     }
 
     if (mode == TrainingMode.arithmeticLaws &&
@@ -562,12 +569,19 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.arithmeticLaws) {
-      if (targetCompetency != MicroCompetencyId.arithmeticLaw ||
-          !taskKey.startsWith('law:')) {
+      final validLaw =
+          targetCompetency == MicroCompetencyId.arithmeticLaw &&
+              taskKey.startsWith('law:');
+      final validReasoning =
+          targetCompetency == MicroCompetencyId.reasoningJustification &&
+              taskKey.startsWith('process:reasoning:');
+      if (!validLaw && !validReasoning) {
         return const <GuidedMethodStep>[];
       }
-      return _arithmeticLawGuide(taskKey)
-          .steps
+      final guide = validReasoning
+          ? _reasoningJustificationGuide(taskKey)
+          : _arithmeticLawGuide(taskKey);
+      return guide.steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
           .toList(growable: false);
@@ -3316,6 +3330,83 @@ class GuidedMethodFactory {
           instruction: area
               ? 'Länge × Breite.'
               : 'Alle Seiten addieren oder 2 × (Länge + Breite).',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _reasoningJustificationGuide(String key) {
+    final parts = key.split(':');
+    final reasoningIndex = parts.indexOf('reasoning');
+    final family =
+        reasoningIndex >= 0 && reasoningIndex + 1 < parts.length
+            ? parts[reasoningIndex + 1]
+            : '';
+    const compensateRelation =
+        'ein Summand kleiner, der andere gleich viel größer';
+    const commuteRelation = 'gleiche Faktoren, nur vertauscht';
+    const distributeRelation = 'ein Faktor wird auf zwei Teile angewendet';
+    const choices = <String>[
+      compensateRelation,
+      commuteRelation,
+      distributeRelation,
+    ];
+
+    if (!['compensate', 'commute', 'distribute'].contains(family)) {
+      return const GuidedMethodGuide(
+        methodKey: 'reasoning:relation',
+        methodLabel: 'Rechenbeziehung begründen',
+        nudge:
+            'Beschreibe zuerst nur, was sich zwischen den beiden Rechnungen verändert.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Beziehung erkennen',
+            instruction:
+                'Achte darauf, ob Zahlen ausgeglichen, nur vertauscht oder auf mehrere Teile verteilt werden.',
+          ),
+        ],
+      );
+    }
+
+    final correct = switch (family) {
+      'compensate' => compensateRelation,
+      'commute' => commuteRelation,
+      _ => distributeRelation,
+    };
+    final detail = switch (family) {
+      'compensate' =>
+        'Ein Summand verliert genau so viel, wie der andere gewinnt. Deshalb kann die Summe gleich bleiben.',
+      'commute' =>
+        'Die Faktoren selbst bleiben gleich. Nur ihre Reihenfolge wechselt, daher bleibt das Produkt gleich.',
+      _ =>
+        'Der gleiche Faktor gehört zu beiden Teilen der Zerlegung. Deshalb muss auch die Korrektur mit diesem Faktor gerechnet werden.',
+    };
+
+    return GuidedMethodGuide(
+      methodKey: 'reasoning:relation',
+      methodLabel: 'Rechenbeziehung begründen',
+      nudge:
+          'Erkenne zuerst die Veränderung zwischen den Rechnungen. Die vollständige Begründung kommt erst danach.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Art der Beziehung erkennen',
+          instruction:
+              'Entscheide nur, welche strukturelle Veränderung du siehst. Wähle noch nicht die vollständige Begründung.',
+          question: 'Welche Rechenbeziehung liegt hier vor?',
+          choices: choices,
+          correctChoice: choices.indexOf(correct),
+          evidenceKey: 'reasoningRelationType',
+          evidenceCompetency: MicroCompetencyId.reasoningJustification,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Warum bleibt die Rechnung gleichwertig?',
+          instruction: detail,
+        ),
+        const GuidedMethodStep(
+          title: 'Begründung auswählen',
+          instruction:
+              'Wähle jetzt die Aussage, die Veränderung und gleichbleibendes Ergebnis vollständig erklärt.',
         ),
       ],
     );

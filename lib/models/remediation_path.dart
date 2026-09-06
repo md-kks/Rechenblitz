@@ -233,6 +233,7 @@ class StepRecoveryGenerator {
     'gapToAnchor',
     'firstMentalChunk',
     'lawStructureChoice',
+    'reasoningRelationType',
     'referenceEstimate',
     'roundedSummands',
     'errorPlace',
@@ -370,6 +371,8 @@ class StepRecoveryGenerator {
           _firstMentalChunkStep(focus, stage, range),
         'lawStructureChoice' =>
           _arithmeticLawStructureStep(focus, stage),
+        'reasoningRelationType' =>
+          _reasoningRelationTypeStep(focus, stage),
         'referenceEstimate' =>
           _plausibilityReferenceEstimateStep(focus, stage, range),
         'roundedSummands' =>
@@ -1834,6 +1837,87 @@ class StepRecoveryGenerator {
     final index = parts.indexOf('plausibility');
     if (index < 0 || index + 4 >= parts.length) return null;
     return int.tryParse(parts[index + 4]);
+  }
+
+  RemediationTask _reasoningRelationTypeStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    const families = ['compensate', 'commute', 'distribute'];
+    final parts = focus.sourceTaskKey.split(':');
+    final reasoningIndex = parts.indexOf('reasoning');
+    final sourceFamily =
+        reasoningIndex >= 0 && reasoningIndex + 1 < parts.length
+            ? parts[reasoningIndex + 1]
+            : 'compensate';
+    final supportedFamily = families.contains(sourceFamily)
+        ? sourceFamily
+        : families.first;
+    final transferFamilies =
+        families.where((family) => family != supportedFamily).toList();
+    final family = switch (stage) {
+      RemediationStage.supported => supportedFamily,
+      RemediationStage.transfer =>
+        transferFamilies[_random.nextInt(transferFamilies.length)],
+      RemediationStage.check =>
+        families[_random.nextInt(families.length)],
+      _ => supportedFamily,
+    };
+
+    const compensateRelation =
+        'ein Summand kleiner, der andere gleich viel größer';
+    const commuteRelation = 'gleiche Faktoren, nur vertauscht';
+    const distributeRelation = 'ein Faktor wird auf zwei Teile angewendet';
+    final choices = <String>[
+      compensateRelation,
+      commuteRelation,
+      distributeRelation,
+    ]..shuffle(_random);
+    final correct = switch (family) {
+      'compensate' => compensateRelation,
+      'commute' => commuteRelation,
+      _ => distributeRelation,
+    };
+
+    late final String prompt;
+    late final String key;
+    if (family == 'compensate') {
+      final a = _between(12, 60);
+      final b = _between(12, 60);
+      final shift = _between(1, min(4, a - 1));
+      final changedA = a - shift;
+      final changedB = b + shift;
+      prompt =
+          '$a + $b = $changedA + $changedB. Welche Rechenbeziehung siehst du?';
+      key = 'reasoning-relation:compensate:$a:$b:$shift';
+    } else if (family == 'commute') {
+      final a = _between(2, 12);
+      final b = _between(2, 12);
+      prompt =
+          '$a × $b = $b × $a. Welche Rechenbeziehung siehst du?';
+      key = 'reasoning-relation:commute:$a:$b';
+    } else {
+      final factor = _between(2, 9);
+      final rounded = _between(2, 8) * 10;
+      final difference = _between(1, 9);
+      final value = rounded - difference;
+      final correction = factor * difference;
+      prompt =
+          '$factor × $value = $factor × $rounded − $correction. Welche Rechenbeziehung siehst du?';
+      key =
+          'reasoning-relation:distribute:$factor:$value:$rounded:$difference';
+    }
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: key,
+      prompt: prompt,
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Beschreibe zuerst nur die Veränderung: ausgleichen, vertauschen oder einen Faktor auf zwei Teile anwenden.',
+    );
   }
 
   RemediationTask _arithmeticLawStructureStep(
