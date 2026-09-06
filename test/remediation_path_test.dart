@@ -1008,4 +1008,44 @@ void main() {
     expect(focus.label, contains('Rechenart'));
   });
 
+
+  test('Divisionsverständnis-Recovery wechselt von Verteilen zu Gruppieren',
+      () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.divisionSharing,
+      stepKey: 'divisionTargetQuantity',
+      label: GuidedStepCatalog.labelFor('divisionTargetQuantity'),
+      mode: TrainingMode.wordProblems,
+      lastSeen: DateTime(2026, 9, 6, 1),
+      sourceTaskKey:
+          'independent:divisionTargetQuantity:story:sharing:children:12:3',
+    );
+    final plan = StepRecoveryGenerator(random: Random(640)).generate(
+      focus: focus,
+      range: NumberRangeLevel.twenty,
+    );
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+    expect(plan.tasks[0].taskKey, contains(':sharing:'));
+    expect(plan.tasks[1].taskKey, contains(':grouping:'));
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.wordProblems);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:divisionTargetQuantity:'),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices, hasLength(3));
+      expect(task.answer, isIn([0, 1]));
+    }
+  });
+
 }
