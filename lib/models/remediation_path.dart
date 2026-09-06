@@ -232,6 +232,7 @@ class StepRecoveryGenerator {
     'placeValueContribution',
     'gapToAnchor',
     'referenceEstimate',
+    'roundedSummands',
     'errorPlace',
     'unitRelation',
     'minuteSecondRelation',
@@ -365,6 +366,8 @@ class StepRecoveryGenerator {
         'gapToAnchor' => _strategyGapToAnchorStep(focus, stage, range),
         'referenceEstimate' =>
           _plausibilityReferenceEstimateStep(focus, stage, range),
+        'roundedSummands' =>
+          _estimationRoundedSummandsStep(focus, stage, range),
         'errorPlace' => _errorPlaceStep(focus, stage, range),
         'unitRelation' => _unitRelationStep(focus, stage, range),
         'minuteSecondRelation' => _minuteSecondRelationStep(focus, stage),
@@ -1665,6 +1668,91 @@ class StepRecoveryGenerator {
       hint:
           'Prüfe die schriftliche Addition von rechts nach links und suche zuerst die fehlerhafte Stellenwertstelle.',
     );
+  }
+
+  RemediationTask _estimationRoundedSummandsStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(100, min(range.maxValue, 1000000));
+    final sourcePlace = _estimationSourcePlace(focus.sourceTaskKey);
+    final availablePlaces = <int>[
+      10,
+      if (limit >= 500) 100,
+      if (limit >= 5000) 1000,
+    ];
+    final validSource =
+        sourcePlace != null && availablePlaces.contains(sourcePlace)
+            ? sourcePlace
+            : null;
+    final transferPlaces =
+        availablePlaces.where((place) => place != validSource).toList();
+    final place = switch (stage) {
+      RemediationStage.supported => validSource ?? availablePlaces.first,
+      RemediationStage.transfer => transferPlaces.isEmpty
+          ? (validSource ?? availablePlaces.first)
+          : transferPlaces[_random.nextInt(transferPlaces.length)],
+      RemediationStage.check =>
+        availablePlaces[_random.nextInt(availablePlaces.length)],
+      _ => validSource ?? availablePlaces.first,
+    };
+
+    final minimum = max(1, place ~/ 2);
+    var a = _between(minimum, max(minimum, limit ~/ 2));
+    var b = _between(minimum, max(minimum, limit - a));
+    for (var attempt = 0;
+        attempt < 40 && (a % place == 0 || b % place == 0);
+        attempt++) {
+      a = _between(minimum, max(minimum, limit ~/ 2));
+      b = _between(minimum, max(minimum, limit - a));
+    }
+
+    int rounded(int value) => ((value + place ~/ 2) ~/ place) * place;
+    int down(int value) => (value ~/ place) * place;
+    int up(int value) => ((value + place - 1) ~/ place) * place;
+    final roundedA = rounded(a);
+    final roundedB = rounded(b);
+    final correct = '$roundedA und $roundedB';
+    final values = <String>{
+      correct,
+      '${down(a)} und $roundedB',
+      '${up(a)} und $roundedB',
+      '$roundedA und ${down(b)}',
+      '$roundedA und ${up(b)}',
+      '${down(a)} und ${down(b)}',
+      '${up(a)} und ${up(b)}',
+    };
+    var shift = place;
+    while (values.length < 4) {
+      values.add('${max(0, roundedA - shift)} und ${roundedB + shift}');
+      shift += place;
+    }
+    final choices = values.take(4).toList()..shuffle(_random);
+    final label = switch (place) {
+      10 => 'Zehner',
+      100 => 'Hunderter',
+      _ => 'Tausender',
+    };
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'estimation-rounded:$place:$a:$b',
+      prompt:
+          'Du willst $a + $b überschlagen und rundest auf $label. Auf welche beiden Zahlen rundest du zuerst?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Runde jeden Summanden für sich auf dieselbe Stelle. Addiere die gerundeten Werte noch nicht.',
+    );
+  }
+
+  int? _estimationSourcePlace(String sourceTaskKey) {
+    final parts = sourceTaskKey.split(':');
+    final index = parts.indexOf('estimate');
+    if (index < 0 || index + 3 >= parts.length) return null;
+    return int.tryParse(parts[index + 3]);
   }
 
   RemediationTask _plausibilityReferenceEstimateStep(
