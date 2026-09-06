@@ -822,8 +822,9 @@ class StepRecoveryGenerator {
           'Der lange Zeiger zeigt auf die $clockNumber. Wie viele Minuten sind das?',
       choices: choices,
       answer: choices.indexOf('$minute Minuten'),
-      hint:
-          'Beim langen Zeiger entsprechen die Zahlen 12, 3, 6 und 9 den Minuten 0, 15, 30 und 45.',
+      hint: allowedMinutes.length == 2
+          ? 'Beim langen Zeiger bedeutet die 12: 0 Minuten. Die 6 bedeutet: 30 Minuten.'
+          : 'Beim langen Zeiger entsprechen die Zahlen 12, 3, 6 und 9 den Minuten 0, 15, 30 und 45.',
     );
   }
 
