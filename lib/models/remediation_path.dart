@@ -217,6 +217,7 @@ class StepRecoveryGenerator {
     'storyInterpretation',
     'divisionTargetQuantity',
     'unitValue',
+    'minutesToNextHour',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -320,6 +321,7 @@ class StepRecoveryGenerator {
         'divisionTargetQuantity' =>
           _divisionTargetQuantityStep(focus, stage, range),
         'unitValue' => _proportionalUnitValueStep(focus, stage, range),
+        'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -758,6 +760,56 @@ class StepRecoveryGenerator {
       hint: sharing
           ? 'Die Anzahl der Gruppen ist bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
           : 'Die Gruppengröße ist bekannt. Gesucht ist, wie viele Gruppen entstehen.',
+    );
+  }
+
+  RemediationTask _timeDurationFirstJump(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    const minuteOptions = [15, 30, 45];
+    final parts = focus.sourceTaskKey.split(':');
+    final durationIndex = parts.indexOf('duration');
+    final sourceStart = durationIndex >= 0 &&
+            durationIndex + 1 < parts.length
+        ? int.tryParse(parts[durationIndex + 1])
+        : null;
+    final sourceMinute = sourceStart == null ? null : sourceStart % 60;
+    final validSourceMinute = minuteOptions.contains(sourceMinute)
+        ? sourceMinute!
+        : 30;
+    final transferMinutes = minuteOptions
+        .where((value) => value != validSourceMinute)
+        .toList();
+    final minute = switch (stage) {
+      RemediationStage.supported => validSourceMinute,
+      RemediationStage.transfer =>
+        transferMinutes[_random.nextInt(transferMinutes.length)],
+      RemediationStage.check =>
+        minuteOptions[_random.nextInt(minuteOptions.length)],
+      _ => validSourceMinute,
+    };
+    final hour = _between(8, 16);
+    final start = hour * 60 + minute;
+    final nextFullHour = (hour + 1) * 60;
+    final answer = 60 - minute;
+
+    String clock(int value) {
+      final h = (value ~/ 60) % 24;
+      final m = value % 60;
+      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+    }
+
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'time-first-jump:$start:$nextFullHour',
+      prompt:
+          'Beginn: ${clock(start)} Uhr. Wie viele Minuten sind es bis ${clock(nextFullHour)} Uhr?',
+      answer: answer,
+      max: 60,
+      hint:
+          'Zähle nur den ersten Zeitabschnitt bis zur nächsten vollen Stunde.',
     );
   }
 
