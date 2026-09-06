@@ -1009,6 +1009,56 @@ void main() {
   });
 
 
+  test('Bruch-Recovery festigt die Größe eines gleich großen Teils', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.fractionEqualParts,
+      stepKey: 'equalPartSize',
+      label: GuidedStepCatalog.labelFor('equalPartSize'),
+      mode: TrainingMode.fractions,
+      lastSeen: DateTime(2026, 9, 6, 11),
+      sourceTaskKey:
+          'independent:equalPartSize:fraction:parts:3:4:20',
+    );
+    final plan = StepRecoveryGenerator(random: Random(643)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+
+    int denominator(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('equal-part');
+      return int.parse(parts[index + 2]);
+    }
+
+    expect(denominator(plan.tasks[0]), 4);
+    expect(denominator(plan.tasks[1]), 2);
+    expect(plan.tasks[0].taskKey, contains(':plaettchen:'));
+    expect(plan.tasks[1].taskKey, contains(':band:'));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.fractions);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:equalPartSize:equal-part:'),
+      );
+      expect(task.usesChoices, isFalse);
+      expect(task.answer, greaterThanOrEqualTo(2));
+      expect(task.answer, lessThanOrEqualTo(task.maxAnswerValue));
+      expect(task.prompt, contains('1 Teil'));
+      expect(task.hint, contains('gleich groß'));
+    }
+  });
+
   test('Zeitspannen-Recovery festigt den ersten Sprung bis zur vollen Stunde',
       () {
     final focus = IndependentStepRecoveryFocus(

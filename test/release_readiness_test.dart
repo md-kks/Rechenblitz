@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 46,
+        fullTaskOnly: 45,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 18,
+        targetedRecovery: 19,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 48,
+        fullTaskOnly: 47,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 18,
+        targetedRecovery: 19,
       ),
     };
 
@@ -191,6 +191,18 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt gleich große Bruchteile bis zur gezielten Recovery',
+      () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.fractionEqualParts,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('equalPartSize'));
+    expect(item.independentStepKeys, contains('equalPartSize'));
+    expect(item.recoveryStepKeys, contains('equalPartSize'));
   });
 
   test('Audit führt Zeitspannen bis zur gezielten Recovery', () {

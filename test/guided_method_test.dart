@@ -1414,6 +1414,133 @@ void main() {
     );
   });
 
+  test('Bruchteile beobachten zuerst die Größe eines gleichen Teils', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.fractions,
+      taskKey: 'fraction:parts:3:4:20',
+      expected: 15,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.fractionEqualParts,
+    );
+    final evidenceSteps = guide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .toList();
+
+    expect(guide.methodKey, 'fraction:equalParts');
+    expect(evidenceSteps, hasLength(1));
+    expect(evidenceSteps.single.evidenceKey, 'equalPartSize');
+    expect(
+      evidenceSteps.single.evidenceCompetency,
+      MicroCompetencyId.fractionEqualParts,
+    );
+    expect(
+      evidenceSteps.single.choices[evidenceSteps.single.correctChoice!],
+      '5',
+    );
+    expect(evidenceSteps.single.evidenceWeight, 0.40);
+    expect(guide.steps.last.instruction, contains('3 × 5 = 15'));
+    expect(
+      GuidedStepCatalog.labelFor('equalPartSize'),
+      contains('gleich großen Bruchteils'),
+    );
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.fractions,
+      taskKey: 'fraction:parts:3:4:20',
+      expected: 15,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.fractionEqualParts,
+    );
+    expect(independent.map((step) => step.evidenceKey), ['equalPartSize']);
+  });
+
+  test('Einfache Viertelaufgabe dupliziert die Endantwort nicht als Step', () {
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.fractions,
+      taskKey: 'fraction:quarter:20',
+      expected: 5,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.fractionEqualParts,
+    );
+
+    expect(independent, isEmpty);
+  });
+
+  testWidgets('Bruchbild zeigt 3 von 4 gleich großen Teilen', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.fractionPart,
+            taskKey: 'fraction:parts:3:4:20',
+            expected: 15,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Bruchbild'), findsOneWidget);
+    expect(
+      find.text('3 von 4 gleich großen Teilen sind markiert.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+      'Curriculum speichert Größe eines Bruchteils selbstständig',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.fractions,
+      prompt: 'Wie viel sind 3/4 von 20?',
+      answer: 15,
+      hint:
+          'Teile 20 zuerst in 4 gleich große Teile. Bestimme dann den Wert von 3 Teilen.',
+      key: 'fraction:parts:3:4:20',
+      maxAnswerValue: 20,
+      method: 'Bruchteile als gleich große Teile',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.fractions,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.fractionEqualParts,
+          exerciseGenerator: _FixedCurriculumExerciseGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 1'), findsOneWidget);
+    expect(find.text('Antwort eingeben'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, '5'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final steps = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+        .toList();
+    expect(steps, hasLength(1));
+    expect(steps.single.id, MicroCompetencyId.fractionEqualParts);
+    expect(steps.single.correct, isTrue);
+    expect(steps.single.usedHelp, isFalse);
+    expect(
+      steps.single.taskKey,
+      'independent:equalPartSize:fraction:parts:3:4:20',
+    );
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+  });
+
   test('Zeitspanne beobachtet den ersten Sprung bis zur vollen Stunde', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.timeDurations,
