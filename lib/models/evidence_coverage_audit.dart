@@ -124,6 +124,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeNumberCompare: [
       'decidingPlace',
     ],
+    MicroCompetencyId.largeNumberOrder: [
+      'smallestOrderedNumber',
+    ],
     MicroCompetencyId.placeValueDecompose: [
       'placeValueContribution',
     ],
@@ -237,6 +240,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.largeNumberCompare: [
       'decidingPlace',
+    ],
+    MicroCompetencyId.largeNumberOrder: [
+      'smallestOrderedNumber',
     ],
     MicroCompetencyId.placeValueDecompose: [
       'placeValueContribution',

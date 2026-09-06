@@ -121,6 +121,8 @@ class GuidedStepCatalog {
         'Minuten bis zur nächsten vollen Stunde bestimmen',
     'equalPartSize': 'Größe eines gleich großen Bruchteils bestimmen',
     'decidingPlace': 'erste unterschiedliche Stelle beim Vergleichen finden',
+    'smallestOrderedNumber':
+        'kleinste Zahl vor dem vollständigen Ordnen bestimmen',
     'placeValueContribution':
         'Wert einer Ziffer an ihrer Stelle bestimmen',
     'gapToAnchor':
@@ -500,7 +502,10 @@ class GuidedMethodFactory {
       final validDecompose =
           targetCompetency == MicroCompetencyId.placeValueDecompose &&
               taskKey.startsWith('large:decompose:');
-      if (!validCompare && !validDecompose) {
+      final validOrder =
+          targetCompetency == MicroCompetencyId.largeNumberOrder &&
+              taskKey.startsWith('large:order:');
+      if (!validCompare && !validDecompose && !validOrder) {
         return const <GuidedMethodStep>[];
       }
       return _largeNumbers(taskKey)
@@ -2452,6 +2457,41 @@ class GuidedMethodFactory {
     }
 
     if (taskKey.startsWith('large:order:')) {
+      final values = _numbers(taskKey);
+      if (values.length >= 3) {
+        final ordered = values.toList()..sort();
+        final choices = ordered.map((value) => '$value').toList();
+        return GuidedMethodGuide(
+          methodKey: 'largeNumbers:order',
+          methodLabel: 'Große Zahlen ordnen',
+          nudge:
+              'Finde zuerst sicher die kleinste Zahl. Erst danach ordnest du die beiden übrigen.',
+          steps: [
+            GuidedMethodStep(
+              title: 'Kleinste Zahl bestimmen',
+              instruction:
+                  'Vergleiche die Zahlen von links nach rechts. Die erste unterschiedliche Stelle entscheidet.',
+              question:
+                  'Welche der drei Zahlen muss beim Ordnen von klein nach groß zuerst stehen?',
+              choices: choices,
+              correctChoice: choices.indexOf('${ordered.first}'),
+              evidenceKey: 'smallestOrderedNumber',
+              evidenceCompetency: MicroCompetencyId.largeNumberOrder,
+              evidenceWeight: 0.40,
+            ),
+            const GuidedMethodStep(
+              title: 'Übrige Zahlen ordnen',
+              instruction:
+                  'Vergleiche danach die beiden übrigen Zahlen auf dieselbe Weise.',
+            ),
+            const GuidedMethodStep(
+              title: 'Reihenfolge prüfen',
+              instruction:
+                  'Lies die fertige Reihe von links nach rechts: Jede Zahl muss größer als die vorherige sein.',
+            ),
+          ],
+        );
+      }
       return const GuidedMethodGuide(
         methodKey: 'largeNumbers:order',
         methodLabel: 'Große Zahlen ordnen',

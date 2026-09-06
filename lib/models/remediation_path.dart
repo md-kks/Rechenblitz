@@ -226,6 +226,7 @@ class StepRecoveryGenerator {
     'minutesToNextHour',
     'equalPartSize',
     'decidingPlace',
+    'smallestOrderedNumber',
     'placeValueContribution',
     'gapToAnchor',
     'unitRelation',
@@ -351,6 +352,8 @@ class StepRecoveryGenerator {
         'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
         'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
         'decidingPlace' => _largeNumberDecidingPlaceStep(focus, stage, range),
+        'smallestOrderedNumber' =>
+          _largeNumberSmallestStep(focus, stage, range),
         'placeValueContribution' =>
           _placeValueContributionStep(focus, stage, range),
         'gapToAnchor' => _strategyGapToAnchorStep(focus, stage, range),
@@ -1749,6 +1752,113 @@ class StepRecoveryGenerator {
     final index = parts.indexOf('decompose');
     if (index < 0 || index + 2 >= parts.length) return null;
     return int.tryParse(parts[index + 2]);
+  }
+
+  RemediationTask _largeNumberSmallestStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    var upper = max(99, min(range.maxValue, 999999));
+    if (_isLargePowerOfTen(upper)) upper -= 1;
+
+    var highestPlace = 1;
+    while (highestPlace * 10 <= upper) {
+      highestPlace *= 10;
+    }
+    final availablePlaces = <int>[];
+    for (var place = highestPlace ~/ 10; place >= 1; place ~/= 10) {
+      availablePlaces.add(place);
+      if (place == 1) break;
+    }
+
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey.split('order:').last)
+        .map((match) => int.parse(match.group(0)!))
+        .toList()
+      ..sort();
+    final sourcePlace = sourceNumbers.length >= 2
+        ? _firstDifferentLargePlace(sourceNumbers[0], sourceNumbers[1])
+        : availablePlaces.first;
+    final supportedPlace = availablePlaces.contains(sourcePlace)
+        ? sourcePlace
+        : availablePlaces.first;
+    final transferPlaces =
+        availablePlaces.where((place) => place != supportedPlace).toList();
+    final decidingPlace = switch (stage) {
+      RemediationStage.supported => supportedPlace,
+      RemediationStage.transfer => transferPlaces.isEmpty
+          ? supportedPlace
+          : transferPlaces[_random.nextInt(transferPlaces.length)],
+      RemediationStage.check =>
+        availablePlaces[_random.nextInt(availablePlaces.length)],
+      _ => supportedPlace,
+    };
+
+    var pair = _largeComparisonPair(
+      decidingPlace: decidingPlace,
+      highestPlace: highestPlace,
+      upper: upper,
+    );
+    var orderedPair = <int>[pair.$1, pair.$2]..sort();
+    for (var attempt = 0;
+        attempt < 30 && orderedPair.first >= upper - 1;
+        attempt++) {
+      pair = _largeComparisonPair(
+        decidingPlace: decidingPlace,
+        highestPlace: highestPlace,
+        upper: upper,
+      );
+      orderedPair = <int>[pair.$1, pair.$2]..sort();
+    }
+
+    var third = _between(
+      min(upper, orderedPair.first + 1),
+      upper,
+    );
+    for (var attempt = 0;
+        attempt < 30 &&
+            (third == orderedPair.first || third == orderedPair.last);
+        attempt++) {
+      third = _between(
+        min(upper, orderedPair.first + 1),
+        upper,
+      );
+    }
+    if (third == orderedPair.first || third == orderedPair.last) {
+      third = orderedPair.first > 1
+          ? orderedPair.first - 1
+          : min(upper, orderedPair.last + 1);
+    }
+
+    final values = <int>{
+      orderedPair.first,
+      orderedPair.last,
+      third,
+    }.toList();
+    if (values.length < 3) {
+      var candidate = 1;
+      while (values.length < 3 && candidate <= upper) {
+        if (!values.contains(candidate)) values.add(candidate);
+        candidate += 1;
+      }
+    }
+    values.shuffle(_random);
+    final smallest = values.reduce(min);
+    final choices = values.map((value) => _formatLargeNumber(value)).toList();
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key:
+          'large-smallest:$decidingPlace:${values.join('-')}',
+      prompt:
+          'Welche dieser drei Zahlen ist die kleinste?',
+      choices: choices,
+      answer: values.indexOf(smallest),
+      hint:
+          'Vergleiche von links nach rechts. Suche nur die kleinste Zahl; die vollständige Reihenfolge kommt erst danach.',
+    );
   }
 
   RemediationTask _largeNumberDecidingPlaceStep(
