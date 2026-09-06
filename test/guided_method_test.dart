@@ -1500,6 +1500,122 @@ void main() {
     );
   });
 
+  test('Runden beobachtet die entscheidende Ziffer unabhängig', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.rounding,
+      taskKey: 'round:467:100',
+      expected: 500,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.roundingPlace,
+    );
+    final evidence = guide.steps.singleWhere(
+      (step) => step.evidenceKey == 'roundingDecisionDigit',
+    );
+
+    expect(guide.methodKey, 'rounding:place');
+    expect(guide.methodLabel, 'Runden');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.roundingPlace);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices[evidence.correctChoice!], '6');
+    expect(evidence.instruction, isNot(contains('6')));
+    expect(evidence.instruction, contains('Zehnerstelle'));
+    expect(guide.steps[1].title, 'Aufrunden');
+    expect(guide.steps.last.instruction, contains('500'));
+    expect(
+      GuidedStepCatalog.labelFor('roundingDecisionDigit'),
+      contains('entscheidende Ziffer'),
+    );
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.rounding,
+      taskKey: 'round:467:100',
+      expected: 500,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.roundingPlace,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['roundingDecisionDigit'],
+    );
+  });
+
+  test('Runden erkennt auch eine Abrund-Entscheidung', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.rounding,
+      taskKey: 'round:432:100',
+      expected: 400,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.roundingPlace,
+    );
+
+    expect(
+      guide.steps
+          .singleWhere((step) => step.evidenceKey == 'roundingDecisionDigit')
+          .choices
+          .elementAt(
+            guide.steps
+                .singleWhere(
+                  (step) => step.evidenceKey == 'roundingDecisionDigit',
+                )
+                .correctChoice!,
+          ),
+      '3',
+    );
+    expect(guide.steps[1].title, 'Abrunden');
+  });
+
+  testWidgets('Curriculum speichert Rundungs-Entscheidungsziffer selbstständig',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.rounding,
+      prompt: 'Runde 467 auf Hunderter.',
+      answer: 500,
+      hint:
+          'Schau auf die Stelle rechts daneben: 0–4 abrunden, 5–9 aufrunden.',
+      key: 'round:467:100',
+      maxAnswerValue: 1000,
+      method: 'Runden',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.rounding,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.roundingPlace,
+          exerciseGenerator: _FixedCurriculumExerciseGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 1'), findsOneWidget);
+    expect(find.text('Antwort eingeben'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, '6'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final steps = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+        .toList();
+    expect(steps, hasLength(1));
+    expect(steps.single.id, MicroCompetencyId.roundingPlace);
+    expect(steps.single.correct, isTrue);
+    expect(steps.single.usedHelp, isFalse);
+    expect(
+      steps.single.taskKey,
+      'independent:roundingDecisionDigit:round:467:100',
+    );
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+  });
+
   test('Einheitenumrechnung beobachtet zuerst die feste Beziehung', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.advancedMeasures,
