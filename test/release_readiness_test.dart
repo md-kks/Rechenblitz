@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 25,
+        fullTaskOnly: 24,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 39,
+        targetedRecovery: 40,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 27,
+        fullTaskOnly: 26,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 39,
+        targetedRecovery: 40,
       ),
     };
 
@@ -290,6 +290,17 @@ void main() {
     expect(item.guidedStepKeys, contains('numberWordTensOnes'));
     expect(item.independentStepKeys, contains('numberWordTensOnes'));
     expect(item.recoveryStepKeys, contains('numberWordTensOnes'));
+  });
+
+  test('Audit führt Rechengesetze bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.arithmeticLaw,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('lawStructureChoice'));
+    expect(item.independentStepKeys, contains('lawStructureChoice'));
+    expect(item.recoveryStepKeys, contains('lawStructureChoice'));
   });
 
   test('Audit führt halbschriftliche Strategien bis zur gezielten Recovery',

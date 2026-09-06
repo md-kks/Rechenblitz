@@ -132,6 +132,8 @@ class GuidedStepCatalog {
         'Ergänzung bis zur glatten Zielzahl bestimmen',
     'firstMentalChunk':
         'ersten Stellenwertblock beim halbschriftlichen Rechnen wählen',
+    'lawStructureChoice':
+        'passende Rechenidee eines Rechengesetzes erkennen',
     'referenceEstimate':
         'Referenz-Überschlag für die Plausibilitätsprüfung bilden',
     'roundedSummands':
@@ -190,6 +192,11 @@ class GuidedMethodFactory {
         (taskKey.startsWith('mental:+:') ||
             taskKey.startsWith('mental:-:'))) {
       return _mentalStrategyGuide(taskKey, expected);
+    }
+
+    if (mode == TrainingMode.arithmeticLaws &&
+        taskKey.startsWith('law:')) {
+      return _arithmeticLawGuide(taskKey);
     }
 
     if (taskKey.startsWith('process:error:')) {
@@ -549,6 +556,18 @@ class GuidedMethodFactory {
           ? _mentalStrategyGuide(taskKey, expected)
           : _strategyChoiceGuide(taskKey);
       return guide.steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.arithmeticLaws) {
+      if (targetCompetency != MicroCompetencyId.arithmeticLaw ||
+          !taskKey.startsWith('law:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _arithmeticLawGuide(taskKey)
+          .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
           .toList(growable: false);
@@ -3297,6 +3316,82 @@ class GuidedMethodFactory {
           instruction: area
               ? 'Länge × Breite.'
               : 'Alle Seiten addieren oder 2 × (Länge + Breite).',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _arithmeticLawGuide(String key) {
+    final parts = key.split(':');
+    final family = parts.length >= 2 ? parts[1] : '';
+    const distributeIdea =
+        'mit einer glatten Zahl zerlegen und verteilen';
+    const associateIdea =
+        'zwei passende Summanden zuerst zusammenfassen';
+    const commuteIdea = 'Faktoren vertauschen';
+    const choices = <String>[
+      distributeIdea,
+      associateIdea,
+      commuteIdea,
+    ];
+
+    if (!['distribute', 'associate', 'commute'].contains(family)) {
+      return const GuidedMethodGuide(
+        methodKey: 'arithmeticLaws:structure',
+        methodLabel: 'Rechenvorteil erkennen',
+        nudge:
+            'Prüfe zuerst, welche Veränderung die Rechnung einfacher macht.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Rechenidee erkennen',
+            instruction:
+                'Achte darauf, ob Zahlen vertauscht, geschickt zusammengefasst oder über eine leichtere Zahl zerlegt werden.',
+          ),
+        ],
+      );
+    }
+
+    final correct = switch (family) {
+      'distribute' => distributeIdea,
+      'associate' => associateIdea,
+      _ => commuteIdea,
+    };
+    final numbers = _numbers(key);
+    final detail = switch (family) {
+      'distribute' when numbers.length >= 2 =>
+        'Der zweite Faktor wird über eine nahe glatte Zahl zerlegt. Das ist die Verteil-Idee.',
+      'associate' when numbers.length >= 3 =>
+        'Suche zwei Summanden, die zusammen besonders leicht zu rechnen sind.',
+      'commute' when numbers.length >= 2 =>
+        'Die beiden Faktoren bleiben gleich; nur ihre Reihenfolge wird vertauscht.',
+      _ => 'Nutze die erkannte Rechenidee jetzt in der Aufgabe.',
+    };
+
+    return GuidedMethodGuide(
+      methodKey: 'arithmeticLaws:structure',
+      methodLabel: 'Rechenvorteil erkennen',
+      nudge:
+          'Erkenne zuerst die Rechenidee. Die konkrete Rechnung kommt erst danach.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Rechenidee erkennen',
+          instruction:
+              'Entscheide nur, welche Struktur die Aufgabe leichter macht. Rechne noch nicht bis zum Ergebnis.',
+          question: 'Welche Rechenidee wird hier genutzt?',
+          choices: choices,
+          correctChoice: choices.indexOf(correct),
+          evidenceKey: 'lawStructureChoice',
+          evidenceCompetency: MicroCompetencyId.arithmeticLaw,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Idee auf die Zahlen anwenden',
+          instruction: detail,
+        ),
+        const GuidedMethodStep(
+          title: 'Aufgabe fertig rechnen',
+          instruction:
+              'Führe erst jetzt die konkrete Rechnung mit dem erkannten Rechenvorteil zu Ende.',
         ),
       ],
     );

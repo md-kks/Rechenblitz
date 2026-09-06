@@ -42,6 +42,29 @@ void main() {
 
 
 
+
+  test('Gezielte Rechengesetze bleiben in den drei Rechenideen', () {
+    final generator = CurriculumExerciseGenerator(random: Random(881));
+    final families = <String>{};
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 180; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.arithmeticLaws,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.arithmeticLaw,
+        );
+
+        expect(exercise.key, startsWith('law:'));
+        expect(exercise.key, isNot(startsWith('process:reasoning:')));
+        families.add(exercise.key.split(':')[1]);
+      }
+    }
+
+    expect(families, {'distribute', 'associate', 'commute'});
+  });
+
   test('Gezielte halbschriftliche Aufgaben haben mehrere Stellenwertblöcke',
       () {
     final generator = CurriculumExerciseGenerator(random: Random(871));

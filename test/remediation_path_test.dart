@@ -1450,6 +1450,51 @@ void main() {
   });
 
 
+
+  test('Rechengesetz-Recovery überträgt auf eine andere Rechenidee', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.arithmeticLaw,
+      stepKey: 'lawStructureChoice',
+      label: GuidedStepCatalog.labelFor('lawStructureChoice'),
+      mode: TrainingMode.arithmeticLaws,
+      lastSeen: DateTime(2026, 9, 7, 1, 10),
+      sourceTaskKey:
+          'independent:lawStructureChoice:law:distribute:6:47',
+    );
+    final plan = StepRecoveryGenerator(random: Random(882)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    String family(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('law-structure');
+      return parts[index + 1];
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(family(plan.tasks[0]), 'distribute');
+    expect(family(plan.tasks[1]), isNot('distribute'));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.arithmeticLaws);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:lawStructureChoice:law-structure:'),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices!.toSet(), {
+        'mit einer glatten Zahl zerlegen und verteilen',
+        'zwei passende Summanden zuerst zusammenfassen',
+        'Faktoren vertauschen',
+      });
+    }
+  });
+
   test('Halbschrift-Recovery überträgt den ersten Stellenwertblock', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.mentalStrategy,
