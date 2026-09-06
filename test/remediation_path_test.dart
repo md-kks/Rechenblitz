@@ -1009,6 +1009,57 @@ void main() {
   });
 
 
+  test('Uhr-Recovery festigt den Minutenwert des langen Zeigers', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.clockReading,
+      stepKey: 'minuteHandMinutes',
+      label: GuidedStepCatalog.labelFor('minuteHandMinutes'),
+      mode: TrainingMode.clock,
+      lastSeen: DateTime(2026, 9, 6, 13, 30),
+      sourceTaskKey:
+          'independent:minuteHandMinutes:clock:7:30',
+    );
+    final plan = StepRecoveryGenerator(random: Random(648)).generate(
+      focus: focus,
+      range: NumberRangeLevel.twenty,
+    );
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+    expect(plan.tasks[0].taskKey, contains(':minute-hand:6:30'));
+    expect(plan.tasks[1].taskKey, contains(':minute-hand:12:0'));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.clock);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:minuteHandMinutes:minute-hand:'),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices, ['0 Minuten', '30 Minuten']);
+      expect(task.answer, inInclusiveRange(0, 1));
+      expect(task.prompt, contains('lange Zeiger'));
+      expect(task.hint, isNot(contains('15')));
+      expect(task.hint, isNot(contains('45')));
+    }
+
+    expect(
+      plan.tasks[0].choices![plan.tasks[0].answer],
+      '30 Minuten',
+    );
+    expect(
+      plan.tasks[1].choices![plan.tasks[1].answer],
+      '0 Minuten',
+    );
+  });
+
   test('Rundungs-Recovery wechselt die entscheidende Rundungsstelle', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.roundingPlace,
