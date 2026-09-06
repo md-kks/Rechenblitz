@@ -1449,6 +1449,48 @@ void main() {
     }
   });
 
+
+  test('Halbschrift-Recovery überträgt den ersten Stellenwertblock', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.mentalStrategy,
+      stepKey: 'firstMentalChunk',
+      label: GuidedStepCatalog.labelFor('firstMentalChunk'),
+      mode: TrainingMode.mentalStrategies,
+      lastSeen: DateTime(2026, 9, 7, 0, 45),
+      sourceTaskKey:
+          'independent:firstMentalChunk:mental:+:672:45',
+    );
+    final plan = StepRecoveryGenerator(random: Random(872)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int place(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('mental-chunk');
+      return int.parse(parts[index + 4]);
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(place(plan.tasks[0]), 10);
+    expect(place(plan.tasks[1]), isNot(10));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.mentalStrategies);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:firstMentalChunk:mental-chunk:'),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.prompt, contains('halbschriftlichen'));
+      expect(task.answer, inInclusiveRange(0, task.choices!.length - 1));
+    }
+  });
+
   test('Zahlenordnungs-Recovery festigt zuerst die kleinste Zahl', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.largeNumberOrder,

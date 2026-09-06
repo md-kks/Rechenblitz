@@ -130,6 +130,8 @@ class GuidedStepCatalog {
         'Wert einer Ziffer an ihrer Stelle bestimmen',
     'gapToAnchor':
         'Ergänzung bis zur glatten Zielzahl bestimmen',
+    'firstMentalChunk':
+        'ersten Stellenwertblock beim halbschriftlichen Rechnen wählen',
     'referenceEstimate':
         'Referenz-Überschlag für die Plausibilitätsprüfung bilden',
     'roundedSummands':
@@ -182,6 +184,12 @@ class GuidedMethodFactory {
   }) {
     if (taskKey.startsWith('process:strategy:')) {
       return _strategyChoiceGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.mentalStrategies &&
+        (taskKey.startsWith('mental:+:') ||
+            taskKey.startsWith('mental:-:'))) {
+      return _mentalStrategyGuide(taskKey, expected);
     }
 
     if (taskKey.startsWith('process:error:')) {
@@ -527,12 +535,20 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.mentalStrategies) {
-      if (targetCompetency != MicroCompetencyId.strategyChoice ||
-          !taskKey.startsWith('process:strategy:')) {
+      final validChoice =
+          targetCompetency == MicroCompetencyId.strategyChoice &&
+              taskKey.startsWith('process:strategy:');
+      final validMental =
+          targetCompetency == MicroCompetencyId.mentalStrategy &&
+              (taskKey.startsWith('mental:+:') ||
+                  taskKey.startsWith('mental:-:'));
+      if (!validChoice && !validMental) {
         return const <GuidedMethodStep>[];
       }
-      return _strategyChoiceGuide(taskKey)
-          .steps
+      final guide = validMental
+          ? _mentalStrategyGuide(taskKey, expected)
+          : _strategyChoiceGuide(taskKey);
+      return guide.steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
           .toList(growable: false);
@@ -3281,6 +3297,99 @@ class GuidedMethodFactory {
           instruction: area
               ? 'Länge × Breite.'
               : 'Alle Seiten addieren oder 2 × (Länge + Breite).',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _mentalStrategyGuide(
+    String key,
+    int expected,
+  ) {
+    final parts = key.split(':');
+    if (parts.length < 4 ||
+        parts[0] != 'mental' ||
+        (parts[1] != '+' && parts[1] != '-')) {
+      return const GuidedMethodGuide(
+        methodKey: 'mental:placeChunks',
+        methodLabel: 'Halbschriftlich in Stellenwertblöcken rechnen',
+        nudge:
+            'Zerlege den zweiten Operanden nach Stellenwerten und beginne mit dem größten Block.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Größten Block wählen',
+            instruction:
+                'Beginne mit dem größten Stellenwertblock des zweiten Operanden.',
+          ),
+        ],
+      );
+    }
+    final a = int.tryParse(parts[2]);
+    final b = int.tryParse(parts[3]);
+    if (a == null || b == null || b < 10) {
+      return const GuidedMethodGuide(
+        methodKey: 'mental:placeChunks',
+        methodLabel: 'Halbschriftlich in Stellenwertblöcken rechnen',
+        nudge:
+            'Zerlege den zweiten Operanden nach Stellenwerten und beginne mit dem größten Block.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Größten Block wählen',
+            instruction:
+                'Beginne mit dem größten Stellenwertblock des zweiten Operanden.',
+          ),
+        ],
+      );
+    }
+
+    var place = 1;
+    while (place * 10 <= b) {
+      place *= 10;
+    }
+    final chunk = (b ~/ place) * place;
+    final rest = b - chunk;
+    final values = <int>{chunk, rest, b, max(1, chunk ~/ 10)};
+    var filler = 1;
+    while (values.length < 4) {
+      if (filler != chunk) values.add(filler);
+      filler += 1;
+    }
+    final choices = values.take(4).map((value) => '$value').toList()
+      ..sort((x, y) => int.parse(x).compareTo(int.parse(y)));
+    final addition = parts[1] == '+';
+    final firstPartial = addition ? a + chunk : a - chunk;
+
+    return GuidedMethodGuide(
+      methodKey: 'mental:placeChunks',
+      methodLabel: 'Halbschriftlich in Stellenwertblöcken rechnen',
+      nudge:
+          'Zerlege $b nach Stellenwerten. Rechne zuerst den größten Block und danach den Rest.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Ersten Stellenwertblock wählen',
+          instruction:
+              'Bestimme nur den größten Stellenwertblock von $b. Das Endergebnis ist noch nicht gefragt.',
+          question:
+              'Welche Teilzahl von $b rechnest du beim halbschriftlichen Rechnen zuerst?',
+          choices: choices,
+          correctChoice: choices.indexOf('$chunk'),
+          evidenceKey: 'firstMentalChunk',
+          evidenceCompetency: MicroCompetencyId.mentalStrategy,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Ersten Block rechnen',
+          instruction: addition
+              ? '$a + $chunk = $firstPartial.'
+              : '$a − $chunk = $firstPartial.',
+        ),
+        GuidedMethodStep(
+          title: 'Rest weiterrechnen',
+          instruction: rest > 0
+              ? addition
+                  ? 'Danach bleiben von $b noch $rest: $firstPartial + $rest = $expected.'
+                  : 'Danach bleiben von $b noch $rest: $firstPartial − $rest = $expected.'
+              : 'Es bleibt kein weiterer Stellenwertblock übrig.',
         ),
       ],
     );

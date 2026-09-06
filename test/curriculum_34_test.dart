@@ -41,6 +41,48 @@ void main() {
 
 
 
+
+  test('Gezielte halbschriftliche Aufgaben haben mehrere Stellenwertblöcke',
+      () {
+    final generator = CurriculumExerciseGenerator(random: Random(871));
+    final operations = <String>{};
+
+    for (final config in [
+      (GradeLevel.third, 1000),
+      (GradeLevel.fourth, 1000000),
+    ]) {
+      for (var i = 0; i < 140; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.mentalStrategies,
+          gradeLevel: config.$1,
+          maxValue: config.$2,
+          targetCompetency: MicroCompetencyId.mentalStrategy,
+        );
+        final parts = exercise.key.split(':');
+        final operation = parts[1];
+        final a = int.parse(parts[2]);
+        final b = int.parse(parts[3]);
+        var place = 1;
+        while (place * 10 <= b) {
+          place *= 10;
+        }
+        final chunk = (b ~/ place) * place;
+        final rest = b - chunk;
+
+        operations.add(operation);
+        expect(exercise.key, startsWith('mental:'));
+        expect(operation, isIn(['+', '-']));
+        expect(b, greaterThanOrEqualTo(11));
+        expect(chunk, greaterThan(0));
+        expect(rest, greaterThan(0));
+        expect(exercise.answer, operation == '+' ? a + b : a - b);
+        expect(exercise.answer, inInclusiveRange(0, config.$2));
+      }
+    }
+
+    expect(operations, {'+', '-'});
+  });
+
   test('Gezielte Fehlerprüfung variiert genau eine Stellenwertstelle', () {
     final generator = CurriculumExerciseGenerator(random: Random(861));
     final places = <int>{};

@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 26,
+        fullTaskOnly: 25,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 38,
+        targetedRecovery: 39,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 28,
+        fullTaskOnly: 27,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 38,
+        targetedRecovery: 39,
       ),
     };
 
@@ -290,6 +290,18 @@ void main() {
     expect(item.guidedStepKeys, contains('numberWordTensOnes'));
     expect(item.independentStepKeys, contains('numberWordTensOnes'));
     expect(item.recoveryStepKeys, contains('numberWordTensOnes'));
+  });
+
+  test('Audit führt halbschriftliche Strategien bis zur gezielten Recovery',
+      () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.mentalStrategy,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('firstMentalChunk'));
+    expect(item.independentStepKeys, contains('firstMentalChunk'));
+    expect(item.recoveryStepKeys, contains('firstMentalChunk'));
   });
 
   test('Audit führt das Ordnen großer Zahlen bis zur gezielten Recovery', () {

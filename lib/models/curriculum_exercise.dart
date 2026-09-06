@@ -138,7 +138,12 @@ class CurriculumExerciseGenerator {
         TrainingMode.mentalStrategies =>
           targetCompetency == MicroCompetencyId.strategyChoice
               ? _strategyChoice(gradeLevel, maxValue)
-              : _mentalStrategies(gradeLevel, maxValue),
+              : _mentalStrategies(
+                  gradeLevel,
+                  maxValue,
+                  targeted:
+                      targetCompetency == MicroCompetencyId.mentalStrategy,
+                ),
         TrainingMode.writtenAddSub =>
           targetCompetency == MicroCompetencyId.errorChecking
               ? _errorChecking(
@@ -571,23 +576,81 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _mentalStrategies(GradeLevel grade, int maxValue) {
+  CurriculumExercise _mentalStrategies(
+    GradeLevel grade,
+    int maxValue, {
+    bool targeted = false,
+  }) {
+    final limit = _safeMax(maxValue, grade);
+    if (targeted) {
+      final addition = _random.nextBool();
+      final lowA = min(100, max(10, limit ~/ 4));
+      final highA = max(
+        lowA,
+        min(
+          limit - 11,
+          grade == GradeLevel.third ? 900 : 900000,
+        ),
+      );
+      final a = _between(lowA, highA);
+      final operandCap =
+          grade == GradeLevel.third ? 99 : 49999;
+      final maxSecond = addition
+          ? min(operandCap, limit - a)
+          : min(operandCap, a);
+      final places = [10, 100, 1000, 10000]
+          .where((place) => place + 1 <= maxSecond)
+          .toList();
+      final place = places[_random.nextInt(places.length)];
+      final maxDigit = min(9, (maxSecond - 1) ~/ place);
+      final digit = _between(1, maxDigit);
+      final base = digit * place;
+      final remainder =
+          _between(1, min(place - 1, maxSecond - base));
+      final second = base + remainder;
+
+      return CurriculumExercise(
+        mode: TrainingMode.mentalStrategies,
+        prompt: addition
+            ? _fmt(a) + ' + ' + _fmt(second) + ' = ?'
+            : _fmt(a) + ' − ' + _fmt(second) + ' = ?',
+        answer: addition ? a + second : a - second,
+        hint: addition
+            ? 'Zerlege den zweiten Summanden in Stellenwertblöcke und rechne vom größten Block zum kleinsten.'
+            : 'Zerlege den Subtrahenden in Stellenwertblöcke und ziehe vom größten Block zum kleinsten ab.',
+        key: 'mental:${addition ? '+' : '-'}:$a:$second',
+        maxAnswerValue: limit,
+        method: addition
+            ? 'Halbschriftlich addieren'
+            : 'Halbschriftlich subtrahieren',
+      );
+    }
+
     if (_random.nextDouble() < 0.20) {
       return _strategyChoice(grade, maxValue);
     }
-    final limit = _safeMax(maxValue, grade);
     final addition = _random.nextBool();
     final lowA = min(100, max(10, limit ~/ 4));
-    final highA = max(lowA, min(limit - 10, grade == GradeLevel.third ? 900 : 900000));
+    final highA = max(
+      lowA,
+      min(limit - 10, grade == GradeLevel.third ? 900 : 900000),
+    );
     final a = _between(lowA, highA);
-    final b = _between(1, min(max(1, limit - a), grade == GradeLevel.third ? 99 : 49999));
+    final b = _between(
+      1,
+      min(
+        max(1, limit - a),
+        grade == GradeLevel.third ? 99 : 49999,
+      ),
+    );
     if (addition) {
       final add = min(b, max(1, limit - a));
       return CurriculumExercise(
         mode: TrainingMode.mentalStrategies,
         prompt: _fmt(a) + ' + ' + _fmt(add) + ' = ?',
         answer: a + add,
-        hint: 'Zerlege den zweiten Summanden in Hunderter, Zehner und Einer.',
+        hint:
+            'Zerlege den zweiten Summanden in Hunderter, Zehner und Einer.',
         key: 'mental:+:$a:$add',
         maxAnswerValue: limit,
         method: 'Halbschriftlich addieren',
