@@ -468,29 +468,58 @@ void main() {
 
 
 
-  test('Teilen als Verteilen hat eine eigene Verständnisaufgabe', () {
+  test('Teilen trainiert Verteilen und Gruppieren mit eigenem Verständnis',
+      () {
     final generator = StructuredExerciseGenerator(random: Random(319));
+    final meanings = <String>{};
 
     for (final maxValue in [20, 100]) {
-      final exercise = generator.generate(
-        mode: TrainingMode.wordProblems,
-        maxValue: maxValue,
-        gradeLevel: GradeLevel.second,
-        targetCompetency: MicroCompetencyId.divisionSharing,
-      );
-      final tags = MicroCompetencyCatalog.tagsForTask(
-        mode: TrainingMode.wordProblems,
-        taskKey: exercise.key,
-      );
+      for (var i = 0; i < 80; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.wordProblems,
+          maxValue: maxValue,
+          gradeLevel: GradeLevel.second,
+          targetCompetency: MicroCompetencyId.divisionSharing,
+        );
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: TrainingMode.wordProblems,
+          taskKey: exercise.key,
+        );
+        final parts = exercise.key.split(':');
+        final meaning = parts[1];
+        meanings.add(meaning);
+        final total = int.parse(parts[3]);
+        final divisor = int.parse(parts[4]);
 
-      expect(exercise.key, startsWith('story:sharing:'));
-      expect(tags.first.id, MicroCompetencyId.divisionSharing);
-      expect(
-        tags.map((tag) => tag.id),
-        contains(MicroCompetencyId.divisionFacts),
-      );
-      expect(exercise.answer, inInclusiveRange(0, maxValue));
+        expect(
+          meaning == 'sharing' || meaning == 'grouping',
+          isTrue,
+          reason: exercise.key,
+        );
+        expect(tags.first.id, MicroCompetencyId.divisionSharing);
+        expect(
+          tags.map((tag) => tag.id),
+          contains(MicroCompetencyId.divisionFacts),
+        );
+        expect(exercise.answer, total ~/ divisor);
+        expect(exercise.answer, inInclusiveRange(0, maxValue));
+        expect(exercise.checkpoints, hasLength(1));
+        final checkpoint = exercise.checkpoints.single;
+        expect(checkpoint.key, 'divisionTargetQuantity');
+        expect(
+          checkpoint.competencyId,
+          MicroCompetencyId.divisionSharing,
+        );
+        expect(checkpoint.choices, hasLength(3));
+        expect(
+          checkpoint.correctChoice,
+          meaning == 'sharing' ? 1 : 0,
+          reason: exercise.key,
+        );
+      }
     }
+
+    expect(meanings, {'sharing', 'grouping'});
   });
 
 
