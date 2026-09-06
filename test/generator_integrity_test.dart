@@ -213,6 +213,47 @@ void main() {
     }
   });
 
+  test('Gezielte Bruchaufgaben trennen einen Teil vom Endanteil', () {
+    final generator = CurriculumExerciseGenerator(random: Random(99120));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 40; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.fractions,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.fractionEqualParts,
+        );
+        final parts = exercise.key.split(':');
+
+        expect(parts, hasLength(5));
+        expect(parts[0], 'fraction');
+        expect(parts[1], 'parts');
+
+        final numerator = int.parse(parts[2]);
+        final denominator = int.parse(parts[3]);
+        final whole = int.parse(parts[4]);
+        final partSize = whole ~/ denominator;
+
+        expect(denominator, 4);
+        expect(numerator, isIn([2, 3]));
+        expect(whole % denominator, 0);
+        expect(exercise.answer, numerator * partSize);
+        expect(exercise.answer, isNot(partSize));
+        expect(exercise.hint, contains('$denominator gleich große Teile'));
+
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: TrainingMode.fractions,
+          taskKey: exercise.key,
+        );
+        expect(
+          tags.map((tag) => tag.id),
+          contains(MicroCompetencyId.fractionEqualParts),
+        );
+      }
+    }
+  });
+
   test('Gezielte Zeitspannen enthalten immer einen echten Stundenübergang',
       () {
     final generator = CurriculumExerciseGenerator(random: Random(99121));
