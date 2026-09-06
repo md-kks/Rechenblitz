@@ -142,6 +142,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.divisionSharing: [
       'divisionTargetQuantity',
     ],
+    MicroCompetencyId.proportionalUnit: [
+      'unitValue',
+    ],
     MicroCompetencyId.writtenAlignment: [
       'onesAlignment',
     ],
@@ -203,6 +206,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.divisionSharing: [
       'divisionTargetQuantity',
+    ],
+    MicroCompetencyId.proportionalUnit: [
+      'unitValue',
     ],
     MicroCompetencyId.writtenAlignment: [
       'onesAlignment',
