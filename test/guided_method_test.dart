@@ -1729,6 +1729,72 @@ void main() {
     expect(find.text('Antwort eingeben'), findsOneWidget);
   });
 
+
+  test('Längen-Hilfe trennt Rechenplan vom Ausrechnen', () {
+    const cases = [
+      (
+        key: 'measure:add:ribbon:7:5',
+        expected: 12,
+        correct: 'Plus (+)',
+        calculation: '7 + 5',
+      ),
+      (
+        key: 'measure:subtract:rope:12:5',
+        expected: 7,
+        correct: 'Minus (−)',
+        calculation: '12 − 5',
+      ),
+    ];
+
+    for (final item in cases) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.measures,
+        taskKey: item.key,
+        expected: item.expected,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.measurementCalculation,
+      );
+
+      expect(guide.methodKey, 'measure:calculationPlan');
+      final evidenceStep =
+          guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+      expect(evidenceStep.evidenceKey, 'measureOperationChoice');
+      expect(
+        evidenceStep.evidenceCompetency,
+        MicroCompetencyId.measurementCalculation,
+      );
+      expect(evidenceStep.evidenceWeight, 0.40);
+      expect(evidenceStep.choices.toSet(), {'Plus (+)', 'Minus (−)'});
+      expect(
+        evidenceStep.choices[evidenceStep.correctChoice!],
+        item.correct,
+      );
+      expect(guide.steps.last.instruction, contains(item.calculation));
+      expect(
+        guide.steps.last.instruction,
+        isNot(contains('= ${item.expected}')),
+      );
+    }
+  });
+
+  test('Normale Additions- und Subtraktionslängen nutzen keine Einheitenleiter',
+      () {
+    for (final item in [
+      (key: 'measure:add:string:6:4', expected: 10),
+      (key: 'measure:subtract:rope:10:4', expected: 6),
+    ]) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.measures,
+        taskKey: item.key,
+        expected: item.expected,
+        preferences: const MethodPreferences(),
+      );
+
+      expect(guide.methodKey, 'measure:calculationPlan');
+      expect(guide.methodKey, isNot('measure:unitLadder'));
+    }
+  });
+
   test('Einheitenumrechnung beobachtet zuerst die feste Beziehung', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.advancedMeasures,

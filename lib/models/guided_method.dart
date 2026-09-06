@@ -112,6 +112,8 @@ class GuidedStepCatalog {
         'Rechenrichtung in der Zahlenmauer erkennen',
     'moneyOperationChoice':
         'passende Rechenart bei Geldaufgaben erkennen',
+    'measureOperationChoice':
+        'passende Rechenart bei Längenaufgaben erkennen',
     'unitValue': 'Wert für eine Einheit bestimmen',
     'minutesToNextHour':
         'Minuten bis zur nächsten vollen Stunde bestimmen',
@@ -287,6 +289,12 @@ class GuidedMethodFactory {
     if (targetCompetency == MicroCompetencyId.secondsConversion ||
         taskKey.startsWith('time:seconds:')) {
       return _minuteSecondConversion(taskKey);
+    }
+
+    if (targetCompetency == MicroCompetencyId.measurementCalculation ||
+        taskKey.startsWith('measure:add:') ||
+        taskKey.startsWith('measure:subtract:')) {
+      return _measurementCalculationGuide(taskKey);
     }
 
     if (mode == TrainingMode.advancedMeasures ||
@@ -2469,6 +2477,69 @@ class GuidedMethodFactory {
         GuidedMethodStep(
           title: 'Umrechnungsrichtung anwenden',
           instruction: calculationHint,
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _measurementCalculationGuide(
+    String taskKey,
+  ) {
+    final addition = taskKey.startsWith('measure:add:');
+    final subtraction = taskKey.startsWith('measure:subtract:');
+
+    if (!addition && !subtraction) {
+      return const GuidedMethodGuide(
+        methodKey: 'measure:calculationPlan',
+        methodLabel: 'Längenaufgabe zuerst als Rechenplan lesen',
+        nudge:
+            'Prüfe zuerst, ob gleichartige Längen zusammengefügt werden oder ob von einer ganzen Länge ein Stück weggenommen wird.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Situation erkennen',
+            instruction:
+                'Gleiche Einheiten darfst du direkt miteinander verrechnen. Entscheide zuerst, was mit den Längen passiert.',
+          ),
+        ],
+      );
+    }
+
+    final numbers = _numbers(taskKey);
+    final shift = numbers.fold<int>(0, (sum, value) => sum + value) % 2;
+    final rawChoices = <String>['Plus (+)', 'Minus (−)'];
+    final choices = <String>[
+      ...rawChoices.skip(shift),
+      ...rawChoices.take(shift),
+    ];
+    final correct = addition ? 'Plus (+)' : 'Minus (−)';
+    final calculation = numbers.length >= 2
+        ? addition
+            ? '${numbers[numbers.length - 2]} + ${numbers.last}'
+            : '${numbers[numbers.length - 2]} − ${numbers.last}'
+        : null;
+
+    return GuidedMethodGuide(
+      methodKey: 'measure:calculationPlan',
+      methodLabel: 'Längenaufgabe zuerst als Rechenplan lesen',
+      nudge:
+          'Überlege zuerst: Werden gleichartige Längen zusammengefügt, oder wird von einer ganzen Länge ein Stück weggenommen?',
+      steps: [
+        GuidedMethodStep(
+          title: 'Rechenart erkennen',
+          instruction:
+              'Entscheide vor dem Rechnen, welche Veränderung mit der Länge beschrieben wird.',
+          question: 'Welche Rechenart passt zu dieser Längensituation?',
+          choices: choices,
+          correctChoice: choices.indexOf(correct),
+          evidenceKey: 'measureOperationChoice',
+          evidenceCompetency: MicroCompetencyId.measurementCalculation,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Längen verrechnen',
+          instruction: calculation == null
+              ? 'Rechne jetzt mit den beiden Längen in derselben Einheit.'
+              : 'Rechne jetzt $calculation. Die Einheit cm bleibt erhalten.',
         ),
       ],
     );

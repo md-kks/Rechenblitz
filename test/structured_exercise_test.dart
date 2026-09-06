@@ -252,6 +252,74 @@ void main() {
     }
   });
 
+
+  test('Gezielte Längenaufgaben prüfen zuerst die passende Rechenart', () {
+    final generator = StructuredExerciseGenerator(random: Random(731));
+    final families = <String>{};
+
+    for (final maxValue in [10, 20, 100]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.measures,
+          maxValue: maxValue,
+          gradeLevel: GradeLevel.first,
+          targetCompetency: MicroCompetencyId.measurementCalculation,
+        );
+        final parts = exercise.key.split(':');
+        final family = parts[1];
+        final first = int.parse(parts[parts.length - 2]);
+        final second = int.parse(parts.last);
+        final checkpoint = exercise.checkpoints.single;
+
+        families.add(family);
+        expect(family, isIn(['add', 'subtract']));
+        expect(first, greaterThan(0));
+        expect(second, greaterThan(0));
+        expect(exercise.prompt, isNot(contains(' + ')));
+        expect(exercise.prompt, isNot(contains(' − ')));
+        expect(exercise.answerSuffix, 'cm');
+        expect(checkpoint.key, 'measureOperationChoice');
+        expect(
+          checkpoint.competencyId,
+          MicroCompetencyId.measurementCalculation,
+        );
+        expect(checkpoint.evidenceWeight, 0.40);
+        expect(checkpoint.choices.toSet(), {'Plus (+)', 'Minus (−)'});
+
+        if (family == 'add') {
+          expect(first + second, lessThanOrEqualTo(maxValue));
+          expect(exercise.answer, first + second);
+          expect(
+            checkpoint.choices[checkpoint.correctChoice],
+            'Plus (+)',
+          );
+        } else {
+          expect(first, greaterThan(second));
+          expect(exercise.answer, first - second);
+          expect(
+            checkpoint.choices[checkpoint.correctChoice],
+            'Minus (−)',
+          );
+        }
+      }
+    }
+
+    expect(families, {'add', 'subtract'});
+  });
+
+  test('Normales Maßtraining bleibt ohne Pflicht-Checkpoint', () {
+    final generator = StructuredExerciseGenerator(random: Random(732));
+
+    for (var i = 0; i < 120; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.measures,
+        maxValue: 100,
+        gradeLevel: GradeLevel.second,
+      );
+      expect(exercise.checkpoints, isEmpty, reason: exercise.key);
+    }
+  });
+
   test('Geometrie verwendet Grundformen und gültige Antworten', () {
     final generator = StructuredExerciseGenerator(random: Random(23));
     for (var i = 0; i < 80; i++) {
