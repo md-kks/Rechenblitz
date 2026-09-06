@@ -1525,4 +1525,71 @@ void main() {
   });
 
 
+  test('Umkehroperations-Recovery wechselt innerhalb derselben Operationsfamilie',
+      () {
+    const cases = [
+      (
+        source: 'independent:inverseOperationChoice:family:+:7:5',
+        supported: '−5',
+        transfer: '+5',
+        family: 'plus-minus',
+      ),
+      (
+        source: 'independent:inverseOperationChoice:family:x:6:4',
+        supported: '÷4',
+        transfer: '×4',
+        family: 'multiply-divide',
+      ),
+    ];
+
+    for (var i = 0; i < cases.length; i++) {
+      final item = cases[i];
+      final focus = IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.inverseRelationship,
+        stepKey: 'inverseOperationChoice',
+        label: GuidedStepCatalog.labelFor('inverseOperationChoice'),
+        mode: TrainingMode.factFamilies,
+        lastSeen: DateTime(2026, 9, 6, 16 + i),
+        sourceTaskKey: item.source,
+      );
+      final plan = StepRecoveryGenerator(random: Random(660 + i)).generate(
+        focus: focus,
+        range: NumberRangeLevel.hundred,
+      );
+
+      expect(plan.tasks, hasLength(3));
+      expect(
+        plan.tasks.map((task) => task.stage),
+        [
+          RemediationStage.supported,
+          RemediationStage.transfer,
+          RemediationStage.check,
+        ],
+      );
+      expect(
+        plan.tasks[0].choices![plan.tasks[0].answer],
+        item.supported,
+      );
+      expect(
+        plan.tasks[1].choices![plan.tasks[1].answer],
+        item.transfer,
+      );
+
+      for (final task in plan.tasks) {
+        expect(task.mode, TrainingMode.factFamilies);
+        expect(
+          task.taskKey,
+          startsWith(
+            'step-recovery:inverseOperationChoice:inverse-operation:${item.family}:',
+          ),
+        );
+        expect(task.usesChoices, isTrue);
+        expect(task.choices, hasLength(2));
+        expect(task.choices!.toSet(), hasLength(2));
+        expect(task.prompt, contains('wieder rückgängig'));
+      }
+    }
+  });
+
+
 }

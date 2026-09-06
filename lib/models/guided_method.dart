@@ -106,6 +106,8 @@ class GuidedStepCatalog {
         'gesuchte Größe beim Teilen erkennen',
     'matchingMultiplicationFact':
         'passende Mal-Umkehraufgabe erkennen',
+    'inverseOperationChoice':
+        'passende Umkehroperation erkennen',
     'unitValue': 'Wert für eine Einheit bestimmen',
     'minutesToNextHour':
         'Minuten bis zur nächsten vollen Stunde bestimmen',
@@ -233,6 +235,12 @@ class GuidedMethodFactory {
           numbers.last,
         );
       }
+    }
+
+    if (mode == TrainingMode.factFamilies ||
+        targetCompetency == MicroCompetencyId.inverseRelationship ||
+        taskKey.startsWith('family:')) {
+      return _inverseRelationshipGuide(taskKey);
     }
 
     if (mode == TrainingMode.wordProblems ||
@@ -1388,6 +1396,89 @@ class GuidedMethodFactory {
           ],
         );
     }
+  }
+
+  static GuidedMethodGuide _inverseRelationshipGuide(
+    String taskKey,
+  ) {
+    final parts = taskKey.split(':');
+    if (!taskKey.startsWith('family:') || parts.length < 4) {
+      return const GuidedMethodGuide(
+        methodKey: 'inverse:operationRelationship',
+        methodLabel: 'Umkehraufgabe nutzen',
+        nudge:
+            'Suche die Gegenrechenart, die den letzten Rechenschritt wieder rückgängig macht.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Gegenrechenart finden',
+            instruction:
+                'Plus und Minus sowie Mal und Teilen gehören jeweils als Umkehroperationen zusammen.',
+          ),
+          GuidedMethodStep(
+            title: 'Zurückrechnen',
+            instruction:
+                'Wende die passende Gegenrechenart auf das Ergebnis an.',
+          ),
+        ],
+      );
+    }
+
+    final operation = parts[1];
+    final a = int.tryParse(parts[2]);
+    final b = int.tryParse(parts[3]);
+    if (a == null || b == null || (operation != '+' && operation != 'x')) {
+      return const GuidedMethodGuide(
+        methodKey: 'inverse:operationRelationship',
+        methodLabel: 'Umkehraufgabe nutzen',
+        nudge:
+            'Suche die Gegenrechenart, die den letzten Rechenschritt wieder rückgängig macht.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Gegenrechenart finden',
+            instruction:
+                'Überlege, welche Rechenart den vorherigen Schritt rückgängig macht.',
+          ),
+        ],
+      );
+    }
+
+    final additive = operation == '+';
+    final sourceOperation = additive ? '+$b' : '×$b';
+    final inverseOperation = additive ? '−$b' : '÷$b';
+    final rawChoices =
+        additive ? <String>['+$b', '−$b'] : <String>['×$b', '÷$b'];
+    final shift = (a + b) % rawChoices.length;
+    final choices = <String>[
+      ...rawChoices.skip(shift),
+      ...rawChoices.take(shift),
+    ];
+    final result = additive ? a + b : a * b;
+
+    return GuidedMethodGuide(
+      methodKey: 'inverse:operationRelationship',
+      methodLabel: 'Umkehraufgabe nutzen',
+      nudge:
+          'Gehe vom Ergebnis zurück. Suche dafür die Gegenrechenart zum letzten Rechenschritt.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Umkehroperation erkennen',
+          instruction:
+              'Entscheide zuerst, welche Operation $sourceOperation wieder rückgängig macht.',
+          question:
+              'Welche Rechenoperation macht $sourceOperation wieder rückgängig?',
+          choices: choices,
+          correctChoice: choices.indexOf(inverseOperation),
+          evidenceKey: 'inverseOperationChoice',
+          evidenceCompetency: MicroCompetencyId.inverseRelationship,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Zurückrechnen',
+          instruction:
+              'Wende $inverseOperation auf $result an. So kommst du wieder zur Ausgangszahl zurück.',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _divisionFact(MathFact fact) {

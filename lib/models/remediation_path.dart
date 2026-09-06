@@ -217,6 +217,7 @@ class StepRecoveryGenerator {
     'storyInterpretation',
     'divisionTargetQuantity',
     'matchingMultiplicationFact',
+    'inverseOperationChoice',
     'unitValue',
     'minutesToNextHour',
     'equalPartSize',
@@ -330,6 +331,8 @@ class StepRecoveryGenerator {
           _divisionTargetQuantityStep(focus, stage, range),
         'matchingMultiplicationFact' =>
           _matchingMultiplicationFactStep(focus, stage, range),
+        'inverseOperationChoice' =>
+          _inverseOperationChoiceStep(focus, stage, range),
         'unitValue' => _proportionalUnitValueStep(focus, stage, range),
         'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
         'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
@@ -740,6 +743,88 @@ class StepRecoveryGenerator {
           ? 'Rechne $chunk − ($quotientDigit × $divisor).'
           : 'Suche die größte Malaufgabe mit $divisor, die $chunk nicht überschreitet.',
     );
+  }
+
+  RemediationTask _inverseOperationChoiceStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final source = _inverseRelationshipSource(focus.sourceTaskKey);
+    final multiplicative = source?.operation == 'x';
+    final sourceAmount = source?.amount ??
+        _between(1, max(1, min(10, range.maxValue ~/ 2)));
+    final amount = stage == RemediationStage.check
+        ? _differentValue(
+            sourceAmount,
+            1,
+            max(1, min(10, range.maxValue ~/ 2)),
+          )
+        : sourceAmount;
+
+    final sourceDirection = multiplicative ? 'x' : '+';
+    final reverseDirection = multiplicative ? 'divide' : '-';
+    final direction = switch (stage) {
+      RemediationStage.supported => sourceDirection,
+      RemediationStage.transfer => reverseDirection,
+      RemediationStage.check =>
+        _random.nextBool() ? sourceDirection : reverseDirection,
+      _ => sourceDirection,
+    };
+
+    final shown = switch (direction) {
+      '+' => '+$amount',
+      '-' => '−$amount',
+      'x' => '×$amount',
+      _ => '÷$amount',
+    };
+    final correct = switch (direction) {
+      '+' => '−$amount',
+      '-' => '+$amount',
+      'x' => '÷$amount',
+      _ => '×$amount',
+    };
+    final choices = multiplicative
+        ? <String>['×$amount', '÷$amount']
+        : <String>['+$amount', '−$amount'];
+    choices.shuffle(_random);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key:
+          'inverse-operation:${multiplicative ? 'multiply-divide' : 'plus-minus'}:$direction:$amount',
+      prompt:
+          'Welche Rechenoperation macht $shown wieder rückgängig?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint: multiplicative
+          ? 'Mal und Teilen sind Gegenrechenarten.'
+          : 'Plus und Minus sind Gegenrechenarten.',
+    );
+  }
+
+  ({String operation, int amount})? _inverseRelationshipSource(
+    String sourceTaskKey,
+  ) {
+    final parts = sourceTaskKey.split(':');
+    final index = parts.indexOf('family');
+    if (index < 0 || index + 3 >= parts.length) return null;
+    final operation = parts[index + 1];
+    if (operation != '+' && operation != 'x') return null;
+    final amount = int.tryParse(parts[index + 3]);
+    if (amount == null || amount <= 0) return null;
+    return (operation: operation, amount: amount);
+  }
+
+  int _differentValue(int source, int low, int high) {
+    if (high <= low) return low;
+    final candidates = [
+      for (var value = low; value <= high; value++)
+        if (value != source) value,
+    ];
+    if (candidates.isEmpty) return source;
+    return candidates[_random.nextInt(candidates.length)];
   }
 
   RemediationTask _matchingMultiplicationFactStep(

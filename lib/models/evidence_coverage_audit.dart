@@ -157,6 +157,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.divisionFacts: [
       'matchingMultiplicationFact',
     ],
+    MicroCompetencyId.inverseRelationship: [
+      'inverseOperationChoice',
+    ],
     MicroCompetencyId.proportionalUnit: [
       'unitValue',
     ],
@@ -248,6 +251,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.divisionFacts: [
       'matchingMultiplicationFact',
+    ],
+    MicroCompetencyId.inverseRelationship: [
+      'inverseOperationChoice',
     ],
     MicroCompetencyId.proportionalUnit: [
       'unitValue',
