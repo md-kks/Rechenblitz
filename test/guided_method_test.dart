@@ -511,7 +511,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('3 Gemeinsam lösen'));
+    await tester.tap(find.text('2 Gemeinsam lösen'));
     await tester.pump();
 
     await tester.tap(find.widgetWithText(ChoiceChip, '3'));
@@ -579,9 +579,9 @@ void main() {
         home: Scaffold(
           body: GuidedMethodPanel(
             guide: guide,
-            pattern: ErrorPattern.numberBond,
-            taskKey: 'test:fading',
-            expected: 10,
+            pattern: ErrorPattern.tenBridge,
+            taskKey: 'plus:7:5',
+            expected: 12,
             initialLevel: HelpLevel.visual,
             onHelpLevelChanged: levels.add,
           ),
