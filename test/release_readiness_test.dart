@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 24,
+        fullTaskOnly: 23,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 40,
+        targetedRecovery: 41,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 26,
+        fullTaskOnly: 25,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 40,
+        targetedRecovery: 41,
       ),
     };
 
@@ -290,6 +290,17 @@ void main() {
     expect(item.guidedStepKeys, contains('numberWordTensOnes'));
     expect(item.independentStepKeys, contains('numberWordTensOnes'));
     expect(item.recoveryStepKeys, contains('numberWordTensOnes'));
+  });
+
+  test('Audit führt Rechenbegründungen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.reasoningJustification,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('reasoningRelationType'));
+    expect(item.independentStepKeys, contains('reasoningRelationType'));
+    expect(item.recoveryStepKeys, contains('reasoningRelationType'));
   });
 
   test('Audit führt Rechengesetze bis zur gezielten Recovery', () {

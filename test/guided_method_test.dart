@@ -251,6 +251,58 @@ void main() {
 
 
 
+
+  test('Rechenbegründungen beobachten zuerst die Art der Beziehung', () {
+    const cases = [
+      (
+        key: 'process:reasoning:compensate:27:35:2',
+        correct: 'ein Summand kleiner, der andere gleich viel größer',
+      ),
+      (
+        key: 'process:reasoning:commute:6:8',
+        correct: 'gleiche Faktoren, nur vertauscht',
+      ),
+      (
+        key: 'process:reasoning:distribute:7:38:40:2',
+        correct: 'ein Faktor wird auf zwei Teile angewendet',
+      ),
+    ];
+
+    for (final item in cases) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.arithmeticLaws,
+        taskKey: item.key,
+        expected: 0,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.reasoningJustification,
+      );
+      final evidence =
+          guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+      expect(guide.methodKey, 'reasoning:relation');
+      expect(evidence.evidenceKey, 'reasoningRelationType');
+      expect(
+        evidence.evidenceCompetency,
+        MicroCompetencyId.reasoningJustification,
+      );
+      expect(evidence.evidenceWeight, 0.40);
+      expect(evidence.choices[evidence.correctChoice!], item.correct);
+
+      final independent =
+          GuidedMethodFactory.independentWrittenStepsForTask(
+        mode: TrainingMode.arithmeticLaws,
+        taskKey: item.key,
+        expected: 0,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.reasoningJustification,
+      );
+      expect(
+        independent.map((step) => step.evidenceKey),
+        ['reasoningRelationType'],
+      );
+    }
+  });
+
   test('Rechengesetze beobachten zuerst die verwendete Rechenidee', () {
     const cases = [
       (
