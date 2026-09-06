@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 31,
+        fullTaskOnly: 30,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 33,
+        targetedRecovery: 34,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 33,
+        fullTaskOnly: 32,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 33,
+        targetedRecovery: 34,
       ),
     };
 
@@ -246,6 +246,17 @@ void main() {
     expect(item.guidedStepKeys, contains('unitRelation'));
     expect(item.independentStepKeys, contains('unitRelation'));
     expect(item.recoveryStepKeys, contains('unitRelation'));
+  });
+
+  test('Audit führt das Ordnen großer Zahlen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.largeNumberOrder,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('smallestOrderedNumber'));
+    expect(item.independentStepKeys, contains('smallestOrderedNumber'));
+    expect(item.recoveryStepKeys, contains('smallestOrderedNumber'));
   });
 
   test('Audit führt Strategiewahl bis zur gezielten Recovery', () {

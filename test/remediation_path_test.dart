@@ -1252,6 +1252,54 @@ void main() {
 
 
 
+
+  test('Zahlenordnungs-Recovery festigt zuerst die kleinste Zahl', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.largeNumberOrder,
+      stepKey: 'smallestOrderedNumber',
+      label: GuidedStepCatalog.labelFor('smallestOrderedNumber'),
+      mode: TrainingMode.largeNumbers,
+      lastSeen: DateTime(2026, 9, 6, 20, 30),
+      sourceTaskKey:
+          'independent:smallestOrderedNumber:large:order:418-481-814',
+    );
+    final plan = StepRecoveryGenerator(random: Random(831)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int decidingPlace(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('large-smallest');
+      return int.parse(parts[index + 1]);
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(decidingPlace(plan.tasks[0]), 10);
+    expect(decidingPlace(plan.tasks[1]), isNot(10));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.largeNumbers);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:smallestOrderedNumber:large-smallest:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices, hasLength(3));
+      final values = task.choices!
+          .map((choice) => int.parse(choice.replaceAll('.', '')))
+          .toList();
+      expect(values[task.answer], values.reduce(min));
+      expect(task.prompt, contains('kleinste'));
+    }
+  });
+
   test('Strategie-Recovery festigt die Ergänzung bis zur glatten Zielzahl',
       () {
     final focus = IndependentStepRecoveryFocus(

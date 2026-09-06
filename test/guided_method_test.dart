@@ -101,6 +101,42 @@ void main() {
 
 
 
+
+  test('Große Zahlen ordnen beobachtet zuerst die kleinste Zahl', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:order:418-481-814',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.largeNumberOrder,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'largeNumbers:order');
+    expect(evidence.evidenceKey, 'smallestOrderedNumber');
+    expect(
+      evidence.evidenceCompetency,
+      MicroCompetencyId.largeNumberOrder,
+    );
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices.toSet(), {'418', '481', '814'});
+    expect(evidence.choices[evidence.correctChoice!], '418');
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:order:418-481-814',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.largeNumberOrder,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['smallestOrderedNumber'],
+    );
+  });
+
   test('Strategiewahl beobachtet zuerst die Ergänzung zur glatten Zielzahl',
       () {
     final guide = GuidedMethodFactory.forTask(
