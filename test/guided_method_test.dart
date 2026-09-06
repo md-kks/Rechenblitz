@@ -12,6 +12,7 @@ import 'package:rechenblitz/screens/curriculum_training_screen.dart';
 import 'package:rechenblitz/screens/structured_training_screen.dart';
 import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/widgets/guided_method_panel.dart';
+import 'package:rechenblitz/widgets/learning_visual_aid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -44,6 +45,194 @@ void main() {
     expect(guide.steps.where((step) => step.isInteractive), isNotEmpty);
   });
 
+  test('Minus von vollem Zehner vermeidet künstlichen Null-Schritt', () {
+    const preferences = MethodPreferences(
+      subtraction: SubtractionStrategy.bridgeToTen,
+      selectionPreference: MethodSelectionPreference.schoolMethod,
+    );
+    final fact = MathFact(
+      a: 10,
+      b: 4,
+      operation: MathOperation.minus,
+    );
+
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.minus,
+      taskKey: fact.key,
+      expected: 6,
+      preferences: preferences,
+      fact: fact,
+    );
+
+    expect(guide.methodKey, 'subtraction:bridgeToTen');
+    expect(guide.nudge, contains('schon ein voller Zehner'));
+    expect(guide.nudge, isNot(contains('unter 10')));
+    expect(guide.steps.first.title, 'Voller Zehner ist schon da');
+    expect(
+      guide.steps.where((step) => step.evidenceKey == 'bridgeAmount'),
+      isEmpty,
+    );
+  });
+
+  test('Minus ohne Übergang bekommt eine passende eigene Hilfe', () {
+    const preferences = MethodPreferences(
+      subtraction: SubtractionStrategy.bridgeToTen,
+      selectionPreference: MethodSelectionPreference.schoolMethod,
+    );
+    final fact = MathFact(
+      a: 47,
+      b: 3,
+      operation: MathOperation.minus,
+    );
+
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.minus,
+      taskKey: fact.key,
+      expected: 44,
+      preferences: preferences,
+      fact: fact,
+    );
+
+    expect(guide.methodKey, 'subtraction:direct');
+    expect(guide.methodLabel, 'Direkt abziehen');
+    expect(guide.nudge, contains('keinen Zehner überschreiten'));
+    expect(guide.steps.last.instruction, '47 − 3 = 44.');
+  });
+
+  test('Große Zahlen vergleichen erhält aufgabenspezifische Hilfe', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:compare:722789:523383',
+      expected: 1,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.largeNumberCompare,
+    );
+
+    expect(guide.methodKey, 'largeNumbers:compare');
+    expect(guide.methodLabel, 'Zahlen vergleichen');
+    expect(guide.nudge, contains('von links nach rechts'));
+    expect(guide.steps.first.instruction, contains('Hunderttausenderstelle'));
+    expect(guide.steps.first.instruction, contains('7'));
+    expect(guide.steps.first.instruction, contains('5'));
+  });
+
+  testWidgets('Minus-Rechenweg läuft sichtbar von 87 über 80 zu 19',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.tenBridge,
+            taskKey: 'minus:87:68',
+            expected: 19,
+            methodKey: 'subtraction:bridgeToTen',
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Rechenweg'), findsOneWidget);
+    expect(find.text('Zahlenstrahl'), findsNothing);
+    expect(find.text('−7'), findsOneWidget);
+    expect(find.text('−61'), findsOneWidget);
+
+    final startX = tester.getCenter(find.text('87')).dx;
+    final bridgeX = tester.getCenter(find.text('80')).dx;
+    final endX = tester.getCenter(find.text('19')).dx;
+    expect(startX, lessThan(bridgeX));
+    expect(bridgeX, lessThan(endX));
+  });
+
+  testWidgets('Minus von 10 zeigt direkten visuellen Schritt zu 6',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.tenBridge,
+            taskKey: 'minus:10:4',
+            expected: 6,
+            methodKey: 'subtraction:bridgeToTen',
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('10'), findsOneWidget);
+    expect(find.text('6'), findsOneWidget);
+    expect(find.text('−4'), findsOneWidget);
+    expect(find.text('0'), findsNothing);
+    expect(find.textContaining('schon ein voller Zehner'), findsOneWidget);
+  });
+
+  testWidgets('Minus ohne Übergang hat echte Darstellung trotz numberBond',
+      (tester) async {
+    const guide = GuidedMethodGuide(
+      methodKey: 'subtraction:direct',
+      methodLabel: 'Direkt abziehen',
+      nudge: 'Ziehe direkt ab.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Direkt rechnen',
+          instruction: '47 − 3 = 44.',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuidedMethodPanel(
+            guide: guide,
+            pattern: ErrorPattern.numberBond,
+            taskKey: 'minus:47:3',
+            expected: 44,
+            onHelpLevelChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('2 Darstellung'), findsOneWidget);
+    await tester.tap(find.text('2 Darstellung'));
+    await tester.pump();
+    expect(find.text('Rechenweg'), findsOneWidget);
+    expect(find.text('47'), findsOneWidget);
+    expect(find.text('44'), findsOneWidget);
+  });
+
+  testWidgets('Panel verspricht keine Darstellung wenn keine existiert',
+      (tester) async {
+    const guide = GuidedMethodGuide(
+      methodKey: 'general:test',
+      methodLabel: 'Test',
+      nudge: 'Ein Hinweis.',
+      steps: [
+        GuidedMethodStep(title: 'Schritt', instruction: 'Weiter.'),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuidedMethodPanel(
+            guide: guide,
+            pattern: ErrorPattern.unknown,
+            taskKey: 'unknown:task',
+            expected: 0,
+            onHelpLevelChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('2 Darstellung'), findsNothing);
+    expect(find.text('2 Gemeinsam lösen'), findsOneWidget);
+  });
   test('Automatisch vergleicht Methoden ohne gespeicherte Schulmethode zu ändern',
       () {
     const preferences = MethodPreferences(
@@ -322,7 +511,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('3 Gemeinsam lösen'));
+    await tester.tap(find.text('2 Gemeinsam lösen'));
     await tester.pump();
 
     await tester.tap(find.widgetWithText(ChoiceChip, '3'));
@@ -390,9 +579,9 @@ void main() {
         home: Scaffold(
           body: GuidedMethodPanel(
             guide: guide,
-            pattern: ErrorPattern.numberBond,
-            taskKey: 'test:fading',
-            expected: 10,
+            pattern: ErrorPattern.tenBridge,
+            taskKey: 'plus:7:5',
+            expected: 12,
             initialLevel: HelpLevel.visual,
             onHelpLevelChanged: levels.add,
           ),

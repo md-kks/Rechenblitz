@@ -167,10 +167,11 @@ class GuidedMethodFactory {
       return _additionBridge(fact);
     }
 
-    if (fact != null &&
-        fact.operation == MathOperation.minus &&
-        _needsSubtractionBridge(fact)) {
-      return _subtractionBridge(fact, preferences);
+    if (fact != null && fact.operation == MathOperation.minus) {
+      if (_needsSubtractionBridge(fact)) {
+        return _subtractionBridge(fact, preferences);
+      }
+      return _subtractionWithoutBridge(fact, preferences);
     }
 
     if (fact != null && fact.operation == MathOperation.multiply) {
@@ -223,6 +224,10 @@ class GuidedMethodFactory {
         targetCompetency == MicroCompetencyId.wordProblemOperation ||
         taskKey.startsWith('story:')) {
       return _wordProblem(taskKey);
+    }
+
+    if (mode == TrainingMode.largeNumbers) {
+      return _largeNumbers(taskKey);
     }
 
     if (mode == TrainingMode.advancedMeasures ||
@@ -607,6 +612,10 @@ class GuidedMethodFactory {
     final rest = b - toTen;
 
     final strategy = preferences.effectiveSubtraction(taskKey: fact.key);
+    if (strategy == SubtractionStrategy.bridgeToTen && toTen == 0) {
+      return _subtractionFromFullTen(fact);
+    }
+
     switch (strategy) {
       case SubtractionStrategy.bridgeToTen:
         final choices1 = _numberChoices(toTen, maxValue: max(10, b));
@@ -615,11 +624,13 @@ class GuidedMethodFactory {
         return GuidedMethodGuide(
           methodKey: 'subtraction:${strategy.name}',
           methodLabel: strategy.label,
-          nudge: 'Wo liegt der nächste volle Zehner unter $a?',
+          nudge:
+              'Gehe von $a zuerst bis zum vorherigen vollen Zehner $bridge.',
           steps: [
             GuidedMethodStep(
               title: 'Bis zum Zehner',
-              instruction: 'Suche zuerst den vollen Zehner unter $a.',
+              instruction:
+                  'Von $a gehst du zuerst bis $bridge. So wird der Zehner zum Zwischenstopp.',
               question: 'Wie viel musst du zuerst wegnehmen?',
               choices: choices1,
               correctChoice: choices1.indexOf('$toTen'),
@@ -718,6 +729,117 @@ class GuidedMethodFactory {
     }
   }
 
+  static GuidedMethodGuide _subtractionFromFullTen(MathFact fact) {
+    final a = fact.a;
+    final b = fact.b;
+    final result = a - b;
+    final resultChoices = _numberChoices(result, maxValue: max(20, a));
+
+    return GuidedMethodGuide(
+      methodKey: 'subtraction:bridgeToTen',
+      methodLabel: 'Erst zum Zehner',
+      nudge:
+          '$a ist schon ein voller Zehner. Du kannst $b direkt von $a wegnehmen.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Voller Zehner ist schon da',
+          instruction:
+              'Du startest bereits bei $a. Ein zusätzlicher Null-Schritt bis zum Zehner ist nicht nötig.',
+        ),
+        GuidedMethodStep(
+          title: 'Direkt abziehen',
+          instruction: '$a − $b = $result.',
+          question: 'Wie lautet das Ergebnis?',
+          choices: resultChoices,
+          correctChoice: resultChoices.indexOf('$result'),
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _subtractionWithoutBridge(
+    MathFact fact,
+    MethodPreferences preferences,
+  ) {
+    final a = fact.a;
+    final b = fact.b;
+    final result = a - b;
+    final strategy = preferences.effectiveSubtraction(taskKey: fact.key);
+
+    if (strategy == SubtractionStrategy.takeAway && b > 1) {
+      final first = max(1, b ~/ 2);
+      final second = b - first;
+      final middle = a - first;
+      final middleChoices = _numberChoices(middle, maxValue: max(20, a));
+      final resultChoices = _numberChoices(result, maxValue: max(20, a));
+      return GuidedMethodGuide(
+        methodKey: 'subtraction:${strategy.name}',
+        methodLabel: strategy.label,
+        nudge: 'Zerlege $b in zwei kleine, gut rechenbare Teile.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Ersten Teil wegnehmen',
+            instruction: '$a − $first = $middle.',
+            question: 'Wo landest du zuerst?',
+            choices: middleChoices,
+            correctChoice: middleChoices.indexOf('$middle'),
+          ),
+          GuidedMethodStep(
+            title: 'Rest wegnehmen',
+            instruction: '$middle − $second = $result.',
+            question: 'Wie lautet das Ergebnis?',
+            choices: resultChoices,
+            correctChoice: resultChoices.indexOf('$result'),
+          ),
+        ],
+      );
+    }
+
+    if (strategy == SubtractionStrategy.complement) {
+      final resultChoices = _numberChoices(result, maxValue: max(20, a));
+      return GuidedMethodGuide(
+        methodKey: 'subtraction:${strategy.name}',
+        methodLabel: strategy.label,
+        nudge:
+            'Starte bei $b und ergänze bis $a. Die gesamte Ergänzung ist der Unterschied.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Von der kleineren Zahl starten',
+            instruction: 'Beginne bei $b und ergänze schrittweise bis $a.',
+          ),
+          GuidedMethodStep(
+            title: 'Unterschied bestimmen',
+            instruction: 'Die Ergänzung von $b bis $a ist $result.',
+            question: 'Wie groß ist der Unterschied?',
+            choices: resultChoices,
+            correctChoice: resultChoices.indexOf('$result'),
+          ),
+        ],
+      );
+    }
+
+    final resultChoices = _numberChoices(result, maxValue: max(20, a));
+    return GuidedMethodGuide(
+      methodKey: 'subtraction:direct',
+      methodLabel: 'Direkt abziehen',
+      nudge:
+          'Du musst keinen Zehner überschreiten. Ziehe $b direkt von $a ab.',
+      steps: [
+        const GuidedMethodStep(
+          title: 'Einer prüfen',
+          instruction:
+              'Die Einer reichen aus. Du brauchst keinen Zehner als Zwischenstopp.',
+        ),
+        GuidedMethodStep(
+          title: 'Direkt rechnen',
+          instruction: '$a − $b = $result.',
+          question: 'Wie lautet das Ergebnis?',
+          choices: resultChoices,
+          correctChoice: resultChoices.indexOf('$result'),
+        ),
+      ],
+    );
+  }
   static GuidedMethodGuide _multiplication(
     MathFact fact,
     MethodPreferences preferences,
@@ -1393,6 +1515,187 @@ class GuidedMethodFactory {
     return null;
   }
 
+  static GuidedMethodGuide _largeNumbers(String taskKey) {
+    final parts = taskKey.split(':');
+
+    if (taskKey.startsWith('large:compare:') && parts.length >= 4) {
+      final a = int.tryParse(parts[2]);
+      final b = int.tryParse(parts[3]);
+      if (a != null && b != null) {
+        final place = _firstDifferentPlace(a, b);
+        final aDigit = (a ~/ place) % 10;
+        final bDigit = (b ~/ place) % 10;
+        return GuidedMethodGuide(
+          methodKey: 'largeNumbers:compare',
+          methodLabel: 'Zahlen vergleichen',
+          nudge:
+              'Vergleiche von links nach rechts. Suche die erste Stelle, an der sich die Zahlen unterscheiden.',
+          steps: [
+            GuidedMethodStep(
+              title: 'Erste unterschiedliche Stelle',
+              instruction:
+                  'Hier entscheidet die ${_largePlaceLabel(place)}: $aDigit steht dort $bDigit gegenüber.',
+            ),
+            GuidedMethodStep(
+              title: 'Zeichen wählen',
+              instruction: aDigit > bDigit
+                  ? '$aDigit ist größer als $bDigit. Deshalb ist die erste Zahl größer.'
+                  : '$aDigit ist kleiner als $bDigit. Deshalb ist die erste Zahl kleiner.',
+            ),
+          ],
+        );
+      }
+    }
+
+    if (taskKey.startsWith('large:place:') && parts.length >= 4) {
+      final number = int.tryParse(parts[2]);
+      final place = int.tryParse(parts[3]);
+      if (number != null && place != null) {
+        final digit = (number ~/ place) % 10;
+        return GuidedMethodGuide(
+          methodKey: 'largeNumbers:placeValue',
+          methodLabel: 'Stellenwert lesen',
+          nudge:
+              'Suche zuerst die ${_largePlaceLabel(place)} und lies dann nur die Ziffer an dieser Stelle ab.',
+          steps: [
+            GuidedMethodStep(
+              title: 'Stelle finden',
+              instruction:
+                  'Gehe in der Stellenwerttafel zur ${_largePlaceLabel(place)}.',
+            ),
+            GuidedMethodStep(
+              title: 'Ziffer ablesen',
+              instruction: 'Bei $number steht dort die Ziffer $digit.',
+            ),
+          ],
+        );
+      }
+    }
+
+    if (taskKey.startsWith('large:decompose:')) {
+      return const GuidedMethodGuide(
+        methodKey: 'largeNumbers:decompose',
+        methodLabel: 'Stellenwerte zusammensetzen',
+        nudge:
+            'Ordne jede Ziffer ihrer Stelle zu und setze die Zahl von links nach rechts zusammen.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Stellen zuordnen',
+            instruction:
+                'M, HT, ZT, T, H, Z und E haben feste Plätze. Fehlende Stellen werden mit 0 besetzt.',
+          ),
+          GuidedMethodStep(
+            title: 'Zahl lesen',
+            instruction:
+                'Lies die vollständig zusammengesetzte Zahl anschließend von links nach rechts.',
+          ),
+        ],
+      );
+    }
+
+    if (taskKey.startsWith('large:order:')) {
+      return const GuidedMethodGuide(
+        methodKey: 'largeNumbers:order',
+        methodLabel: 'Große Zahlen ordnen',
+        nudge:
+            'Vergleiche die Zahlen von links nach rechts und entscheide an der ersten unterschiedlichen Stelle.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Paarweise vergleichen',
+            instruction:
+                'Beginne mit der höchsten Stelle. Erst wenn sie gleich ist, gehst du eine Stelle nach rechts.',
+          ),
+          GuidedMethodStep(
+            title: 'Reihenfolge bilden',
+            instruction:
+                'Setze danach die kleinste Zahl zuerst und ordne die übrigen entsprechend ein.',
+          ),
+        ],
+      );
+    }
+
+    if (taskKey.startsWith('large:neighbor:')) {
+      return const GuidedMethodGuide(
+        methodKey: 'largeNumbers:neighbor',
+        methodLabel: 'Nachbarzahl finden',
+        nudge: 'Nachfolger bedeutet genau 1 weiter, Vorgänger genau 1 zurück.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Richtung klären',
+            instruction:
+                'Entscheide zuerst, ob du einen Schritt vorwärts oder rückwärts gehst.',
+          ),
+          GuidedMethodStep(
+            title: 'Genau einen Schritt gehen',
+            instruction: 'Verändere die Zahl anschließend nur um 1.',
+          ),
+        ],
+      );
+    }
+
+    if (taskKey.startsWith('large:word:')) {
+      return const GuidedMethodGuide(
+        methodKey: 'largeNumbers:numberWord',
+        methodLabel: 'Zahlwort lesen',
+        nudge:
+            'Zerlege die Zahl gedanklich in Tausender, Hunderter, Zehner und Einer.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Stellenwertgruppen erkennen',
+            instruction:
+                'Lies zuerst Millionen- und Tausendergruppen, danach Hunderter, Zehner und Einer.',
+          ),
+          GuidedMethodStep(
+            title: 'Zusammensetzen',
+            instruction:
+                'Verbinde die Stellenwertgruppen erst am Ende zur vollständigen Zahl.',
+          ),
+        ],
+      );
+    }
+
+    return const GuidedMethodGuide(
+      methodKey: 'largeNumbers:placeValue',
+      methodLabel: 'Große Zahlen',
+      nudge:
+          'Lies große Zahlen von links nach rechts und orientiere dich an den Stellenwerten.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Stellenwerte ansehen',
+          instruction:
+              'Beginne links bei der größten Stelle und arbeite dich nach rechts vor.',
+        ),
+        GuidedMethodStep(
+          title: 'Aufgabe beantworten',
+          instruction:
+              'Nutze nur die Stellenwerte, die für die konkrete Frage gebraucht werden.',
+        ),
+      ],
+    );
+  }
+
+  static int _firstDifferentPlace(int a, int b) {
+    var place = 1;
+    var largest = max(a, b);
+    while (largest >= 10) {
+      place *= 10;
+      largest ~/= 10;
+    }
+    while (place > 1 && (a ~/ place) % 10 == (b ~/ place) % 10) {
+      place ~/= 10;
+    }
+    return place;
+  }
+
+  static String _largePlaceLabel(int place) => switch (place) {
+        1000000 => 'Millionenstelle',
+        100000 => 'Hunderttausenderstelle',
+        10000 => 'Zehntausenderstelle',
+        1000 => 'Tausenderstelle',
+        100 => 'Hunderterstelle',
+        10 => 'Zehnerstelle',
+        _ => 'Einerstelle',
+      };
   static GuidedMethodGuide _unitConversion(String key) =>
       const GuidedMethodGuide(
         methodKey: 'measure:unitLadder',
