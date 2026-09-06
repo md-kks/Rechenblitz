@@ -102,6 +102,8 @@ class GuidedStepCatalog {
     'storyEquation': 'Sachaufgabe als passende Rechnung darstellen',
     'storyCalculation': 'modellierte Sachaufgabe korrekt ausrechnen',
     'storyInterpretation': 'Ergebnis passend zur Sachfrage deuten',
+    'divisionTargetQuantity':
+        'gesuchte Größe beim Teilen erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -1140,7 +1142,9 @@ class GuidedMethodFactory {
             ? 'Minus'
             : key.startsWith('story:x:')
                 ? 'Mal'
-                : key.startsWith('story:divide:')
+                : key.startsWith('story:divide:') ||
+                        key.startsWith('story:sharing:') ||
+                        key.startsWith('story:grouping:')
                     ? 'Geteilt'
                     : 'die passende Rechenart';
     final evidenceStep = _wordProblemEvidenceStep(key);
@@ -1173,6 +1177,28 @@ class GuidedMethodFactory {
   static GuidedMethodStep? _wordProblemEvidenceStep(String key) {
     final parts = key.split(':');
     if (parts.length < 3 || parts.first != 'story') return null;
+
+    if ((parts[1] == 'sharing' || parts[1] == 'grouping') &&
+        parts.length >= 5) {
+      final sharing = parts[1] == 'sharing';
+      const choices = [
+        'Anzahl der Gruppen',
+        'Menge in jeder Gruppe',
+        'Gesamtmenge',
+      ];
+      return GuidedMethodStep(
+        title: sharing ? 'Verteilen verstehen' : 'Gruppieren verstehen',
+        instruction: sharing
+            ? 'Die Anzahl der Gruppen ist schon bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
+            : 'Die Größe jeder Gruppe ist schon bekannt. Gesucht ist, wie viele Gruppen entstehen.',
+        question: 'Welche Größe musst du herausfinden?',
+        choices: choices,
+        correctChoice: sharing ? 1 : 0,
+        evidenceKey: 'divisionTargetQuantity',
+        evidenceCompetency: MicroCompetencyId.divisionSharing,
+        evidenceWeight: 0.40,
+      );
+    }
 
     if (parts[1] == 'info' && parts.length >= 6) {
       final kind = parts[2];
