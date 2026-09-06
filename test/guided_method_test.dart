@@ -99,21 +99,107 @@ void main() {
     expect(guide.steps.last.instruction, '47 − 3 = 44.');
   });
 
-  test('Große Zahlen vergleichen erhält aufgabenspezifische Hilfe', () {
+  test('Große Zahlen beobachten die erste unterschiedliche Stelle', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.largeNumbers,
-      taskKey: 'large:compare:722789:523383',
-      expected: 1,
+      taskKey: 'large:compare:722789:723383',
+      expected: 0,
       preferences: const MethodPreferences(),
       targetCompetency: MicroCompetencyId.largeNumberCompare,
     );
+    final evidenceSteps = guide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .toList();
 
     expect(guide.methodKey, 'largeNumbers:compare');
     expect(guide.methodLabel, 'Zahlen vergleichen');
     expect(guide.nudge, contains('von links nach rechts'));
-    expect(guide.steps.first.instruction, contains('Hunderttausenderstelle'));
-    expect(guide.steps.first.instruction, contains('7'));
-    expect(guide.steps.first.instruction, contains('5'));
+    expect(evidenceSteps, hasLength(1));
+    expect(evidenceSteps.single.evidenceKey, 'decidingPlace');
+    expect(
+      evidenceSteps.single.evidenceCompetency,
+      MicroCompetencyId.largeNumberCompare,
+    );
+    expect(
+      evidenceSteps.single.choices[evidenceSteps.single.correctChoice!],
+      'Tausenderstelle',
+    );
+    expect(evidenceSteps.single.evidenceWeight, 0.40);
+    expect(
+      evidenceSteps.single.instruction,
+      isNot(contains('Tausenderstelle')),
+    );
+    expect(guide.steps[1].instruction, contains('Tausenderstelle'));
+    expect(guide.steps[1].instruction, contains('2'));
+    expect(guide.steps[1].instruction, contains('3'));
+    expect(
+      GuidedStepCatalog.labelFor('decidingPlace'),
+      contains('unterschiedliche Stelle'),
+    );
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:compare:722789:723383',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.largeNumberCompare,
+    );
+    expect(independent.map((step) => step.evidenceKey), ['decidingPlace']);
+  });
+
+  testWidgets(
+      'Curriculum speichert entscheidende Vergleichsstelle selbstständig',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.fourth;
+    controller.numberRange = NumberRangeLevel.million;
+
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.largeNumbers,
+      prompt: 'Welches Zeichen passt?\n722.789  ?  723.383',
+      answer: 0,
+      hint:
+          'Vergleiche von links nach rechts. Gleiche Stellen überspringst du.',
+      key: 'large:compare:722789:723383',
+      choices: ['<', '>', '='],
+      method: 'Zahlen vergleichen',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.largeNumbers,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.largeNumberCompare,
+          exerciseGenerator: _FixedCurriculumExerciseGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 1'), findsOneWidget);
+    expect(find.text('<'), findsNothing);
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Tausenderstelle'),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final steps = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+        .toList();
+    expect(steps, hasLength(1));
+    expect(steps.single.id, MicroCompetencyId.largeNumberCompare);
+    expect(steps.single.correct, isTrue);
+    expect(steps.single.usedHelp, isFalse);
+    expect(
+      steps.single.taskKey,
+      'independent:decidingPlace:large:compare:722789:723383',
+    );
+    expect(find.text('<'), findsOneWidget);
   });
 
   testWidgets('Minus-Rechenweg läuft sichtbar von 87 über 80 zu 19',

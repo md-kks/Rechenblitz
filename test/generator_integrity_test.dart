@@ -213,6 +213,73 @@ void main() {
     }
   });
 
+  test('Gezielte Zahlenvergleiche erzwingen eine spätere Entscheidungsstelle',
+      () {
+    final generator = CurriculumExerciseGenerator(random: Random(99119));
+
+    int highestPlace(int value) {
+      var place = 1;
+      var current = value;
+      while (current >= 10) {
+        place *= 10;
+        current ~/= 10;
+      }
+      return place;
+    }
+
+    int firstDifferentPlace(int a, int b) {
+      var place = highestPlace(max(a, b));
+      while (place > 1 && (a ~/ place) % 10 == (b ~/ place) % 10) {
+        place ~/= 10;
+      }
+      return place;
+    }
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 60; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.largeNumbers,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.largeNumberCompare,
+        );
+        final parts = exercise.key.split(':');
+
+        expect(parts, hasLength(4));
+        expect(parts[0], 'large');
+        expect(parts[1], 'compare');
+        expect(exercise.choices, ['<', '>', '=']);
+
+        final a = int.parse(parts[2]);
+        final b = int.parse(parts[3]);
+        final highest = highestPlace(max(a, b));
+        final deciding = firstDifferentPlace(a, b);
+
+        expect(a, isNot(b));
+        expect(deciding, lessThan(highest));
+        expect(
+          (a ~/ highest) % 10,
+          (b ~/ highest) % 10,
+          reason: exercise.key,
+        );
+        expect(
+          exercise.answer,
+          a < b ? 0 : 1,
+          reason: exercise.key,
+        );
+
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: TrainingMode.largeNumbers,
+          taskKey: exercise.key,
+        );
+        expect(
+          tags.map((tag) => tag.id),
+          contains(MicroCompetencyId.largeNumberCompare),
+        );
+      }
+    }
+  });
+
   test('Gezielte Bruchaufgaben trennen einen Teil vom Endanteil', () {
     final generator = CurriculumExerciseGenerator(random: Random(99120));
 
