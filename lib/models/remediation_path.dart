@@ -216,6 +216,7 @@ class StepRecoveryGenerator {
     'storyCalculation',
     'storyInterpretation',
     'divisionTargetQuantity',
+    'unitValue',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -318,6 +319,7 @@ class StepRecoveryGenerator {
           _storyInterpretationStep(focus, stage, range),
         'divisionTargetQuantity' =>
           _divisionTargetQuantityStep(focus, stage, range),
+        'unitValue' => _proportionalUnitValueStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -756,6 +758,51 @@ class StepRecoveryGenerator {
       hint: sharing
           ? 'Die Anzahl der Gruppen ist bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
           : 'Die Gruppengröße ist bekannt. Gesucht ist, wie viele Gruppen entstehen.',
+    );
+  }
+
+  RemediationTask _proportionalUnitValueStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    const families = ['notebooks', 'tickets', 'packs', 'ribbon'];
+    final parts = focus.sourceTaskKey.split(':');
+    final proportionIndex = parts.indexOf('proportion');
+    final sourceFamily =
+        proportionIndex >= 0 && proportionIndex + 1 < parts.length
+            ? parts[proportionIndex + 1]
+            : 'notebooks';
+    final alternatives =
+        families.where((family) => family != sourceFamily).toList();
+    final family = switch (stage) {
+      RemediationStage.supported =>
+        families.contains(sourceFamily) ? sourceFamily : 'notebooks',
+      RemediationStage.transfer =>
+        alternatives[_random.nextInt(alternatives.length)],
+      RemediationStage.check => families[_random.nextInt(families.length)],
+      _ => families.contains(sourceFamily) ? sourceFamily : 'notebooks',
+    };
+    final limit = max(12, min(range.maxValue, 100));
+    final unitValue = _between(2, min(12, limit));
+    final firstAmount = _between(2, 5);
+    final total = unitValue * firstAmount;
+    final subject = switch (family) {
+      'tickets' => '$firstAmount Eintrittskarten kosten zusammen $total €.',
+      'packs' => '$firstAmount gleiche Packungen kosten zusammen $total €.',
+      'ribbon' => '$firstAmount Meter Band kosten zusammen $total €.',
+      _ => '$firstAmount Hefte kosten zusammen $total €.',
+    };
+
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'unit-value:$family:$unitValue:$firstAmount',
+      prompt: '$subject Was kostet genau 1 Einheit?',
+      answer: unitValue,
+      max: 12,
+      hint:
+          'Teile den Gesamtpreis $total durch die bekannte Anzahl $firstAmount.',
     );
   }
 

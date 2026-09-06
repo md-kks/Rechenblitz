@@ -1009,6 +1009,41 @@ void main() {
   });
 
 
+  test('Proportionalitäts-Recovery festigt zuerst den Einheitswert', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.proportionalUnit,
+      stepKey: 'unitValue',
+      label: GuidedStepCatalog.labelFor('unitValue'),
+      mode: TrainingMode.proportionality,
+      lastSeen: DateTime(2026, 9, 6, 3),
+      sourceTaskKey:
+          'independent:unitValue:proportion:notebooks:3:4:7',
+    );
+    final plan = StepRecoveryGenerator(random: Random(641)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+    expect(plan.tasks[0].taskKey, contains(':notebooks:'));
+    expect(plan.tasks[1].taskKey, isNot(contains(':notebooks:')));
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.proportionality);
+      expect(task.taskKey, startsWith('step-recovery:unitValue:'));
+      expect(task.usesChoices, isFalse);
+      expect(task.answer, inInclusiveRange(2, 12));
+      expect(task.maxAnswerValue, 12);
+    }
+  });
+
   test('Divisionsverständnis-Recovery wechselt von Verteilen zu Gruppieren',
       () {
     final focus = IndependentStepRecoveryFocus(

@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 48,
+        fullTaskOnly: 47,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 16,
+        targetedRecovery: 17,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 50,
+        fullTaskOnly: 49,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 16,
+        targetedRecovery: 17,
       ),
     };
 
@@ -191,6 +191,18 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt proportionalen Einheitswert bis zur gezielten Recovery',
+      () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.proportionalUnit,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('unitValue'));
+    expect(item.independentStepKeys, contains('unitValue'));
+    expect(item.recoveryStepKeys, contains('unitValue'));
   });
 
   test('Audit führt Divisionsverständnis bis zur gezielten Recovery', () {
