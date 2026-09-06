@@ -218,6 +218,7 @@ class StepRecoveryGenerator {
     'divisionTargetQuantity',
     'matchingMultiplicationFact',
     'inverseOperationChoice',
+    'wallOperationChoice',
     'moneyOperationChoice',
     'unitValue',
     'minutesToNextHour',
@@ -334,6 +335,8 @@ class StepRecoveryGenerator {
           _matchingMultiplicationFactStep(focus, stage, range),
         'inverseOperationChoice' =>
           _inverseOperationChoiceStep(focus, stage, range),
+        'wallOperationChoice' =>
+          _wallOperationChoiceStep(focus, stage, range),
         'moneyOperationChoice' =>
           _moneyOperationChoiceStep(focus, stage, range),
         'unitValue' => _proportionalUnitValueStep(focus, stage, range),
@@ -746,6 +749,64 @@ class StepRecoveryGenerator {
           ? 'Rechne $chunk − ($quotientDigit × $divisor).'
           : 'Suche die größte Malaufgabe mit $divisor, die $chunk nicht überschreitet.',
     );
+  }
+
+  RemediationTask _wallOperationChoiceStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(4, min(range.maxValue, 100));
+    final sourceAddition =
+        _wallSourceNeedsAddition(focus.sourceTaskKey) ?? true;
+    final addition = switch (stage) {
+      RemediationStage.supported => sourceAddition,
+      RemediationStage.transfer => !sourceAddition,
+      RemediationStage.check => _random.nextBool(),
+      _ => sourceAddition,
+    };
+
+    final choices = <String>['Plus (+)', 'Minus (−)']..shuffle(_random);
+    final correct = addition ? 'Plus (+)' : 'Minus (−)';
+
+    if (addition) {
+      final first = _between(1, max(1, limit ~/ 2));
+      final second = _between(1, max(1, limit - first));
+      return _choice(
+        focus: focus,
+        stage: stage,
+        key: 'wall-direction:up:$first:$second',
+        prompt:
+            'In einer Zahlenmauer stehen $first und $second direkt nebeneinander. Der Stein direkt darüber fehlt. Welche Rechenart brauchst du?',
+        choices: choices,
+        answer: choices.indexOf(correct),
+        hint:
+            'Nach oben gilt die Zahlenmauer-Regel: Die beiden unteren Nachbarsteine werden zusammengezählt.',
+      );
+    }
+
+    final upper = _between(2, limit);
+    final knownLower = _between(1, upper - 1);
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'wall-direction:down:$upper:$knownLower',
+      prompt:
+          'In einer Zahlenmauer steht im oberen Stein $upper. Darunter ist ein Nachbarstein $knownLower bekannt, der andere fehlt. Welche Rechenart brauchst du?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Wenn ein unterer Stein fehlt, rechnest du von der Summe rückwärts: oberer Stein minus bekannter unterer Stein.',
+    );
+  }
+
+  bool? _wallSourceNeedsAddition(String sourceTaskKey) {
+    final parts = sourceTaskKey.split(':');
+    final index = parts.indexOf('wall');
+    if (index < 0 || index + 2 >= parts.length) return null;
+    final hidden = int.tryParse(parts[index + 2]);
+    if (hidden == null || hidden < 0 || hidden > 5) return null;
+    return hidden >= 3;
   }
 
   RemediationTask _moneyOperationChoiceStep(

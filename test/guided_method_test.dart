@@ -2594,6 +2594,56 @@ void main() {
     }
   });
 
+
+  test('Zahlenmauer-Hilfe trennt Rechenrichtung vom Ausrechnen', () {
+    const cases = [
+      (
+        key: 'wall:2-3-1-5-4-9:0',
+        expected: 2,
+        correct: 'Minus (−)',
+        calculation: '5 − 3 = ?',
+      ),
+      (
+        key: 'wall:2-3-1-5-4-9:4',
+        expected: 4,
+        correct: 'Plus (+)',
+        calculation: '3 + 1 = ?',
+      ),
+      (
+        key: 'wall:2-3-1-5-4-9:5',
+        expected: 9,
+        correct: 'Plus (+)',
+        calculation: '5 + 4 = ?',
+      ),
+    ];
+
+    for (final item in cases) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.numberWall,
+        taskKey: item.key,
+        expected: item.expected,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.numberRelations,
+      );
+
+      expect(guide.methodKey, 'numberWall:relationDirection');
+      final evidenceStep =
+          guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+      expect(evidenceStep.evidenceKey, 'wallOperationChoice');
+      expect(
+        evidenceStep.evidenceCompetency,
+        MicroCompetencyId.numberRelations,
+      );
+      expect(evidenceStep.evidenceWeight, 0.40);
+      expect(evidenceStep.choices.toSet(), {'Plus (+)', 'Minus (−)'});
+      expect(
+        evidenceStep.choices[evidenceStep.correctChoice!],
+        item.correct,
+      );
+      expect(guide.steps.last.instruction, contains(item.calculation));
+    }
+  });
+
   test('Geld-Hilfe trennt Rechenplan vom Ausrechnen', () {
     const cases = [
       (

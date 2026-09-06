@@ -108,6 +108,8 @@ class GuidedStepCatalog {
         'passende Mal-Umkehraufgabe erkennen',
     'inverseOperationChoice':
         'passende Umkehroperation erkennen',
+    'wallOperationChoice':
+        'Rechenrichtung in der Zahlenmauer erkennen',
     'moneyOperationChoice':
         'passende Rechenart bei Geldaufgaben erkennen',
     'unitValue': 'Wert für eine Einheit bestimmen',
@@ -243,6 +245,12 @@ class GuidedMethodFactory {
         targetCompetency == MicroCompetencyId.inverseRelationship ||
         taskKey.startsWith('family:')) {
       return _inverseRelationshipGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.numberWall ||
+        targetCompetency == MicroCompetencyId.numberRelations ||
+        taskKey.startsWith('wall:')) {
+      return _numberWallGuide(taskKey);
     }
 
     if (mode == TrainingMode.money ||
@@ -1404,6 +1412,94 @@ class GuidedMethodFactory {
           ],
         );
     }
+  }
+
+  static GuidedMethodGuide _numberWallGuide(String taskKey) {
+    final parts = taskKey.split(':');
+    if (parts.length < 3 || parts[0] != 'wall') {
+      return const GuidedMethodGuide(
+        methodKey: 'numberWall:relationDirection',
+        methodLabel: 'Zahlenmauer vorwärts und rückwärts',
+        nudge:
+            'Nach oben werden die beiden Steine darunter addiert. Fehlt unten ein Stein, rechnest du von einem bekannten oberen Stein rückwärts.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Richtung prüfen',
+            instruction:
+                'Liegt der fehlende Stein über zwei bekannten Steinen, brauchst du Plus. Liegt er darunter, brauchst du Minus.',
+          ),
+        ],
+      );
+    }
+
+    final values = parts[1]
+        .split('-')
+        .map(int.tryParse)
+        .toList(growable: false);
+    final hidden = int.tryParse(parts[2]);
+    if (values.length != 6 ||
+        values.any((value) => value == null) ||
+        hidden == null ||
+        hidden < 0 ||
+        hidden > 5) {
+      return const GuidedMethodGuide(
+        methodKey: 'numberWall:relationDirection',
+        methodLabel: 'Zahlenmauer vorwärts und rückwärts',
+        nudge:
+            'Nach oben werden die beiden Steine darunter addiert. Fehlt unten ein Stein, rechnest du rückwärts mit Minus.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Richtung prüfen',
+            instruction:
+                'Prüfe zuerst, ob du in der Zahlenmauer nach oben oder rückwärts nach unten rechnest.',
+          ),
+        ],
+      );
+    }
+
+    final wall = values.cast<int>();
+    final addition = hidden >= 3;
+    final rawChoices = <String>['Plus (+)', 'Minus (−)'];
+    final shift = wall.fold<int>(hidden, (sum, value) => sum + value) % 2;
+    final choices = <String>[
+      ...rawChoices.skip(shift),
+      ...rawChoices.take(shift),
+    ];
+    final correct = addition ? 'Plus (+)' : 'Minus (−)';
+    final calculation = switch (hidden) {
+      0 => '${wall[3]} − ${wall[1]} = ?',
+      1 => '${wall[3]} − ${wall[0]} = ?',
+      2 => '${wall[4]} − ${wall[1]} = ?',
+      3 => '${wall[0]} + ${wall[1]} = ?',
+      4 => '${wall[1]} + ${wall[2]} = ?',
+      _ => '${wall[3]} + ${wall[4]} = ?',
+    };
+
+    return GuidedMethodGuide(
+      methodKey: 'numberWall:relationDirection',
+      methodLabel: 'Zahlenmauer vorwärts und rückwärts',
+      nudge:
+          'Schau auf die Lage des fehlenden Steins: Nach oben wird addiert, nach unten rechnest du von einem bekannten Summenstein rückwärts.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Rechenrichtung erkennen',
+          instruction:
+              'Entscheide zuerst, ob du die Mauer nach oben aufbaust oder einen unteren Stein rückwärts bestimmst.',
+          question:
+              'Welche Rechenart hilft dir direkt beim fehlenden Stein?',
+          choices: choices,
+          correctChoice: choices.indexOf(correct),
+          evidenceKey: 'wallOperationChoice',
+          evidenceCompetency: MicroCompetencyId.numberRelations,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Passende Nachbarsteine verwenden',
+          instruction:
+              'Nutze jetzt genau die zusammengehörenden Steine: $calculation',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _moneyGuide(String taskKey) {

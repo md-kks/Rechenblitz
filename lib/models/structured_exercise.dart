@@ -181,7 +181,10 @@ class StructuredExerciseGenerator {
     required MicroCompetencyId? targetCompetency,
   }) =>
       switch (mode) {
-        TrainingMode.numberWall => _numberWall(maxValue),
+        TrainingMode.numberWall => _numberWall(
+            maxValue,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.missingNumber => _missingNumber(maxValue),
         TrainingMode.neighbors => _neighbors(maxValue),
         TrainingMode.placeValue => _placeValue(maxValue),
@@ -214,29 +217,68 @@ class StructuredExerciseGenerator {
         _ => throw ArgumentError('$mode ist kein strukturierter Aufgabentyp.'),
       };
 
-  StructuredExercise _numberWall(int maxValue) {
+  StructuredExercise _numberWall(
+    int maxValue, {
+    MicroCompetencyId? targetCompetency,
+  }) {
+    final targeted =
+        targetCompetency == MicroCompetencyId.numberRelations;
+
     for (var tries = 0; tries < 100; tries++) {
-      final bottomMax = max(2, maxValue ~/ 4);
-      final a = _random.nextInt(bottomMax + 1);
-      final b = _random.nextInt(bottomMax + 1);
-      final c = _random.nextInt(bottomMax + 1);
+      final bottomMax = max(1, maxValue ~/ 4);
+      final a = targeted
+          ? 1 + _random.nextInt(bottomMax)
+          : _random.nextInt(bottomMax + 1);
+      final b = targeted
+          ? 1 + _random.nextInt(bottomMax)
+          : _random.nextInt(bottomMax + 1);
+      final c = targeted
+          ? 1 + _random.nextInt(bottomMax)
+          : _random.nextInt(bottomMax + 1);
       final left = a + b;
       final right = b + c;
       final top = left + right;
       if (top == 0 || top > maxValue) continue;
+
       final values = [a, b, c, left, right, top];
-      final candidates = maxValue <= 10 ? [3, 4, 5] : [0, 1, 2, 3, 4, 5];
+      final candidates = targeted
+          ? <int>[0, 1, 2, 3, 4, 5]
+          : maxValue <= 10
+              ? <int>[3, 4, 5]
+              : <int>[0, 1, 2, 3, 4, 5];
       final hidden = candidates[_random.nextInt(candidates.length)];
+
       return StructuredExercise(
         mode: TrainingMode.numberWall,
         prompt: 'Welche Zahl fehlt in der Zahlenmauer?',
         answer: values[hidden],
-        hint: 'Jeder Stein ist die Summe der beiden Steine direkt darunter.',
+        hint:
+            'Jeder Stein ist die Summe der beiden Steine direkt darunter. Fehlende untere Steine findest du durch Rückwärtsrechnen.',
         key: 'wall:${values.join('-')}:$hidden',
         wallValues: values,
         hiddenWallIndex: hidden,
+        checkpoints: targeted
+            ? [_numberWallOperationCheckpoint(hidden)]
+            : const <ExerciseCheckpoint>[],
       );
     }
+
+    const values = [1, 1, 1, 2, 2, 4];
+    if (targeted) {
+      final hidden = _random.nextInt(values.length);
+      return StructuredExercise(
+        mode: TrainingMode.numberWall,
+        prompt: 'Welche Zahl fehlt in der Zahlenmauer?',
+        answer: values[hidden],
+        hint:
+            'Jeder Stein ist die Summe der beiden Steine direkt darunter. Fehlende untere Steine findest du durch Rückwärtsrechnen.',
+        key: 'wall:1-1-1-2-2-4:$hidden',
+        wallValues: values,
+        hiddenWallIndex: hidden,
+        checkpoints: [_numberWallOperationCheckpoint(hidden)],
+      );
+    }
+
     return const StructuredExercise(
       mode: TrainingMode.numberWall,
       prompt: 'Welche Zahl fehlt in der Zahlenmauer?',
@@ -245,6 +287,20 @@ class StructuredExerciseGenerator {
       key: 'wall:fallback',
       wallValues: [1, 3, 1, 4, 4, 8],
       hiddenWallIndex: 3,
+    );
+  }
+
+  ExerciseCheckpoint _numberWallOperationCheckpoint(int hidden) {
+    final choices = <String>['Plus (+)', 'Minus (−)']..shuffle(_random);
+    final correct = hidden >= 3 ? 'Plus (+)' : 'Minus (−)';
+    return ExerciseCheckpoint(
+      key: 'wallOperationChoice',
+      question:
+          'Welche Rechenart hilft dir direkt beim fehlenden Stein?',
+      choices: choices,
+      correctChoice: choices.indexOf(correct),
+      competencyId: MicroCompetencyId.numberRelations,
+      evidenceWeight: 0.40,
     );
   }
 

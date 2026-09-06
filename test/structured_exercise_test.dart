@@ -51,6 +51,64 @@ void main() {
     }
   });
 
+
+  test('Gezielte Zahlenmauern prüfen zuerst Plus nach oben oder Minus rückwärts',
+      () {
+    final generator = StructuredExerciseGenerator(random: Random(721));
+    final directions = <String>{};
+
+    for (final maxValue in [10, 20, 100]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.numberWall,
+          maxValue: maxValue,
+          gradeLevel: GradeLevel.first,
+          targetCompetency: MicroCompetencyId.numberRelations,
+        );
+
+        final values = exercise.wallValues!;
+        final hidden = exercise.hiddenWallIndex!;
+        final checkpoint = exercise.checkpoints.single;
+        final addition = hidden >= 3;
+        directions.add(addition ? 'up' : 'down');
+
+        expect(values, hasLength(6));
+        expect(values.take(3).every((value) => value > 0), isTrue);
+        expect(values[3], values[0] + values[1]);
+        expect(values[4], values[1] + values[2]);
+        expect(values[5], values[3] + values[4]);
+        expect(values[5], lessThanOrEqualTo(maxValue));
+        expect(exercise.answer, values[hidden]);
+        expect(checkpoint.key, 'wallOperationChoice');
+        expect(
+          checkpoint.competencyId,
+          MicroCompetencyId.numberRelations,
+        );
+        expect(checkpoint.evidenceWeight, 0.40);
+        expect(checkpoint.choices.toSet(), {'Plus (+)', 'Minus (−)'});
+        expect(
+          checkpoint.choices[checkpoint.correctChoice],
+          addition ? 'Plus (+)' : 'Minus (−)',
+        );
+      }
+    }
+
+    expect(directions, {'up', 'down'});
+  });
+
+  test('Normales Zahlenmauer-Training bleibt ohne Pflicht-Checkpoint', () {
+    final generator = StructuredExerciseGenerator(random: Random(722));
+
+    for (var i = 0; i < 80; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.numberWall,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+      );
+      expect(exercise.checkpoints, isEmpty, reason: exercise.key);
+    }
+  });
+
   test('Zahlenfolgen bleiben vollständig im Zahlenraum', () {
     final generator = StructuredExerciseGenerator(random: Random(11));
     for (final maxValue in [10, 20, 100]) {

@@ -1656,4 +1656,66 @@ void main() {
   });
 
 
+  test('Zahlenmauer-Recovery wechselt zwischen Aufbau und Rückwärtsrechnen',
+      () {
+    const cases = [
+      (
+        source: 'wall:2-3-1-5-4-9:4',
+        supported: 'Plus (+)',
+        transfer: 'Minus (−)',
+      ),
+      (
+        source: 'wall:2-3-1-5-4-9:0',
+        supported: 'Minus (−)',
+        transfer: 'Plus (+)',
+      ),
+    ];
+
+    for (var i = 0; i < cases.length; i++) {
+      final item = cases[i];
+      final focus = IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.numberRelations,
+        stepKey: 'wallOperationChoice',
+        label: GuidedStepCatalog.labelFor('wallOperationChoice'),
+        mode: TrainingMode.numberWall,
+        lastSeen: DateTime(2026, 9, 6, 20 + i),
+        sourceTaskKey: item.source,
+      );
+      final plan = StepRecoveryGenerator(random: Random(690 + i)).generate(
+        focus: focus,
+        range: NumberRangeLevel.twenty,
+      );
+
+      expect(plan.tasks, hasLength(3));
+      expect(
+        plan.tasks.map((task) => task.stage),
+        [
+          RemediationStage.supported,
+          RemediationStage.transfer,
+          RemediationStage.check,
+        ],
+      );
+      expect(
+        plan.tasks[0].choices![plan.tasks[0].answer],
+        item.supported,
+      );
+      expect(
+        plan.tasks[1].choices![plan.tasks[1].answer],
+        item.transfer,
+      );
+
+      for (final task in plan.tasks) {
+        expect(task.mode, TrainingMode.numberWall);
+        expect(
+          task.taskKey,
+          startsWith('step-recovery:wallOperationChoice:wall-direction:'),
+        );
+        expect(task.usesChoices, isTrue);
+        expect(task.choices!.toSet(), {'Plus (+)', 'Minus (−)'});
+        expect(task.prompt, contains('Zahlenmauer'));
+      }
+    }
+  });
+
+
 }

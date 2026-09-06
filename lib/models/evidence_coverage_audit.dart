@@ -160,6 +160,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.inverseRelationship: [
       'inverseOperationChoice',
     ],
+    MicroCompetencyId.numberRelations: [
+      'wallOperationChoice',
+    ],
     MicroCompetencyId.moneyCalculation: [
       'moneyOperationChoice',
     ],
@@ -257,6 +260,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.inverseRelationship: [
       'inverseOperationChoice',
+    ],
+    MicroCompetencyId.numberRelations: [
+      'wallOperationChoice',
     ],
     MicroCompetencyId.moneyCalculation: [
       'moneyOperationChoice',
