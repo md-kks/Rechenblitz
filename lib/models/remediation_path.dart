@@ -232,6 +232,7 @@ class StepRecoveryGenerator {
     'placeValueContribution',
     'gapToAnchor',
     'firstMentalChunk',
+    'lawStructureChoice',
     'referenceEstimate',
     'roundedSummands',
     'errorPlace',
@@ -367,6 +368,8 @@ class StepRecoveryGenerator {
         'gapToAnchor' => _strategyGapToAnchorStep(focus, stage, range),
         'firstMentalChunk' =>
           _firstMentalChunkStep(focus, stage, range),
+        'lawStructureChoice' =>
+          _arithmeticLawStructureStep(focus, stage),
         'referenceEstimate' =>
           _plausibilityReferenceEstimateStep(focus, stage, range),
         'roundedSummands' =>
@@ -1831,6 +1834,83 @@ class StepRecoveryGenerator {
     final index = parts.indexOf('plausibility');
     if (index < 0 || index + 4 >= parts.length) return null;
     return int.tryParse(parts[index + 4]);
+  }
+
+  RemediationTask _arithmeticLawStructureStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    const families = ['distribute', 'associate', 'commute'];
+    final parts = focus.sourceTaskKey.split(':');
+    final lawIndex = parts.indexOf('law');
+    final sourceFamily =
+        lawIndex >= 0 && lawIndex + 1 < parts.length
+            ? parts[lawIndex + 1]
+            : 'distribute';
+    final supportedFamily = families.contains(sourceFamily)
+        ? sourceFamily
+        : families.first;
+    final transferFamilies =
+        families.where((family) => family != supportedFamily).toList();
+    final family = switch (stage) {
+      RemediationStage.supported => supportedFamily,
+      RemediationStage.transfer =>
+        transferFamilies[_random.nextInt(transferFamilies.length)],
+      RemediationStage.check =>
+        families[_random.nextInt(families.length)],
+      _ => supportedFamily,
+    };
+
+    const distributeIdea =
+        'mit einer glatten Zahl zerlegen und verteilen';
+    const associateIdea =
+        'zwei passende Summanden zuerst zusammenfassen';
+    const commuteIdea = 'Faktoren vertauschen';
+    final choices = <String>[
+      distributeIdea,
+      associateIdea,
+      commuteIdea,
+    ]..shuffle(_random);
+    final correct = switch (family) {
+      'distribute' => distributeIdea,
+      'associate' => associateIdea,
+      _ => commuteIdea,
+    };
+
+    late final String prompt;
+    late final String key;
+    if (family == 'distribute') {
+      final factor = _between(2, 9);
+      final value = _between(21, 49);
+      final rounded = ((value + 9) ~/ 10) * 10;
+      prompt =
+          '$factor × $value wird über das leichtere Produkt $factor × $rounded gedacht. Welche Rechenidee wird genutzt?';
+      key = 'law-structure:distribute:$factor:$value';
+    } else if (family == 'associate') {
+      final first = _between(10, 90);
+      final third = 100 - first;
+      final second = _between(10, 90);
+      prompt =
+          '$first + $second + $third: Welche Rechenidee macht die Aufgabe besonders leicht?';
+      key = 'law-structure:associate:$first:$second:$third';
+    } else {
+      final first = _between(2, 20);
+      final second = _between(2, 20);
+      prompt =
+          '$first × $second und $second × $first: Welche Rechenidee wird genutzt?';
+      key = 'law-structure:commute:$first:$second';
+    }
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: key,
+      prompt: prompt,
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Prüfe, ob Zahlen vertauscht, passende Summanden zuerst verbunden oder eine Zahl über eine glatte Zahl zerlegt wird.',
+    );
   }
 
   RemediationTask _firstMentalChunkStep(

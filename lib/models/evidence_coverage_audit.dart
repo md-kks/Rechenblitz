@@ -139,6 +139,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.mentalStrategy: [
       'firstMentalChunk',
     ],
+    MicroCompetencyId.arithmeticLaw: [
+      'lawStructureChoice',
+    ],
     MicroCompetencyId.plausibilityCheck: [
       'referenceEstimate',
     ],
@@ -270,6 +273,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.mentalStrategy: [
       'firstMentalChunk',
+    ],
+    MicroCompetencyId.arithmeticLaw: [
+      'lawStructureChoice',
     ],
     MicroCompetencyId.plausibilityCheck: [
       'referenceEstimate',

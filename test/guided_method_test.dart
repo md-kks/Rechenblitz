@@ -250,6 +250,58 @@ void main() {
   });
 
 
+
+  test('Rechengesetze beobachten zuerst die verwendete Rechenidee', () {
+    const cases = [
+      (
+        key: 'law:distribute:6:47',
+        correct: 'mit einer glatten Zahl zerlegen und verteilen',
+      ),
+      (
+        key: 'law:associate:23:46:77',
+        correct: 'zwei passende Summanden zuerst zusammenfassen',
+      ),
+      (
+        key: 'law:commute:6:14',
+        correct: 'Faktoren vertauschen',
+      ),
+    ];
+
+    for (final item in cases) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.arithmeticLaws,
+        taskKey: item.key,
+        expected: 0,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.arithmeticLaw,
+      );
+      final evidence =
+          guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+      expect(guide.methodKey, 'arithmeticLaws:structure');
+      expect(evidence.evidenceKey, 'lawStructureChoice');
+      expect(
+        evidence.evidenceCompetency,
+        MicroCompetencyId.arithmeticLaw,
+      );
+      expect(evidence.evidenceWeight, 0.40);
+      expect(evidence.choices[evidence.correctChoice!], item.correct);
+
+      final independent =
+          GuidedMethodFactory.independentWrittenStepsForTask(
+        mode: TrainingMode.arithmeticLaws,
+        taskKey: item.key,
+        expected: 0,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.arithmeticLaw,
+      );
+      expect(
+        independent.map((step) => step.evidenceKey),
+        ['lawStructureChoice'],
+      );
+    }
+  });
+
   test('Halbschriftliches Rechnen beobachtet zuerst den größten Block', () {
     for (final item in [
       (key: 'mental:+:672:45', expected: 717, chunk: '40'),
