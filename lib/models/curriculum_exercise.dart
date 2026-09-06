@@ -447,13 +447,16 @@ class CurriculumExerciseGenerator {
     final place = places[_random.nextInt(places.length)];
     var number = _between(place, limit);
     if (targetCompetency == MicroCompetencyId.roundingPlace) {
+      final decisionPlace = place ~/ 10;
+      int decisionDigit(int value) => (value ~/ decisionPlace) % 10;
       for (var attempt = 0;
-          attempt < 40 && number % place == 0;
+          attempt < 40 && decisionDigit(number) == 0;
           attempt++) {
         number = _between(place, limit);
       }
-      if (number % place == 0 && place < limit) {
-        number = min(limit, number + max(1, place ~/ 10));
+      if (decisionDigit(number) == 0 && place < limit) {
+        final base = (number ~/ place) * place;
+        number = min(limit, base + decisionPlace);
       }
     }
     final rounded = _roundTo(number, place);
