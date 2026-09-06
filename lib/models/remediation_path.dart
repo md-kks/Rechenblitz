@@ -222,6 +222,7 @@ class StepRecoveryGenerator {
     'decidingPlace',
     'unitRelation',
     'minuteSecondRelation',
+    'roundingDecisionDigit',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -330,6 +331,8 @@ class StepRecoveryGenerator {
         'decidingPlace' => _largeNumberDecidingPlaceStep(focus, stage, range),
         'unitRelation' => _unitRelationStep(focus, stage, range),
         'minuteSecondRelation' => _minuteSecondRelationStep(focus, stage),
+        'roundingDecisionDigit' =>
+          _roundingDecisionDigitStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -768,6 +771,83 @@ class StepRecoveryGenerator {
       hint: sharing
           ? 'Die Anzahl der Gruppen ist bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
           : 'Die Gruppengröße ist bekannt. Gesucht ist, wie viele Gruppen entstehen.',
+    );
+  }
+
+  RemediationTask _roundingDecisionDigitStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final availablePlaces = [10, 100, 1000, 10000, 100000]
+        .where((place) => place < max(20, range.maxValue))
+        .toList();
+    final parts = focus.sourceTaskKey.split(':');
+    final roundIndex = parts.indexOf('round');
+    final sourcePlace = roundIndex >= 0 && roundIndex + 2 < parts.length
+        ? int.tryParse(parts[roundIndex + 2])
+        : null;
+    final supportedPlace = sourcePlace != null &&
+            availablePlaces.contains(sourcePlace)
+        ? sourcePlace
+        : availablePlaces.first;
+    final transferPlaces = availablePlaces
+        .where((place) => place != supportedPlace)
+        .toList();
+    final place = switch (stage) {
+      RemediationStage.supported => supportedPlace,
+      RemediationStage.transfer => transferPlaces.isEmpty
+          ? supportedPlace
+          : transferPlaces[_random.nextInt(transferPlaces.length)],
+      RemediationStage.check =>
+        availablePlaces[_random.nextInt(availablePlaces.length)],
+      _ => supportedPlace,
+    };
+
+    final limit = max(place + 1, range.maxValue);
+    final decisionPlace = place ~/ 10;
+    final block = place * 10;
+    final prefixMax = max(1, limit ~/ block);
+    final prefix = _between(1, prefixMax);
+    final roundingDigit = _between(0, 9);
+    final decisionDigit = _between(1, 9);
+    final suffix = decisionPlace == 1
+        ? 0
+        : _between(0, decisionPlace - 1);
+    var number = prefix * block +
+        roundingDigit * place +
+        decisionDigit * decisionPlace +
+        suffix;
+    while (number > limit && prefix > 1) {
+      number -= block;
+    }
+    if (number > limit) {
+      number = max(
+        place + decisionPlace,
+        min(limit, place * (limit ~/ place) + decisionPlace),
+      );
+    }
+
+    final placeLabel = switch (place) {
+      10 => 'Zehner',
+      100 => 'Hunderter',
+      1000 => 'Tausender',
+      10000 => 'Zehntausender',
+      100000 => 'Hunderttausender',
+      _ => 'Stelle',
+    };
+    final actualDecisionDigit = (number ~/ decisionPlace) % 10;
+
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'rounding-decision:$number:$place',
+      prompt:
+          'Du rundest $number auf $placeLabel. Welche Ziffer entscheidet?',
+      answer: actualDecisionDigit,
+      max: 9,
+      hint:
+          'Suche die Rundungsstelle und gehe genau eine Stelle nach rechts.',
     );
   }
 
