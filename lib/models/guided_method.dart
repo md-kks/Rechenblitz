@@ -105,6 +105,8 @@ class GuidedStepCatalog {
     'divisionTargetQuantity':
         'gesuchte Größe beim Teilen erkennen',
     'unitValue': 'Wert für eine Einheit bestimmen',
+    'minutesToNextHour':
+        'Minuten bis zur nächsten vollen Stunde bestimmen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -243,7 +245,7 @@ class GuidedMethodFactory {
 
     if (mode == TrainingMode.timeDurations ||
         targetCompetency == MicroCompetencyId.timeDuration) {
-      return _timeDuration();
+      return _timeDuration(taskKey);
     }
 
     if (mode == TrainingMode.proportionality ||
@@ -353,6 +355,20 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.timeDurations) {
+      if (targetCompetency != MicroCompetencyId.timeDuration ||
+          !taskKey.startsWith('duration:') ||
+          taskKey.startsWith('duration:weeks:') ||
+          taskKey.startsWith('duration:days:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _timeDuration(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
     if (mode == TrainingMode.proportionality) {
       if (targetCompetency != MicroCompetencyId.proportionalUnit ||
           !taskKey.startsWith('proportion:')) {
@@ -1738,18 +1754,25 @@ class GuidedMethodFactory {
         ],
       );
 
-  static GuidedMethodGuide _timeDuration() => const GuidedMethodGuide(
+  static GuidedMethodGuide _timeDuration(String key) {
+    final parts = key.split(':');
+    if (!key.startsWith('duration:') ||
+        key.startsWith('duration:weeks:') ||
+        key.startsWith('duration:days:') ||
+        parts.length < 3) {
+      return const GuidedMethodGuide(
         methodKey: 'time:timeline',
         methodLabel: 'Zeitlinie',
-        nudge: 'Gehe vom Start zuerst zur nächsten gut erreichbaren Uhrzeit.',
+        nudge: 'Markiere Start und Ende und gehe in passenden Zeit-Etappen.',
         steps: [
           GuidedMethodStep(
             title: 'Start markieren',
             instruction: 'Markiere die Startzeit.',
           ),
           GuidedMethodStep(
-            title: 'In Etappen gehen',
-            instruction: 'Gehe zuerst zu einer vollen oder halben Stunde.',
+            title: 'Passende Etappen wählen',
+            instruction:
+                'Nutze volle oder halbe Stunden nur dann als Zwischenstopp, wenn sie auf dem Weg liegen.',
           ),
           GuidedMethodStep(
             title: 'Etappen addieren',
@@ -1757,6 +1780,108 @@ class GuidedMethodFactory {
           ),
         ],
       );
+    }
+
+    final start = int.tryParse(parts[1]);
+    final duration = int.tryParse(parts[2]);
+    if (start == null || duration == null) {
+      return const GuidedMethodGuide(
+        methodKey: 'time:timeline',
+        methodLabel: 'Zeitlinie',
+        nudge: 'Markiere Start und Ende und gehe in passenden Zeit-Etappen.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Start markieren',
+            instruction: 'Markiere die Startzeit.',
+          ),
+          GuidedMethodStep(
+            title: 'Ende markieren',
+            instruction: 'Markiere die Endzeit.',
+          ),
+          GuidedMethodStep(
+            title: 'Zeitstücke addieren',
+            instruction: 'Addiere die Zeitstücke zwischen Start und Ende.',
+          ),
+        ],
+      );
+    }
+
+    final end = start + duration;
+    final minute = start % 60;
+    final nextFullHour = ((start ~/ 60) + 1) * 60;
+    final crossesFullHour = minute != 0 && nextFullHour < end;
+
+    if (!crossesFullHour) {
+      final startLabel = _clockMinutes(start);
+      final endLabel = _clockMinutes(end);
+      final message = minute == 0
+          ? '$startLabel Uhr ist schon eine volle Stunde. Ein 0-Minuten-Zwischenschritt ist nicht nötig.'
+          : end == nextFullHour
+              ? 'Die Zeitspanne endet genau um $endLabel Uhr. Zähle direkt bis zur vollen Stunde.'
+              : 'Start und Ende liegen vor der nächsten vollen Stunde. Zähle die Minuten direkt von $startLabel bis $endLabel.';
+      return GuidedMethodGuide(
+        methodKey: 'time:timeline',
+        methodLabel: 'Zeitlinie',
+        nudge: message,
+        steps: [
+          GuidedMethodStep(
+            title: 'Start und Ende markieren',
+            instruction: '$startLabel Uhr → $endLabel Uhr.',
+          ),
+          const GuidedMethodStep(
+            title: 'Direkte Zeitspanne',
+            instruction:
+                'Hier brauchst du keinen künstlichen Zwischenstopp an einer vollen Stunde.',
+          ),
+          GuidedMethodStep(
+            title: 'Minuten bestimmen',
+            instruction: 'Die gesamte Zeitspanne beträgt $duration Minuten.',
+          ),
+        ],
+      );
+    }
+
+    final firstPart = nextFullHour - start;
+    final rest = end - nextFullHour;
+    final firstChoices = _numberChoices(firstPart, maxValue: 60);
+
+    return GuidedMethodGuide(
+      methodKey: 'time:timeline',
+      methodLabel: 'Zeitlinie',
+      nudge:
+          'Gehe zuerst von ${_clockMinutes(start)} Uhr bis ${_clockMinutes(nextFullHour)} Uhr.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Bis zur vollen Stunde',
+          instruction:
+              'Der erste Zeitabschnitt geht von ${_clockMinutes(start)} Uhr bis ${_clockMinutes(nextFullHour)} Uhr.',
+          question:
+              'Wie viele Minuten sind es bis ${_clockMinutes(nextFullHour)} Uhr?',
+          choices: firstChoices,
+          correctChoice: firstChoices.indexOf('$firstPart'),
+          evidenceKey: 'minutesToNextHour',
+          evidenceCompetency: MicroCompetencyId.timeDuration,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Von der vollen Stunde bis zum Ende',
+          instruction:
+              'Von ${_clockMinutes(nextFullHour)} Uhr bis ${_clockMinutes(end)} Uhr sind es noch $rest Minuten.',
+        ),
+        GuidedMethodStep(
+          title: 'Zeitstücke addieren',
+          instruction: '$firstPart + $rest = $duration Minuten.',
+        ),
+      ],
+    );
+  }
+
+  static String _clockMinutes(int value) {
+    final normalized = value % (24 * 60);
+    final hour = normalized ~/ 60;
+    final minute = normalized % 60;
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
 
   static GuidedMethodGuide _proportionalUnit(String key) {
     final numbers = _numbers(key);
