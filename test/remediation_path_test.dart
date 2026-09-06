@@ -1009,6 +1009,54 @@ void main() {
   });
 
 
+  test('Zahlenvergleich-Recovery wechselt die entscheidende Stelle', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.largeNumberCompare,
+      stepKey: 'decidingPlace',
+      label: GuidedStepCatalog.labelFor('decidingPlace'),
+      mode: TrainingMode.largeNumbers,
+      lastSeen: DateTime(2026, 9, 6, 12),
+      sourceTaskKey:
+          'independent:decidingPlace:large:compare:722789:723383',
+    );
+    final plan = StepRecoveryGenerator(random: Random(644)).generate(
+      focus: focus,
+      range: NumberRangeLevel.million,
+    );
+
+    int decidingPlace(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('large-deciding-place');
+      return int.parse(parts[index + 1]);
+    }
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+    expect(decidingPlace(plan.tasks[0]), 1000);
+    expect(decidingPlace(plan.tasks[1]), isNot(1000));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.largeNumbers);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:decidingPlace:large-deciding-place:'),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices, contains('Hunderttausenderstelle'));
+      expect(task.choices, contains('Einerstelle'));
+      expect(task.answer, inInclusiveRange(0, task.choices!.length - 1));
+      expect(task.prompt, contains('Welche Stelle entscheidet'));
+      expect(task.hint, contains('von links nach rechts'));
+    }
+  });
+
   test('Bruch-Recovery festigt die Größe eines gleich großen Teils', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.fractionEqualParts,
