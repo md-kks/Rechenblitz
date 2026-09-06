@@ -223,6 +223,7 @@ class StepRecoveryGenerator {
     'unitRelation',
     'minuteSecondRelation',
     'roundingDecisionDigit',
+    'minuteHandMinutes',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -333,6 +334,7 @@ class StepRecoveryGenerator {
         'minuteSecondRelation' => _minuteSecondRelationStep(focus, stage),
         'roundingDecisionDigit' =>
           _roundingDecisionDigitStep(focus, stage, range),
+        'minuteHandMinutes' => _minuteHandMinutesStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -771,6 +773,57 @@ class StepRecoveryGenerator {
       hint: sharing
           ? 'Die Anzahl der Gruppen ist bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
           : 'Die Gruppengröße ist bekannt. Gesucht ist, wie viele Gruppen entstehen.',
+    );
+  }
+
+  RemediationTask _minuteHandMinutesStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final allowedMinutes =
+        range.maxValue >= 100 ? <int>[0, 15, 30, 45] : <int>[0, 30];
+    final parts = focus.sourceTaskKey.split(':');
+    final clockIndex = parts.indexOf('clock');
+    final sourceMinute = clockIndex >= 0 && clockIndex + 2 < parts.length
+        ? int.tryParse(parts[clockIndex + 2])
+        : null;
+    final supportedMinute =
+        sourceMinute != null && allowedMinutes.contains(sourceMinute)
+            ? sourceMinute
+            : allowedMinutes.last;
+    final transferMinutes = allowedMinutes
+        .where((minute) => minute != supportedMinute)
+        .toList();
+    final minute = switch (stage) {
+      RemediationStage.supported => supportedMinute,
+      RemediationStage.transfer => transferMinutes.isEmpty
+          ? supportedMinute
+          : transferMinutes[_random.nextInt(transferMinutes.length)],
+      RemediationStage.check =>
+        allowedMinutes[_random.nextInt(allowedMinutes.length)],
+      _ => supportedMinute,
+    };
+    final clockNumber = switch (minute) {
+      0 => 12,
+      15 => 3,
+      30 => 6,
+      45 => 9,
+      _ => 12,
+    };
+    final choices =
+        allowedMinutes.map((value) => '$value Minuten').toList();
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'minute-hand:$clockNumber:$minute',
+      prompt:
+          'Der lange Zeiger zeigt auf die $clockNumber. Wie viele Minuten sind das?',
+      choices: choices,
+      answer: choices.indexOf('$minute Minuten'),
+      hint:
+          'Beim langen Zeiger entsprechen die Zahlen 12, 3, 6 und 9 den Minuten 0, 15, 30 und 45.',
     );
   }
 
