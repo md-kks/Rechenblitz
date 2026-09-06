@@ -1255,6 +1255,48 @@ void main() {
 
 
 
+
+  test('Fehlerstellen-Recovery wechselt gezielt die betroffene Stelle', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.errorChecking,
+      stepKey: 'errorPlace',
+      label: GuidedStepCatalog.labelFor('errorPlace'),
+      mode: TrainingMode.writtenAddSub,
+      lastSeen: DateTime(2026, 9, 6, 22, 5),
+      sourceTaskKey:
+          'independent:errorPlace:process:error:add:place:10:462:337:809',
+    );
+    final plan = StepRecoveryGenerator(random: Random(863)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int place(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('error-place');
+      return int.parse(parts[index + 1]);
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(place(plan.tasks[0]), 10);
+    expect(place(plan.tasks[1]), isNot(10));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.writtenAddSub);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:errorPlace:error-place:'),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.prompt, contains('Welche Stelle'));
+      expect(task.answer, inInclusiveRange(0, task.choices!.length - 1));
+    }
+  });
+
   test('Plausibilitäts-Recovery festigt den Referenz-Überschlag', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.plausibilityCheck,

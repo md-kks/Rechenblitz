@@ -104,6 +104,37 @@ void main() {
 
 
 
+
+  test('Fehlerprüfung beobachtet zuerst die falsche Stellenwertstelle', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'process:error:add:place:10:462:337:809',
+      expected: 1,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.errorChecking,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'process:errorChecking');
+    expect(evidence.evidenceKey, 'errorPlace');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.errorChecking);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices[evidence.correctChoice!], 'Zehnerstelle');
+    expect(evidence.instruction, isNot(contains('Zehnerstelle')));
+    expect(guide.steps[1].instruction, contains('Zehnerstelle'));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'process:error:add:place:10:462:337:809',
+      expected: 1,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.errorChecking,
+    );
+    expect(independent.map((step) => step.evidenceKey), ['errorPlace']);
+  });
+
   test('Plausibilitätsprüfung beobachtet zuerst den Referenz-Überschlag', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.estimation,
