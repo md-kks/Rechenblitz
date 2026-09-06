@@ -123,6 +123,8 @@ class GuidedStepCatalog {
     'decidingPlace': 'erste unterschiedliche Stelle beim Vergleichen finden',
     'placeValueContribution':
         'Wert einer Ziffer an ihrer Stelle bestimmen',
+    'gapToAnchor':
+        'Ergänzung bis zur glatten Zielzahl bestimmen',
     'unitRelation': 'passende Beziehung zwischen zwei Einheiten erkennen',
     'minuteSecondRelation': 'Beziehung zwischen Minuten und Sekunden erkennen',
     'roundingDecisionDigit': 'entscheidende Ziffer beim Runden erkennen',
@@ -473,6 +475,18 @@ class GuidedMethodFactory {
         return const <GuidedMethodStep>[];
       }
       return _unitConversion(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.mentalStrategies) {
+      if (targetCompetency != MicroCompetencyId.strategyChoice ||
+          !taskKey.startsWith('process:strategy:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _strategyChoiceGuide(taskKey)
           .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3132,29 +3146,87 @@ class GuidedMethodFactory {
   }
 
   static GuidedMethodGuide _strategyChoiceGuide(String key) {
+    final parts = key.split(':');
+    final strategyIndex = parts.indexOf('strategy');
+    final label = strategyIndex >= 0 && strategyIndex + 1 < parts.length
+        ? parts[strategyIndex + 1]
+        : 'Zielzahl';
     final numbers = _numbers(key);
-    final anchor = numbers.isEmpty ? null : numbers.last;
+
+    if (numbers.length < 3) {
+      return const GuidedMethodGuide(
+        methodKey: 'process:strategyChoice',
+        methodLabel: 'Günstigen Rechenweg wählen',
+        nudge:
+            'Suche eine runde Zwischenzahl, die das Rechnen einfacher macht.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Zielzahl erkennen',
+            instruction:
+                'Suche einen glatten Zehner, Hunderter oder Tausender in der Nähe.',
+          ),
+          GuidedMethodStep(
+            title: 'Passend zerlegen',
+            instruction:
+                'Zerlege nur so viel vom zweiten Summanden, wie bis zur Zielzahl fehlt.',
+          ),
+        ],
+      );
+    }
+
+    final a = numbers[numbers.length - 3];
+    final b = numbers[numbers.length - 2];
+    final anchor = numbers.last;
+    final gap = anchor - a;
+    final rest = b - gap;
+    if (gap <= 0 || rest < 0) {
+      return const GuidedMethodGuide(
+        methodKey: 'process:strategyChoice',
+        methodLabel: 'Günstigen Rechenweg wählen',
+        nudge:
+            'Suche eine runde Zwischenzahl, die das Rechnen einfacher macht.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Zielzahl erkennen',
+            instruction:
+                'Suche zuerst eine passende glatte Zwischenzahl.',
+          ),
+        ],
+      );
+    }
+
+    final choices = _numberChoices(
+      gap,
+      maxValue: max(b, gap + 10),
+    );
+
     return GuidedMethodGuide(
       methodKey: 'process:strategyChoice',
       methodLabel: 'Günstigen Rechenweg wählen',
-      nudge: anchor == null
-          ? 'Suche eine runde Zwischenzahl, die das Rechnen einfacher macht.'
-          : 'Welche Zerlegung bringt dich zuerst genau zu $anchor?',
+      nudge:
+          'Bestimme zuerst genau die Ergänzung von $a bis zum glatten $label $anchor.',
       steps: [
-        const GuidedMethodStep(
-          title: 'Zielzahl erkennen',
+        GuidedMethodStep(
+          title: 'Ergänzung zur Zielzahl bestimmen',
           instruction:
-              'Suche einen glatten Zehner, Hunderter oder Tausender in der Nähe.',
+              'Bestimme zunächst nur, wie viel vom ersten Summanden bis zur glatten Zielzahl fehlt.',
+          question:
+              'Von $a bis zum glatten $label $anchor: Wie viel fehlt?',
+          choices: choices,
+          correctChoice: choices.indexOf('$gap'),
+          evidenceKey: 'gapToAnchor',
+          evidenceCompetency: MicroCompetencyId.strategyChoice,
+          evidenceWeight: 0.40,
         ),
-        const GuidedMethodStep(
-          title: 'Passend zerlegen',
+        GuidedMethodStep(
+          title: 'Zweiten Summanden passend zerlegen',
           instruction:
-              'Zerlege nur so viel vom zweiten Summanden, wie bis zur Zielzahl fehlt.',
+              'Von $b nutzt du zuerst $gap für den Weg bis $anchor. Danach bleiben $rest übrig.',
         ),
-        const GuidedMethodStep(
-          title: 'Rest weiterrechnen',
+        GuidedMethodStep(
+          title: 'Rechenweg fertigstellen',
           instruction:
-              'Rechne danach nur noch den verbleibenden Rest weiter.',
+              'Der günstige Weg beginnt deshalb mit $a + $gap und rechnet anschließend den Rest $rest weiter.',
         ),
       ],
     );

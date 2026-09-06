@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 32,
+        fullTaskOnly: 31,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 32,
+        targetedRecovery: 33,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 34,
+        fullTaskOnly: 33,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 32,
+        targetedRecovery: 33,
       ),
     };
 
@@ -246,6 +246,17 @@ void main() {
     expect(item.guidedStepKeys, contains('unitRelation'));
     expect(item.independentStepKeys, contains('unitRelation'));
     expect(item.recoveryStepKeys, contains('unitRelation'));
+  });
+
+  test('Audit führt Strategiewahl bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.strategyChoice,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('gapToAnchor'));
+    expect(item.independentStepKeys, contains('gapToAnchor'));
+    expect(item.recoveryStepKeys, contains('gapToAnchor'));
   });
 
   test('Audit führt Stellenwertzerlegung bis zur gezielten Recovery', () {

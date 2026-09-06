@@ -38,6 +38,40 @@ void main() {
   });
 
 
+
+  test('Gezielte Strategiewahl baut korrekt über eine glatte Zielzahl auf', () {
+    final generator = CurriculumExerciseGenerator(random: Random(821));
+
+    for (final config in [
+      (GradeLevel.third, 1000),
+      (GradeLevel.fourth, 1000000),
+    ]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.mentalStrategies,
+          gradeLevel: config.$1,
+          maxValue: config.$2,
+          targetCompetency: MicroCompetencyId.strategyChoice,
+        );
+        final parts = exercise.key.split(':');
+        final a = int.parse(parts[3]);
+        final b = int.parse(parts[4]);
+        final anchor = int.parse(parts[5]);
+        final gap = anchor - a;
+        final rest = b - gap;
+
+        expect(exercise.key, startsWith('process:strategy:'));
+        expect(gap, greaterThanOrEqualTo(2));
+        expect(rest, greaterThanOrEqualTo(0));
+        expect(a + b, lessThanOrEqualTo(config.$2));
+        expect(
+          exercise.choices![exercise.answer],
+          '$a + $gap + $rest',
+        );
+      }
+    }
+  });
+
   test('Gezielte Stellenwertzerlegung enthält einen nichttrivialen Fokusplatz',
       () {
     final generator = CurriculumExerciseGenerator(random: Random(812));

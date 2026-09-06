@@ -227,6 +227,7 @@ class StepRecoveryGenerator {
     'equalPartSize',
     'decidingPlace',
     'placeValueContribution',
+    'gapToAnchor',
     'unitRelation',
     'minuteSecondRelation',
     'roundingDecisionDigit',
@@ -352,6 +353,7 @@ class StepRecoveryGenerator {
         'decidingPlace' => _largeNumberDecidingPlaceStep(focus, stage, range),
         'placeValueContribution' =>
           _placeValueContributionStep(focus, stage, range),
+        'gapToAnchor' => _strategyGapToAnchorStep(focus, stage, range),
         'unitRelation' => _unitRelationStep(focus, stage, range),
         'minuteSecondRelation' => _minuteSecondRelationStep(focus, stage),
         'roundingDecisionDigit' =>
@@ -1568,6 +1570,109 @@ class StepRecoveryGenerator {
       hint:
           'Merke dir zuerst die feste Beziehung zwischen den beiden Einheiten. Rechne den Zahlenwert erst danach um.',
     );
+  }
+
+  RemediationTask _strategyGapToAnchorStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(100, min(range.maxValue, 1000000));
+    final source = _strategyGapSource(focus.sourceTaskKey);
+    final defaultStep = limit <= 100
+        ? 10
+        : limit >= 10000
+            ? 1000
+            : 100;
+    final sourceStep = source?.step;
+    final step = sourceStep != null && sourceStep * 2 <= limit
+        ? sourceStep
+        : defaultStep;
+    final label = switch (step) {
+      10 => 'Zehner',
+      100 => 'Hunderter',
+      _ => 'Tausender',
+    };
+    final maxGap = step == 10
+        ? 9
+        : step == 100
+            ? 49
+            : 499;
+
+    int differentGap(int avoid) {
+      var candidate = _between(2, maxGap);
+      if (candidate == avoid) {
+        candidate = candidate == maxGap ? 2 : candidate + 1;
+      }
+      return candidate;
+    }
+
+    final sourceGap =
+        source != null && source.gap >= 2 && source.gap <= maxGap
+            ? source.gap
+            : null;
+    final gap = switch (stage) {
+      RemediationStage.supported => sourceGap ?? _between(2, maxGap),
+      RemediationStage.transfer =>
+        differentGap(sourceGap ?? _between(2, maxGap)),
+      RemediationStage.check => _between(2, maxGap),
+      _ => sourceGap ?? _between(2, maxGap),
+    };
+
+    final maxAnchorIndex =
+        max(2, max(step * 2, limit - step) ~/ step);
+    final anchor = _between(2, maxAnchorIndex) * step;
+    final a = anchor - gap;
+    final restMax = max(1, min(step, limit - anchor));
+    final rest = _between(1, restMax);
+    final b = gap + rest;
+
+    final values = <int>{gap};
+    for (final offset in [1, -1, 2, -2, 5, -5]) {
+      final candidate = gap + offset;
+      if (candidate >= 1 && candidate <= maxGap) values.add(candidate);
+      if (values.length >= 4) break;
+    }
+    var filler = 1;
+    while (values.length < 4) {
+      if (filler <= maxGap) values.add(filler);
+      filler += 1;
+    }
+    final choices = values.take(4).map((value) => '$value').toList()
+      ..shuffle(_random);
+
+    final prompt = stage == RemediationStage.transfer
+        ? '$a + $b soll zuerst den glatten $label $anchor erreichen. Wie viel vom zweiten Summanden brauchst du für diesen ersten Schritt?'
+        : 'Von $a bis zum glatten $label $anchor: Wie viel fehlt?';
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'strategy-gap:$label:$a:$b:$anchor',
+      prompt: prompt,
+      choices: choices,
+      answer: choices.indexOf('$gap'),
+      hint:
+          'Ergänze nur vom ersten Summanden bis zur glatten Zielzahl. Den Rest des zweiten Summanden brauchst du erst danach.',
+    );
+  }
+
+  ({int step, int gap})? _strategyGapSource(String sourceTaskKey) {
+    final parts = sourceTaskKey.split(':');
+    final index = parts.indexOf('strategy');
+    if (index < 0 || index + 4 >= parts.length) return null;
+    final label = parts[index + 1];
+    final a = int.tryParse(parts[index + 2]);
+    final anchor = int.tryParse(parts[index + 4]);
+    if (a == null || anchor == null || anchor <= a) return null;
+    final step = switch (label) {
+      'Zehner' => 10,
+      'Hunderter' => 100,
+      'Tausender' => 1000,
+      _ => 0,
+    };
+    if (step == 0) return null;
+    return (step: step, gap: anchor - a);
   }
 
   RemediationTask _placeValueContributionStep(

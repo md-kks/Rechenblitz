@@ -1251,6 +1251,52 @@ void main() {
   });
 
 
+
+  test('Strategie-Recovery festigt die Ergänzung bis zur glatten Zielzahl',
+      () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.strategyChoice,
+      stepKey: 'gapToAnchor',
+      label: GuidedStepCatalog.labelFor('gapToAnchor'),
+      mode: TrainingMode.mentalStrategies,
+      lastSeen: DateTime(2026, 9, 6, 23, 45),
+      sourceTaskKey:
+          'independent:gapToAnchor:process:strategy:Hunderter:672:45:700',
+    );
+    final plan = StepRecoveryGenerator(random: Random(822)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int gap(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('strategy-gap');
+      final a = int.parse(parts[index + 2]);
+      final anchor = int.parse(parts[index + 4]);
+      return anchor - a;
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(gap(plan.tasks[0]), 28);
+    expect(gap(plan.tasks[1]), isNot(28));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.mentalStrategies);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:gapToAnchor:strategy-gap:Hunderter:'),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.answer, inInclusiveRange(0, task.choices!.length - 1));
+      expect(int.parse(task.choices![task.answer]), gap(task));
+      expect(task.hint, contains('glatten Zielzahl'));
+    }
+  });
+
   test('Stellenwert-Recovery überträgt den Ziffernwert auf eine andere Stelle',
       () {
     final focus = IndependentStepRecoveryFocus(
