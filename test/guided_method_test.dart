@@ -1225,6 +1225,95 @@ void main() {
     );
   });
 
+  test('Proportionalität beobachtet den Wert für eine Einheit getrennt', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.proportionality,
+      taskKey: 'proportion:notebooks:3:4:7',
+      expected: 21,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.proportionalUnit,
+    );
+    final evidenceSteps = guide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .toList();
+
+    expect(guide.methodKey, 'proportion:unitValue');
+    expect(evidenceSteps, hasLength(1));
+    expect(evidenceSteps.single.evidenceKey, 'unitValue');
+    expect(
+      evidenceSteps.single.evidenceCompetency,
+      MicroCompetencyId.proportionalUnit,
+    );
+    expect(
+      evidenceSteps.single.choices[evidenceSteps.single.correctChoice!],
+      '3',
+    );
+    expect(evidenceSteps.single.evidenceWeight, 0.40);
+    expect(GuidedStepCatalog.labelFor('unitValue'), contains('Einheit'));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.proportionality,
+      taskKey: 'proportion:notebooks:3:4:7',
+      expected: 21,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.proportionalUnit,
+    );
+    expect(independent.map((step) => step.evidenceKey), ['unitValue']);
+  });
+
+  testWidgets(
+      'Curriculum speichert proportionalen Einheitswert selbstständig',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.proportionality,
+      prompt: '4 Hefte kosten 12 €. Was kosten 7 Hefte?',
+      answer: 21,
+      hint: 'Bestimme zuerst den Wert für 1 Einheit.',
+      key: 'proportion:notebooks:3:4:7',
+      answerSuffix: '€',
+      maxAnswerValue: 100,
+      method: 'Einfache Zuordnung',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.proportionality,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.proportionalUnit,
+          exerciseGenerator: _FixedCurriculumExerciseGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 1'), findsOneWidget);
+    expect(find.text('Antwort eingeben'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, '3'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final steps = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+        .toList();
+    expect(steps, hasLength(1));
+    expect(steps.single.id, MicroCompetencyId.proportionalUnit);
+    expect(steps.single.correct, isTrue);
+    expect(steps.single.usedHelp, isFalse);
+    expect(
+      steps.single.taskKey,
+      'independent:unitValue:proportion:notebooks:3:4:7',
+    );
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+  });
+
   test('Teilen-Hilfe unterscheidet gesuchte Gruppen und Gruppengröße', () {
     const cases = [
       (
