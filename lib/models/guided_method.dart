@@ -107,6 +107,7 @@ class GuidedStepCatalog {
     'unitValue': 'Wert für eine Einheit bestimmen',
     'minutesToNextHour':
         'Minuten bis zur nächsten vollen Stunde bestimmen',
+    'equalPartSize': 'Größe eines gleich großen Bruchteils bestimmen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -355,6 +356,18 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.fractions) {
+      if (targetCompetency != MicroCompetencyId.fractionEqualParts ||
+          !taskKey.startsWith('fraction:parts:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _fraction(taskKey, expected)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
     if (mode == TrainingMode.timeDurations) {
       if (targetCompetency != MicroCompetencyId.timeDuration ||
           !taskKey.startsWith('duration:') ||
@@ -1733,26 +1746,73 @@ class GuidedMethodFactory {
         ],
       );
 
-  static GuidedMethodGuide _fraction(String key, int expected) =>
-      GuidedMethodGuide(
-        methodKey: 'fraction:equalParts',
-        methodLabel: 'Gleich große Teile',
-        nudge: 'Wie viele gleich große Teile hat das Ganze?',
-        steps: [
-          const GuidedMethodStep(
-            title: 'Ganzes erkennen',
-            instruction: 'Bestimme zuerst die gesamte Menge.',
-          ),
-          const GuidedMethodStep(
-            title: 'Gleichmäßig teilen',
-            instruction: 'Teile das Ganze in gleich große Teile.',
-          ),
-          GuidedMethodStep(
-            title: 'Gesuchten Anteil nehmen',
-            instruction: 'Ein gesuchter Teil hat hier den Wert $expected.',
-          ),
-        ],
-      );
+  static GuidedMethodGuide _fraction(String key, int expected) {
+    final parts = key.split(':');
+    if (key.startsWith('fraction:parts:') && parts.length >= 5) {
+      final numerator = int.tryParse(parts[2]);
+      final denominator = int.tryParse(parts[3]);
+      final whole = int.tryParse(parts[4]);
+      if (numerator != null &&
+          denominator != null &&
+          whole != null &&
+          denominator > 1 &&
+          numerator > 0 &&
+          numerator < denominator &&
+          whole % denominator == 0) {
+        final partSize = whole ~/ denominator;
+        final choices = _numberChoices(
+          partSize,
+          maxValue: max(12, partSize + 4),
+        );
+        return GuidedMethodGuide(
+          methodKey: 'fraction:equalParts',
+          methodLabel: 'Gleich große Teile',
+          nudge:
+              'Teile $whole zuerst in $denominator wirklich gleich große Teile.',
+          steps: [
+            GuidedMethodStep(
+              title: 'Einen gleich großen Teil bestimmen',
+              instruction:
+                  '$whole wird auf $denominator gleich große Teile verteilt.',
+              question:
+                  'Wie groß ist genau 1 von $denominator gleich großen Teilen?',
+              choices: choices,
+              correctChoice: choices.indexOf('$partSize'),
+              evidenceKey: 'equalPartSize',
+              evidenceCompetency: MicroCompetencyId.fractionEqualParts,
+              evidenceWeight: 0.40,
+            ),
+            GuidedMethodStep(
+              title: 'Gesuchte Teile zusammensetzen',
+              instruction:
+                  '$numerator Teile mit je $partSize ergeben $numerator × $partSize = $expected.',
+            ),
+          ],
+        );
+      }
+    }
+
+    return GuidedMethodGuide(
+      methodKey: 'fraction:equalParts',
+      methodLabel: 'Gleich große Teile',
+      nudge: 'Wie viele gleich große Teile hat das Ganze?',
+      steps: [
+        const GuidedMethodStep(
+          title: 'Ganzes erkennen',
+          instruction: 'Bestimme zuerst die gesamte Menge.',
+        ),
+        const GuidedMethodStep(
+          title: 'Gleichmäßig teilen',
+          instruction:
+              'Der Nenner sagt, in wie viele gleich große Teile das Ganze zerlegt wird.',
+        ),
+        GuidedMethodStep(
+          title: 'Gesuchten Anteil nehmen',
+          instruction: 'Bestimme anschließend den gefragten Bruchteil.',
+        ),
+      ],
+    );
+  }
 
   static GuidedMethodGuide _timeDuration(String key) {
     final parts = key.split(':');
