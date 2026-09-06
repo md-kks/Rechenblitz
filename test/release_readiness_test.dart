@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 42,
+        fullTaskOnly: 41,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 22,
+        targetedRecovery: 23,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 44,
+        fullTaskOnly: 43,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 22,
+        targetedRecovery: 23,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Rundungsentscheidung bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.roundingPlace,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('roundingDecisionDigit'));
+    expect(item.independentStepKeys, contains('roundingDecisionDigit'));
+    expect(item.recoveryStepKeys, contains('roundingDecisionDigit'));
   });
 
   test('Audit führt Minuten-Sekunden-Beziehung bis zur Recovery', () {

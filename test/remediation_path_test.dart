@@ -1009,6 +1009,55 @@ void main() {
   });
 
 
+  test('Rundungs-Recovery wechselt die entscheidende Rundungsstelle', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.roundingPlace,
+      stepKey: 'roundingDecisionDigit',
+      label: GuidedStepCatalog.labelFor('roundingDecisionDigit'),
+      mode: TrainingMode.rounding,
+      lastSeen: DateTime(2026, 9, 6, 13),
+      sourceTaskKey:
+          'independent:roundingDecisionDigit:round:467:100',
+    );
+    final plan = StepRecoveryGenerator(random: Random(647)).generate(
+      focus: focus,
+      range: NumberRangeLevel.million,
+    );
+
+    int place(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('rounding-decision');
+      return int.parse(parts[index + 2]);
+    }
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+    expect(place(plan.tasks[0]), 100);
+    expect(place(plan.tasks[1]), isNot(100));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.rounding);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:roundingDecisionDigit:rounding-decision:',
+        ),
+      );
+      expect(task.usesChoices, isFalse);
+      expect(task.answer, inInclusiveRange(1, 9));
+      expect(task.maxAnswerValue, 9);
+      expect(task.prompt, contains('Welche Ziffer entscheidet'));
+      expect(task.hint, contains('eine Stelle nach rechts'));
+    }
+  });
+
   test('Sekunden-Recovery wechselt gezielt die Umrechnungsrichtung', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.secondsConversion,

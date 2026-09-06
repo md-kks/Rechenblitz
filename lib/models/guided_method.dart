@@ -111,6 +111,7 @@ class GuidedStepCatalog {
     'decidingPlace': 'erste unterschiedliche Stelle beim Vergleichen finden',
     'unitRelation': 'passende Beziehung zwischen zwei Einheiten erkennen',
     'minuteSecondRelation': 'Beziehung zwischen Minuten und Sekunden erkennen',
+    'roundingDecisionDigit': 'entscheidende Ziffer beim Runden erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -234,6 +235,11 @@ class GuidedMethodFactory {
 
     if (mode == TrainingMode.largeNumbers) {
       return _largeNumbers(taskKey);
+    }
+
+    if (mode == TrainingMode.rounding ||
+        targetCompetency == MicroCompetencyId.roundingPlace) {
+      return _roundingGuide(taskKey, expected);
     }
 
     if (targetCompetency == MicroCompetencyId.secondsConversion ||
@@ -364,6 +370,18 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.rounding) {
+      if (targetCompetency != MicroCompetencyId.roundingPlace ||
+          !taskKey.startsWith('round:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _roundingGuide(taskKey, expected)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
     if (mode == TrainingMode.advancedMeasures) {
       if (targetCompetency == MicroCompetencyId.secondsConversion &&
           taskKey.startsWith('time:seconds:')) {
@@ -512,6 +530,91 @@ class GuidedMethodFactory {
         )
         .take(2)
         .toList(growable: false);
+  }
+
+  static GuidedMethodGuide _roundingGuide(
+    String taskKey,
+    int expected,
+  ) {
+    final parts = taskKey.split(':');
+    if (!taskKey.startsWith('round:') || parts.length < 3) {
+      return const GuidedMethodGuide(
+        methodKey: 'rounding:place',
+        methodLabel: 'Runden',
+        nudge:
+            'Markiere die Rundungsstelle. Die Ziffer direkt rechts daneben entscheidet.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Rundungsstelle finden',
+            instruction: 'Bestimme zuerst, auf welche Stelle gerundet wird.',
+          ),
+          GuidedMethodStep(
+            title: 'Entscheidende Ziffer ansehen',
+            instruction:
+                'Schau genau eine Stelle nach rechts: 0–4 abrunden, 5–9 aufrunden.',
+          ),
+        ],
+      );
+    }
+
+    final number = int.tryParse(parts[1]);
+    final place = int.tryParse(parts[2]);
+    if (number == null || place == null || place < 10) {
+      return const GuidedMethodGuide(
+        methodKey: 'rounding:place',
+        methodLabel: 'Runden',
+        nudge:
+            'Markiere die Rundungsstelle. Die Ziffer direkt rechts daneben entscheidet.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Rundungsstelle finden',
+            instruction: 'Bestimme zuerst, auf welche Stelle gerundet wird.',
+          ),
+          GuidedMethodStep(
+            title: 'Entscheidende Ziffer ansehen',
+            instruction:
+                'Schau genau eine Stelle nach rechts: 0–4 abrunden, 5–9 aufrunden.',
+          ),
+        ],
+      );
+    }
+
+    final decisionPlace = place ~/ 10;
+    final decisionDigit = (number ~/ decisionPlace) % 10;
+    final choices = _numberChoices(decisionDigit, maxValue: 9);
+    final roundsUp = decisionDigit >= 5;
+    final placeLabel = _largePlaceLabel(place);
+    final decisionLabel = _largePlaceLabel(decisionPlace);
+
+    return GuidedMethodGuide(
+      methodKey: 'rounding:place',
+      methodLabel: 'Runden',
+      nudge:
+          'Du rundest auf die $placeLabel. Entscheidend ist genau die Stelle rechts daneben.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Entscheidende Ziffer finden',
+          instruction:
+              'Suche zuerst die $placeLabel und gehe dann genau eine Stelle nach rechts zur $decisionLabel.',
+          question: 'Welche Ziffer entscheidet bei $number über das Runden?',
+          choices: choices,
+          correctChoice: choices.indexOf('$decisionDigit'),
+          evidenceKey: 'roundingDecisionDigit',
+          evidenceCompetency: MicroCompetencyId.roundingPlace,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: roundsUp ? 'Aufrunden' : 'Abrunden',
+          instruction: roundsUp
+              ? '$decisionDigit liegt zwischen 5 und 9. Deshalb wird aufgerundet.'
+              : '$decisionDigit liegt zwischen 0 und 4. Deshalb wird abgerundet.',
+        ),
+        GuidedMethodStep(
+          title: 'Gerundete Zahl bilden',
+          instruction: 'Das Ergebnis ist $expected.',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _representationGuide(String taskKey) {
