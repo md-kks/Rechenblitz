@@ -117,11 +117,13 @@ class CurriculumExerciseGenerator {
   }) =>
       switch (mode) {
         TrainingMode.largeNumbers =>
-          targetCompetency == MicroCompetencyId.largeNumberOrder
-              ? _largeNumberOrder(gradeLevel, maxValue)
-              : targetCompetency == MicroCompetencyId.numberWordReading
-                  ? _numberWord(gradeLevel, maxValue)
-                  : _largeNumbers(gradeLevel, maxValue),
+          targetCompetency == MicroCompetencyId.largeNumberCompare
+              ? _largeNumberCompareDiagnostic(gradeLevel, maxValue)
+              : targetCompetency == MicroCompetencyId.largeNumberOrder
+                  ? _largeNumberOrder(gradeLevel, maxValue)
+                  : targetCompetency == MicroCompetencyId.numberWordReading
+                      ? _numberWord(gradeLevel, maxValue)
+                      : _largeNumbers(gradeLevel, maxValue),
         TrainingMode.rounding => _rounding(gradeLevel, maxValue),
         TrainingMode.mentalStrategies =>
           targetCompetency == MicroCompetencyId.strategyChoice
@@ -276,6 +278,68 @@ class CurriculumExerciseGenerator {
       maxAnswerValue: limit,
       method: 'Stellenwerttafel',
     );
+  }
+
+  CurriculumExercise _largeNumberCompareDiagnostic(
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    var upper = min(
+      _safeMax(maxValue, grade),
+      grade == GradeLevel.third ? 999 : 999999,
+    );
+    if (upper >= 100 && _isPowerOfTen(upper)) {
+      upper -= 1;
+    }
+    upper = max(99, upper);
+
+    var highestPlace = 1;
+    while (highestPlace * 10 <= upper) {
+      highestPlace *= 10;
+    }
+    final decidingPlaces = <int>[];
+    for (var place = highestPlace ~/ 10; place >= 1; place ~/= 10) {
+      decidingPlaces.add(place);
+      if (place == 1) break;
+    }
+    final decidingPlace =
+        decidingPlaces[_random.nextInt(decidingPlaces.length)];
+    final block = decidingPlace * 10;
+    final minPrefix = max(1, highestPlace ~/ block);
+    final maxPrefix = upper ~/ block;
+    final prefix = _between(minPrefix, max(minPrefix, maxPrefix));
+
+    final firstDigit = _between(0, 9);
+    var secondDigit = _between(0, 8);
+    if (secondDigit >= firstDigit) secondDigit += 1;
+    final suffixA =
+        decidingPlace == 1 ? 0 : _between(0, decidingPlace - 1);
+    final suffixB =
+        decidingPlace == 1 ? 0 : _between(0, decidingPlace - 1);
+    final a = prefix * block + firstDigit * decidingPlace + suffixA;
+    final b = prefix * block + secondDigit * decidingPlace + suffixB;
+
+    const choices = ['<', '>', '='];
+    final correct = a > b ? '>' : '<';
+    return CurriculumExercise(
+      mode: TrainingMode.largeNumbers,
+      prompt: 'Welches Zeichen passt?\n' + _fmt(a) + '  ?  ' + _fmt(b),
+      answer: choices.indexOf(correct),
+      hint:
+          'Vergleiche von links nach rechts. Gleiche Stellen überspringst du, bis sich zwei Ziffern unterscheiden.',
+      key: 'large:compare:$a:$b',
+      choices: choices,
+      method: 'Zahlen vergleichen',
+    );
+  }
+
+  bool _isPowerOfTen(int value) {
+    if (value < 10) return false;
+    var current = value;
+    while (current % 10 == 0) {
+      current ~/= 10;
+    }
+    return current == 1;
   }
 
   CurriculumExercise _largeNumberOrder(
