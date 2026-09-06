@@ -1009,6 +1009,52 @@ void main() {
   });
 
 
+  test('Sekunden-Recovery wechselt gezielt die Umrechnungsrichtung', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.secondsConversion,
+      stepKey: 'minuteSecondRelation',
+      label: GuidedStepCatalog.labelFor('minuteSecondRelation'),
+      mode: TrainingMode.advancedMeasures,
+      lastSeen: DateTime(2026, 9, 6, 12, 45),
+      sourceTaskKey:
+          'independent:minuteSecondRelation:time:seconds:min-to-sec:4',
+    );
+    final plan = StepRecoveryGenerator(random: Random(646)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+    expect(plan.tasks[0].taskKey, contains(':min-to-sec'));
+    expect(plan.tasks[1].taskKey, contains(':sec-to-min'));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.advancedMeasures);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:minuteSecondRelation:minute-second-relation:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.answer, inInclusiveRange(0, task.choices!.length - 1));
+      expect(
+        task.choices![task.answer],
+        '1 min = 60 s',
+      );
+      expect(task.prompt, contains('Welche Beziehung brauchst du'));
+      expect(task.hint, contains('volle Minute'));
+    }
+  });
+
   test('Einheiten-Recovery festigt zuerst die feste Beziehung', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.unitConversion,
