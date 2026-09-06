@@ -136,6 +136,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.strategyChoice: [
       'gapToAnchor',
     ],
+    MicroCompetencyId.mentalStrategy: [
+      'firstMentalChunk',
+    ],
     MicroCompetencyId.plausibilityCheck: [
       'referenceEstimate',
     ],
@@ -264,6 +267,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.strategyChoice: [
       'gapToAnchor',
+    ],
+    MicroCompetencyId.mentalStrategy: [
+      'firstMentalChunk',
     ],
     MicroCompetencyId.plausibilityCheck: [
       'referenceEstimate',

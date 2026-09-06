@@ -231,6 +231,7 @@ class StepRecoveryGenerator {
     'numberWordTensOnes',
     'placeValueContribution',
     'gapToAnchor',
+    'firstMentalChunk',
     'referenceEstimate',
     'roundedSummands',
     'errorPlace',
@@ -364,6 +365,8 @@ class StepRecoveryGenerator {
         'placeValueContribution' =>
           _placeValueContributionStep(focus, stage, range),
         'gapToAnchor' => _strategyGapToAnchorStep(focus, stage, range),
+        'firstMentalChunk' =>
+          _firstMentalChunkStep(focus, stage, range),
         'referenceEstimate' =>
           _plausibilityReferenceEstimateStep(focus, stage, range),
         'roundedSummands' =>
@@ -1828,6 +1831,87 @@ class StepRecoveryGenerator {
     final index = parts.indexOf('plausibility');
     if (index < 0 || index + 4 >= parts.length) return null;
     return int.tryParse(parts[index + 4]);
+  }
+
+  RemediationTask _firstMentalChunkStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(100, min(range.maxValue, 1000000));
+    final parts = focus.sourceTaskKey.split(':');
+    final mentalIndex = parts.indexOf('mental');
+    final sourceOperation =
+        mentalIndex >= 0 && mentalIndex + 1 < parts.length
+            ? parts[mentalIndex + 1]
+            : '+';
+    final sourceB = mentalIndex >= 0 && mentalIndex + 3 < parts.length
+        ? int.tryParse(parts[mentalIndex + 3])
+        : null;
+
+    int leadingPlace(int value) {
+      var place = 1;
+      while (place * 10 <= value) {
+        place *= 10;
+      }
+      return place;
+    }
+
+    final operandCap = min(limit - 1, limit >= 10000 ? 49999 : 999);
+    final availablePlaces = [10, 100, 1000, 10000]
+        .where((place) => place + 1 <= operandCap)
+        .toList();
+    final sourcePlace =
+        sourceB != null && sourceB >= 10 ? leadingPlace(sourceB) : null;
+    final supportedPlace =
+        sourcePlace != null && availablePlaces.contains(sourcePlace)
+            ? sourcePlace
+            : availablePlaces.first;
+    final transferPlaces =
+        availablePlaces.where((place) => place != supportedPlace).toList();
+    final place = switch (stage) {
+      RemediationStage.supported => supportedPlace,
+      RemediationStage.transfer => transferPlaces.isEmpty
+          ? supportedPlace
+          : transferPlaces[_random.nextInt(transferPlaces.length)],
+      RemediationStage.check =>
+        availablePlaces[_random.nextInt(availablePlaces.length)],
+      _ => supportedPlace,
+    };
+
+    final maxDigit = min(9, (operandCap - 1) ~/ place);
+    final digit = _between(1, maxDigit);
+    final chunk = digit * place;
+    final remainder =
+        _between(1, min(place - 1, operandCap - chunk));
+    final b = chunk + remainder;
+    final operation = stage == RemediationStage.check
+        ? (_random.nextBool() ? '+' : '-')
+        : sourceOperation;
+    final a = operation == '+'
+        ? _between(1, max(1, limit - b))
+        : _between(b, limit);
+
+    final values = <int>{chunk, remainder, b, max(1, chunk ~/ 10)};
+    var filler = 1;
+    while (values.length < 4) {
+      values.add(filler);
+      filler += 1;
+    }
+    final choices = values.take(4).map((value) => '$value').toList()
+      ..shuffle(_random);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'mental-chunk:$operation:$a:$b:$place',
+      prompt:
+          '$a $operation $b: Welche Teilzahl von $b rechnest du beim halbschriftlichen Rechnen zuerst?',
+      choices: choices,
+      answer: choices.indexOf('$chunk'),
+      hint:
+          'Zerlege den zweiten Operanden nach Stellenwerten. Beginne mit seinem größten Stellenwertblock.',
+    );
   }
 
   RemediationTask _strategyGapToAnchorStep(

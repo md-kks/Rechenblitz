@@ -249,6 +249,48 @@ void main() {
     expect(independent.map((step) => step.evidenceKey), ['roundedSummands']);
   });
 
+
+  test('Halbschriftliches Rechnen beobachtet zuerst den größten Block', () {
+    for (final item in [
+      (key: 'mental:+:672:45', expected: 717, chunk: '40'),
+      (key: 'mental:-:672:45', expected: 627, chunk: '40'),
+      (key: 'mental:+:1200:345', expected: 1545, chunk: '300'),
+    ]) {
+      final guide = GuidedMethodFactory.forTask(
+        mode: TrainingMode.mentalStrategies,
+        taskKey: item.key,
+        expected: item.expected,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.mentalStrategy,
+      );
+      final evidence =
+          guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+      expect(guide.methodKey, 'mental:placeChunks');
+      expect(evidence.evidenceKey, 'firstMentalChunk');
+      expect(
+        evidence.evidenceCompetency,
+        MicroCompetencyId.mentalStrategy,
+      );
+      expect(evidence.evidenceWeight, 0.40);
+      expect(evidence.choices[evidence.correctChoice!], item.chunk);
+      expect(
+        evidence.instruction,
+        isNot(contains(item.expected.toString())),
+      );
+
+      final independent =
+          GuidedMethodFactory.independentWrittenStepsForTask(
+        mode: TrainingMode.mentalStrategies,
+        taskKey: item.key,
+        expected: item.expected,
+        preferences: const MethodPreferences(),
+        targetCompetency: MicroCompetencyId.mentalStrategy,
+      );
+      expect(independent.map((step) => step.evidenceKey), ['firstMentalChunk']);
+    }
+  });
+
   test('Große Zahlen ordnen beobachtet zuerst die kleinste Zahl', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.largeNumbers,
