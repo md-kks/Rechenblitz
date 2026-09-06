@@ -1164,7 +1164,8 @@ class MicroCompetencyCatalog {
       return _transferStoryTags(key);
     }
 
-    if (key.startsWith('story:sharing:')) {
+    if (key.startsWith('story:sharing:') ||
+        key.startsWith('story:grouping:')) {
       return const [
         MicroCompetencyTag(MicroCompetencyId.divisionSharing),
         MicroCompetencyTag(
