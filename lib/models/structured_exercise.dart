@@ -510,8 +510,8 @@ class StructuredExerciseGenerator {
   StructuredExercise _divisionSharingWordProblem(int maxValue) {
     final limit = max(10, maxValue);
     final groups = _between(2, min(8, max(2, limit ~/ 2)));
-    final maxEach = max(1, min(10, limit ~/ groups));
-    final each = _between(1, maxEach);
+    final maxEach = max(2, min(10, limit ~/ groups));
+    final each = _between(2, maxEach);
     final total = groups * each;
     final sharing = _random.nextBool();
 
