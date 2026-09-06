@@ -127,6 +127,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.roundingPlace: [
       'roundingDecisionDigit',
     ],
+    MicroCompetencyId.clockReading: [
+      'minuteHandMinutes',
+    ],
     MicroCompetencyId.additionTenBridge: [
       'bridgeAmount',
     ],
@@ -210,6 +213,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.roundingPlace: [
       'roundingDecisionDigit',
+    ],
+    MicroCompetencyId.clockReading: [
+      'minuteHandMinutes',
     ],
     MicroCompetencyId.additionTenBridge: [
       'bridgeAmount',

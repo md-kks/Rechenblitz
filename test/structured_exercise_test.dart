@@ -79,6 +79,65 @@ void main() {
     }
   });
 
+  test('Gezieltes Uhrlesen prüft zuerst den langen Minutenzeiger', () {
+    final gradeOne = StructuredExerciseGenerator(random: Random(171));
+    for (var i = 0; i < 40; i++) {
+      final exercise = gradeOne.generate(
+        mode: TrainingMode.clock,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+        targetCompetency: MicroCompetencyId.clockReading,
+      );
+
+      expect(exercise.key, startsWith('clock:'));
+      expect(exercise.clockMinute, 30);
+      expect(exercise.checkpoints, hasLength(1));
+      final checkpoint = exercise.checkpoints.single;
+      expect(checkpoint.key, 'minuteHandMinutes');
+      expect(checkpoint.competencyId, MicroCompetencyId.clockReading);
+      expect(checkpoint.evidenceWeight, 0.40);
+      expect(checkpoint.choices, ['0 Minuten', '30 Minuten']);
+      expect(checkpoint.choices[checkpoint.correctChoice], '30 Minuten');
+    }
+
+    final upper = StructuredExerciseGenerator(random: Random(172));
+    for (var i = 0; i < 80; i++) {
+      final exercise = upper.generate(
+        mode: TrainingMode.clock,
+        maxValue: 100,
+        gradeLevel: GradeLevel.second,
+        targetCompetency: MicroCompetencyId.clockReading,
+      );
+      final checkpoint = exercise.checkpoints.single;
+
+      expect(exercise.clockMinute, isIn([15, 30, 45]));
+      expect(exercise.clockMinute, isNot(0));
+      expect(
+        checkpoint.choices[checkpoint.correctChoice],
+        '${exercise.clockMinute} Minuten',
+      );
+      expect(
+        checkpoint.choices,
+        exercise.clockMinute == 30
+            ? ['0 Minuten', '30 Minuten']
+            : ['0 Minuten', '15 Minuten', '30 Minuten', '45 Minuten'],
+      );
+    }
+  });
+
+  test('Normales Uhrtraining bleibt ohne zusätzlichen Pflicht-Checkpoint', () {
+    final generator = StructuredExerciseGenerator(random: Random(173));
+
+    for (var i = 0; i < 30; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.clock,
+        maxValue: 20,
+        gradeLevel: GradeLevel.first,
+      );
+      expect(exercise.checkpoints, isEmpty);
+    }
+  });
+
   test('Geometrie verwendet Grundformen und gültige Antworten', () {
     final generator = StructuredExerciseGenerator(random: Random(23));
     for (var i = 0; i < 80; i++) {

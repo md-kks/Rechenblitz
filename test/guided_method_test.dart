@@ -1500,6 +1500,69 @@ void main() {
     );
   });
 
+  test('Uhrlesen trennt Minutenzeiger von der ganzen Uhrzeit', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.clock,
+      taskKey: 'clock:7:30',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.clockReading,
+    );
+    final evidence = guide.steps.singleWhere(
+      (step) => step.evidenceKey == 'minuteHandMinutes',
+    );
+
+    expect(guide.methodKey, 'clock:readHands');
+    expect(guide.methodLabel, 'Uhrzeiger lesen');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.clockReading);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices, ['0 Minuten', '30 Minuten']);
+    expect(evidence.choices[evidence.correctChoice!], '30 Minuten');
+    expect(evidence.instruction, isNot(contains('30')));
+    expect(guide.steps[1].instruction, contains('begonnene Stunde ist 7'));
+    expect(guide.steps.last.instruction, contains('7:30 Uhr'));
+    expect(
+      GuidedStepCatalog.labelFor('minuteHandMinutes'),
+      contains('langen Zeigers'),
+    );
+  });
+
+  test('Uhrlesen unterstützt Viertelstunden ohne Klasse-1-Distraktoren', () {
+    final quarter = GuidedMethodFactory.forTask(
+      mode: TrainingMode.clock,
+      taskKey: 'clock:4:45',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.clockReading,
+    );
+    final quarterStep = quarter.steps.singleWhere(
+      (step) => step.evidenceKey == 'minuteHandMinutes',
+    );
+
+    expect(
+      quarterStep.choices,
+      ['0 Minuten', '15 Minuten', '30 Minuten', '45 Minuten'],
+    );
+    expect(
+      quarterStep.choices[quarterStep.correctChoice!],
+      '45 Minuten',
+    );
+
+    final half = GuidedMethodFactory.forTask(
+      mode: TrainingMode.clock,
+      taskKey: 'clock:4:30',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.clockReading,
+    );
+    expect(
+      half.steps
+          .singleWhere((step) => step.evidenceKey == 'minuteHandMinutes')
+          .choices,
+      ['0 Minuten', '30 Minuten'],
+    );
+  });
+
   test('Runden beobachtet die entscheidende Ziffer unabhängig', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.rounding,
