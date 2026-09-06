@@ -124,7 +124,11 @@ class CurriculumExerciseGenerator {
                   : targetCompetency == MicroCompetencyId.numberWordReading
                       ? _numberWord(gradeLevel, maxValue)
                       : _largeNumbers(gradeLevel, maxValue),
-        TrainingMode.rounding => _rounding(gradeLevel, maxValue),
+        TrainingMode.rounding => _rounding(
+            gradeLevel,
+            maxValue,
+            targetCompetency: targetCompetency,
+          ),
         TrainingMode.mentalStrategies =>
           targetCompetency == MicroCompetencyId.strategyChoice
               ? _strategyChoice(gradeLevel, maxValue)
@@ -426,13 +430,27 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _rounding(GradeLevel grade, int maxValue) {
+  CurriculumExercise _rounding(
+    GradeLevel grade,
+    int maxValue, {
+    MicroCompetencyId? targetCompetency,
+  }) {
     final limit = _safeMax(maxValue, grade);
     final places = [10, 100, 1000, 10000, 100000]
         .where((value) => value <= limit)
         .toList();
     final place = places[_random.nextInt(places.length)];
-    final number = _between(place, limit);
+    var number = _between(place, limit);
+    if (targetCompetency == MicroCompetencyId.roundingPlace) {
+      for (var attempt = 0;
+          attempt < 40 && number % place == 0;
+          attempt++) {
+        number = _between(place, limit);
+      }
+      if (number % place == 0 && place < limit) {
+        number = min(limit, number + max(1, place ~/ 10));
+      }
+    }
     final rounded = _roundTo(number, place);
     final label = switch (place) {
       10 => 'Zehner',
