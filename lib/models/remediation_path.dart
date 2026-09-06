@@ -218,6 +218,7 @@ class StepRecoveryGenerator {
     'divisionTargetQuantity',
     'unitValue',
     'minutesToNextHour',
+    'equalPartSize',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -322,6 +323,7 @@ class StepRecoveryGenerator {
           _divisionTargetQuantityStep(focus, stage, range),
         'unitValue' => _proportionalUnitValueStep(focus, stage, range),
         'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
+        'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -760,6 +762,63 @@ class StepRecoveryGenerator {
       hint: sharing
           ? 'Die Anzahl der Gruppen ist bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
           : 'Die Gruppengröße ist bekannt. Gesucht ist, wie viele Gruppen entstehen.',
+    );
+  }
+
+  RemediationTask _fractionEqualPartSizeStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    const denominators = [2, 4];
+    final parts = focus.sourceTaskKey.split(':');
+    final fractionIndex = parts.indexOf('fraction');
+    final sourceDenominator = fractionIndex >= 0 &&
+            fractionIndex + 3 < parts.length &&
+            parts[fractionIndex + 1] == 'parts'
+        ? int.tryParse(parts[fractionIndex + 3])
+        : null;
+    final validSourceDenominator =
+        denominators.contains(sourceDenominator) ? sourceDenominator! : 4;
+    final transferDenominators = denominators
+        .where((value) => value != validSourceDenominator)
+        .toList();
+    final denominator = switch (stage) {
+      RemediationStage.supported => validSourceDenominator,
+      RemediationStage.transfer =>
+        transferDenominators[_random.nextInt(transferDenominators.length)],
+      RemediationStage.check =>
+        denominators[_random.nextInt(denominators.length)],
+      _ => validSourceDenominator,
+    };
+    final limit = max(20, min(range.maxValue, 100));
+    final maxPart = max(2, min(20, limit ~/ denominator));
+    final partSize = _between(2, maxPart);
+    final whole = partSize * denominator;
+    final family = switch (stage) {
+      RemediationStage.supported => 'plaettchen',
+      RemediationStage.transfer => 'band',
+      RemediationStage.check => _random.nextBool() ? 'wuerfel' : 'plaettchen',
+      _ => 'plaettchen',
+    };
+    final prompt = switch (family) {
+      'band' =>
+        'Ein $whole cm langes Band wird in $denominator gleich lange Teile geteilt. Wie lang ist genau 1 Teil?',
+      'wuerfel' =>
+        '$whole Würfel werden in $denominator gleich große Mengen aufgeteilt. Wie viele Würfel gehören zu genau 1 Teil?',
+      _ =>
+        'Ein Ganzes aus $whole Plättchen wird in $denominator gleich große Teile geteilt. Wie viele Plättchen gehören zu genau 1 Teil?',
+    };
+
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'equal-part:$family:$denominator:$whole',
+      prompt: prompt,
+      answer: partSize,
+      max: maxPart,
+      hint:
+          'Alle Teile müssen gleich groß sein. Teile das Ganze $whole durch $denominator.',
     );
   }
 
