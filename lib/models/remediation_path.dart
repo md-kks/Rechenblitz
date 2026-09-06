@@ -220,6 +220,7 @@ class StepRecoveryGenerator {
     'minutesToNextHour',
     'equalPartSize',
     'decidingPlace',
+    'unitRelation',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -326,6 +327,7 @@ class StepRecoveryGenerator {
         'minutesToNextHour' => _timeDurationFirstJump(focus, stage),
         'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
         'decidingPlace' => _largeNumberDecidingPlaceStep(focus, stage, range),
+        'unitRelation' => _unitRelationStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -764,6 +766,153 @@ class StepRecoveryGenerator {
       hint: sharing
           ? 'Die Anzahl der Gruppen ist bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
           : 'Die Gruppengröße ist bekannt. Gesucht ist, wie viele Gruppen entstehen.',
+    );
+  }
+
+  RemediationTask _unitRelationStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final relations = <({
+      String id,
+      String start,
+      String target,
+      String correct,
+      List<String> choices,
+    })>[
+      (
+        id: 'm-cm',
+        start: 'm',
+        target: 'cm',
+        correct: '1 m = 100 cm',
+        choices: const [
+          '1 m = 10 cm',
+          '1 m = 100 cm',
+          '1 m = 1000 cm',
+        ],
+      ),
+      (
+        id: 'km-m',
+        start: 'km',
+        target: 'm',
+        correct: '1 km = 1000 m',
+        choices: const [
+          '1 km = 100 m',
+          '1 km = 1000 m',
+          '1 km = 10000 m',
+        ],
+      ),
+      (
+        id: 'cm-mm',
+        start: 'cm',
+        target: 'mm',
+        correct: '1 cm = 10 mm',
+        choices: const [
+          '1 cm = 1 mm',
+          '1 cm = 10 mm',
+          '1 cm = 100 mm',
+        ],
+      ),
+      (
+        id: 'kg-g',
+        start: 'kg',
+        target: 'g',
+        correct: '1 kg = 1000 g',
+        choices: const [
+          '1 kg = 100 g',
+          '1 kg = 1000 g',
+          '1 kg = 10000 g',
+        ],
+      ),
+      (
+        id: 'l-ml',
+        start: 'l',
+        target: 'ml',
+        correct: '1 l = 1000 ml',
+        choices: const [
+          '1 l = 100 ml',
+          '1 l = 1000 ml',
+          '1 l = 10000 ml',
+        ],
+      ),
+      (
+        id: 'euro-ct',
+        start: '€',
+        target: 'ct',
+        correct: '1 € = 100 ct',
+        choices: const [
+          '1 € = 10 ct',
+          '1 € = 100 ct',
+          '1 € = 1000 ct',
+        ],
+      ),
+      if (range.maxValue >= 1000000) ...[
+        (
+          id: 't-kg',
+          start: 't',
+          target: 'kg',
+          correct: '1 t = 1000 kg',
+          choices: const [
+            '1 t = 100 kg',
+            '1 t = 1000 kg',
+            '1 t = 10000 kg',
+          ],
+        ),
+        (
+          id: 'min-h',
+          start: 'min',
+          target: 'h',
+          correct: '1 h = 60 min',
+          choices: const [
+            '1 h = 30 min',
+            '1 h = 60 min',
+            '1 h = 100 min',
+          ],
+        ),
+      ],
+    ];
+
+    String sourceId() {
+      final key = focus.sourceTaskKey;
+      if (key.contains(':length:m:')) return 'm-cm';
+      if (key.contains(':length:km:')) return 'km-m';
+      if (key.contains(':length:cm-mm:')) return 'cm-mm';
+      if (key.contains(':mass:kg:')) return 'kg-g';
+      if (key.contains(':mass:t-kg:')) return 't-kg';
+      if (key.contains(':volume:l:')) return 'l-ml';
+      if (key.contains(':money:euro:')) return 'euro-ct';
+      if (key.contains(':time:min:')) return 'min-h';
+      return relations.first.id;
+    }
+
+    final source = relations.firstWhere(
+      (relation) => relation.id == sourceId(),
+      orElse: () => relations.first,
+    );
+    final transfer = relations
+        .where((relation) => relation.id != source.id)
+        .toList();
+    final selected = switch (stage) {
+      RemediationStage.supported => source,
+      RemediationStage.transfer =>
+        transfer[_random.nextInt(transfer.length)],
+      RemediationStage.check =>
+        relations[_random.nextInt(relations.length)],
+      _ => source,
+    };
+    final choices = selected.choices;
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'unit-relation:${selected.id}',
+      prompt:
+          'Welche Beziehung brauchst du, um von ${selected.start} in ${selected.target} umzuwandeln?',
+      choices: choices,
+      answer: choices.indexOf(selected.correct),
+      hint:
+          'Merke dir zuerst die feste Beziehung zwischen den beiden Einheiten. Rechne den Zahlenwert erst danach um.',
     );
   }
 
