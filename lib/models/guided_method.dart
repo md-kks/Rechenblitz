@@ -109,6 +109,7 @@ class GuidedStepCatalog {
         'Minuten bis zur nächsten vollen Stunde bestimmen',
     'equalPartSize': 'Größe eines gleich großen Bruchteils bestimmen',
     'decidingPlace': 'erste unterschiedliche Stelle beim Vergleichen finden',
+    'unitRelation': 'passende Beziehung zwischen zwei Einheiten erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -357,6 +358,18 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.advancedMeasures) {
+      if (targetCompetency != MicroCompetencyId.unitConversion ||
+          taskKey.startsWith('time:seconds:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _unitConversion(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
     if (mode == TrainingMode.largeNumbers) {
       if (targetCompetency != MicroCompetencyId.largeNumberCompare ||
           !taskKey.startsWith('large:compare:')) {
@@ -1766,8 +1779,10 @@ class GuidedMethodFactory {
         10 => 'Zehnerstelle',
         _ => 'Einerstelle',
       };
-  static GuidedMethodGuide _unitConversion(String key) =>
-      const GuidedMethodGuide(
+  static GuidedMethodGuide _unitConversion(String key) {
+    final relation = _unitRelationForKey(key);
+    if (relation == null) {
+      return const GuidedMethodGuide(
         methodKey: 'measure:unitLadder',
         methodLabel: 'Einheitenleiter',
         nudge: 'Welche Einheit hast du – und zu welcher Einheit willst du?',
@@ -1782,10 +1797,170 @@ class GuidedMethodFactory {
           ),
           GuidedMethodStep(
             title: 'Schrittweise umwandeln',
-            instruction: 'Nutze die bekannte Beziehung zwischen benachbarten Einheiten.',
+            instruction:
+                'Nutze die bekannte Beziehung zwischen den beiden Einheiten.',
           ),
         ],
       );
+    }
+
+    final choices = relation.choices;
+    return GuidedMethodGuide(
+      methodKey: 'measure:unitLadder',
+      methodLabel: 'Einheitenleiter',
+      nudge:
+          'Bestimme zuerst die feste Beziehung zwischen ${relation.startUnit} und ${relation.targetUnit}.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Einheitenbeziehung erkennen',
+          instruction:
+              'Lies Ausgangs- und Zieleinheit genau. Entscheide erst über ihre Beziehung, bevor du den Zahlenwert veränderst.',
+          question: 'Welche Beziehung zwischen den Einheiten stimmt?',
+          choices: choices,
+          correctChoice: choices.indexOf(relation.correctRelation),
+          evidenceKey: 'unitRelation',
+          evidenceCompetency: MicroCompetencyId.unitConversion,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Zahlenwert passend verändern',
+          instruction: relation.calculationHint,
+        ),
+      ],
+    );
+  }
+
+  static ({
+    String startUnit,
+    String targetUnit,
+    String correctRelation,
+    List<String> choices,
+    String calculationHint,
+  })? _unitRelationForKey(String key) {
+    final value = int.tryParse(key.split(':').last);
+
+    if (key.startsWith('length:m:')) {
+      return (
+        startUnit: 'm',
+        targetUnit: 'cm',
+        correctRelation: '1 m = 100 cm',
+        choices: const [
+          '1 m = 10 cm',
+          '1 m = 100 cm',
+          '1 m = 1000 cm',
+        ],
+        calculationHint: value == null
+            ? 'Von m zu cm wird der Zahlenwert mit 100 multipliziert.'
+            : '$value × 100 ergibt den Zahlenwert in cm.',
+      );
+    }
+    if (key.startsWith('length:km:')) {
+      return (
+        startUnit: 'km',
+        targetUnit: 'm',
+        correctRelation: '1 km = 1000 m',
+        choices: const [
+          '1 km = 100 m',
+          '1 km = 1000 m',
+          '1 km = 10000 m',
+        ],
+        calculationHint: value == null
+            ? 'Von km zu m wird der Zahlenwert mit 1000 multipliziert.'
+            : '$value × 1000 ergibt den Zahlenwert in m.',
+      );
+    }
+    if (key.startsWith('length:cm-mm:')) {
+      return (
+        startUnit: 'cm',
+        targetUnit: 'mm',
+        correctRelation: '1 cm = 10 mm',
+        choices: const [
+          '1 cm = 1 mm',
+          '1 cm = 10 mm',
+          '1 cm = 100 mm',
+        ],
+        calculationHint: value == null
+            ? 'Von cm zu mm wird der Zahlenwert mit 10 multipliziert.'
+            : '$value × 10 ergibt den Zahlenwert in mm.',
+      );
+    }
+    if (key.startsWith('mass:kg:')) {
+      return (
+        startUnit: 'kg',
+        targetUnit: 'g',
+        correctRelation: '1 kg = 1000 g',
+        choices: const [
+          '1 kg = 100 g',
+          '1 kg = 1000 g',
+          '1 kg = 10000 g',
+        ],
+        calculationHint: value == null
+            ? 'Von kg zu g wird der Zahlenwert mit 1000 multipliziert.'
+            : '$value × 1000 ergibt den Zahlenwert in g.',
+      );
+    }
+    if (key.startsWith('mass:t-kg:')) {
+      return (
+        startUnit: 't',
+        targetUnit: 'kg',
+        correctRelation: '1 t = 1000 kg',
+        choices: const [
+          '1 t = 100 kg',
+          '1 t = 1000 kg',
+          '1 t = 10000 kg',
+        ],
+        calculationHint: value == null
+            ? 'Von t zu kg wird der Zahlenwert mit 1000 multipliziert.'
+            : '$value × 1000 ergibt den Zahlenwert in kg.',
+      );
+    }
+    if (key.startsWith('volume:l:')) {
+      return (
+        startUnit: 'l',
+        targetUnit: 'ml',
+        correctRelation: '1 l = 1000 ml',
+        choices: const [
+          '1 l = 100 ml',
+          '1 l = 1000 ml',
+          '1 l = 10000 ml',
+        ],
+        calculationHint: value == null
+            ? 'Von l zu ml wird der Zahlenwert mit 1000 multipliziert.'
+            : '$value × 1000 ergibt den Zahlenwert in ml.',
+      );
+    }
+    if (key.startsWith('money:euro:')) {
+      return (
+        startUnit: '€',
+        targetUnit: 'ct',
+        correctRelation: '1 € = 100 ct',
+        choices: const [
+          '1 € = 10 ct',
+          '1 € = 100 ct',
+          '1 € = 1000 ct',
+        ],
+        calculationHint: value == null
+            ? 'Von Euro zu Cent wird der Zahlenwert mit 100 multipliziert.'
+            : '$value × 100 ergibt den Zahlenwert in Cent.',
+      );
+    }
+    if (key.startsWith('time:min:') && !key.startsWith('time:seconds:')) {
+      return (
+        startUnit: 'min',
+        targetUnit: 'h',
+        correctRelation: '1 h = 60 min',
+        choices: const [
+          '1 h = 30 min',
+          '1 h = 60 min',
+          '1 h = 100 min',
+        ],
+        calculationHint: value == null
+            ? 'Teile die Minuten durch 60, um die Anzahl ganzer Stunden zu erhalten.'
+            : '$value ÷ 60 ergibt die Anzahl ganzer Stunden.',
+      );
+    }
+    return null;
+  }
 
   static GuidedMethodGuide _fraction(String key, int expected) {
     final parts = key.split(':');

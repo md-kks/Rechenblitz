@@ -213,6 +213,73 @@ void main() {
     }
   });
 
+  test('Gezielte Einheitenumrechnung bleibt von Sekunden-Aufgaben getrennt',
+      () {
+    final generator = CurriculumExerciseGenerator(random: Random(99118));
+
+    for (final grade in [
+      GradeLevel.second,
+      GradeLevel.third,
+      GradeLevel.fourth,
+    ]) {
+      for (var i = 0; i < 60; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.advancedMeasures,
+          gradeLevel: grade,
+          maxValue: grade.recommendedRange.maxValue,
+          targetCompetency: MicroCompetencyId.unitConversion,
+        );
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: TrainingMode.advancedMeasures,
+          taskKey: exercise.key,
+        );
+
+        expect(exercise.key, isNot(startsWith('time:seconds:')));
+        expect(
+          tags.map((tag) => tag.id),
+          contains(MicroCompetencyId.unitConversion),
+        );
+        expect(
+          tags.map((tag) => tag.id),
+          isNot(contains(MicroCompetencyId.secondsConversion)),
+        );
+
+        final value = int.tryParse(exercise.key.split(':').last);
+        expect(value, isNotNull, reason: exercise.key);
+        expect(value!, greaterThan(1), reason: exercise.key);
+      }
+    }
+  });
+
+  test('Gezielte Sekundenumrechnung bleibt auf secondsConversion', () {
+    final generator = CurriculumExerciseGenerator(random: Random(991181));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 40; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.advancedMeasures,
+          gradeLevel: grade,
+          maxValue: grade.recommendedRange.maxValue,
+          targetCompetency: MicroCompetencyId.secondsConversion,
+        );
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: TrainingMode.advancedMeasures,
+          taskKey: exercise.key,
+        );
+
+        expect(exercise.key, startsWith('time:seconds:'));
+        expect(
+          tags.map((tag) => tag.id),
+          contains(MicroCompetencyId.secondsConversion),
+        );
+        expect(
+          tags.map((tag) => tag.id),
+          isNot(contains(MicroCompetencyId.unitConversion)),
+        );
+      }
+    }
+  });
+
   test('Gezielte Zahlenvergleiche erzwingen eine spätere Entscheidungsstelle',
       () {
     final generator = CurriculumExerciseGenerator(random: Random(99119));

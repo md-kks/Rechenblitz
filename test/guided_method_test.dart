@@ -1500,6 +1500,136 @@ void main() {
     );
   });
 
+  test('Einheitenumrechnung beobachtet zuerst die feste Beziehung', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.advancedMeasures,
+      taskKey: 'length:m:7',
+      expected: 700,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.unitConversion,
+    );
+    final evidenceSteps = guide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .toList();
+
+    expect(guide.methodKey, 'measure:unitLadder');
+    expect(evidenceSteps, hasLength(1));
+    expect(evidenceSteps.single.evidenceKey, 'unitRelation');
+    expect(
+      evidenceSteps.single.evidenceCompetency,
+      MicroCompetencyId.unitConversion,
+    );
+    expect(
+      evidenceSteps.single.choices[evidenceSteps.single.correctChoice!],
+      '1 m = 100 cm',
+    );
+    expect(evidenceSteps.single.evidenceWeight, 0.40);
+    expect(
+      evidenceSteps.single.instruction,
+      isNot(contains('1 m = 100 cm')),
+    );
+    expect(guide.steps.last.instruction, contains('7 × 100'));
+    expect(
+      GuidedStepCatalog.labelFor('unitRelation'),
+      contains('Beziehung'),
+    );
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.advancedMeasures,
+      taskKey: 'length:m:7',
+      expected: 700,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.unitConversion,
+    );
+    expect(independent.map((step) => step.evidenceKey), ['unitRelation']);
+  });
+
+  test('Minuten zu Stunden nutzt die Beziehung rückwärts', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.advancedMeasures,
+      taskKey: 'time:min:180',
+      expected: 3,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.unitConversion,
+    );
+    final evidence = guide.steps.singleWhere(
+      (step) => step.evidenceKey == 'unitRelation',
+    );
+
+    expect(
+      evidence.choices[evidence.correctChoice!],
+      '1 h = 60 min',
+    );
+    expect(guide.steps.last.instruction, contains('180 ÷ 60'));
+  });
+
+  test('Sekunden-Kompetenz bekommt keinen Unit-Conversion-Step', () {
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.advancedMeasures,
+      taskKey: 'time:seconds:min-to-sec:4',
+      expected: 240,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.secondsConversion,
+    );
+
+    expect(independent, isEmpty);
+  });
+
+  testWidgets('Curriculum speichert Einheitenbeziehung selbstständig',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.advancedMeasures,
+      prompt: '7 m sind wie viele cm?',
+      answer: 700,
+      hint: '1 m = 100 cm.',
+      key: 'length:m:7',
+      answerSuffix: 'cm',
+      maxAnswerValue: 5000,
+      method: 'Größen umwandeln',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.advancedMeasures,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.unitConversion,
+          exerciseGenerator: _FixedCurriculumExerciseGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Schritt 1 von 1'), findsOneWidget);
+    expect(find.text('Antwort eingeben'), findsNothing);
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, '1 m = 100 cm'),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final steps = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.independentStep)
+        .toList();
+    expect(steps, hasLength(1));
+    expect(steps.single.id, MicroCompetencyId.unitConversion);
+    expect(steps.single.correct, isTrue);
+    expect(steps.single.usedHelp, isFalse);
+    expect(
+      steps.single.taskKey,
+      'independent:unitRelation:length:m:7',
+    );
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+  });
+
   test('Bruchteile beobachten zuerst die Größe eines gleichen Teils', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.fractions,

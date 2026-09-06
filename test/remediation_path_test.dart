@@ -1009,6 +1009,51 @@ void main() {
   });
 
 
+  test('Einheiten-Recovery festigt zuerst die feste Beziehung', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.unitConversion,
+      stepKey: 'unitRelation',
+      label: GuidedStepCatalog.labelFor('unitRelation'),
+      mode: TrainingMode.advancedMeasures,
+      lastSeen: DateTime(2026, 9, 6, 12, 30),
+      sourceTaskKey: 'independent:unitRelation:length:m:7',
+    );
+    final plan = StepRecoveryGenerator(random: Random(645)).generate(
+      focus: focus,
+      range: NumberRangeLevel.hundred,
+    );
+
+    expect(plan.tasks, hasLength(3));
+    expect(
+      plan.tasks.map((task) => task.stage),
+      [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ],
+    );
+    expect(plan.tasks[0].taskKey, contains(':unit-relation:m-cm'));
+    expect(plan.tasks[1].taskKey, isNot(contains(':unit-relation:m-cm')));
+
+    for (final task in plan.tasks) {
+      expect(task.mode, TrainingMode.advancedMeasures);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:unitRelation:unit-relation:'),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.answer, inInclusiveRange(0, task.choices!.length - 1));
+      expect(task.prompt, contains('Welche Beziehung brauchst du'));
+      expect(task.hint, contains('feste Beziehung'));
+      expect(task.taskKey, isNot(contains('seconds')));
+    }
+
+    expect(
+      plan.tasks[0].choices![plan.tasks[0].answer],
+      '1 m = 100 cm',
+    );
+  });
+
   test('Zahlenvergleich-Recovery wechselt die entscheidende Stelle', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.largeNumberCompare,

@@ -148,6 +148,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.proportionalUnit: [
       'unitValue',
     ],
+    MicroCompetencyId.unitConversion: [
+      'unitRelation',
+    ],
     MicroCompetencyId.fractionEqualParts: [
       'equalPartSize',
     ],
@@ -221,6 +224,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.proportionalUnit: [
       'unitValue',
+    ],
+    MicroCompetencyId.unitConversion: [
+      'unitRelation',
     ],
     MicroCompetencyId.fractionEqualParts: [
       'equalPartSize',
