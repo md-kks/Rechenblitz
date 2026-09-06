@@ -94,6 +94,10 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
     final step = guide.steps.isEmpty ? null : guide.steps[stepIndex];
     final stepSolved =
         step == null || !step.isInteractive || solvedSteps.contains(stepIndex);
+    final hasVisual = LearningVisualAid.canRender(
+      pattern: widget.pattern,
+      taskKey: widget.taskKey,
+    );
 
     return Semantics(
       container: true,
@@ -139,13 +143,16 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
                     selected: level.index >= HelpLevel.nudge.index,
                     onTap: () => _setLevel(HelpLevel.nudge),
                   ),
+                  if (hasVisual)
+                    _LevelChip(
+                      label: '2 Darstellung',
+                      selected: level.index >= HelpLevel.visual.index,
+                      onTap: () => _setLevel(HelpLevel.visual),
+                    ),
                   _LevelChip(
-                    label: '2 Darstellung',
-                    selected: level.index >= HelpLevel.visual.index,
-                    onTap: () => _setLevel(HelpLevel.visual),
-                  ),
-                  _LevelChip(
-                    label: '3 Gemeinsam lösen',
+                    label: hasVisual
+                        ? '3 Gemeinsam lösen'
+                        : '2 Gemeinsam lösen',
                     selected: level.index >= HelpLevel.guided.index,
                     onTap: () => _setLevel(HelpLevel.guided),
                   ),
@@ -156,12 +163,13 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
                 guide.nudge,
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-              if (level.index >= HelpLevel.visual.index) ...[
+              if (hasVisual && level.index >= HelpLevel.visual.index) ...[
                 const SizedBox(height: 12),
                 LearningVisualAid(
                   pattern: widget.pattern,
                   taskKey: widget.taskKey,
                   expected: widget.expected,
+                  methodKey: guide.methodKey,
                 ),
               ],
               if (level == HelpLevel.guided && step != null) ...[
