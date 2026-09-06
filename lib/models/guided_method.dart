@@ -121,6 +121,8 @@ class GuidedStepCatalog {
         'Minuten bis zur nächsten vollen Stunde bestimmen',
     'equalPartSize': 'Größe eines gleich großen Bruchteils bestimmen',
     'decidingPlace': 'erste unterschiedliche Stelle beim Vergleichen finden',
+    'placeValueContribution':
+        'Wert einer Ziffer an ihrer Stelle bestimmen',
     'unitRelation': 'passende Beziehung zwischen zwei Einheiten erkennen',
     'minuteSecondRelation': 'Beziehung zwischen Minuten und Sekunden erkennen',
     'roundingDecisionDigit': 'entscheidende Ziffer beim Runden erkennen',
@@ -478,8 +480,13 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.largeNumbers) {
-      if (targetCompetency != MicroCompetencyId.largeNumberCompare ||
-          !taskKey.startsWith('large:compare:')) {
+      final validCompare =
+          targetCompetency == MicroCompetencyId.largeNumberCompare &&
+              taskKey.startsWith('large:compare:');
+      final validDecompose =
+          targetCompetency == MicroCompetencyId.placeValueDecompose &&
+              taskKey.startsWith('large:decompose:');
+      if (!validCompare && !validDecompose) {
         return const <GuidedMethodStep>[];
       }
       return _largeNumbers(taskKey)
@@ -2351,6 +2358,65 @@ class GuidedMethodFactory {
     }
 
     if (taskKey.startsWith('large:decompose:')) {
+      final number = parts.length >= 3 ? int.tryParse(parts[2]) : null;
+      final place = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (number != null && place != null && place >= 10) {
+        final digit = (number ~/ place) % 10;
+        final contribution = digit * place;
+        final values = <int>{
+          contribution,
+          digit,
+          digit * 10,
+          digit * 100,
+          digit * 1000,
+          digit * 10000,
+          digit * 100000,
+        }.where((value) => value > 0).toList()
+          ..sort();
+        var next = contribution + place;
+        while (values.length < 4) {
+          if (!values.contains(next)) values.add(next);
+          next += place;
+        }
+        final choices = values.take(4).map((value) => '$value').toList();
+        if (!choices.contains('$contribution')) {
+          choices[choices.length - 1] = '$contribution';
+          choices.sort(
+            (a, b) => int.parse(a).compareTo(int.parse(b)),
+          );
+        }
+        final placeLabel = _largePlaceLabel(place);
+        return GuidedMethodGuide(
+          methodKey: 'largeNumbers:decompose',
+          methodLabel: 'Stellenwerte zusammensetzen',
+          nudge:
+              'Bestimme zuerst den Wert einer einzelnen Ziffer an ihrer Stelle, bevor du die ganze Zahl zusammensetzt.',
+          steps: [
+            GuidedMethodStep(
+              title: 'Stellenwertbeitrag bestimmen',
+              instruction:
+                  'Eine Ziffer erhält ihren Wert erst durch ihre Stelle. Bestimme nur diesen einen Stellenwertbeitrag.',
+              question:
+                  'Welchen Wert trägt die Ziffer $digit an der $placeLabel bei?',
+              choices: choices,
+              correctChoice: choices.indexOf('$contribution'),
+              evidenceKey: 'placeValueContribution',
+              evidenceCompetency: MicroCompetencyId.placeValueDecompose,
+              evidenceWeight: 0.40,
+            ),
+            GuidedMethodStep(
+              title: 'Übrige Stellen ergänzen',
+              instruction:
+                  'Der Beitrag an der $placeLabel ist $contribution. Bestimme danach die Werte der übrigen Ziffern.',
+            ),
+            const GuidedMethodStep(
+              title: 'Zahl zusammensetzen',
+              instruction:
+                  'Addiere die Stellenwertbeiträge erst am Ende zur vollständigen Zahl.',
+            ),
+          ],
+        );
+      }
       return const GuidedMethodGuide(
         methodKey: 'largeNumbers:decompose',
         methodLabel: 'Stellenwerte zusammensetzen',

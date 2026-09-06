@@ -124,6 +124,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeNumberCompare: [
       'decidingPlace',
     ],
+    MicroCompetencyId.placeValueDecompose: [
+      'placeValueContribution',
+    ],
     MicroCompetencyId.roundingPlace: [
       'roundingDecisionDigit',
     ],
@@ -231,6 +234,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.largeNumberCompare: [
       'decidingPlace',
+    ],
+    MicroCompetencyId.placeValueDecompose: [
+      'placeValueContribution',
     ],
     MicroCompetencyId.roundingPlace: [
       'roundingDecisionDigit',

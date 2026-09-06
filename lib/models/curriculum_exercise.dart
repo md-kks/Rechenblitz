@@ -119,11 +119,13 @@ class CurriculumExerciseGenerator {
         TrainingMode.largeNumbers =>
           targetCompetency == MicroCompetencyId.largeNumberCompare
               ? _largeNumberCompareDiagnostic(gradeLevel, maxValue)
-              : targetCompetency == MicroCompetencyId.largeNumberOrder
-                  ? _largeNumberOrder(gradeLevel, maxValue)
-                  : targetCompetency == MicroCompetencyId.numberWordReading
-                      ? _numberWord(gradeLevel, maxValue)
-                      : _largeNumbers(gradeLevel, maxValue),
+              : targetCompetency == MicroCompetencyId.placeValueDecompose
+                  ? _largeNumberDecomposeDiagnostic(gradeLevel, maxValue)
+                  : targetCompetency == MicroCompetencyId.largeNumberOrder
+                      ? _largeNumberOrder(gradeLevel, maxValue)
+                      : targetCompetency == MicroCompetencyId.numberWordReading
+                          ? _numberWord(gradeLevel, maxValue)
+                          : _largeNumbers(gradeLevel, maxValue),
         TrainingMode.rounding => _rounding(
             gradeLevel,
             maxValue,
@@ -279,6 +281,67 @@ class CurriculumExerciseGenerator {
       answer: number,
       hint: 'M = Million, HT = Hunderttausender, ZT = Zehntausender, T = Tausender, H = Hunderter, Z = Zehner, E = Einer.',
       key: 'large:decompose:$number',
+      maxAnswerValue: limit,
+      method: 'Stellenwerttafel',
+    );
+  }
+
+  CurriculumExercise _largeNumberDecomposeDiagnostic(
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = _safeMax(maxValue, grade);
+    final upper = max(
+      11,
+      min(limit, grade == GradeLevel.third ? 999 : 999999),
+    );
+    var number = _between(11, upper);
+
+    List<int> nonZeroPlaces(int value) {
+      final places = <int>[];
+      var place = 1;
+      var probe = value;
+      while (probe > 0) {
+        final digit = probe % 10;
+        if (digit > 0 && place >= 10) places.add(place);
+        probe ~/= 10;
+        place *= 10;
+      }
+      return places;
+    }
+
+    var places = nonZeroPlaces(number);
+    for (var attempt = 0; attempt < 60 && places.isEmpty; attempt++) {
+      number = _between(11, upper);
+      places = nonZeroPlaces(number);
+    }
+    if (places.isEmpty) {
+      number = min(upper, 321);
+      places = nonZeroPlaces(number);
+    }
+    final focusPlace = places[_random.nextInt(places.length)];
+    final labels = [
+      (1000000, 'M'),
+      (100000, 'HT'),
+      (10000, 'ZT'),
+      (1000, 'T'),
+      (100, 'H'),
+      (10, 'Z'),
+      (1, 'E'),
+    ];
+    final parts = <String>[];
+    for (final item in labels) {
+      final digit = (number ~/ item.$1) % 10;
+      if (digit > 0) parts.add('$digit ' + item.$2);
+    }
+
+    return CurriculumExercise(
+      mode: TrainingMode.largeNumbers,
+      prompt: parts.join(' + ') + ' ergeben welche Zahl?',
+      answer: number,
+      hint:
+          'Ordne jede Ziffer ihrem Stellenwert zu. Erst danach setzt du die Stellenwerte zur ganzen Zahl zusammen.',
+      key: 'large:decompose:$number:$focusPlace',
       maxAnswerValue: limit,
       method: 'Stellenwerttafel',
     );

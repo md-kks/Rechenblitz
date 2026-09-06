@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
+import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
 
 void main() {
@@ -34,6 +35,37 @@ void main() {
     expect(GradeLevel.second.recommendedRange, NumberRangeLevel.hundred);
     expect(GradeLevel.third.recommendedRange, NumberRangeLevel.thousand);
     expect(GradeLevel.fourth.recommendedRange, NumberRangeLevel.million);
+  });
+
+
+  test('Gezielte Stellenwertzerlegung enthält einen nichttrivialen Fokusplatz',
+      () {
+    final generator = CurriculumExerciseGenerator(random: Random(812));
+
+    for (final config in [
+      (GradeLevel.third, 1000),
+      (GradeLevel.fourth, 1000000),
+    ]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.largeNumbers,
+          gradeLevel: config.$1,
+          maxValue: config.$2,
+          targetCompetency: MicroCompetencyId.placeValueDecompose,
+        );
+        final parts = exercise.key.split(':');
+        final number = int.parse(parts[2]);
+        final place = int.parse(parts[3]);
+        final digit = (number ~/ place) % 10;
+
+        expect(exercise.key, startsWith('large:decompose:'));
+        expect(place, greaterThanOrEqualTo(10));
+        expect(digit, greaterThan(0));
+        expect(exercise.answer, number);
+        expect(exercise.maxAnswerValue, config.$2);
+        expect(exercise.prompt, contains('ergeben welche Zahl?'));
+      }
+    }
   });
 
   test('alle Lernbereiche Klasse 3/4 erzeugen gültige Aufgaben', () {
