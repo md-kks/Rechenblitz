@@ -104,6 +104,7 @@ class GuidedStepCatalog {
     'storyInterpretation': 'Ergebnis passend zur Sachfrage deuten',
     'divisionTargetQuantity':
         'gesuchte Größe beim Teilen erkennen',
+    'unitValue': 'Wert für eine Einheit bestimmen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -240,6 +241,11 @@ class GuidedMethodFactory {
       return _timeDuration();
     }
 
+    if (mode == TrainingMode.proportionality ||
+        targetCompetency == MicroCompetencyId.proportionalUnit) {
+      return _proportionalUnit(taskKey);
+    }
+
     if (mode == TrainingMode.perimeterArea) {
       return _perimeterArea(taskKey);
     }
@@ -342,6 +348,18 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.proportionality) {
+      if (targetCompetency != MicroCompetencyId.proportionalUnit ||
+          !taskKey.startsWith('proportion:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _proportionalUnit(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
     if (mode == TrainingMode.writtenMultiply) {
       if (targetCompetency != MicroCompetencyId.writtenMultiplyProcedure ||
           !taskKey.startsWith('written:x:')) {
@@ -1436,6 +1454,50 @@ class GuidedMethodFactory {
           ),
         ],
       );
+
+  static GuidedMethodGuide _proportionalUnit(String key) {
+    final numbers = _numbers(key);
+    final unitValue = numbers.length >= 3 ? numbers[numbers.length - 3] : null;
+    final firstAmount = numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+    final total = unitValue == null || firstAmount == null
+        ? null
+        : unitValue * firstAmount;
+    final choices = unitValue == null
+        ? const <String>[]
+        : _numberChoices(
+            unitValue,
+            maxValue: max(12, unitValue + 3),
+          );
+
+    return GuidedMethodGuide(
+      methodKey: 'proportion:unitValue',
+      methodLabel: 'Über eine Einheit zuordnen',
+      nudge: 'Bestimme zuerst den Wert für genau 1 Einheit.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Wert für 1 Einheit',
+          instruction: total == null || firstAmount == null
+              ? 'Teile den bekannten Gesamtwert durch die bekannte Anzahl.'
+              : '$firstAmount gleiche Einheiten haben zusammen den Wert $total. Teile $total durch $firstAmount.',
+          question: unitValue == null
+              ? null
+              : 'Welchen Wert hat genau 1 Einheit?',
+          choices: choices,
+          correctChoice:
+              unitValue == null ? null : choices.indexOf('$unitValue'),
+          evidenceKey: unitValue == null ? null : 'unitValue',
+          evidenceCompetency:
+              unitValue == null ? null : MicroCompetencyId.proportionalUnit,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Auf die gesuchte Anzahl übertragen',
+          instruction:
+              'Multipliziere den Wert für 1 Einheit anschließend mit der gesuchten Anzahl.',
+        ),
+      ],
+    );
+  }
 
   static GuidedMethodGuide _perimeterArea(String key) {
     final area = key.contains('area');
