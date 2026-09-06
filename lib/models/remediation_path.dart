@@ -221,6 +221,7 @@ class StepRecoveryGenerator {
     'equalPartSize',
     'decidingPlace',
     'unitRelation',
+    'minuteSecondRelation',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -328,6 +329,7 @@ class StepRecoveryGenerator {
         'equalPartSize' => _fractionEqualPartSizeStep(focus, stage, range),
         'decidingPlace' => _largeNumberDecidingPlaceStep(focus, stage, range),
         'unitRelation' => _unitRelationStep(focus, stage, range),
+        'minuteSecondRelation' => _minuteSecondRelationStep(focus, stage),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
 
@@ -766,6 +768,39 @@ class StepRecoveryGenerator {
       hint: sharing
           ? 'Die Anzahl der Gruppen ist bekannt. Gesucht ist, wie viel jede Gruppe bekommt.'
           : 'Die Gruppengröße ist bekannt. Gesucht ist, wie viele Gruppen entstehen.',
+    );
+  }
+
+  RemediationTask _minuteSecondRelationStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceToSeconds =
+        focus.sourceTaskKey.contains(':min-to-sec:');
+    final toSeconds = switch (stage) {
+      RemediationStage.supported => sourceToSeconds,
+      RemediationStage.transfer => !sourceToSeconds,
+      RemediationStage.check => _random.nextBool(),
+      _ => sourceToSeconds,
+    };
+    final choices = <String>[
+      '1 min = 6 s',
+      '1 min = 60 s',
+      '1 min = 100 s',
+    ]..shuffle(_random);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key:
+          'minute-second-relation:${toSeconds ? 'min-to-sec' : 'sec-to-min'}',
+      prompt: toSeconds
+          ? 'Du willst Minuten in Sekunden umwandeln. Welche Beziehung brauchst du?'
+          : 'Du willst Sekunden in Minuten umwandeln. Welche Beziehung brauchst du?',
+      choices: choices,
+      answer: choices.indexOf('1 min = 60 s'),
+      hint:
+          'Denke an genau eine volle Minute auf der Uhr. Wie viele Sekunden vergehen in dieser Zeit?',
     );
   }
 
