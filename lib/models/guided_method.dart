@@ -1795,7 +1795,7 @@ class GuidedMethodFactory {
       };
   static GuidedMethodGuide _minuteSecondConversion(String key) {
     final parts = key.split(':');
-    if (!key.startsWith('time:seconds:') || parts.length < 5) {
+    if (!key.startsWith('time:seconds:') || parts.length < 4) {
       return const GuidedMethodGuide(
         methodKey: 'measure:minuteSecond',
         methodLabel: 'Minuten und Sekunden',
