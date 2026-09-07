@@ -43,6 +43,30 @@ void main() {
 
 
 
+  test('Gezielte Kombinatorik bleibt bei systematischen Kombinationen', () {
+    final generator = CurriculumExerciseGenerator(random: Random(903));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.combinatorics,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.combinatoricsSystematic,
+        );
+        final numbers = RegExp(r'\d+')
+            .allMatches(exercise.key)
+            .map((match) => int.parse(match.group(0)!))
+            .toList(growable: false);
+
+        expect(exercise.key, startsWith('combo:'));
+        expect(numbers, hasLength(3));
+        expect(exercise.answer, numbers[0] * numbers[1] * numbers[2]);
+        expect(exercise.method, 'Systematisch kombinieren');
+      }
+    }
+  });
+
   test('Gezieltes Wahrscheinlichkeitsdenken bleibt bei Beutelvergleichen', () {
     final generator = CurriculumExerciseGenerator(random: Random(901));
 

@@ -154,6 +154,8 @@ class GuidedStepCatalog {
     'chartValuesRead': 'Balkenwerte vor der Auswertung korrekt ablesen',
     'chanceCountRelation':
         'Anzahlen vor dem Chancenvergleich mathematisch vergleichen',
+    'comboFirstBranchCount':
+        'Varianten für eine festgehaltene erste Auswahl bestimmen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -390,6 +392,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.probability &&
         taskKey.startsWith('prob:bag:')) {
       return _probabilityBagGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.combinatorics &&
+        taskKey.startsWith('combo:')) {
+      return _combinatoricsGuide(taskKey);
     }
 
     if (mode == TrainingMode.perimeterArea) {
@@ -656,6 +663,18 @@ class GuidedMethodFactory {
         return const <GuidedMethodStep>[];
       }
       return _timeDuration(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.combinatorics) {
+      if (targetCompetency != MicroCompetencyId.combinatoricsSystematic ||
+          !taskKey.startsWith('combo:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _combinatoricsGuide(taskKey)
           .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3378,6 +3397,96 @@ class GuidedMethodFactory {
           title: 'Auf die gesuchte Anzahl übertragen',
           instruction:
               'Multipliziere den Wert für 1 Einheit anschließend mit der gesuchten Anzahl.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _combinatoricsGuide(String key) {
+    final parts = key.split(':');
+    final family = parts.length >= 2 ? parts[1] : '';
+    final numbers = _numbers(key);
+    final first = numbers.length >= 3 ? numbers[numbers.length - 3] : null;
+    final second = numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+    final third = numbers.isNotEmpty ? numbers.last : null;
+    final branchCount =
+        second == null || third == null ? null : second * third;
+
+    final labels = switch (family) {
+      'clothes' => (
+          first: 'T-Shirt',
+          second: 'Hose',
+          third: 'Mütze',
+        ),
+      'icecream' => (
+          first: 'Eissorte',
+          second: 'Soße',
+          third: 'Streuselart',
+        ),
+      'symbols' => (
+          first: 'Symbol',
+          second: 'Farbe',
+          third: 'Rahmen',
+        ),
+      _ => (
+          first: 'erste Möglichkeit',
+          second: 'zweite Möglichkeit',
+          third: 'dritte Möglichkeit',
+        ),
+    };
+
+    final choices = <String>[];
+    if (branchCount != null && first != null && second != null && third != null) {
+      final candidates = <int>{
+        branchCount,
+        second,
+        third,
+        max(1, branchCount - 1),
+        branchCount + 1,
+        first,
+      };
+      var candidate = 1;
+      while (candidates.length < 4) {
+        candidates.add(candidate);
+        candidate++;
+      }
+      choices.addAll(
+        candidates.take(4).map((value) => '$value'),
+      );
+    }
+
+    final extraCategory = third != null && third > 1
+        ? ' und jeder ${labels.third}'
+        : '';
+
+    return GuidedMethodGuide(
+      methodKey: 'combinatorics:first-branch',
+      methodLabel: 'Einen Ast systematisch vollständig bilden',
+      nudge:
+          'Halte zuerst eine Möglichkeit der ersten Kategorie fest und vervollständige nur diesen einen Ast.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Ersten Ast vollständig bilden',
+          instruction: first == null || second == null || third == null
+              ? 'Halte eine erste Möglichkeit fest und erfasse nur die Varianten dieses einen Astes.'
+              : 'Halte genau einen ${labels.first} fest. Kombiniere ihn mit jeder ${labels.second}$extraCategory. Bestimme nur die Zahl dieses einen Astes, noch nicht die Gesamtzahl.',
+          question: branchCount == null
+              ? null
+              : 'Wie viele Varianten entstehen mit genau einem festgehaltenen ${labels.first}?',
+          choices: choices,
+          correctChoice:
+              branchCount == null ? null : choices.indexOf('$branchCount'),
+          evidenceKey:
+              branchCount == null ? null : 'comboFirstBranchCount',
+          evidenceCompetency: branchCount == null
+              ? null
+              : MicroCompetencyId.combinatoricsSystematic,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Ast auf alle ersten Möglichkeiten übertragen',
+          instruction:
+              'Wiederhole dieselbe Verzweigung für jede Möglichkeit der ersten Kategorie. Bestimme erst danach die Gesamtzahl aller Kombinationen.',
         ),
       ],
     );

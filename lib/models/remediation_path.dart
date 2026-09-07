@@ -247,6 +247,7 @@ class StepRecoveryGenerator {
     'tallyFiveBlocks',
     'chartValuesRead',
     'chanceCountRelation',
+    'comboFirstBranchCount',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -391,12 +392,95 @@ class StepRecoveryGenerator {
         'sequenceStepSize' => _sequenceStepSizeStep(focus, stage, range),
         'chartValuesRead' => _chartValuesReadStep(focus, stage),
         'chanceCountRelation' => _chanceCountRelationStep(focus, stage),
+        'comboFirstBranchCount' => _comboFirstBranchCountStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _comboFirstBranchCountStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final sourceFirst = sourceNumbers.length >= 3
+        ? sourceNumbers[sourceNumbers.length - 3].clamp(2, 6).toInt()
+        : null;
+    final sourceSecond = sourceNumbers.length >= 2
+        ? sourceNumbers[sourceNumbers.length - 2].clamp(2, 5).toInt()
+        : null;
+    final sourceThird = sourceNumbers.isNotEmpty
+        ? sourceNumbers.last.clamp(1, 3).toInt()
+        : null;
+    final sourceFamily = focus.sourceTaskKey.contains(':combo:clothes:')
+        ? 'clothes'
+        : focus.sourceTaskKey.contains(':combo:icecream:')
+            ? 'icecream'
+            : focus.sourceTaskKey.contains(':combo:symbols:')
+                ? 'symbols'
+                : null;
+    const families = ['clothes', 'icecream', 'symbols'];
+
+    var family = stage == RemediationStage.supported && sourceFamily != null
+        ? sourceFamily
+        : families[_random.nextInt(families.length)];
+    var first = stage == RemediationStage.supported && sourceFirst != null
+        ? sourceFirst
+        : _between(2, 6);
+    var second = stage == RemediationStage.supported && sourceSecond != null
+        ? sourceSecond
+        : _between(2, 5);
+    var third = stage == RemediationStage.supported && sourceThird != null
+        ? sourceThird
+        : (_random.nextBool() ? 1 : _between(2, 3));
+
+    if (stage == RemediationStage.transfer &&
+        sourceFirst != null &&
+        sourceSecond != null &&
+        sourceThird != null) {
+      first = sourceFirst == 6 ? 5 : sourceFirst + 1;
+      second = sourceSecond == 5 ? 4 : sourceSecond + 1;
+      third = sourceThird;
+      if (sourceFamily != null) {
+        family = families[(families.indexOf(sourceFamily) + 1) % families.length];
+      }
+    }
+
+    final branchCount = second * third;
+    final context = switch (family) {
+      'clothes' => third > 1
+          ? '$first T-Shirts, $second Hosen und $third Mützen'
+          : '$first T-Shirts und $second Hosen',
+      'icecream' => third > 1
+          ? '$first Eissorten, $second Soßen und $third Streuselarten'
+          : '$first Eissorten und $second Soßen',
+      _ => third > 1
+          ? '$first Symbole, $second Farben und $third Rahmen'
+          : '$first Symbole und $second Farben',
+    };
+    final fixed = switch (family) {
+      'clothes' => 'T-Shirt',
+      'icecream' => 'Eissorte',
+      _ => 'Symbol',
+    };
+
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'combo-first-branch:$family:$first:$second:$third',
+      prompt:
+          '$context. Halte genau einen $fixed fest. Wie viele Kombinationen entstehen mit diesem einen $fixed?',
+      answer: branchCount,
+      max: 15,
+      hint:
+          'Bearbeite nur einen Ast: Halte die erste Auswahl fest und kombiniere darunter alle Möglichkeiten der übrigen Kategorien. Die Gesamtzahl kommt erst danach.',
+    );
+  }
 
   RemediationTask _chanceCountRelationStep(
     IndependentStepRecoveryFocus focus,

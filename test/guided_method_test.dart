@@ -218,6 +218,45 @@ void main() {
   });
 
 
+  test('Kombinatorik beobachtet zuerst einen vollständigen Ast', () {
+    const key = 'combo:clothes:3:4:2';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.combinatorics,
+      taskKey: key,
+      expected: 24,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.combinatoricsSystematic,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'combinatorics:first-branch');
+    expect(evidence.evidenceKey, 'comboFirstBranchCount');
+    expect(
+      evidence.evidenceCompetency,
+      MicroCompetencyId.combinatoricsSystematic,
+    );
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices[evidence.correctChoice!], '8');
+    expect(evidence.instruction, contains('T-Shirt'));
+    expect(evidence.instruction, contains('Hose'));
+    expect(evidence.instruction, contains('Mütze'));
+    expect(evidence.instruction, isNot(contains('24')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.combinatorics,
+      taskKey: key,
+      expected: 24,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.combinatoricsSystematic,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['comboFirstBranchCount'],
+    );
+  });
+
   test('Wahrscheinlichkeitsvergleich beobachtet zuerst die Zahlenrelation',
       () {
     const key = 'prob:bag:kugeln:7:3';

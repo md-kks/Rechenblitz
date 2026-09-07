@@ -220,6 +220,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.probabilityReasoning: [
       'chanceCountRelation',
     ],
+    MicroCompetencyId.combinatoricsSystematic: [
+      'comboFirstBranchCount',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -371,6 +374,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.probabilityReasoning: [
       'chanceCountRelation',
+    ],
+    MicroCompetencyId.combinatoricsSystematic: [
+      'comboFirstBranchCount',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
