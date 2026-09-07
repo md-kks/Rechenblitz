@@ -218,6 +218,58 @@ void main() {
   });
 
 
+  test('Datendarstellungswahl beobachtet zuerst den Zweck', () {
+    const key = 'data:representation:2';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: key,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.dataRepresentationChoice,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'data:representation-purpose');
+    expect(evidence.evidenceKey, 'representationPurpose');
+    expect(
+      evidence.evidenceCompetency,
+      MicroCompetencyId.dataRepresentationChoice,
+    );
+    expect(evidence.evidenceWeight, 0.40);
+    expect(
+      evidence.choices[evidence.correctChoice!],
+      'Größen auf einen Blick vergleichen',
+    );
+    expect(
+      evidence.choices.join(' '),
+      isNot(contains('Balkendiagramm')),
+    );
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: key,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.dataRepresentationChoice,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['representationPurpose'],
+    );
+
+    final dataReadingIndependent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: key,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.dataReading,
+    );
+    expect(dataReadingIndependent, isEmpty);
+  });
+
   test('Kalender beobachtet zuerst Wochen und Resttage', () {
     const key = 'calendar:add:April:12:10';
     final guide = GuidedMethodFactory.forTask(

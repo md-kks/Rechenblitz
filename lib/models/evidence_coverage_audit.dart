@@ -226,6 +226,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.calendarDate: [
       'calendarWeekRemainder',
     ],
+    MicroCompetencyId.dataRepresentationChoice: [
+      'representationPurpose',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -383,6 +386,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.calendarDate: [
       'calendarWeekRemainder',
+    ],
+    MicroCompetencyId.dataRepresentationChoice: [
+      'representationPurpose',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',

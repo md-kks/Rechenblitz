@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 16,
+        fullTaskOnly: 15,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 48,
+        targetedRecovery: 49,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 18,
+        fullTaskOnly: 17,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 48,
+        targetedRecovery: 49,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Datendarstellungswahl bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.dataRepresentationChoice,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('representationPurpose'));
+    expect(item.independentStepKeys, contains('representationPurpose'));
+    expect(item.recoveryStepKeys, contains('representationPurpose'));
   });
 
   test('Audit führt Datumsrechnen bis zur gezielten Recovery', () {

@@ -1405,6 +1405,54 @@ void main() {
   });
 
 
+  test('Datendarstellungs-Recovery überträgt den Darstellungszweck', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.dataRepresentationChoice,
+      stepKey: 'representationPurpose',
+      label: GuidedStepCatalog.labelFor('representationPurpose'),
+      mode: TrainingMode.dataCharts,
+      lastSeen: DateTime(2026, 9, 7, 11, 0),
+      sourceTaskKey:
+          'independent:representationPurpose:data:representation:2',
+    );
+    final plan = StepRecoveryGenerator(random: Random(908)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int kind(RemediationTask task) =>
+        int.parse(task.taskKey.split(':').last);
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(kind(plan.tasks[0]), 2);
+    expect(kind(plan.tasks[1]), 0);
+
+    for (final task in plan.tasks) {
+      final purpose = kind(task);
+      const expected = <String>[
+        'beim laufenden Zählen direkt mitführen',
+        'exakte Werte geordnet nachschlagen',
+        'Größen auf einen Blick vergleichen',
+      ];
+      expect(task.mode, TrainingMode.dataCharts);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:representationPurpose:representation-purpose:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices![task.answer], expected[purpose]);
+      expect(task.prompt, contains('vor allem leisten'));
+      expect(task.hint, contains('Zweck'));
+      expect(task.hint, isNot(contains('Balkendiagramm')));
+    }
+  });
+
   test('Kalender-Recovery überträgt Wochen und Resttage', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.calendarDate,

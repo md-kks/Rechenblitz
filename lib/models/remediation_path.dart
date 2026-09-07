@@ -249,6 +249,7 @@ class StepRecoveryGenerator {
     'chanceCountRelation',
     'comboFirstBranchCount',
     'calendarWeekRemainder',
+    'representationPurpose',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -395,12 +396,58 @@ class StepRecoveryGenerator {
         'chanceCountRelation' => _chanceCountRelationStep(focus, stage),
         'comboFirstBranchCount' => _comboFirstBranchCountStep(focus, stage),
         'calendarWeekRemainder' => _calendarWeekRemainderStep(focus, stage),
+        'representationPurpose' => _representationPurposeStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _representationPurposeStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    const choices = <String>[
+      'beim laufenden Zählen direkt mitführen',
+      'exakte Werte geordnet nachschlagen',
+      'Größen auf einen Blick vergleichen',
+    ];
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final rawSource = sourceNumbers.isEmpty ? null : sourceNumbers.last;
+    final sourceKind =
+        rawSource != null && rawSource >= 0 && rawSource <= 2 ? rawSource : null;
+
+    var kind = stage == RemediationStage.supported && sourceKind != null
+        ? sourceKind
+        : _random.nextInt(3);
+    if (stage == RemediationStage.transfer && sourceKind != null) {
+      kind = (sourceKind + 1) % 3;
+    }
+
+    final prompt = switch (kind) {
+      0 =>
+        'Bei einer Klassenbefragung möchtest du jede neue Stimme sofort erfassen. Was soll deine Datendarstellung vor allem leisten?',
+      1 =>
+        'Du möchtest die genauen Besucherzahlen von Montag bis Freitag später schnell nachschlagen. Was soll deine Datendarstellung vor allem leisten?',
+      _ =>
+        'Du möchtest sofort erkennen, welche von mehreren Gruppen am größten ist. Was soll deine Datendarstellung vor allem leisten?',
+    };
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'representation-purpose:$kind',
+      prompt: prompt,
+      choices: choices,
+      answer: kind,
+      hint:
+          'Achte nur auf den Zweck: laufend mitzählen, geordnet nachschlagen oder schnell vergleichen. Die konkrete Darstellungsform kommt erst danach.',
+    );
+  }
 
   RemediationTask _calendarWeekRemainderStep(
     IndependentStepRecoveryFocus focus,
