@@ -580,7 +580,9 @@ void main() {
     expect(candidate, isNotNull);
     expect(candidate!.definition.id, MicroCompetencyId.subtractionTenBridge);
 
-    final plan = controller.buildMyRound();
+    final plan = controller.buildMyRound(
+      now: DateTime(2026, 9, 6, 12),
+    );
     final transfer = plan.last;
     expect(transfer.transferEmphasis, isTrue);
     expect(
