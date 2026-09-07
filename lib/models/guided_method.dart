@@ -148,6 +148,8 @@ class GuidedStepCatalog {
     'minuteHandMinutes': 'Minutenwert des langen Zeigers erkennen',
     'sequenceStepSize': 'Richtung und Schrittweite einer Zahlenfolge erkennen',
     'perimeterEdges': 'vier Randstrecken für den Umfang erfassen',
+    'areaUnitSquareStructure':
+        'Einheitsquadrate als Zeilen und Spalten modellieren',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -653,8 +655,13 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.perimeterArea) {
-      if (targetCompetency != MicroCompetencyId.perimeter ||
-          !taskKey.startsWith('rect:perimeter:')) {
+      final validPerimeter =
+          targetCompetency == MicroCompetencyId.perimeter &&
+              taskKey.startsWith('rect:perimeter:');
+      final validArea =
+          targetCompetency == MicroCompetencyId.area &&
+              taskKey.startsWith('rect:area:');
+      if (!validPerimeter && !validArea) {
         return const <GuidedMethodStep>[];
       }
       return _perimeterArea(taskKey)
@@ -3337,6 +3344,14 @@ class GuidedMethodFactory {
             '$width cm × $height cm',
             '$width cm + $width cm + $height cm',
           ];
+    final areaChoices = width == null || height == null
+        ? const <String>[]
+        : <String>[
+            '$width × $height',
+            '$width + $height',
+            '$width + $height + $width + $height',
+            '$width ÷ $height',
+          ];
 
     return GuidedMethodGuide(
       methodKey: area ? 'geometry:area' : 'geometry:perimeter',
@@ -3346,9 +3361,21 @@ class GuidedMethodFactory {
           : 'Gesucht ist die Länge des Randes.',
       steps: [
         if (area)
-          const GuidedMethodStep(
-            title: 'Innenfläche markieren',
-            instruction: 'Markiere die Fläche innerhalb des Rechtecks.',
+          GuidedMethodStep(
+            title: 'Einheitsquadrate strukturieren',
+            instruction:
+                'Stell dir das Innere mit 1-cm²-Quadraten ausgelegt vor. Ordne sie als Zeilen und Spalten. Rechne das Produkt noch nicht aus.',
+            question: areaChoices.isEmpty
+                ? null
+                : 'Welche Rechnung zählt alle 1-cm²-Quadrate als Zeilen × Spalten?',
+            choices: areaChoices,
+            correctChoice: areaChoices.isEmpty ? null : 0,
+            evidenceKey: areaChoices.isEmpty
+                ? null
+                : 'areaUnitSquareStructure',
+            evidenceCompetency:
+                areaChoices.isEmpty ? null : MicroCompetencyId.area,
+            evidenceWeight: 0.40,
           )
         else
           GuidedMethodStep(

@@ -1405,6 +1405,52 @@ void main() {
   });
 
 
+  test('Flächen-Recovery überträgt die Einheitsquadrate-Struktur', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.area,
+      stepKey: 'areaUnitSquareStructure',
+      label: GuidedStepCatalog.labelFor('areaUnitSquareStructure'),
+      mode: TrainingMode.perimeterArea,
+      lastSeen: DateTime(2026, 9, 7, 2, 20),
+      sourceTaskKey:
+          'independent:areaUnitSquareStructure:rect:area:beet:8:5',
+    );
+    final plan = StepRecoveryGenerator(random: Random(895)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    (int, int) dimensions(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      final index = parts.indexOf('area-unit-squares');
+      return (int.parse(parts[index + 1]), int.parse(parts[index + 2]));
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(dimensions(plan.tasks[0]), (8, 5));
+    expect(dimensions(plan.tasks[1]), isNot((8, 5)));
+
+    for (final task in plan.tasks) {
+      final (width, height) = dimensions(task);
+      expect(task.mode, TrainingMode.perimeterArea);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:areaUnitSquareStructure:area-unit-squares:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices![task.answer], '$width × $height');
+      expect(task.prompt, contains('Zeilen × Spalten'));
+      expect(task.hint, contains('Einheitsquadrate'));
+      expect(task.hint, isNot(contains('${width * height}')));
+    }
+  });
+
   test('Umfang-Recovery festigt die vier Randstrecken', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.perimeter,

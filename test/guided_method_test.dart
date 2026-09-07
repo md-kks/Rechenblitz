@@ -218,6 +218,40 @@ void main() {
   });
 
 
+  test('Fläche modelliert zuerst Einheitsquadrate als Zeilen mal Spalten', () {
+    const key = 'rect:area:beet:8:5';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.perimeterArea,
+      taskKey: key,
+      expected: 40,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.area,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'geometry:area');
+    expect(evidence.evidenceKey, 'areaUnitSquareStructure');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.area);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices[evidence.correctChoice!], '8 × 5');
+    expect(evidence.instruction, contains('1-cm²-Quadraten'));
+    expect(evidence.instruction, isNot(contains('40')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.perimeterArea,
+      taskKey: key,
+      expected: 40,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.area,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['areaUnitSquareStructure'],
+    );
+  });
+
   test('Umfang beobachtet zuerst die vier Randstrecken', () {
     const key = 'rect:perimeter:beet:8:5';
     final guide = GuidedMethodFactory.forTask(
@@ -258,7 +292,10 @@ void main() {
       preferences: const MethodPreferences(),
       targetCompetency: MicroCompetencyId.area,
     );
-    expect(areaIndependent, isEmpty);
+    expect(
+      areaIndependent.map((step) => step.evidenceKey),
+      ['areaUnitSquareStructure'],
+    );
   });
 
   test('Überschlag beobachtet zuerst die beiden gerundeten Summanden', () {

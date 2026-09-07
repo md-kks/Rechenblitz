@@ -43,6 +43,25 @@ void main() {
 
 
 
+  test('Gezielte Flächenaufgaben bleiben beim Flächeninhalt', () {
+    final generator = CurriculumExerciseGenerator(random: Random(894));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 80; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.perimeterArea,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.area,
+        );
+
+        expect(exercise.key, startsWith('rect:area:'));
+        expect(exercise.answerSuffix, 'cm²');
+        expect(exercise.method, 'Flächeninhalt');
+      }
+    }
+  });
+
   test('Gezielte Umfangsaufgaben bleiben beim Umfang', () {
     final generator = CurriculumExerciseGenerator(random: Random(892));
 

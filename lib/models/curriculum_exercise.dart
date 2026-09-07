@@ -1813,7 +1813,9 @@ class CurriculumExerciseGenerator {
     final height = _between(2, grade == GradeLevel.third ? 12 : 25);
     final area = targetCompetency == MicroCompetencyId.perimeter
         ? false
-        : _random.nextBool();
+        : targetCompetency == MicroCompetencyId.area
+            ? true
+            : _random.nextBool();
     final context = _random.nextInt(4);
     final object = ['Rechteck', 'Bild', 'Beet', 'Spielteppich'][context];
     final prompt = area
