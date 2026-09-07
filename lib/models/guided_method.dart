@@ -160,6 +160,8 @@ class GuidedStepCatalog {
         'Kalendersprung in ganze Wochen und Resttage zerlegen',
     'representationPurpose':
         'Zweck einer Datendarstellung vor der Auswahl erkennen',
+    'volumeLayerCount':
+        'Einheitswürfel in einer einzelnen Schicht erfassen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -409,6 +411,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.combinatorics &&
         taskKey.startsWith('combo:')) {
       return _combinatoricsGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.volumeCubes &&
+        taskKey.startsWith('volume:')) {
+      return _volumeCubesGuide(taskKey);
     }
 
     if (mode == TrainingMode.perimeterArea) {
@@ -745,6 +752,18 @@ class GuidedMethodFactory {
         return const <GuidedMethodStep>[];
       }
       return _proportionalUnit(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.volumeCubes) {
+      if (targetCompetency != MicroCompetencyId.volumeCubes ||
+          !taskKey.startsWith('volume:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _volumeCubesGuide(taskKey)
           .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3470,6 +3489,68 @@ class GuidedMethodFactory {
           title: 'Auf die gesuchte Anzahl übertragen',
           instruction:
               'Multipliziere den Wert für 1 Einheit anschließend mit der gesuchten Anzahl.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _volumeCubesGuide(String key) {
+    final numbers = _numbers(key);
+    final length = numbers.length >= 3 ? numbers[numbers.length - 3] : null;
+    final width = numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+    final height = numbers.isNotEmpty ? numbers.last : null;
+    final layerCount =
+        length == null || width == null ? null : length * width;
+    final canRecord =
+        layerCount != null && height != null && height > 1;
+
+    final choices = <String>[];
+    if (canRecord && length != null && width != null) {
+      final layer = layerCount;
+      final candidates = <int>{
+        layer,
+        length + width,
+        max(1, layer - width),
+        layer + 1,
+        max(1, layer - 1),
+      };
+      var candidate = 1;
+      while (candidates.length < 4) {
+        candidates.add(candidate);
+        candidate++;
+      }
+      choices.addAll(
+        candidates.take(4).map((value) => '$value'),
+      );
+    }
+
+    return GuidedMethodGuide(
+      methodKey: 'volume:single-layer',
+      methodLabel: 'Eine Schicht erfassen, dann Schichten vervielfachen',
+      nudge:
+          'Betrachte zuerst nur eine waagerechte Schicht des Quaders. Die Höhe kommt erst danach.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Würfel in einer Schicht erfassen',
+          instruction: length == null || width == null
+              ? 'Bestimme zuerst, wie viele Einheitswürfel in genau einer Schicht liegen.'
+              : 'Eine Schicht ist $length Würfel lang und $width Würfel breit. Bestimme nur diese eine Schicht; multipliziere die Höhe noch nicht.',
+          question: canRecord
+              ? 'Wie viele Einheitswürfel liegen in genau einer Schicht?'
+              : null,
+          choices: canRecord ? choices : const <String>[],
+          correctChoice:
+              canRecord ? choices.indexOf('$layerCount') : null,
+          evidenceKey: canRecord ? 'volumeLayerCount' : null,
+          evidenceCompetency:
+              canRecord ? MicroCompetencyId.volumeCubes : null,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Schichten vervielfachen',
+          instruction: height == null
+              ? 'Multipliziere anschließend die Würfel einer Schicht mit der Anzahl der Schichten.'
+              : 'Der Quader ist $height Schichten hoch. Multipliziere erst jetzt die Würfel einer Schicht mit $height.',
         ),
       ],
     );

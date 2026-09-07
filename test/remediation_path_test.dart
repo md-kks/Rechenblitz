@@ -1405,6 +1405,58 @@ void main() {
   });
 
 
+  test('Rauminhalt-Recovery überträgt die einzelne Würfelschicht', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.volumeCubes,
+      stepKey: 'volumeLayerCount',
+      label: GuidedStepCatalog.labelFor('volumeLayerCount'),
+      mode: TrainingMode.volumeCubes,
+      lastSeen: DateTime(2026, 9, 7, 12, 0),
+      sourceTaskKey:
+          'independent:volumeLayerCount:volume:3:4:2',
+    );
+    final plan = StepRecoveryGenerator(random: Random(910)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    (int, int, int) dimensions(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      return (
+        int.parse(parts[parts.length - 3]),
+        int.parse(parts[parts.length - 2]),
+        int.parse(parts.last),
+      );
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(dimensions(plan.tasks[0]), (3, 4, 2));
+    expect(dimensions(plan.tasks[1]), (4, 4, 3));
+
+    for (final task in plan.tasks) {
+      final (length, width, height) = dimensions(task);
+      expect(task.mode, TrainingMode.volumeCubes);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:volumeLayerCount:volume-layer-count:',
+        ),
+      );
+      expect(height, greaterThanOrEqualTo(2));
+      expect(task.usesChoices, isFalse);
+      expect(task.answer, length * width);
+      expect(task.answer, isNot(length * width * height));
+      expect(task.maxAnswerValue, 48);
+      expect(task.prompt, contains('genau einer Schicht'));
+      expect(task.hint, contains('Länge × Breite'));
+      expect(task.hint, contains('Höhe'));
+    }
+  });
+
   test('Datendarstellungs-Recovery überträgt den Darstellungszweck', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.dataRepresentationChoice,

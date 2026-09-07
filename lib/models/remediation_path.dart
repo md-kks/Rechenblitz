@@ -250,6 +250,7 @@ class StepRecoveryGenerator {
     'comboFirstBranchCount',
     'calendarWeekRemainder',
     'representationPurpose',
+    'volumeLayerCount',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -397,12 +398,80 @@ class StepRecoveryGenerator {
         'comboFirstBranchCount' => _comboFirstBranchCountStep(focus, stage),
         'calendarWeekRemainder' => _calendarWeekRemainderStep(focus, stage),
         'representationPurpose' => _representationPurposeStep(focus, stage),
+        'volumeLayerCount' => _volumeLayerCountStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _volumeLayerCountStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final sourceLength = sourceNumbers.length >= 3
+        ? sourceNumbers[sourceNumbers.length - 3]
+        : null;
+    final sourceWidth = sourceNumbers.length >= 2
+        ? sourceNumbers[sourceNumbers.length - 2]
+        : null;
+    final sourceHeight = sourceNumbers.isNotEmpty
+        ? sourceNumbers.last
+        : null;
+    final compactSource = sourceLength != null &&
+        sourceWidth != null &&
+        sourceHeight != null &&
+        sourceLength >= 2 &&
+        sourceLength <= 4 &&
+        sourceWidth >= 2 &&
+        sourceWidth <= 4 &&
+        sourceHeight >= 2 &&
+        sourceHeight <= 3;
+    final maxLength = compactSource ? 4 : 8;
+    final maxWidth = compactSource ? 4 : 6;
+    final maxHeight = compactSource ? 3 : 5;
+
+    var length =
+        stage == RemediationStage.supported && sourceLength != null
+            ? sourceLength.clamp(2, maxLength).toInt()
+            : _between(2, maxLength);
+    var width =
+        stage == RemediationStage.supported && sourceWidth != null
+            ? sourceWidth.clamp(2, maxWidth).toInt()
+            : _between(2, maxWidth);
+    var height =
+        stage == RemediationStage.supported && sourceHeight != null
+            ? sourceHeight.clamp(2, maxHeight).toInt()
+            : _between(2, maxHeight);
+
+    if (stage == RemediationStage.transfer &&
+        sourceLength != null &&
+        sourceWidth != null &&
+        sourceHeight != null) {
+      length = sourceLength >= maxLength ? max(2, sourceLength - 1) : sourceLength + 1;
+      width = sourceWidth.clamp(2, maxWidth).toInt();
+      height = sourceHeight >= maxHeight ? max(2, sourceHeight - 1) : sourceHeight + 1;
+    }
+
+    final layerCount = length * width;
+
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'volume-layer-count:$length:$width:$height',
+      prompt:
+          'Ein Quader ist $length Würfel lang, $width Würfel breit und $height Schichten hoch. Wie viele Einheitswürfel liegen in genau einer Schicht?',
+      answer: layerCount,
+      max: 48,
+      hint:
+          'Betrachte nur eine Schicht: Länge × Breite. Die Höhe wird in diesem Zwischenschritt noch nicht mitmultipliziert.',
+    );
+  }
 
   RemediationTask _representationPurposeStep(
     IndependentStepRecoveryFocus focus,

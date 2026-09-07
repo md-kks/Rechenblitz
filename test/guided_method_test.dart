@@ -218,6 +218,51 @@ void main() {
   });
 
 
+  test('Rauminhalt beobachtet zuerst eine einzelne Würfelschicht', () {
+    const key = 'volume:3:4:2';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.volumeCubes,
+      taskKey: key,
+      expected: 24,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.volumeCubes,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'volume:single-layer');
+    expect(evidence.evidenceKey, 'volumeLayerCount');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.volumeCubes);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices[evidence.correctChoice!], '12');
+    expect(evidence.choices, isNot(contains('24')));
+    expect(evidence.instruction, contains('3 Würfel lang'));
+    expect(evidence.instruction, contains('4 Würfel breit'));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.volumeCubes,
+      taskKey: key,
+      expected: 24,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.volumeCubes,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['volumeLayerCount'],
+    );
+
+    final singleLayerIndependent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.volumeCubes,
+      taskKey: 'volume:3:4:1',
+      expected: 12,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.volumeCubes,
+    );
+    expect(singleLayerIndependent, isEmpty);
+  });
+
   test('Datendarstellungswahl beobachtet zuerst den Zweck', () {
     const key = 'data:representation:2';
     final guide = GuidedMethodFactory.forTask(

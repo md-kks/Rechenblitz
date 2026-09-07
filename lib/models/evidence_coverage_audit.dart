@@ -229,6 +229,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.dataRepresentationChoice: [
       'representationPurpose',
     ],
+    MicroCompetencyId.volumeCubes: [
+      'volumeLayerCount',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -389,6 +392,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.dataRepresentationChoice: [
       'representationPurpose',
+    ],
+    MicroCompetencyId.volumeCubes: [
+      'volumeLayerCount',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
