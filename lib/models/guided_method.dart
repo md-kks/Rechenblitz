@@ -156,6 +156,8 @@ class GuidedStepCatalog {
         'Anzahlen vor dem Chancenvergleich mathematisch vergleichen',
     'comboFirstBranchCount':
         'Varianten für eine festgehaltene erste Auswahl bestimmen',
+    'calendarWeekRemainder':
+        'Kalendersprung in ganze Wochen und Resttage zerlegen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -366,6 +368,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.fractions ||
         targetCompetency == MicroCompetencyId.fractionEqualParts) {
       return _fraction(taskKey, expected);
+    }
+
+    if (targetCompetency == MicroCompetencyId.calendarDate ||
+        taskKey.startsWith('calendar:add:')) {
+      return _calendarDateGuide(taskKey);
     }
 
     if (mode == TrainingMode.timeDurations ||
@@ -656,6 +663,14 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.timeDurations) {
+      if (targetCompetency == MicroCompetencyId.calendarDate &&
+          taskKey.startsWith('calendar:add:')) {
+        return _calendarDateGuide(taskKey)
+            .steps
+            .where((step) => step.recordsIntermediateEvidence)
+            .take(1)
+            .toList(growable: false);
+      }
       if (targetCompetency != MicroCompetencyId.timeDuration ||
           !taskKey.startsWith('duration:') ||
           taskKey.startsWith('duration:weeks:') ||
@@ -3224,6 +3239,54 @@ class GuidedMethodFactory {
         GuidedMethodStep(
           title: 'Gesuchten Anteil nehmen',
           instruction: 'Bestimme anschließend den gefragten Bruchteil.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _calendarDateGuide(String key) {
+    final numbers = _numbers(key);
+    final addDays = numbers.isEmpty ? null : numbers.last;
+    const choices = <String>[
+      '3 Tage',
+      '1 Woche',
+      '1 Woche + 3 Tage',
+      '2 Wochen',
+    ];
+    final correct = switch (addDays) {
+      3 => '3 Tage',
+      7 => '1 Woche',
+      10 => '1 Woche + 3 Tage',
+      14 => '2 Wochen',
+      _ => null,
+    };
+
+    return GuidedMethodGuide(
+      methodKey: 'calendar:week-remainder',
+      methodLabel: 'Kalendersprung in Wochen und Resttage zerlegen',
+      nudge:
+          'Plane zuerst den Sprung: Nutze ganze Wochen und danach mögliche Resttage.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Kalendersprung zerlegen',
+          instruction:
+              'Zerlege die Anzahl der Tage zuerst in ganze Wochen und Resttage. Bestimme das Zieldatum noch nicht.',
+          question: addDays == null
+              ? null
+              : 'Wie zerlegst du den Sprung um $addDays Tage sinnvoll?',
+          choices: addDays == null ? const <String>[] : choices,
+          correctChoice:
+              correct == null ? null : choices.indexOf(correct),
+          evidenceKey:
+              correct == null ? null : 'calendarWeekRemainder',
+          evidenceCompetency:
+              correct == null ? null : MicroCompetencyId.calendarDate,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Vom Startdatum weitergehen',
+          instruction:
+              'Gehe anschließend die geplanten Wochen und Resttage im Kalender weiter und lies erst dann das Zieldatum ab.',
         ),
       ],
     );

@@ -1405,6 +1405,55 @@ void main() {
   });
 
 
+  test('Kalender-Recovery überträgt Wochen und Resttage', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.calendarDate,
+      stepKey: 'calendarWeekRemainder',
+      label: GuidedStepCatalog.labelFor('calendarWeekRemainder'),
+      mode: TrainingMode.timeDurations,
+      lastSeen: DateTime(2026, 9, 7, 10, 0),
+      sourceTaskKey:
+          'independent:calendarWeekRemainder:calendar:add:April:12:10',
+    );
+    final plan = StepRecoveryGenerator(random: Random(906)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int addDays(RemediationTask task) =>
+        int.parse(task.taskKey.split(':').last);
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(addDays(plan.tasks[0]), 10);
+    expect(addDays(plan.tasks[1]), 14);
+
+    for (final task in plan.tasks) {
+      final days = addDays(task);
+      final expected = switch (days) {
+        3 => '3 Tage',
+        7 => '1 Woche',
+        10 => '1 Woche + 3 Tage',
+        _ => '2 Wochen',
+      };
+      expect(task.mode, TrainingMode.timeDurations);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:calendarWeekRemainder:calendar-week-remainder:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices![task.answer], expected);
+      expect(task.prompt, contains('$days Tage'));
+      expect(task.hint, contains('7 Tage'));
+      expect(task.hint, contains('Zieldatum'));
+    }
+  });
+
   test('Kombinatorik-Recovery überträgt den vollständigen ersten Ast', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.combinatoricsSystematic,

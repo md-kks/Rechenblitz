@@ -223,6 +223,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.combinatoricsSystematic: [
       'comboFirstBranchCount',
     ],
+    MicroCompetencyId.calendarDate: [
+      'calendarWeekRemainder',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -377,6 +380,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.combinatoricsSystematic: [
       'comboFirstBranchCount',
+    ],
+    MicroCompetencyId.calendarDate: [
+      'calendarWeekRemainder',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',

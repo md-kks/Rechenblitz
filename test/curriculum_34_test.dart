@@ -43,6 +43,32 @@ void main() {
 
 
 
+  test('Gezielte Kalenderaufgaben bleiben beim Datumsrechnen', () {
+    final generator = CurriculumExerciseGenerator(random: Random(905));
+    const allowedJumps = <int>{3, 7, 10, 14};
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 80; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.timeDurations,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.calendarDate,
+        );
+        final parts = exercise.key.split(':');
+        final addDays = int.parse(parts.last);
+
+        expect(exercise.key, startsWith('calendar:add:'));
+        expect(allowedJumps, contains(addDays));
+        if (grade == GradeLevel.third) {
+          expect(<int>{7, 14}, contains(addDays));
+        }
+        expect(exercise.usesChoices, isTrue);
+        expect(exercise.method, 'Mit Datum und Kalender rechnen');
+      }
+    }
+  });
+
   test('Gezielte Kombinatorik bleibt bei systematischen Kombinationen', () {
     final generator = CurriculumExerciseGenerator(random: Random(903));
 

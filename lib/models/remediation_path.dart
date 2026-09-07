@@ -248,6 +248,7 @@ class StepRecoveryGenerator {
     'chartValuesRead',
     'chanceCountRelation',
     'comboFirstBranchCount',
+    'calendarWeekRemainder',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -393,12 +394,60 @@ class StepRecoveryGenerator {
         'chartValuesRead' => _chartValuesReadStep(focus, stage),
         'chanceCountRelation' => _chanceCountRelationStep(focus, stage),
         'comboFirstBranchCount' => _comboFirstBranchCountStep(focus, stage),
+        'calendarWeekRemainder' => _calendarWeekRemainderStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _calendarWeekRemainderStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    const dayOptions = <int>[3, 7, 10, 14];
+    const choices = <String>[
+      '3 Tage',
+      '1 Woche',
+      '1 Woche + 3 Tage',
+      '2 Wochen',
+    ];
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final rawSource = sourceNumbers.isEmpty ? null : sourceNumbers.last;
+    final sourceDays =
+        rawSource != null && dayOptions.contains(rawSource) ? rawSource : null;
+
+    var addDays = stage == RemediationStage.supported && sourceDays != null
+        ? sourceDays
+        : dayOptions[_random.nextInt(dayOptions.length)];
+    if (stage == RemediationStage.transfer && sourceDays != null) {
+      final sourceIndex = dayOptions.indexOf(sourceDays);
+      addDays = dayOptions[(sourceIndex + 1) % dayOptions.length];
+    }
+
+    final correct = switch (addDays) {
+      3 => '3 Tage',
+      7 => '1 Woche',
+      10 => '1 Woche + 3 Tage',
+      _ => '2 Wochen',
+    };
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'calendar-week-remainder:$addDays',
+      prompt:
+          'Du willst im Kalender $addDays Tage weitergehen. Welche Zerlegung in Wochen und Resttage passt?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Eine Woche hat 7 Tage. Plane erst ganze Wochen und dann mögliche Resttage; das Zieldatum brauchst du hier noch nicht.',
+    );
+  }
 
   RemediationTask _comboFirstBranchCountStep(
     IndependentStepRecoveryFocus focus,
