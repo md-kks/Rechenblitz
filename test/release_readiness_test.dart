@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 21,
+        fullTaskOnly: 20,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 43,
+        targetedRecovery: 44,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 23,
+        fullTaskOnly: 22,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 43,
+        targetedRecovery: 44,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Strichlistenlesen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.tallyTableReading,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('tallyFiveBlocks'));
+    expect(item.independentStepKeys, contains('tallyFiveBlocks'));
+    expect(item.recoveryStepKeys, contains('tallyFiveBlocks'));
   });
 
   test('Audit führt Flächeninhalt bis zur gezielten Recovery', () {

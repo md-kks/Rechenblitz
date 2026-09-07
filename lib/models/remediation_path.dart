@@ -244,6 +244,7 @@ class StepRecoveryGenerator {
     'sequenceStepSize',
     'perimeterEdges',
     'areaUnitSquareStructure',
+    'tallyFiveBlocks',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -386,11 +387,58 @@ class StepRecoveryGenerator {
           _roundingDecisionDigitStep(focus, stage, range),
         'minuteHandMinutes' => _minuteHandMinutesStep(focus, stage, range),
         'sequenceStepSize' => _sequenceStepSizeStep(focus, stage, range),
+        'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _tallyFiveBlocksStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceNumbers = focus.sourceTaskKey
+        .split(':')
+        .map(int.tryParse)
+        .whereType<int>()
+        .toList(growable: false);
+    final sourceCount =
+        sourceNumbers.isEmpty ? null : sourceNumbers.last.clamp(6, 40).toInt();
+    final limit = sourceCount != null && sourceCount > 24 ? 40 : 24;
+
+    var count = stage == RemediationStage.supported && sourceCount != null
+        ? sourceCount
+        : _between(6, limit);
+
+    if (stage == RemediationStage.transfer &&
+        sourceCount != null &&
+        count ~/ 5 == sourceCount ~/ 5) {
+      final sourceGroups = sourceCount ~/ 5;
+      count = sourceGroups < limit ~/ 5
+          ? min(limit, (sourceGroups + 1) * 5 + 1)
+          : max(6, (sourceGroups - 1) * 5 + 1);
+    }
+
+    final groups = count ~/ 5;
+    final rest = count % 5;
+    final tally = [
+      ...List<String>.filled(groups, '||||/'),
+      if (rest > 0) List<String>.filled(rest, '|').join(),
+    ].join(' ');
+
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'tally-five-blocks:$count',
+      prompt:
+          'Strichliste: $tally\nWie viele vollständige Fünferblöcke siehst du?',
+      answer: groups,
+      max: 8,
+      hint:
+          'Zähle zuerst nur die vollständigen Fünferblöcke. Die einzelnen Reststriche gehören noch nicht zu diesem Schritt.',
+    );
+  }
 
   RemediationTask _areaUnitSquareStructureStep(
     IndependentStepRecoveryFocus focus,

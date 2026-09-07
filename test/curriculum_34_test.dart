@@ -43,6 +43,25 @@ void main() {
 
 
 
+  test('Gezielte Strichlisten bleiben bei der Strichlisten-Kompetenz', () {
+    final generator = CurriculumExerciseGenerator(random: Random(896));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 80; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.dataCharts,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.tallyTableReading,
+        );
+
+        expect(exercise.key, startsWith('data:tally:'));
+        expect(exercise.prompt, contains('Strichliste:'));
+        expect(exercise.method, 'Strichliste auswerten');
+      }
+    }
+  });
+
   test('Gezielte Flächenaufgaben bleiben beim Flächeninhalt', () {
     final generator = CurriculumExerciseGenerator(random: Random(894));
 

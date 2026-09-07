@@ -211,6 +211,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.area: [
       'areaUnitSquareStructure',
     ],
+    MicroCompetencyId.tallyTableReading: [
+      'tallyFiveBlocks',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -353,6 +356,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.area: [
       'areaUnitSquareStructure',
+    ],
+    MicroCompetencyId.tallyTableReading: [
+      'tallyFiveBlocks',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',

@@ -150,6 +150,7 @@ class GuidedStepCatalog {
     'perimeterEdges': 'vier Randstrecken für den Umfang erfassen',
     'areaUnitSquareStructure':
         'Einheitsquadrate als Zeilen und Spalten modellieren',
+    'tallyFiveBlocks': 'vollständige Fünferblöcke in der Strichliste erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -370,6 +371,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.proportionality ||
         targetCompetency == MicroCompetencyId.proportionalUnit) {
       return _proportionalUnit(taskKey);
+    }
+
+    if (mode == TrainingMode.dataCharts &&
+        taskKey.startsWith('data:tally:')) {
+      return _tallyTableReadingGuide(taskKey);
     }
 
     if (mode == TrainingMode.perimeterArea) {
@@ -636,6 +642,18 @@ class GuidedMethodFactory {
         return const <GuidedMethodStep>[];
       }
       return _timeDuration(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.dataCharts) {
+      if (targetCompetency != MicroCompetencyId.tallyTableReading ||
+          !taskKey.startsWith('data:tally:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _tallyTableReadingGuide(taskKey)
           .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3325,6 +3343,60 @@ class GuidedMethodFactory {
           title: 'Auf die gesuchte Anzahl übertragen',
           instruction:
               'Multipliziere den Wert für 1 Einheit anschließend mit der gesuchten Anzahl.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _tallyTableReadingGuide(String key) {
+    final numbers = _numbers(key);
+    final count = numbers.isEmpty ? null : numbers.last;
+    final groups = count == null ? null : count ~/ 5;
+    final rest = count == null ? null : count % 5;
+    final groupChoices = <String>[];
+
+    if (groups != null) {
+      final candidates = <int>{
+        groups,
+        max(0, groups - 1),
+        groups + 1,
+        ?rest,
+      };
+      var candidate = 0;
+      while (candidates.length < 4) {
+        candidates.add(candidate);
+        candidate++;
+      }
+      groupChoices.addAll(
+        candidates.take(4).map((value) => '$value'),
+      );
+    }
+
+    return GuidedMethodGuide(
+      methodKey: 'data:tally-five-blocks',
+      methodLabel: 'Strichliste in Fünferblöcken lesen',
+      nudge:
+          'Erkenne zuerst die vollständigen Fünferblöcke. Die Reststriche kommen danach.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Fünferblöcke erkennen',
+          instruction:
+              'Zähle zuerst nur die vollständigen Fünferblöcke. Zähle die einzelnen Reststriche noch nicht und berechne noch nicht die Gesamtzahl.',
+          question: groups == null
+              ? null
+              : 'Wie viele vollständige Fünferblöcke enthält die Strichliste?',
+          choices: groupChoices,
+          correctChoice:
+              groups == null ? null : groupChoices.indexOf('$groups'),
+          evidenceKey: groups == null ? null : 'tallyFiveBlocks',
+          evidenceCompetency:
+              groups == null ? null : MicroCompetencyId.tallyTableReading,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Reststriche ergänzen',
+          instruction:
+              'Multipliziere die Anzahl der Fünferblöcke mit 5 und addiere erst danach die einzelnen Reststriche.',
         ),
       ],
     );
