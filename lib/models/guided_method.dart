@@ -166,6 +166,8 @@ class GuidedStepCatalog {
         'Zehnerblock einer römischen Zahl zuerst entschlüsseln',
     'observedFrequencyRelation':
         'beobachtete Häufigkeiten vor der Aussage numerisch vergleichen',
+    'scaleOperationChoice':
+        'Rechenoperation aus der Maßstabszuordnung erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -391,6 +393,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.timeDurations ||
         targetCompetency == MicroCompetencyId.timeDuration) {
       return _timeDuration(taskKey);
+    }
+
+    if (mode == TrainingMode.plansAndOrientation &&
+        taskKey.startsWith('plan:scale:')) {
+      return _scaleGuide(taskKey);
     }
 
     if (mode == TrainingMode.proportionality ||
@@ -775,6 +782,18 @@ class GuidedMethodFactory {
               ? _dataRepresentationChoiceGuide(taskKey)
               : _dataReadingGuide(taskKey);
       return guide.steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.plansAndOrientation) {
+      if (targetCompetency != MicroCompetencyId.scale ||
+          !taskKey.startsWith('plan:scale:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _scaleGuide(taskKey)
+          .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
           .toList(growable: false);
@@ -3482,6 +3501,50 @@ class GuidedMethodFactory {
     final hour = normalized ~/ 60;
     final minute = normalized % 60;
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
+  static GuidedMethodGuide _scaleGuide(String key) {
+    final numbers = _numbers(key);
+    final metersPerCentimeter =
+        numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+    final planCentimeters = numbers.isNotEmpty ? numbers.last : null;
+    const choices = <String>[
+      'Planlänge × Meter pro Zentimeter',
+      'Planlänge + Meter pro Zentimeter',
+      'Meter pro Zentimeter ÷ Planlänge',
+    ];
+    final valid =
+        metersPerCentimeter != null && planCentimeters != null;
+
+    return GuidedMethodGuide(
+      methodKey: 'scale:operation-choice',
+      methodLabel: 'Zuordnung lesen, dann maßstäblich hochrechnen',
+      nudge:
+          'Lies zuerst die Zuordnung für 1 cm. Entscheide danach, mit welcher Rechenoperation du mehrere Zentimeter hochrechnest.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Rechenoperation wählen',
+          instruction: !valid
+              ? 'Entscheide zuerst, welche Rechenoperation zur Maßstabszuordnung passt.'
+              : '1 cm im Plan entspricht $metersPerCentimeter m in Wirklichkeit. Für $planCentimeters cm brauchst du dieselbe Menge $planCentimeters-mal. Wähle zuerst nur die passende Rechenoperation.',
+          question: valid
+              ? 'Welcher Rechenweg führt von der Planlänge zur echten Strecke?'
+              : null,
+          choices: valid ? choices : const <String>[],
+          correctChoice: valid ? 0 : null,
+          evidenceKey: valid ? 'scaleOperationChoice' : null,
+          evidenceCompetency:
+              valid ? MicroCompetencyId.scale : null,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Echte Strecke berechnen',
+          instruction: !valid
+              ? 'Berechne anschließend mit der gewählten Operation die reale Strecke.'
+              : 'Rechne erst jetzt: $planCentimeters × $metersPerCentimeter und gib die echte Strecke in Metern an.',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _proportionalUnit(String key) {

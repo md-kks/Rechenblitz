@@ -156,10 +156,10 @@ void main() {
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 14,
+        fullTaskOnly: 13,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 52,
+        targetedRecovery: 53,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Maßstab bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.scale,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('scaleOperationChoice'));
+    expect(item.independentStepKeys, contains('scaleOperationChoice'));
+    expect(item.recoveryStepKeys, contains('scaleOperationChoice'));
   });
 
   test('Audit führt Zufallsexperimente bis zur gezielten Recovery', () {

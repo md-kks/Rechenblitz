@@ -1405,6 +1405,60 @@ void main() {
   });
 
 
+  test('Maßstab-Recovery überträgt die Operationswahl', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.scale,
+      stepKey: 'scaleOperationChoice',
+      label: GuidedStepCatalog.labelFor('scaleOperationChoice'),
+      mode: TrainingMode.plansAndOrientation,
+      lastSeen: DateTime(2026, 9, 7, 15, 0),
+      sourceTaskKey:
+          'independent:scaleOperationChoice:plan:scale:100:6',
+    );
+    final plan = StepRecoveryGenerator(random: Random(916)).generate(
+      focus: focus,
+      range: NumberRangeLevel.million,
+    );
+
+    (int, int) values(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      return (
+        int.parse(parts[parts.length - 2]),
+        int.parse(parts.last),
+      );
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(values(plan.tasks[0]), (100, 6));
+    expect(values(plan.tasks[1]), (1000, 7));
+
+    for (final task in plan.tasks) {
+      final (scale, cm) = values(task);
+      expect(task.mode, TrainingMode.plansAndOrientation);
+      expect(<int>{10, 100, 1000}, contains(scale));
+      expect(cm, inInclusiveRange(2, 8));
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:scaleOperationChoice:scale-operation-choice:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(
+        task.choices![task.answer],
+        'Planlänge × Meter pro Zentimeter',
+      );
+      expect(task.prompt, contains('1 cm'));
+      expect(task.prompt, contains('$scale m'));
+      expect(task.prompt, contains('$cm cm'));
+      expect(task.hint, contains('mehrfach'));
+    }
+  });
+
   test('Zufallsexperiment-Recovery überträgt die Häufigkeitsrelation', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.probabilityExperiment,

@@ -216,7 +216,10 @@ class CurriculumExerciseGenerator {
               ? _cubeNetFoldability()
               : _geometryBodies(),
         TrainingMode.symmetry => _symmetry(),
-        TrainingMode.plansAndOrientation => _plansAndOrientation(gradeLevel),
+        TrainingMode.plansAndOrientation => _plansAndOrientation(
+            gradeLevel,
+            targetedScale: targetCompetency == MicroCompetencyId.scale,
+          ),
         TrainingMode.volumeCubes => _volumeCubes(
             gradeLevel,
             targetedLayer:
@@ -2051,10 +2054,14 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _plansAndOrientation(GradeLevel grade) {
+  CurriculumExercise _plansAndOrientation(
+    GradeLevel grade, {
+    bool targetedScale = false,
+  }) {
     final right = _between(1, grade == GradeLevel.third ? 8 : 15);
     final up = _between(1, grade == GradeLevel.third ? 8 : 15);
-    if (grade == GradeLevel.fourth && _random.nextBool()) {
+    if (grade == GradeLevel.fourth &&
+        (targetedScale || _random.nextBool())) {
       final scale = [10, 100, 1000][_random.nextInt(3)];
       final cm = _between(2, 8);
       return CurriculumExercise(
