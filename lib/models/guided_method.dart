@@ -151,6 +151,7 @@ class GuidedStepCatalog {
     'areaUnitSquareStructure':
         'Einheitsquadrate als Zeilen und Spalten modellieren',
     'tallyFiveBlocks': 'vollständige Fünferblöcke in der Strichliste erkennen',
+    'chartValuesRead': 'Balkenwerte vor der Auswertung korrekt ablesen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -373,9 +374,15 @@ class GuidedMethodFactory {
       return _proportionalUnit(taskKey);
     }
 
-    if (mode == TrainingMode.dataCharts &&
-        taskKey.startsWith('data:tally:')) {
-      return _tallyTableReadingGuide(taskKey);
+    if (mode == TrainingMode.dataCharts) {
+      if (taskKey.startsWith('data:tally:')) {
+        return _tallyTableReadingGuide(taskKey);
+      }
+      if (taskKey.startsWith('data:max:') ||
+          taskKey.startsWith('data:sum:') ||
+          taskKey.startsWith('data:diff:')) {
+        return _dataReadingGuide(taskKey);
+      }
     }
 
     if (mode == TrainingMode.perimeterArea) {
@@ -649,12 +656,21 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.dataCharts) {
-      if (targetCompetency != MicroCompetencyId.tallyTableReading ||
-          !taskKey.startsWith('data:tally:')) {
+      final tallyTask =
+          targetCompetency == MicroCompetencyId.tallyTableReading &&
+              taskKey.startsWith('data:tally:');
+      final chartTask =
+          targetCompetency == MicroCompetencyId.dataReading &&
+              (taskKey.startsWith('data:max:') ||
+                  taskKey.startsWith('data:sum:') ||
+                  taskKey.startsWith('data:diff:'));
+      if (!tallyTask && !chartTask) {
         return const <GuidedMethodStep>[];
       }
-      return _tallyTableReadingGuide(taskKey)
-          .steps
+      final guide = tallyTask
+          ? _tallyTableReadingGuide(taskKey)
+          : _dataReadingGuide(taskKey);
+      return guide.steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
           .toList(growable: false);
@@ -3343,6 +3359,64 @@ class GuidedMethodFactory {
           title: 'Auf die gesuchte Anzahl übertragen',
           instruction:
               'Multipliziere den Wert für 1 Einheit anschließend mit der gesuchten Anzahl.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _dataReadingGuide(String key) {
+    final numbers = _numbers(key);
+    final values = numbers.length >= 4
+        ? numbers.sublist(numbers.length - 4)
+        : const <int>[];
+
+    String format(List<int> data) =>
+        'Rot ${data[0]} · Blau ${data[1]} · Grün ${data[2]} · Gelb ${data[3]}';
+
+    List<int> changedAt(int index) {
+      final changed = List<int>.of(values);
+      changed[index] = changed[index] + 1;
+      return changed;
+    }
+
+    final choices = values.length == 4
+        ? <String>[
+            format(values),
+            format(changedAt(0)),
+            format(changedAt(1)),
+            format(changedAt(2)),
+          ]
+        : const <String>[];
+
+    final finalInstruction = key.startsWith('data:max:')
+        ? 'Vergleiche danach die vier abgelesenen Werte und wähle den größten.'
+        : key.startsWith('data:sum:')
+            ? 'Addiere danach die vier abgelesenen Werte.'
+            : 'Bilde danach die Differenz der abgelesenen Werte von Rot und Blau.';
+
+    return GuidedMethodGuide(
+      methodKey: 'data:read-chart-values',
+      methodLabel: 'Balkenwerte sicher ablesen',
+      nudge:
+          'Lies zuerst jeden benötigten Balkenwert an der Skala ab. Rechne erst danach weiter.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Balkenwerte ablesen',
+          instruction:
+              'Lies die Werte der vier Balken von Rot bis Gelb ab. Berechne Maximum, Summe oder Differenz noch nicht.',
+          question: choices.isEmpty
+              ? null
+              : 'Welche Werte liest du von Rot bis Gelb ab?',
+          choices: choices,
+          correctChoice: choices.isEmpty ? null : 0,
+          evidenceKey: choices.isEmpty ? null : 'chartValuesRead',
+          evidenceCompetency:
+              choices.isEmpty ? null : MicroCompetencyId.dataReading,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Daten auswerten',
+          instruction: finalInstruction,
         ),
       ],
     );

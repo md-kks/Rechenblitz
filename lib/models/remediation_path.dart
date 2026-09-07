@@ -245,6 +245,7 @@ class StepRecoveryGenerator {
     'perimeterEdges',
     'areaUnitSquareStructure',
     'tallyFiveBlocks',
+    'chartValuesRead',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -387,12 +388,84 @@ class StepRecoveryGenerator {
           _roundingDecisionDigitStep(focus, stage, range),
         'minuteHandMinutes' => _minuteHandMinutesStep(focus, stage, range),
         'sequenceStepSize' => _sequenceStepSizeStep(focus, stage, range),
+        'chartValuesRead' => _chartValuesReadStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _chartValuesReadStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceValues = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final source = sourceValues.length >= 4
+        ? sourceValues
+            .sublist(sourceValues.length - 4)
+            .map((value) => value.clamp(2, 12).toInt())
+            .toList(growable: false)
+        : null;
+
+    var values = stage == RemediationStage.supported && source != null
+        ? List<int>.of(source)
+        : List<int>.generate(4, (_) => _between(2, 12));
+
+    if (stage == RemediationStage.transfer &&
+        source != null &&
+        _sameIntList(values, source)) {
+      values = List<int>.of(values);
+      values[0] = values[0] == 12 ? 11 : values[0] + 1;
+    }
+
+    String format(List<int> data) => data.join(' · ');
+
+    List<int> changedAt(int index) {
+      final changed = List<int>.of(values);
+      changed[index] = changed[index] == 12
+          ? changed[index] - 1
+          : changed[index] + 1;
+      return changed;
+    }
+
+    final correct = format(values);
+    final choices = <String>[
+      correct,
+      format(changedAt(0)),
+      format(changedAt(1)),
+      format(changedAt(2)),
+    ]..shuffle(_random);
+    final labels = ['Rot', 'Blau', 'Grün', 'Gelb'];
+    final chart = List<String>.generate(
+      4,
+      (index) =>
+          '${labels[index]}: ${List<String>.filled(values[index], '■').join()}',
+    ).join('\n');
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'chart-values:${values.join('-')}',
+      prompt:
+          'Balkendiagramm (1 Kästchen = 1):\n$chart\nWelche Werte liest du in der Reihenfolge Rot, Blau, Grün, Gelb ab?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Lies jeden Balken an derselben Skala ab. Werte erst aus, wenn die Einzelwerte feststehen.',
+    );
+  }
+
+  bool _sameIntList(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 
   RemediationTask _tallyFiveBlocksStep(
     IndependentStepRecoveryFocus focus,

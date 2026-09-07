@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 20,
+        fullTaskOnly: 19,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 44,
+        targetedRecovery: 45,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 22,
+        fullTaskOnly: 21,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 44,
+        targetedRecovery: 45,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Diagrammlesen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.dataReading,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('chartValuesRead'));
+    expect(item.independentStepKeys, contains('chartValuesRead'));
+    expect(item.recoveryStepKeys, contains('chartValuesRead'));
   });
 
   test('Audit führt Strichlistenlesen bis zur gezielten Recovery', () {

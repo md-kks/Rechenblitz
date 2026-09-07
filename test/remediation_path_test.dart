@@ -1405,6 +1405,49 @@ void main() {
   });
 
 
+  test('Diagramm-Recovery überträgt das Ablesen der Balkenwerte', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.dataReading,
+      stepKey: 'chartValuesRead',
+      label: GuidedStepCatalog.labelFor('chartValuesRead'),
+      mode: TrainingMode.dataCharts,
+      lastSeen: DateTime(2026, 9, 7, 7, 30),
+      sourceTaskKey:
+          'independent:chartValuesRead:data:sum:4-7-9-3',
+    );
+    final plan = StepRecoveryGenerator(random: Random(899)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    List<int> values(RemediationTask task) {
+      final raw = task.taskKey.split(':').last;
+      return raw.split('-').map(int.parse).toList(growable: false);
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(values(plan.tasks[0]), [4, 7, 9, 3]);
+    expect(values(plan.tasks[1]), isNot([4, 7, 9, 3]));
+
+    for (final task in plan.tasks) {
+      final chartValues = values(task);
+      expect(task.mode, TrainingMode.dataCharts);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:chartValuesRead:chart-values:'),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices![task.answer], chartValues.join(' · '));
+      expect(task.prompt, contains('Balkendiagramm'));
+      expect(task.prompt, contains('■'));
+      expect(task.hint, contains('Skala'));
+    }
+  });
+
   test('Strichlisten-Recovery überträgt die Fünferblock-Struktur', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.tallyTableReading,
