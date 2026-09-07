@@ -158,6 +158,8 @@ class GuidedStepCatalog {
         'Varianten für eine festgehaltene erste Auswahl bestimmen',
     'calendarWeekRemainder':
         'Kalendersprung in ganze Wochen und Resttage zerlegen',
+    'representationPurpose':
+        'Zweck einer Datendarstellung vor der Auswahl erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -388,6 +390,9 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.dataCharts) {
       if (taskKey.startsWith('data:tally:')) {
         return _tallyTableReadingGuide(taskKey);
+      }
+      if (taskKey.startsWith('data:representation:')) {
+        return _dataRepresentationChoiceGuide(taskKey);
       }
       if (taskKey.startsWith('data:max:') ||
           taskKey.startsWith('data:sum:') ||
@@ -712,17 +717,22 @@ class GuidedMethodFactory {
       final tallyTask =
           targetCompetency == MicroCompetencyId.tallyTableReading &&
               taskKey.startsWith('data:tally:');
+      final representationTask =
+          targetCompetency == MicroCompetencyId.dataRepresentationChoice &&
+              taskKey.startsWith('data:representation:');
       final chartTask =
           targetCompetency == MicroCompetencyId.dataReading &&
               (taskKey.startsWith('data:max:') ||
                   taskKey.startsWith('data:sum:') ||
                   taskKey.startsWith('data:diff:'));
-      if (!tallyTask && !chartTask) {
+      if (!tallyTask && !representationTask && !chartTask) {
         return const <GuidedMethodStep>[];
       }
       final guide = tallyTask
           ? _tallyTableReadingGuide(taskKey)
-          : _dataReadingGuide(taskKey);
+          : representationTask
+              ? _dataRepresentationChoiceGuide(taskKey)
+              : _dataReadingGuide(taskKey);
       return guide.steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3601,6 +3611,53 @@ class GuidedMethodFactory {
           title: 'Relation als Chance deuten',
           instruction:
               'Übertrage erst jetzt die Zahlenbeziehung: Die Farbe mit mehr gleichartigen Elementen ist wahrscheinlicher; bei gleicher Anzahl sind beide gleich wahrscheinlich.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _dataRepresentationChoiceGuide(String key) {
+    final numbers = _numbers(key);
+    final kind = numbers.isEmpty ? null : numbers.last;
+    const choices = <String>[
+      'beim laufenden Zählen direkt mitführen',
+      'exakte Werte geordnet nachschlagen',
+      'Größen auf einen Blick vergleichen',
+    ];
+    final correct = switch (kind) {
+      0 => choices[0],
+      1 => choices[1],
+      2 => choices[2],
+      _ => null,
+    };
+
+    return GuidedMethodGuide(
+      methodKey: 'data:representation-purpose',
+      methodLabel: 'Zweck erkennen, dann Darstellung wählen',
+      nudge:
+          'Frage zuerst, was die Darstellung leisten soll. Wähle die Darstellungsform erst danach.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Zweck der Darstellung erkennen',
+          instruction:
+              'Entscheide zuerst, ob du laufend mitzählen, exakte Werte geordnet nachschlagen oder Größen schnell vergleichen möchtest. Wähle noch keine Darstellungsform.',
+          question: correct == null
+              ? null
+              : 'Was soll die Darstellung hier vor allem leisten?',
+          choices: correct == null ? const <String>[] : choices,
+          correctChoice:
+              correct == null ? null : choices.indexOf(correct),
+          evidenceKey:
+              correct == null ? null : 'representationPurpose',
+          evidenceCompetency: correct == null
+              ? null
+              : MicroCompetencyId.dataRepresentationChoice,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Passende Darstellung zuordnen',
+          instruction:
+              'Ordne danach den Zweck zu: Strichliste zum laufenden Zählen, Tabelle zum geordneten Nachschlagen, Balkendiagramm zum schnellen Vergleichen.',
         ),
       ],
     );

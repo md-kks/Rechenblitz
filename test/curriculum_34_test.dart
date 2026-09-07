@@ -43,6 +43,32 @@ void main() {
 
 
 
+  test('Gezielte Datendarstellungswahl bleibt bei Darstellungsaufgaben', () {
+    final generator = CurriculumExerciseGenerator(random: Random(907));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 80; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.dataCharts,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.dataRepresentationChoice,
+        );
+        final kind = int.parse(exercise.key.split(':').last);
+
+        expect(exercise.key, startsWith('data:representation:'));
+        expect(kind, inInclusiveRange(0, 2));
+        expect(exercise.usesChoices, isTrue);
+        expect(exercise.choices, [
+          'Strichliste',
+          'Tabelle',
+          'Balkendiagramm',
+        ]);
+        expect(exercise.method, 'Passende Datendarstellung wählen');
+      }
+    }
+  });
+
   test('Gezielte Kalenderaufgaben bleiben beim Datumsrechnen', () {
     final generator = CurriculumExerciseGenerator(random: Random(905));
     const allowedJumps = <int>{3, 7, 10, 14};
