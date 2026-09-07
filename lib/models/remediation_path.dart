@@ -252,6 +252,7 @@ class StepRecoveryGenerator {
     'representationPurpose',
     'volumeLayerCount',
     'romanTensBlockValue',
+    'observedFrequencyRelation',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -401,12 +402,87 @@ class StepRecoveryGenerator {
         'representationPurpose' => _representationPurposeStep(focus, stage),
         'volumeLayerCount' => _volumeLayerCountStep(focus, stage),
         'romanTensBlockValue' => _romanTensBlockValueStep(focus, stage),
+        'observedFrequencyRelation' =>
+          _observedFrequencyRelationStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _observedFrequencyRelationStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final sourceTrials = sourceNumbers.length >= 3
+        ? sourceNumbers[sourceNumbers.length - 3]
+        : null;
+    final sourceRed = sourceNumbers.length >= 2
+        ? sourceNumbers[sourceNumbers.length - 2]
+        : null;
+    final sourceBlue = sourceNumbers.isNotEmpty
+        ? sourceNumbers.last
+        : null;
+
+    var trials = stage == RemediationStage.supported &&
+            sourceTrials != null &&
+            sourceRed != null &&
+            sourceBlue != null &&
+            sourceRed + sourceBlue == sourceTrials
+        ? sourceTrials
+        : [20, 30, 40][_random.nextInt(3)];
+    var red = stage == RemediationStage.supported &&
+            sourceTrials != null &&
+            sourceRed != null &&
+            sourceBlue != null &&
+            sourceRed + sourceBlue == sourceTrials
+        ? sourceRed
+        : _between(4, trials - 4);
+    var blue = trials - red;
+
+    if (stage == RemediationStage.transfer &&
+        sourceTrials != null &&
+        sourceRed != null &&
+        sourceBlue != null &&
+        sourceRed + sourceBlue == sourceTrials) {
+      trials = sourceTrials;
+      if (sourceRed != sourceBlue) {
+        red = sourceBlue;
+        blue = sourceRed;
+      } else {
+        red = min(trials - 4, sourceRed + 1);
+        blue = trials - red;
+      }
+    }
+
+    final relation = red > blue
+        ? '$red > $blue'
+        : red < blue
+            ? '$red < $blue'
+            : '$red = $blue';
+    final choices = <String>[
+      '$red > $blue',
+      '$red < $blue',
+      '$red = $blue',
+    ];
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'observed-frequency-relation:$trials:$red:$blue',
+      prompt:
+          'Ein Zufallsexperiment wurde $trials-mal wiederholt: Rot trat $red-mal auf, Blau $blue-mal. Welche Zahlenbeziehung beschreibt zuerst nur die beobachteten Häufigkeiten?',
+      choices: choices,
+      answer: choices.indexOf(relation),
+      hint:
+          'Vergleiche nur die beiden beobachteten Anzahlen mit >, < oder =. Eine Aussage über „häufiger“ kommt erst danach.',
+    );
+  }
 
   RemediationTask _romanTensBlockValueStep(
     IndependentStepRecoveryFocus focus,

@@ -235,6 +235,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.romanNumeral: [
       'romanTensBlockValue',
     ],
+    MicroCompetencyId.probabilityExperiment: [
+      'observedFrequencyRelation',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -401,6 +404,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.romanNumeral: [
       'romanTensBlockValue',
+    ],
+    MicroCompetencyId.probabilityExperiment: [
+      'observedFrequencyRelation',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',

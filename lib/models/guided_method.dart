@@ -164,6 +164,8 @@ class GuidedStepCatalog {
         'Einheitswürfel in einer einzelnen Schicht erfassen',
     'romanTensBlockValue':
         'Zehnerblock einer römischen Zahl zuerst entschlüsseln',
+    'observedFrequencyRelation':
+        'beobachtete Häufigkeiten vor der Aussage numerisch vergleichen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -408,6 +410,11 @@ class GuidedMethodFactory {
           taskKey.startsWith('data:diff:')) {
         return _dataReadingGuide(taskKey);
       }
+    }
+
+    if (mode == TrainingMode.probability &&
+        taskKey.startsWith('prob:experiment:compare:')) {
+      return _probabilityExperimentGuide(taskKey);
     }
 
     if (mode == TrainingMode.probability &&
@@ -728,6 +735,14 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.probability) {
+      if (targetCompetency == MicroCompetencyId.probabilityExperiment &&
+          taskKey.startsWith('prob:experiment:compare:')) {
+        return _probabilityExperimentGuide(taskKey)
+            .steps
+            .where((step) => step.recordsIntermediateEvidence)
+            .take(1)
+            .toList(growable: false);
+      }
       if (targetCompetency != MicroCompetencyId.probabilityReasoning ||
           !taskKey.startsWith('prob:bag:')) {
         return const <GuidedMethodStep>[];
@@ -3730,6 +3745,57 @@ class GuidedMethodFactory {
           title: 'Ast auf alle ersten Möglichkeiten übertragen',
           instruction:
               'Wiederhole dieselbe Verzweigung für jede Möglichkeit der ersten Kategorie. Bestimme erst danach die Gesamtzahl aller Kombinationen.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _probabilityExperimentGuide(String key) {
+    final numbers = _numbers(key);
+    final red = numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+    final blue = numbers.isNotEmpty ? numbers.last : null;
+    final choices = red == null || blue == null
+        ? const <String>[]
+        : <String>[
+            '$red > $blue',
+            '$red < $blue',
+            '$red = $blue',
+          ];
+    final correct = red == null || blue == null
+        ? null
+        : red > blue
+            ? '$red > $blue'
+            : red < blue
+                ? '$red < $blue'
+                : '$red = $blue';
+
+    return GuidedMethodGuide(
+      methodKey: 'probability:observed-frequency-relation',
+      methodLabel: 'Beobachtung erst numerisch vergleichen',
+      nudge:
+          'Vergleiche zuerst nur die beobachteten Häufigkeiten. Formuliere die Versuchsaussage erst danach.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Häufigkeiten vergleichen',
+          instruction:
+              'Vergleiche zuerst die Anzahl der beobachteten roten und blauen Ergebnisse mit >, < oder =. Verwende noch keine Wahrscheinlichkeitsaussage.',
+          question: red == null || blue == null
+              ? null
+              : 'Welche Zahlenbeziehung gilt für $red-mal Rot und $blue-mal Blau?',
+          choices: choices,
+          correctChoice:
+              correct == null ? null : choices.indexOf(correct),
+          evidenceKey:
+              correct == null ? null : 'observedFrequencyRelation',
+          evidenceCompetency: correct == null
+              ? null
+              : MicroCompetencyId.probabilityExperiment,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Beobachtung in Worte fassen',
+          instruction:
+              'Übertrage die Zahlenbeziehung erst jetzt in die Aussage: Rot häufiger, Blau häufiger oder beide gleich oft. Das beschreibt nur diese Versuchsreihe.',
         ),
       ],
     );

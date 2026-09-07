@@ -1405,6 +1405,61 @@ void main() {
   });
 
 
+  test('Zufallsexperiment-Recovery überträgt die Häufigkeitsrelation', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.probabilityExperiment,
+      stepKey: 'observedFrequencyRelation',
+      label: GuidedStepCatalog.labelFor('observedFrequencyRelation'),
+      mode: TrainingMode.probability,
+      lastSeen: DateTime(2026, 9, 7, 14, 0),
+      sourceTaskKey:
+          'independent:observedFrequencyRelation:prob:experiment:compare:30:18:12',
+    );
+    final plan = StepRecoveryGenerator(random: Random(914)).generate(
+      focus: focus,
+      range: NumberRangeLevel.million,
+    );
+
+    (int, int, int) counts(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      return (
+        int.parse(parts[parts.length - 3]),
+        int.parse(parts[parts.length - 2]),
+        int.parse(parts.last),
+      );
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(counts(plan.tasks[0]), (30, 18, 12));
+    expect(counts(plan.tasks[1]), (30, 12, 18));
+
+    for (final task in plan.tasks) {
+      final (trials, red, blue) = counts(task);
+      final relation = red > blue
+          ? '$red > $blue'
+          : red < blue
+              ? '$red < $blue'
+              : '$red = $blue';
+      expect(task.mode, TrainingMode.probability);
+      expect(red + blue, trials);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:observedFrequencyRelation:observed-frequency-relation:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices![task.answer], relation);
+      expect(task.prompt, contains('beobachteten Häufigkeiten'));
+      expect(task.hint, contains('>'));
+      expect(task.hint, contains('häufiger'));
+    }
+  });
+
   test('Römische-Zahlen-Recovery überträgt den Zehnerblock', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.romanNumeral,
