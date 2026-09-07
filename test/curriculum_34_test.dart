@@ -43,6 +43,26 @@ void main() {
 
 
 
+  test('Gezieltes Wahrscheinlichkeitsdenken bleibt bei Beutelvergleichen', () {
+    final generator = CurriculumExerciseGenerator(random: Random(901));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.probability,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.probabilityReasoning,
+        );
+
+        expect(exercise.key, startsWith('prob:bag:'));
+        expect(exercise.key, isNot(startsWith('prob:experiment:')));
+        expect(exercise.usesChoices, isTrue);
+        expect(exercise.method, 'Chancen einschätzen');
+      }
+    }
+  });
+
   test('Gezieltes Diagrammlesen bleibt bei Balkendiagrammen', () {
     final generator = CurriculumExerciseGenerator(random: Random(898));
 
