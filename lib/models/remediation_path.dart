@@ -251,6 +251,7 @@ class StepRecoveryGenerator {
     'calendarWeekRemainder',
     'representationPurpose',
     'volumeLayerCount',
+    'romanTensBlockValue',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -399,12 +400,89 @@ class StepRecoveryGenerator {
         'calendarWeekRemainder' => _calendarWeekRemainderStep(focus, stage),
         'representationPurpose' => _representationPurposeStep(focus, stage),
         'volumeLayerCount' => _volumeLayerCountStep(focus, stage),
+        'romanTensBlockValue' => _romanTensBlockValueStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _romanTensBlockValueStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final rawSource = sourceNumbers.isEmpty ? null : sourceNumbers.last;
+    final sourceValue = rawSource != null &&
+            rawSource >= 11 &&
+            rawSource <= 99 &&
+            rawSource % 10 != 0
+        ? rawSource
+        : null;
+    final compact = sourceValue != null && sourceValue < 50;
+    final maxTens = compact ? 40 : 90;
+
+    var value = stage == RemediationStage.supported && sourceValue != null
+        ? sourceValue
+        : _romanRecoveryValue(maxTens);
+    if (stage == RemediationStage.transfer && sourceValue != null) {
+      final sourceTens = (sourceValue ~/ 10) * 10;
+      final sourceOnes = sourceValue % 10;
+      final nextTens =
+          sourceTens >= maxTens ? max(10, sourceTens - 10) : sourceTens + 10;
+      final nextOnes = sourceOnes == 9 ? 1 : sourceOnes + 1;
+      value = nextTens + nextOnes;
+    }
+
+    final tens = (value ~/ 10) * 10;
+    final roman = _romanRecoveryText(value);
+    final tensRoman = _romanRecoveryText(tens);
+
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'roman-tens-block:$value',
+      prompt:
+          'Die römische Zahl $roman beginnt mit dem Zehnerblock $tensRoman. Welchen Wert hat nur dieser Zehnerblock?',
+      answer: tens,
+      max: 90,
+      hint:
+          'Lies zuerst nur den Zehnerblock. Die restlichen Einerzeichen werden erst im nächsten Schritt ergänzt.',
+    );
+  }
+
+  int _romanRecoveryValue(int maxTens) {
+    final tens = 10 * _between(1, maxTens ~/ 10);
+    final ones = _between(1, 9);
+    return tens + ones;
+  }
+
+  String _romanRecoveryText(int value) {
+    const pairs = <(int, String)>[
+      (100, 'C'),
+      (90, 'XC'),
+      (50, 'L'),
+      (40, 'XL'),
+      (10, 'X'),
+      (9, 'IX'),
+      (5, 'V'),
+      (4, 'IV'),
+      (1, 'I'),
+    ];
+    var rest = value;
+    final out = StringBuffer();
+    for (final pair in pairs) {
+      while (rest >= pair.$1) {
+        out.write(pair.$2);
+        rest -= pair.$1;
+      }
+    }
+    return out.toString();
+  }
 
   RemediationTask _volumeLayerCountStep(
     IndependentStepRecoveryFocus focus,

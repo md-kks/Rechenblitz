@@ -43,6 +43,30 @@ void main() {
 
 
 
+  test('Gezielte römische Zahlen bleiben beim Lesen mit Zehnerblock', () {
+    final generator = CurriculumExerciseGenerator(random: Random(911));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.romanNumerals,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.romanNumeral,
+        );
+        final value = int.parse(exercise.key.split(':').last);
+
+        expect(exercise.key, startsWith('roman:read:'));
+        expect(value, greaterThanOrEqualTo(11));
+        expect(value % 10, isNot(0));
+        expect(value, lessThan(grade == GradeLevel.third ? 50 : 100));
+        expect(exercise.usesChoices, isFalse);
+        expect(exercise.answer, value);
+        expect(exercise.method, 'Römische Zahlen lesen');
+      }
+    }
+  });
+
   test('Gezielter Rauminhalt hält Schicht und Gesamtzahl getrennt', () {
     final generator = CurriculumExerciseGenerator(random: Random(909));
 

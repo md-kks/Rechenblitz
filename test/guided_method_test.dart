@@ -218,6 +218,51 @@ void main() {
   });
 
 
+  test('Römische Zahlen beobachten zuerst den Zehnerblock', () {
+    const key = 'roman:read:47';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.romanNumerals,
+      taskKey: key,
+      expected: 47,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.romanNumeral,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'roman:tens-block');
+    expect(evidence.evidenceKey, 'romanTensBlockValue');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.romanNumeral);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.question, contains('XL'));
+    expect(evidence.choices[evidence.correctChoice!], '40');
+    expect(evidence.choices, isNot(contains('47')));
+    expect(evidence.instruction, contains('XLVII'));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.romanNumerals,
+      taskKey: key,
+      expected: 47,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.romanNumeral,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['romanTensBlockValue'],
+    );
+
+    final writeIndependent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.romanNumerals,
+      taskKey: 'roman:write:47',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.romanNumeral,
+    );
+    expect(writeIndependent, isEmpty);
+  });
+
   test('Rauminhalt beobachtet zuerst eine einzelne Würfelschicht', () {
     const key = 'volume:3:4:2';
     final guide = GuidedMethodFactory.forTask(

@@ -162,6 +162,8 @@ class GuidedStepCatalog {
         'Zweck einer Datendarstellung vor der Auswahl erkennen',
     'volumeLayerCount':
         'Einheitswürfel in einer einzelnen Schicht erfassen',
+    'romanTensBlockValue':
+        'Zehnerblock einer römischen Zahl zuerst entschlüsseln',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -335,6 +337,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.estimation &&
         taskKey.startsWith('estimate:')) {
       return _estimationGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.romanNumerals &&
+        taskKey.startsWith('roman:read:')) {
+      return _romanNumeralGuide(taskKey);
     }
 
     if (mode == TrainingMode.rounding ||
@@ -536,6 +543,18 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.romanNumerals) {
+      if (targetCompetency != MicroCompetencyId.romanNumeral ||
+          !taskKey.startsWith('roman:read:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _romanNumeralGuide(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
     if (mode == TrainingMode.rounding) {
       if (targetCompetency != MicroCompetencyId.roundingPlace ||
           !taskKey.startsWith('round:')) {
@@ -3494,6 +3513,76 @@ class GuidedMethodFactory {
     );
   }
 
+  static GuidedMethodGuide _romanNumeralGuide(String key) {
+    final numbers = _numbers(key);
+    final value = numbers.isEmpty ? null : numbers.last;
+    if (value == null ||
+        value < 11 ||
+        value > 99 ||
+        value % 10 == 0) {
+      return const GuidedMethodGuide(
+        methodKey: 'roman:tens-block',
+        methodLabel: 'Zehnerblock lesen, dann Einer ergänzen',
+        nudge:
+            'Teile die römische Zahl zuerst in einen Zehnerblock und den restlichen Einerteil.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Zehnerblock entschlüsseln',
+            instruction: 'Bestimme zuerst den Wert des Zehnerblocks.',
+          ),
+          GuidedMethodStep(
+            title: 'Einer ergänzen',
+            instruction:
+                'Lies anschließend die restlichen Zeichen und addiere ihre Werte.',
+          ),
+        ],
+      );
+    }
+
+    final tens = (value ~/ 10) * 10;
+    final ones = value % 10;
+    final roman = _romanText(value);
+    final tensRoman = _romanText(tens);
+    final candidates = <int>{
+      tens,
+      max(10, tens - 10),
+      min(90, tens + 10),
+      tens == 40 ? 50 : 40,
+    };
+    var candidate = 10;
+    while (candidates.length < 4) {
+      candidates.add(candidate);
+      candidate += 10;
+    }
+    final choices =
+        candidates.take(4).map((number) => '$number').toList(growable: false);
+
+    return GuidedMethodGuide(
+      methodKey: 'roman:tens-block',
+      methodLabel: 'Zehnerblock lesen, dann Einer ergänzen',
+      nudge:
+          'Teile die römische Zahl zuerst in einen Zehnerblock und den restlichen Einerteil.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Zehnerblock entschlüsseln',
+          instruction:
+              'In $roman ist $tensRoman der Zehnerblock. Bestimme zuerst nur seinen Wert; die Einer kommen danach.',
+          question: 'Welchen Wert hat der Zehnerblock $tensRoman?',
+          choices: choices,
+          correctChoice: choices.indexOf('$tens'),
+          evidenceKey: 'romanTensBlockValue',
+          evidenceCompetency: MicroCompetencyId.romanNumeral,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Einer ergänzen',
+          instruction:
+              'Ergänze anschließend den Einerteil mit $ones und bestimme erst dann den Gesamtwert von $roman.',
+        ),
+      ],
+    );
+  }
+
   static GuidedMethodGuide _volumeCubesGuide(String key) {
     final numbers = _numbers(key);
     final length = numbers.length >= 3 ? numbers[numbers.length - 3] : null;
@@ -4563,6 +4652,29 @@ class GuidedMethodFactory {
 
   static bool _needsSubtractionBridge(MathFact fact) =>
       (fact.a % 10) < (fact.b % 10);
+
+  static String _romanText(int value) {
+    const pairs = <(int, String)>[
+      (100, 'C'),
+      (90, 'XC'),
+      (50, 'L'),
+      (40, 'XL'),
+      (10, 'X'),
+      (9, 'IX'),
+      (5, 'V'),
+      (4, 'IV'),
+      (1, 'I'),
+    ];
+    var rest = value;
+    final out = StringBuffer();
+    for (final pair in pairs) {
+      while (rest >= pair.$1) {
+        out.write(pair.$2);
+        rest -= pair.$1;
+      }
+    }
+    return out.toString();
+  }
 
   static List<int> _numbers(String value) => RegExp(r'\d+')
       .allMatches(value)
