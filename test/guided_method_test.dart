@@ -218,6 +218,53 @@ void main() {
   });
 
 
+  test('Diagrammlesen beobachtet zuerst die vier Balkenwerte', () {
+    const key = 'data:sum:4-7-9-3';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: key,
+      expected: 23,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.dataReading,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'data:read-chart-values');
+    expect(evidence.evidenceKey, 'chartValuesRead');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.dataReading);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(
+      evidence.choices[evidence.correctChoice!],
+      'Rot 4 · Blau 7 · Grün 9 · Gelb 3',
+    );
+    expect(evidence.instruction, contains('vier Balken'));
+    expect(evidence.instruction, isNot(contains('23')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: key,
+      expected: 23,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.dataReading,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['chartValuesRead'],
+    );
+
+    final tallyIndependent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: key,
+      expected: 23,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.tallyTableReading,
+    );
+    expect(tallyIndependent, isEmpty);
+  });
+
   test('Strichliste beobachtet zuerst vollständige Fünferblöcke', () {
     const key = 'data:tally:17';
     final guide = GuidedMethodFactory.forTask(

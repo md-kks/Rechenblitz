@@ -1539,14 +1539,20 @@ class CurriculumExerciseGenerator {
     if (targetCompetency == MicroCompetencyId.dataRepresentationChoice) {
       return _dataRepresentationChoice();
     }
-    final roll = _random.nextDouble();
-    if (roll < 0.18) return _tallyData(grade);
-    if (roll < 0.34) return _dataRepresentationChoice();
+    final targetedDataReading =
+        targetCompetency == MicroCompetencyId.dataReading;
+    if (!targetedDataReading) {
+      final roll = _random.nextDouble();
+      if (roll < 0.18) return _tallyData(grade);
+      if (roll < 0.34) return _dataRepresentationChoice();
+    }
 
     final labels = ['Rot', 'Blau', 'Grün', 'Gelb'];
+    final barMax =
+        targetedDataReading ? 12 : grade == GradeLevel.third ? 20 : 40;
     final values = List<int>.generate(
       4,
-      (_) => _between(2, grade == GradeLevel.third ? 20 : 40),
+      (_) => _between(2, barMax),
     );
     final bars = List<CurriculumBar>.generate(
       4,

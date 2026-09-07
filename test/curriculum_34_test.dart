@@ -43,6 +43,36 @@ void main() {
 
 
 
+  test('Gezieltes Diagrammlesen bleibt bei Balkendiagrammen', () {
+    final generator = CurriculumExerciseGenerator(random: Random(898));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.dataCharts,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.dataReading,
+        );
+
+        expect(
+          exercise.key,
+          anyOf(
+            startsWith('data:max:'),
+            startsWith('data:sum:'),
+            startsWith('data:diff:'),
+          ),
+        );
+        expect(exercise.hasBars, isTrue);
+        expect(exercise.bars, hasLength(4));
+        expect(
+          exercise.bars!.every((bar) => bar.value >= 2 && bar.value <= 12),
+          isTrue,
+        );
+      }
+    }
+  });
+
   test('Gezielte Strichlisten bleiben bei der Strichlisten-Kompetenz', () {
     final generator = CurriculumExerciseGenerator(random: Random(896));
 
