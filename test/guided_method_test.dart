@@ -218,6 +218,53 @@ void main() {
   });
 
 
+  test('Strichliste beobachtet zuerst vollständige Fünferblöcke', () {
+    const key = 'data:tally:17';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: key,
+      expected: 17,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.tallyTableReading,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'data:tally-five-blocks');
+    expect(evidence.evidenceKey, 'tallyFiveBlocks');
+    expect(
+      evidence.evidenceCompetency,
+      MicroCompetencyId.tallyTableReading,
+    );
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices[evidence.correctChoice!], '3');
+    expect(evidence.instruction, contains('Fünferblöcke'));
+    expect(evidence.instruction, isNot(contains('17')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: key,
+      expected: 17,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.tallyTableReading,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['tallyFiveBlocks'],
+    );
+
+    final dataReading =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: key,
+      expected: 17,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.dataReading,
+    );
+    expect(dataReading, isEmpty);
+  });
+
   test('Fläche modelliert zuerst Einheitsquadrate als Zeilen mal Spalten', () {
     const key = 'rect:area:beet:8:5';
     final guide = GuidedMethodFactory.forTask(

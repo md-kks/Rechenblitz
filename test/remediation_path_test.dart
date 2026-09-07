@@ -1405,6 +1405,50 @@ void main() {
   });
 
 
+  test('Strichlisten-Recovery überträgt die Fünferblock-Struktur', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.tallyTableReading,
+      stepKey: 'tallyFiveBlocks',
+      label: GuidedStepCatalog.labelFor('tallyFiveBlocks'),
+      mode: TrainingMode.dataCharts,
+      lastSeen: DateTime(2026, 9, 7, 7, 0),
+      sourceTaskKey:
+          'independent:tallyFiveBlocks:data:tally:17',
+    );
+    final plan = StepRecoveryGenerator(random: Random(897)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int count(RemediationTask task) => int.parse(task.taskKey.split(':').last);
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(count(plan.tasks[0]), 17);
+    expect(
+      count(plan.tasks[1]) ~/ 5,
+      isNot(17 ~/ 5),
+    );
+
+    for (final task in plan.tasks) {
+      final tallyCount = count(task);
+      expect(task.mode, TrainingMode.dataCharts);
+      expect(
+        task.taskKey,
+        startsWith('step-recovery:tallyFiveBlocks:tally-five-blocks:'),
+      );
+      expect(task.usesChoices, isFalse);
+      expect(task.answer, tallyCount ~/ 5);
+      expect(task.maxAnswerValue, 8);
+      expect(task.prompt, contains('Strichliste:'));
+      expect(task.prompt, contains('vollständige Fünferblöcke'));
+      expect(task.hint, contains('Reststriche'));
+    }
+  });
+
   test('Flächen-Recovery überträgt die Einheitsquadrate-Struktur', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.area,
