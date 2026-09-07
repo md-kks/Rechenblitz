@@ -43,6 +43,31 @@ void main() {
 
 
 
+  test('Gezielter Rauminhalt hält Schicht und Gesamtzahl getrennt', () {
+    final generator = CurriculumExerciseGenerator(random: Random(909));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.volumeCubes,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.volumeCubes,
+        );
+        final parts = exercise.key.split(':');
+        final length = int.parse(parts[1]);
+        final width = int.parse(parts[2]);
+        final height = int.parse(parts[3]);
+
+        expect(exercise.key, startsWith('volume:'));
+        expect(height, greaterThanOrEqualTo(2));
+        expect(exercise.answer, length * width * height);
+        expect(length * width, isNot(exercise.answer));
+        expect(exercise.method, 'Rauminhalt mit Einheitswürfeln');
+      }
+    }
+  });
+
   test('Gezielte Datendarstellungswahl bleibt bei Darstellungsaufgaben', () {
     final generator = CurriculumExerciseGenerator(random: Random(907));
 

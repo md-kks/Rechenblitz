@@ -213,7 +213,11 @@ class CurriculumExerciseGenerator {
               : _geometryBodies(),
         TrainingMode.symmetry => _symmetry(),
         TrainingMode.plansAndOrientation => _plansAndOrientation(gradeLevel),
-        TrainingMode.volumeCubes => _volumeCubes(gradeLevel),
+        TrainingMode.volumeCubes => _volumeCubes(
+            gradeLevel,
+            targetedLayer:
+                targetCompetency == MicroCompetencyId.volumeCubes,
+          ),
         _ => throw ArgumentError('$mode ist kein Lernbereich für Klasse 3/4.'),
       };
 
@@ -2059,10 +2063,16 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _volumeCubes(GradeLevel grade) {
+  CurriculumExercise _volumeCubes(
+    GradeLevel grade, {
+    bool targetedLayer = false,
+  }) {
     final length = _between(2, grade == GradeLevel.third ? 4 : 8);
     final width = _between(2, grade == GradeLevel.third ? 4 : 6);
-    final height = _between(1, grade == GradeLevel.third ? 3 : 5);
+    final height = _between(
+      targetedLayer ? 2 : 1,
+      grade == GradeLevel.third ? 3 : 5,
+    );
     return CurriculumExercise(
       mode: TrainingMode.volumeCubes,
       prompt: 'Quader aus Einheitswürfeln: $length lang, $width breit, $height hoch. Wie viele Würfel sind es?',

@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 15,
+        fullTaskOnly: 14,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 49,
+        targetedRecovery: 50,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 17,
+        fullTaskOnly: 16,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 49,
+        targetedRecovery: 50,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Rauminhalt mit Würfeln bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.volumeCubes,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('volumeLayerCount'));
+    expect(item.independentStepKeys, contains('volumeLayerCount'));
+    expect(item.recoveryStepKeys, contains('volumeLayerCount'));
   });
 
   test('Audit führt Datendarstellungswahl bis zur gezielten Recovery', () {
