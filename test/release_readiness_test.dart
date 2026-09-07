@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 22,
+        fullTaskOnly: 21,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 42,
+        targetedRecovery: 43,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 24,
+        fullTaskOnly: 23,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 42,
+        targetedRecovery: 43,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Flächeninhalt bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.area,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('areaUnitSquareStructure'));
+    expect(item.independentStepKeys, contains('areaUnitSquareStructure'));
+    expect(item.recoveryStepKeys, contains('areaUnitSquareStructure'));
   });
 
   test('Audit führt Umfang bis zur gezielten Recovery', () {

@@ -243,6 +243,7 @@ class StepRecoveryGenerator {
     'minuteHandMinutes',
     'sequenceStepSize',
     'perimeterEdges',
+    'areaUnitSquareStructure',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -386,8 +387,64 @@ class StepRecoveryGenerator {
         'minuteHandMinutes' => _minuteHandMinutesStep(focus, stage, range),
         'sequenceStepSize' => _sequenceStepSizeStep(focus, stage, range),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
+        'areaUnitSquareStructure' =>
+          _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _areaUnitSquareStructureStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final sourceNumbers = focus.sourceTaskKey
+        .split(':')
+        .map(int.tryParse)
+        .whereType<int>()
+        .toList(growable: false);
+    final sourceWidth = sourceNumbers.length >= 2
+        ? sourceNumbers[sourceNumbers.length - 2]
+        : null;
+    final sourceHeight =
+        sourceNumbers.isNotEmpty ? sourceNumbers.last : null;
+    final limit = max(6, min(25, range.maxValue));
+
+    var width = stage == RemediationStage.supported && sourceWidth != null
+        ? sourceWidth.clamp(2, limit).toInt()
+        : _between(2, limit);
+    final height =
+        stage == RemediationStage.supported && sourceHeight != null
+            ? sourceHeight.clamp(2, limit).toInt()
+            : _between(2, limit);
+
+    if (stage == RemediationStage.transfer &&
+        sourceWidth != null &&
+        sourceHeight != null &&
+        width == sourceWidth &&
+        height == sourceHeight) {
+      width = width < limit ? width + 1 : max(2, width - 1);
+    }
+
+    final correct = '$width × $height';
+    final choices = <String>[
+      correct,
+      '$width + $height',
+      '$width + $height + $width + $height',
+      '$width ÷ $height',
+    ]..shuffle(_random);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'area-unit-squares:$width:$height',
+      prompt:
+          'Ein Rechteck ist $width cm lang und $height cm breit. Stell dir das Innere mit 1-cm²-Quadraten ausgelegt vor. Welche Rechnung zählt alle Quadrate als Zeilen × Spalten?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Für die Fläche ordnest du die Einheitsquadrate in Zeilen und Spalten. Multipliziere deren Anzahlen, ohne das Produkt schon auszurechnen.',
+    );
+  }
 
   RemediationTask _perimeterEdgesStep(
     IndependentStepRecoveryFocus focus,

@@ -208,6 +208,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.perimeter: [
       'perimeterEdges',
     ],
+    MicroCompetencyId.area: [
+      'areaUnitSquareStructure',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -347,6 +350,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.perimeter: [
       'perimeterEdges',
+    ],
+    MicroCompetencyId.area: [
+      'areaUnitSquareStructure',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
