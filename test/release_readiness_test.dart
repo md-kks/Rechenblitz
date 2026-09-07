@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 17,
+        fullTaskOnly: 16,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 47,
+        targetedRecovery: 48,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 19,
+        fullTaskOnly: 18,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 47,
+        targetedRecovery: 48,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Datumsrechnen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.calendarDate,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('calendarWeekRemainder'));
+    expect(item.independentStepKeys, contains('calendarWeekRemainder'));
+    expect(item.recoveryStepKeys, contains('calendarWeekRemainder'));
   });
 
   test('Audit führt systematische Kombinatorik bis zur gezielten Recovery',

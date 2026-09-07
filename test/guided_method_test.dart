@@ -218,6 +218,52 @@ void main() {
   });
 
 
+  test('Kalender beobachtet zuerst Wochen und Resttage', () {
+    const key = 'calendar:add:April:12:10';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.timeDurations,
+      taskKey: key,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.calendarDate,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'calendar:week-remainder');
+    expect(evidence.evidenceKey, 'calendarWeekRemainder');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.calendarDate);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(
+      evidence.choices[evidence.correctChoice!],
+      '1 Woche + 3 Tage',
+    );
+    expect(evidence.instruction, isNot(contains('22. April')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.timeDurations,
+      taskKey: key,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.calendarDate,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['calendarWeekRemainder'],
+    );
+
+    final durationIndependent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.timeDurations,
+      taskKey: key,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.timeDuration,
+    );
+    expect(durationIndependent, isEmpty);
+  });
+
   test('Kombinatorik beobachtet zuerst einen vollständigen Ast', () {
     const key = 'combo:clothes:3:4:2';
     final guide = GuidedMethodFactory.forTask(
