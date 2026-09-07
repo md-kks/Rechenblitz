@@ -1405,6 +1405,58 @@ void main() {
   });
 
 
+  test('Kombinatorik-Recovery überträgt den vollständigen ersten Ast', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.combinatoricsSystematic,
+      stepKey: 'comboFirstBranchCount',
+      label: GuidedStepCatalog.labelFor('comboFirstBranchCount'),
+      mode: TrainingMode.combinatorics,
+      lastSeen: DateTime(2026, 9, 7, 9, 0),
+      sourceTaskKey:
+          'independent:comboFirstBranchCount:combo:clothes:3:4:2',
+    );
+    final plan = StepRecoveryGenerator(random: Random(904)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    (String, int, int, int) parts(RemediationTask task) {
+      final tokens = task.taskKey.split(':');
+      return (
+        tokens[tokens.length - 4],
+        int.parse(tokens[tokens.length - 3]),
+        int.parse(tokens[tokens.length - 2]),
+        int.parse(tokens.last),
+      );
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(parts(plan.tasks[0]), ('clothes', 3, 4, 2));
+    expect(parts(plan.tasks[1]), ('icecream', 4, 5, 2));
+
+    for (final task in plan.tasks) {
+      final (_, first, second, third) = parts(task);
+      expect(first, greaterThanOrEqualTo(2));
+      expect(task.mode, TrainingMode.combinatorics);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:comboFirstBranchCount:combo-first-branch:',
+        ),
+      );
+      expect(task.usesChoices, isFalse);
+      expect(task.answer, second * third);
+      expect(task.maxAnswerValue, 15);
+      expect(task.prompt, contains('Halte genau einen'));
+      expect(task.hint, contains('einen Ast'));
+      expect(task.hint, isNot(contains('${first * second * third}')));
+    }
+  });
+
   test('Wahrscheinlichkeits-Recovery überträgt die Zahlenrelation', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.probabilityReasoning,
