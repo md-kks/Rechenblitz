@@ -192,7 +192,11 @@ class CurriculumExerciseGenerator {
         TrainingMode.probability =>
           targetCompetency == MicroCompetencyId.probabilityExperiment
               ? _probabilityExperiment()
-              : _probability(gradeLevel),
+              : _probability(
+                  gradeLevel,
+                  targetedReasoning:
+                      targetCompetency == MicroCompetencyId.probabilityReasoning,
+                ),
         TrainingMode.combinatorics => _combinatorics(gradeLevel),
         TrainingMode.proportionality => _proportionality(gradeLevel, maxValue),
         TrainingMode.perimeterArea => _perimeterArea(
@@ -1640,11 +1644,16 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _probability(GradeLevel grade) {
-    if (grade == GradeLevel.fourth && _random.nextDouble() < 0.30) {
+  CurriculumExercise _probability(
+    GradeLevel grade, {
+    bool targetedReasoning = false,
+  }) {
+    if (!targetedReasoning &&
+        grade == GradeLevel.fourth &&
+        _random.nextDouble() < 0.30) {
       return _probabilityExperiment();
     }
-    final kind = _random.nextInt(4);
+    final kind = targetedReasoning ? 3 : _random.nextInt(4);
     const choices = ['sicher', 'möglich', 'unmöglich'];
 
     if (kind == 0) {

@@ -1405,6 +1405,59 @@ void main() {
   });
 
 
+  test('Wahrscheinlichkeits-Recovery überträgt die Zahlenrelation', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.probabilityReasoning,
+      stepKey: 'chanceCountRelation',
+      label: GuidedStepCatalog.labelFor('chanceCountRelation'),
+      mode: TrainingMode.probability,
+      lastSeen: DateTime(2026, 9, 7, 8, 0),
+      sourceTaskKey:
+          'independent:chanceCountRelation:prob:bag:kugeln:7:3',
+    );
+    final plan = StepRecoveryGenerator(random: Random(902)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    (int, int) counts(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      return (
+        int.parse(parts[parts.length - 2]),
+        int.parse(parts.last),
+      );
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(counts(plan.tasks[0]), (7, 3));
+    expect(counts(plan.tasks[1]), (3, 7));
+
+    for (final task in plan.tasks) {
+      final (red, blue) = counts(task);
+      final relation = red > blue
+          ? '$red > $blue'
+          : red < blue
+              ? '$red < $blue'
+              : '$red = $blue';
+      expect(task.mode, TrainingMode.probability);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:chanceCountRelation:chance-count-relation:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices![task.answer], relation);
+      expect(task.prompt, contains('rote'));
+      expect(task.prompt, contains('blaue'));
+      expect(task.hint, contains('>, < oder ='));
+    }
+  });
+
   test('Diagramm-Recovery überträgt das Ablesen der Balkenwerte', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.dataReading,

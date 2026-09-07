@@ -152,6 +152,8 @@ class GuidedStepCatalog {
         'Einheitsquadrate als Zeilen und Spalten modellieren',
     'tallyFiveBlocks': 'vollständige Fünferblöcke in der Strichliste erkennen',
     'chartValuesRead': 'Balkenwerte vor der Auswertung korrekt ablesen',
+    'chanceCountRelation':
+        'Anzahlen vor dem Chancenvergleich mathematisch vergleichen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -383,6 +385,11 @@ class GuidedMethodFactory {
           taskKey.startsWith('data:diff:')) {
         return _dataReadingGuide(taskKey);
       }
+    }
+
+    if (mode == TrainingMode.probability &&
+        taskKey.startsWith('prob:bag:')) {
+      return _probabilityBagGuide(taskKey);
     }
 
     if (mode == TrainingMode.perimeterArea) {
@@ -649,6 +656,18 @@ class GuidedMethodFactory {
         return const <GuidedMethodStep>[];
       }
       return _timeDuration(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.probability) {
+      if (targetCompetency != MicroCompetencyId.probabilityReasoning ||
+          !taskKey.startsWith('prob:bag:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _probabilityBagGuide(taskKey)
           .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3359,6 +3378,57 @@ class GuidedMethodFactory {
           title: 'Auf die gesuchte Anzahl übertragen',
           instruction:
               'Multipliziere den Wert für 1 Einheit anschließend mit der gesuchten Anzahl.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _probabilityBagGuide(String key) {
+    final numbers = _numbers(key);
+    final red = numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+    final blue = numbers.isNotEmpty ? numbers.last : null;
+    final choices = red == null || blue == null
+        ? const <String>[]
+        : <String>[
+            '$red > $blue',
+            '$red < $blue',
+            '$red = $blue',
+          ];
+    final correct = red == null || blue == null
+        ? null
+        : red > blue
+            ? '$red > $blue'
+            : red < blue
+                ? '$red < $blue'
+                : '$red = $blue';
+
+    return GuidedMethodGuide(
+      methodKey: 'probability:count-relation',
+      methodLabel: 'Anzahlen vergleichen, dann Chance deuten',
+      nudge:
+          'Vergleiche zuerst nur die Anzahl der roten und blauen Elemente. Deute die Chance erst danach.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Anzahlen in Beziehung setzen',
+          instruction:
+              'Vergleiche zuerst nur Rot und Blau mit >, < oder =. Entscheide noch nicht mit Wahrscheinlichkeitswörtern.',
+          question: choices.isEmpty
+              ? null
+              : 'Welche Zahlenbeziehung zwischen Rot und Blau stimmt?',
+          choices: choices,
+          correctChoice:
+              correct == null ? null : choices.indexOf(correct),
+          evidenceKey:
+              correct == null ? null : 'chanceCountRelation',
+          evidenceCompetency: correct == null
+              ? null
+              : MicroCompetencyId.probabilityReasoning,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Relation als Chance deuten',
+          instruction:
+              'Übertrage erst jetzt die Zahlenbeziehung: Die Farbe mit mehr gleichartigen Elementen ist wahrscheinlicher; bei gleicher Anzahl sind beide gleich wahrscheinlich.',
         ),
       ],
     );

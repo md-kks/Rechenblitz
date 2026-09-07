@@ -217,6 +217,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.dataReading: [
       'chartValuesRead',
     ],
+    MicroCompetencyId.probabilityReasoning: [
+      'chanceCountRelation',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -365,6 +368,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.dataReading: [
       'chartValuesRead',
+    ],
+    MicroCompetencyId.probabilityReasoning: [
+      'chanceCountRelation',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',

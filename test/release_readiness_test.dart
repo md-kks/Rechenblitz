@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 19,
+        fullTaskOnly: 18,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 45,
+        targetedRecovery: 46,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 21,
+        fullTaskOnly: 20,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 45,
+        targetedRecovery: 46,
       ),
     };
 
@@ -191,6 +191,18 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Wahrscheinlichkeitsdenken bis zur gezielten Recovery',
+      () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.probabilityReasoning,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('chanceCountRelation'));
+    expect(item.independentStepKeys, contains('chanceCountRelation'));
+    expect(item.recoveryStepKeys, contains('chanceCountRelation'));
   });
 
   test('Audit führt Diagrammlesen bis zur gezielten Recovery', () {

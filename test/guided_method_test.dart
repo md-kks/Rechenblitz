@@ -218,6 +218,56 @@ void main() {
   });
 
 
+  test('Wahrscheinlichkeitsvergleich beobachtet zuerst die Zahlenrelation',
+      () {
+    const key = 'prob:bag:kugeln:7:3';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.probability,
+      taskKey: key,
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.probabilityReasoning,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'probability:count-relation');
+    expect(evidence.evidenceKey, 'chanceCountRelation');
+    expect(
+      evidence.evidenceCompetency,
+      MicroCompetencyId.probabilityReasoning,
+    );
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices[evidence.correctChoice!], '7 > 3');
+    expect(
+      evidence.choices[evidence.correctChoice!],
+      isNot(contains('wahrscheinlicher')),
+    );
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.probability,
+      taskKey: key,
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.probabilityReasoning,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['chanceCountRelation'],
+    );
+
+    final experimentIndependent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.probability,
+      taskKey: 'prob:experiment:compare:20:12:8',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.probabilityReasoning,
+    );
+    expect(experimentIndependent, isEmpty);
+  });
+
   test('Diagrammlesen beobachtet zuerst die vier Balkenwerte', () {
     const key = 'data:sum:4-7-9-3';
     final guide = GuidedMethodFactory.forTask(

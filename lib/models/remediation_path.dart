@@ -246,6 +246,7 @@ class StepRecoveryGenerator {
     'areaUnitSquareStructure',
     'tallyFiveBlocks',
     'chartValuesRead',
+    'chanceCountRelation',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -389,12 +390,71 @@ class StepRecoveryGenerator {
         'minuteHandMinutes' => _minuteHandMinutesStep(focus, stage, range),
         'sequenceStepSize' => _sequenceStepSizeStep(focus, stage, range),
         'chartValuesRead' => _chartValuesReadStep(focus, stage),
+        'chanceCountRelation' => _chanceCountRelationStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _chanceCountRelationStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final sourceRed = sourceNumbers.length >= 2
+        ? sourceNumbers[sourceNumbers.length - 2].clamp(1, 9).toInt()
+        : null;
+    final sourceBlue = sourceNumbers.isNotEmpty
+        ? sourceNumbers.last.clamp(1, 9).toInt()
+        : null;
+
+    var red = stage == RemediationStage.supported && sourceRed != null
+        ? sourceRed
+        : _between(1, 9);
+    var blue = stage == RemediationStage.supported && sourceBlue != null
+        ? sourceBlue
+        : _between(1, 9);
+
+    if (stage == RemediationStage.transfer &&
+        sourceRed != null &&
+        sourceBlue != null) {
+      if (sourceRed != sourceBlue) {
+        red = sourceBlue;
+        blue = sourceRed;
+      } else {
+        red = sourceRed == 9 ? 8 : sourceRed + 1;
+        blue = sourceBlue;
+      }
+    }
+
+    final correct = red > blue
+        ? '$red > $blue'
+        : red < blue
+            ? '$red < $blue'
+            : '$red = $blue';
+    final choices = <String>[
+      '$red > $blue',
+      '$red < $blue',
+      '$red = $blue',
+    ]..shuffle(_random);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'chance-count-relation:$red:$blue',
+      prompt:
+          'Im Beutel liegen $red rote und $blue blaue Kugeln. Welche Zahlenbeziehung vergleicht die beiden Anzahlen korrekt?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Vergleiche zuerst nur die beiden Anzahlen mit >, < oder =. Die Wahrscheinlichkeitsaussage kommt erst danach.',
+    );
+  }
 
   RemediationTask _chartValuesReadStep(
     IndependentStepRecoveryFocus focus,
