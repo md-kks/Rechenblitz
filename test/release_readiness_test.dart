@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 23,
+        fullTaskOnly: 22,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 41,
+        targetedRecovery: 42,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 25,
+        fullTaskOnly: 24,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 41,
+        targetedRecovery: 42,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Umfang bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.perimeter,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('perimeterEdges'));
+    expect(item.independentStepKeys, contains('perimeterEdges'));
+    expect(item.recoveryStepKeys, contains('perimeterEdges'));
   });
 
   test('Audit führt Zahlenfolgen-Regel bis zur gezielten Recovery', () {

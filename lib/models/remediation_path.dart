@@ -242,6 +242,7 @@ class StepRecoveryGenerator {
     'roundingDecisionDigit',
     'minuteHandMinutes',
     'sequenceStepSize',
+    'perimeterEdges',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -384,8 +385,63 @@ class StepRecoveryGenerator {
           _roundingDecisionDigitStep(focus, stage, range),
         'minuteHandMinutes' => _minuteHandMinutesStep(focus, stage, range),
         'sequenceStepSize' => _sequenceStepSizeStep(focus, stage, range),
+        'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _perimeterEdgesStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final sourceNumbers = focus.sourceTaskKey
+        .split(':')
+        .map(int.tryParse)
+        .whereType<int>()
+        .toList(growable: false);
+    final sourceWidth = sourceNumbers.length >= 2
+        ? sourceNumbers[sourceNumbers.length - 2]
+        : null;
+    final sourceHeight =
+        sourceNumbers.isNotEmpty ? sourceNumbers.last : null;
+    final limit = max(6, min(25, range.maxValue));
+
+    var width = stage == RemediationStage.supported && sourceWidth != null
+        ? sourceWidth.clamp(2, limit).toInt()
+        : _between(2, limit);
+    final height = stage == RemediationStage.supported && sourceHeight != null
+        ? sourceHeight.clamp(2, limit).toInt()
+        : _between(2, limit);
+
+    if (stage == RemediationStage.transfer &&
+        sourceWidth != null &&
+        sourceHeight != null &&
+        width == sourceWidth &&
+        height == sourceHeight) {
+      width = width < limit ? width + 1 : max(2, width - 1);
+    }
+
+    final correct =
+        '$width cm + $height cm + $width cm + $height cm';
+    final choices = <String>[
+      correct,
+      '$width cm + $height cm',
+      '$width cm × $height cm',
+      '$width cm + $width cm + $height cm',
+    ]..shuffle(_random);
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'perimeter-edges:$width:$height',
+      prompt:
+          'Ein Rechteck ist $width cm lang und $height cm breit. Welche Rechnung enthält genau die vier Randstrecken?',
+      choices: choices,
+      answer: choices.indexOf(correct),
+      hint:
+          'Der Rand hat vier Seiten: zwei mit der Länge und zwei mit der Breite.',
+    );
+  }
 
   RemediationTask _onesDigit(
     IndependentStepRecoveryFocus focus,

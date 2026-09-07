@@ -205,6 +205,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.proportionalUnit: [
       'unitValue',
     ],
+    MicroCompetencyId.perimeter: [
+      'perimeterEdges',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -341,6 +344,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.proportionalUnit: [
       'unitValue',
+    ],
+    MicroCompetencyId.perimeter: [
+      'perimeterEdges',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
