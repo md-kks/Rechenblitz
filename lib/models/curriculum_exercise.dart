@@ -195,7 +195,7 @@ class CurriculumExerciseGenerator {
           ),
         TrainingMode.probability =>
           targetCompetency == MicroCompetencyId.probabilityExperiment
-              ? _probabilityExperiment()
+              ? _probabilityExperiment(targetedComparison: true)
               : _probability(
                   gradeLevel,
                   targetedReasoning:
@@ -1734,12 +1734,14 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _probabilityExperiment() {
+  CurriculumExercise _probabilityExperiment({
+    bool targetedComparison = false,
+  }) {
     final trials = [20, 30, 40][_random.nextInt(3)];
     final red = _between(4, trials - 4);
     final blue = trials - red;
-    final kind = _random.nextBool();
-    if (kind) {
+    final compareObservation = targetedComparison || _random.nextBool();
+    if (compareObservation) {
       const choices = [
         'Rot kam häufiger vor',
         'Blau kam häufiger vor',

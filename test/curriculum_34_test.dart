@@ -43,6 +43,33 @@ void main() {
 
 
 
+  test('Gezielte Zufallsexperimente bleiben beim Häufigkeitsvergleich', () {
+    final generator = CurriculumExerciseGenerator(random: Random(913));
+
+    for (var i = 0; i < 120; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.probability,
+        gradeLevel: GradeLevel.fourth,
+        maxValue: 1000000,
+        targetCompetency: MicroCompetencyId.probabilityExperiment,
+      );
+      final parts = exercise.key.split(':');
+      final trials = int.parse(parts[3]);
+      final red = int.parse(parts[4]);
+      final blue = int.parse(parts[5]);
+
+      expect(exercise.key, startsWith('prob:experiment:compare:'));
+      expect(red + blue, trials);
+      expect(exercise.usesChoices, isTrue);
+      expect(exercise.choices, [
+        'Rot kam häufiger vor',
+        'Blau kam häufiger vor',
+        'beide gleich oft',
+      ]);
+      expect(exercise.method, 'Zufallsexperiment auswerten');
+    }
+  });
+
   test('Gezielte römische Zahlen bleiben beim Lesen mit Zehnerblock', () {
     final generator = CurriculumExerciseGenerator(random: Random(911));
 

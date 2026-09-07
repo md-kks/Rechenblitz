@@ -218,6 +218,55 @@ void main() {
   });
 
 
+  test('Zufallsexperiment beobachtet zuerst die Häufigkeitsrelation', () {
+    const key = 'prob:experiment:compare:30:18:12';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.probability,
+      taskKey: key,
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.probabilityExperiment,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(
+      guide.methodKey,
+      'probability:observed-frequency-relation',
+    );
+    expect(evidence.evidenceKey, 'observedFrequencyRelation');
+    expect(
+      evidence.evidenceCompetency,
+      MicroCompetencyId.probabilityExperiment,
+    );
+    expect(evidence.evidenceWeight, 0.40);
+    expect(evidence.choices[evidence.correctChoice!], '18 > 12');
+    expect(evidence.choices.join(' '), isNot(contains('häufiger')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.probability,
+      taskKey: key,
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.probabilityExperiment,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['observedFrequencyRelation'],
+    );
+
+    final relativeIndependent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.probability,
+      taskKey: 'prob:experiment:relative:30:18',
+      expected: 60,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.probabilityExperiment,
+    );
+    expect(relativeIndependent, isEmpty);
+  });
+
   test('Römische Zahlen beobachten zuerst den Zehnerblock', () {
     const key = 'roman:read:47';
     final guide = GuidedMethodFactory.forTask(
