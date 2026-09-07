@@ -232,6 +232,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.volumeCubes: [
       'volumeLayerCount',
     ],
+    MicroCompetencyId.romanNumeral: [
+      'romanTensBlockValue',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -395,6 +398,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.volumeCubes: [
       'volumeLayerCount',
+    ],
+    MicroCompetencyId.romanNumeral: [
+      'romanTensBlockValue',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',

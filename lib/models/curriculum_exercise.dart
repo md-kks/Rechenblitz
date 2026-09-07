@@ -171,7 +171,11 @@ class CurriculumExerciseGenerator {
                   targeted:
                       targetCompetency == MicroCompetencyId.arithmeticLaw,
                 ),
-        TrainingMode.romanNumerals => _romanNumerals(gradeLevel),
+        TrainingMode.romanNumerals => _romanNumerals(
+            gradeLevel,
+            targetedReading:
+                targetCompetency == MicroCompetencyId.romanNumeral,
+          ),
         TrainingMode.fractions => _fractions(
             gradeLevel,
             maxValue,
@@ -1121,11 +1125,21 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _romanNumerals(GradeLevel grade) {
+  CurriculumExercise _romanNumerals(
+    GradeLevel grade, {
+    bool targetedReading = false,
+  }) {
     final limit = grade == GradeLevel.third ? 50 : 100;
-    final value = _between(1, limit);
+    var value = targetedReading
+        ? _between(11, limit - 1)
+        : _between(1, limit);
+    if (targetedReading) {
+      while (value % 10 == 0) {
+        value = _between(11, limit - 1);
+      }
+    }
     final roman = _roman(value);
-    if (_random.nextBool()) {
+    if (targetedReading || _random.nextBool()) {
       return CurriculumExercise(
         mode: TrainingMode.romanNumerals,
         prompt: 'Welche Zahl bedeutet $roman?',

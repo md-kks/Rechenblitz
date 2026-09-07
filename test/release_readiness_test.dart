@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 14,
+        fullTaskOnly: 13,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 50,
+        targetedRecovery: 51,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 16,
+        fullTaskOnly: 15,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 50,
+        targetedRecovery: 51,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt römische Zahlen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.romanNumeral,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('romanTensBlockValue'));
+    expect(item.independentStepKeys, contains('romanTensBlockValue'));
+    expect(item.recoveryStepKeys, contains('romanTensBlockValue'));
   });
 
   test('Audit führt Rauminhalt mit Würfeln bis zur gezielten Recovery', () {

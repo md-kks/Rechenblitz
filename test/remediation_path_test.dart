@@ -1405,6 +1405,52 @@ void main() {
   });
 
 
+  test('Römische-Zahlen-Recovery überträgt den Zehnerblock', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.romanNumeral,
+      stepKey: 'romanTensBlockValue',
+      label: GuidedStepCatalog.labelFor('romanTensBlockValue'),
+      mode: TrainingMode.romanNumerals,
+      lastSeen: DateTime(2026, 9, 7, 13, 0),
+      sourceTaskKey:
+          'independent:romanTensBlockValue:roman:read:47',
+    );
+    final plan = StepRecoveryGenerator(random: Random(912)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int value(RemediationTask task) =>
+        int.parse(task.taskKey.split(':').last);
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(value(plan.tasks[0]), 47);
+    expect(value(plan.tasks[1]), 38);
+
+    for (final task in plan.tasks) {
+      final current = value(task);
+      final tens = (current ~/ 10) * 10;
+      expect(task.mode, TrainingMode.romanNumerals);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:romanTensBlockValue:roman-tens-block:',
+        ),
+      );
+      expect(current % 10, isNot(0));
+      expect(task.usesChoices, isFalse);
+      expect(task.answer, tens);
+      expect(task.answer, isNot(current));
+      expect(task.maxAnswerValue, 90);
+      expect(task.prompt, contains('Zehnerblock'));
+      expect(task.hint, contains('Einerzeichen'));
+    }
+  });
+
   test('Rauminhalt-Recovery überträgt die einzelne Würfelschicht', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.volumeCubes,
