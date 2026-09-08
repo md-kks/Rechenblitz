@@ -1,3 +1,20 @@
+import java.io.FileInputStream
+import java.util.Properties
+
+val keystoreProperties = Properties()
+val configuredKeyPropertiesPath =
+    System.getenv("RECHENBLITZ_KEY_PROPERTIES")
+val keystorePropertiesFile = configuredKeyPropertiesPath
+    ?.takeIf { it.isNotBlank() }
+    ?.let { rootProject.file(it) }
+    ?: rootProject.file("key.properties")
+
+if (keystorePropertiesFile.exists()) {
+    FileInputStream(keystorePropertiesFile).use {
+        keystoreProperties.load(it)
+    }
+}
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -24,6 +41,39 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = rootProject.file(
+                    keystoreProperties.getProperty("storeFile"),
+                )
+                storePassword =
+                    keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+    }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    doFirst {
+        if (!keystorePropertiesFile.exists()) {
+            throw GradleException(
+                "Release signing is required. Provide android/key.properties " +
+                    "or RECHENBLITZ_KEY_PROPERTIES.",
+            )
+        }
     }
 }
 

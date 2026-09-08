@@ -13,14 +13,65 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Configure Android release signing
+        shell: bash
+        env:
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in             ANDROID_UPLOAD_KEYSTORE_BASE64             ANDROID_KEYSTORE_PASSWORD             ANDROID_KEY_ALIAS             ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required signing secret: $name"
+              exit 1
+            fi
+          done
+          KEYSTORE_PATH="$RUNNER_TEMP/rechenblitz-upload.p12"
+          KEY_PROPERTIES_PATH="$RUNNER_TEMP/rechenblitz-key.properties"
+          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" |
+            base64 --decode > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+          {
+            printf 'storeFile=%s\n' "$KEYSTORE_PATH"
+            printf 'storePassword=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
+          } > "$KEY_PROPERTIES_PATH"
+          chmod 600 "$KEY_PROPERTIES_PATH"
+          echo "RECHENBLITZ_KEY_PROPERTIES=$KEY_PROPERTIES_PATH" >> "$GITHUB_ENV"
+          echo "RECHENBLITZ_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
       - run: flutter build apk --release
+      - name: Verify release APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner |
+            sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs             build/app/outputs/flutter-apk/app-release.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Rechenblitz-Release-APK
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+      - run: flutter build appbundle --release
+      - name: Verify release AAB signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          keytool -printcert -jarfile "$AAB" > /dev/null
+          jarsigner -verify "$AAB" > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Rechenblitz-Release-AAB
+          path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
       - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
@@ -28,3 +79,9 @@ jobs:
           name: Rechenblitz-Debug-APK
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
+      - name: Remove Android signing material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${RECHENBLITZ_KEY_PROPERTIES:-}"
+          rm -f "${RECHENBLITZ_KEYSTORE_PATH:-}"
