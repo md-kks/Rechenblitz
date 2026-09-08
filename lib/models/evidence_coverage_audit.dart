@@ -238,6 +238,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.probabilityExperiment: [
       'observedFrequencyRelation',
     ],
+    MicroCompetencyId.scale: [
+      'scaleOperationChoice',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -407,6 +410,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.probabilityExperiment: [
       'observedFrequencyRelation',
+    ],
+    MicroCompetencyId.scale: [
+      'scaleOperationChoice',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',

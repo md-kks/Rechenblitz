@@ -253,6 +253,7 @@ class StepRecoveryGenerator {
     'volumeLayerCount',
     'romanTensBlockValue',
     'observedFrequencyRelation',
+    'scaleOperationChoice',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -404,12 +405,68 @@ class StepRecoveryGenerator {
         'romanTensBlockValue' => _romanTensBlockValueStep(focus, stage),
         'observedFrequencyRelation' =>
           _observedFrequencyRelationStep(focus, stage),
+        'scaleOperationChoice' => _scaleOperationChoiceStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _scaleOperationChoiceStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final sourceScale = sourceNumbers.length >= 2
+        ? sourceNumbers[sourceNumbers.length - 2]
+        : null;
+    final sourceCm = sourceNumbers.isNotEmpty ? sourceNumbers.last : null;
+    const scales = <int>[10, 100, 1000];
+
+    var scale = stage == RemediationStage.supported &&
+            sourceScale != null &&
+            scales.contains(sourceScale)
+        ? sourceScale
+        : scales[_random.nextInt(scales.length)];
+    var cm = stage == RemediationStage.supported &&
+            sourceCm != null &&
+            sourceCm >= 2 &&
+            sourceCm <= 8
+        ? sourceCm
+        : _between(2, 8);
+
+    if (stage == RemediationStage.transfer &&
+        sourceScale != null &&
+        sourceCm != null) {
+      final scaleIndex = scales.contains(sourceScale)
+          ? scales.indexOf(sourceScale)
+          : 0;
+      scale = scales[(scaleIndex + 1) % scales.length];
+      cm = sourceCm >= 8 ? 7 : max(2, sourceCm + 1);
+    }
+
+    const choices = <String>[
+      'Planlänge × Meter pro Zentimeter',
+      'Planlänge + Meter pro Zentimeter',
+      'Meter pro Zentimeter ÷ Planlänge',
+    ];
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'scale-operation-choice:$scale:$cm',
+      prompt:
+          'Im Plan entsprechen 1 cm genau $scale m. Die Planstrecke ist $cm cm lang. Welche Rechenoperation brauchst du, um die echte Strecke zu bestimmen?',
+      choices: choices,
+      answer: 0,
+      hint:
+          'Jeder Zentimeter im Plan steht für dieselbe reale Strecke. Mehrere Zentimeter bedeuten dieselbe Zuordnung mehrfach: Die eigentliche Zahl rechnest du erst danach aus.',
+    );
+  }
 
   RemediationTask _observedFrequencyRelationStep(
     IndependentStepRecoveryFocus focus,

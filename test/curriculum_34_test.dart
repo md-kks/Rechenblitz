@@ -43,6 +43,29 @@ void main() {
 
 
 
+  test('Gezielter Maßstab bleibt bei Maßstabsaufgaben', () {
+    final generator = CurriculumExerciseGenerator(random: Random(915));
+
+    for (var i = 0; i < 120; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.plansAndOrientation,
+        gradeLevel: GradeLevel.fourth,
+        maxValue: 1000000,
+        targetCompetency: MicroCompetencyId.scale,
+      );
+      final parts = exercise.key.split(':');
+      final scale = int.parse(parts[2]);
+      final cm = int.parse(parts[3]);
+
+      expect(exercise.key, startsWith('plan:scale:'));
+      expect(<int>{10, 100, 1000}, contains(scale));
+      expect(cm, inInclusiveRange(2, 8));
+      expect(exercise.answer, cm * scale);
+      expect(exercise.answerSuffix, 'm');
+      expect(exercise.method, 'Pläne und Maßstabsbeziehungen');
+    }
+  });
+
   test('Gezielte Zufallsexperimente bleiben beim Häufigkeitsvergleich', () {
     final generator = CurriculumExerciseGenerator(random: Random(913));
 

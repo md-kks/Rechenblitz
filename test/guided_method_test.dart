@@ -218,6 +218,55 @@ void main() {
   });
 
 
+  test('Maßstab beobachtet zuerst die passende Operation', () {
+    const key = 'plan:scale:100:6';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: key,
+      expected: 600,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.scale,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'scale:operation-choice');
+    expect(evidence.evidenceKey, 'scaleOperationChoice');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.scale);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(
+      evidence.choices[evidence.correctChoice!],
+      'Planlänge × Meter pro Zentimeter',
+    );
+    expect(evidence.choices.join(' '), isNot(contains('600')));
+    expect(evidence.instruction, contains('1 cm'));
+    expect(evidence.instruction, contains('100 m'));
+    expect(evidence.instruction, contains('6 cm'));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: key,
+      expected: 600,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.scale,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['scaleOperationChoice'],
+    );
+
+    final pathIndependent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: 'plan:path:6:4',
+      expected: 10,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.scale,
+    );
+    expect(pathIndependent, isEmpty);
+  });
+
   test('Zufallsexperiment beobachtet zuerst die Häufigkeitsrelation', () {
     const key = 'prob:experiment:compare:30:18:12';
     final guide = GuidedMethodFactory.forTask(
