@@ -43,6 +43,63 @@ void main() {
 
 
 
+  test('Gezielte Pläne lesen zwei Pfeilabschnitte in Reihenfolge', () {
+    final generator = CurriculumExerciseGenerator(random: Random(921));
+    final seenFirstDirections = <String>{};
+
+    const labels = <String, String>{
+      'right': 'nach rechts',
+      'up': 'nach oben',
+      'left': 'nach links',
+      'down': 'nach unten',
+    };
+    const arrows = <String, String>{
+      'right': '→',
+      'up': '↑',
+      'left': '←',
+      'down': '↓',
+    };
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 120; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.plansAndOrientation,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.planDirections,
+        );
+        final parts = exercise.key.split(':');
+        final firstToken = parts[2];
+        final firstLength = int.parse(parts[3]);
+        final secondToken = parts[4];
+        final secondLength = int.parse(parts[5]);
+        final expected =
+            '$firstLength Felder ${labels[firstToken]}, dann $secondLength Felder ${labels[secondToken]}';
+
+        expect(exercise.key, startsWith('plan:route:'));
+        expect(firstToken, isNot(secondToken));
+        expect(firstLength, inInclusiveRange(2, grade == GradeLevel.third ? 5 : 7));
+        expect(secondLength, inInclusiveRange(2, grade == GradeLevel.third ? 5 : 7));
+        expect(firstLength, isNot(secondLength));
+        expect(exercise.usesChoices, isTrue);
+        expect(exercise.choices![exercise.answer], expected);
+        expect(exercise.prompt, contains('|'));
+        expect(exercise.prompt, contains(arrows[firstToken]!));
+        expect(exercise.prompt, contains(arrows[secondToken]!));
+        expect(
+          MicroCompetencyCatalog.tagsForTask(
+            mode: exercise.mode,
+            taskKey: exercise.key,
+          ).map((tag) => tag.id),
+          contains(MicroCompetencyId.planDirections),
+        );
+        seenFirstDirections.add(firstToken);
+      }
+    }
+
+    expect(seenFirstDirections, labels.keys.toSet());
+  });
+
   test('Gezielter Maßstab bleibt bei Maßstabsaufgaben', () {
     final generator = CurriculumExerciseGenerator(random: Random(915));
 

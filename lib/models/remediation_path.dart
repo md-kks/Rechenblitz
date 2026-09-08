@@ -258,6 +258,7 @@ class StepRecoveryGenerator {
     'figureSideFamily',
     'candidateSymmetryAxis',
     'cubeNetLocalFaceRelation',
+    'firstRouteSegment',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -415,6 +416,7 @@ class StepRecoveryGenerator {
         'candidateSymmetryAxis' => _candidateSymmetryAxisStep(focus, stage),
         'cubeNetLocalFaceRelation' =>
           _cubeNetLocalFaceRelationStep(focus, stage),
+        'firstRouteSegment' => _firstRouteSegmentStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
@@ -456,6 +458,73 @@ class StepRecoveryGenerator {
       answer: straight ? 0 : 1,
       hint:
           'Falte nur diese drei Flächen. In einer geraden A–B–C-Reihe zeigen A und C nach dem Hochklappen auf gegenüberliegende Seiten; bei der L-Form treffen sie sich als Nachbarflächen. Ob ein ganzes Würfelnetz funktioniert, ist hier noch nicht gefragt.',
+    );
+  }
+
+  RemediationTask _firstRouteSegmentStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    const tokens = <String>['right', 'up', 'left', 'down'];
+    final sourceMatch = RegExp(
+      r'plan:route:(right|up|left|down):(\d+):',
+    ).firstMatch(focus.sourceTaskKey);
+    final sourceToken = sourceMatch?.group(1);
+    final sourceLength = int.tryParse(sourceMatch?.group(2) ?? '');
+
+    String token = tokens[_random.nextInt(tokens.length)];
+    var length = _between(2, 6);
+
+    if (stage == RemediationStage.supported &&
+        sourceToken != null &&
+        sourceLength != null) {
+      token = sourceToken;
+      length = sourceLength;
+    } else if (stage == RemediationStage.transfer && sourceToken != null) {
+      final sourceIndex = tokens.indexOf(sourceToken);
+      token = tokens[(sourceIndex + 1 + _random.nextInt(3)) % tokens.length];
+      if (sourceLength != null) {
+        length = sourceLength == 6 ? 5 : sourceLength + 1;
+      }
+    }
+
+    String label(String value) => switch (value) {
+          'right' => 'nach rechts',
+          'up' => 'nach oben',
+          'left' => 'nach links',
+          _ => 'nach unten',
+        };
+    String opposite(String value) => switch (value) {
+          'right' => 'left',
+          'left' => 'right',
+          'up' => 'down',
+          _ => 'up',
+        };
+    String arrow(String value) => switch (value) {
+          'right' => '→',
+          'up' => '↑',
+          'left' => '←',
+          _ => '↓',
+        };
+
+    final correct = '$length Felder ${label(token)}';
+    final choices = <String>[
+      correct,
+      '$length Felder ${label(opposite(token))}',
+      '${length + 1} Felder ${label(token)}',
+    ];
+    final arrows = List.filled(length, arrow(token)).join(' ');
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'route-first-segment:$token:$length',
+      prompt:
+          'Lies nur diesen ersten Pfeilblock: $arrows\nWie lautet der Wegabschnitt?',
+      choices: choices,
+      answer: 0,
+      hint:
+          'Bestimme Richtung und Anzahl der Pfeile gemeinsam. Die restliche Route ist für diesen Teilschritt noch nicht wichtig.',
     );
   }
 

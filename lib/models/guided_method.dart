@@ -176,6 +176,8 @@ class GuidedStepCatalog {
         'eine vorgeschlagene Linie auf Spiegelgleichheit prüfen',
     'cubeNetLocalFaceRelation':
         'Lage zweier Flächen beim lokalen Falten bestimmen',
+    'firstRouteSegment':
+        'ersten Pfeilblock mit Richtung und Länge lesen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -422,6 +424,11 @@ class GuidedMethodFactory {
         taskKey.startsWith('body:cube-net:fold:') &&
         taskKey.contains(':local:')) {
       return _cubeNetLocalFoldGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.plansAndOrientation &&
+        taskKey.startsWith('plan:route:')) {
+      return _planRouteGuide(taskKey);
     }
 
     if (mode == TrainingMode.plansAndOrientation &&
@@ -862,15 +869,23 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.plansAndOrientation) {
-      if (targetCompetency != MicroCompetencyId.scale ||
-          !taskKey.startsWith('plan:scale:')) {
-        return const <GuidedMethodStep>[];
+      if (targetCompetency == MicroCompetencyId.planDirections &&
+          taskKey.startsWith('plan:route:')) {
+        return _planRouteGuide(taskKey)
+            .steps
+            .where((step) => step.recordsIntermediateEvidence)
+            .take(1)
+            .toList(growable: false);
       }
-      return _scaleGuide(taskKey)
-          .steps
-          .where((step) => step.recordsIntermediateEvidence)
-          .take(1)
-          .toList(growable: false);
+      if (targetCompetency == MicroCompetencyId.scale &&
+          taskKey.startsWith('plan:scale:')) {
+        return _scaleGuide(taskKey)
+            .steps
+            .where((step) => step.recordsIntermediateEvidence)
+            .take(1)
+            .toList(growable: false);
+      }
+      return const <GuidedMethodStep>[];
     }
 
     if (mode == TrainingMode.proportionality) {
@@ -3788,6 +3803,87 @@ class GuidedMethodFactory {
           title: 'Alle möglichen Achsen finden',
           instruction:
               'Suche anschließend systematisch alle Linien, die zwei spiegelgleiche Hälften erzeugen, und zähle erst dann die Gesamtzahl.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _planRouteGuide(String key) {
+    final parts = key.split(':');
+    final firstToken = parts.length >= 4 ? parts[2] : null;
+    final firstLength = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+
+    String? directionLabel(String? token) => switch (token) {
+          'right' => 'nach rechts',
+          'up' => 'nach oben',
+          'left' => 'nach links',
+          'down' => 'nach unten',
+          _ => null,
+        };
+    String? oppositeLabel(String? token) => switch (token) {
+          'right' => 'nach links',
+          'left' => 'nach rechts',
+          'up' => 'nach unten',
+          'down' => 'nach oben',
+          _ => null,
+        };
+
+    final label = directionLabel(firstToken);
+    final opposite = oppositeLabel(firstToken);
+    final valid = label != null &&
+        opposite != null &&
+        firstLength != null &&
+        firstLength > 0;
+
+    if (!valid) {
+      return const GuidedMethodGuide(
+        methodKey: 'plan-route:first-segment',
+        methodLabel: 'Pfeilroute abschnittsweise lesen',
+        nudge:
+            'Lies den Pfeilplan von links nach rechts und beschreibe jeden Block einzeln.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Ersten Pfeilblock lesen',
+            instruction:
+                'Bestimme beim ersten Block zuerst Richtung und Anzahl der Pfeile.',
+          ),
+          GuidedMethodStep(
+            title: 'Zweiten Block ergänzen',
+            instruction:
+                'Lies danach den zweiten Block und setze beide Wegabschnitte in der richtigen Reihenfolge zusammen.',
+          ),
+        ],
+      );
+    }
+
+    final correct = '$firstLength Felder $label';
+    final choices = <String>[
+      correct,
+      '$firstLength Felder $opposite',
+      '${firstLength + 1} Felder $label',
+    ];
+
+    return GuidedMethodGuide(
+      methodKey: 'plan-route:first-segment',
+      methodLabel: 'Pfeilroute abschnittsweise lesen',
+      nudge:
+          'Lies noch nicht die ganze Route. Betrachte zuerst nur den Pfeilblock links vom Trennstrich.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Ersten Pfeilblock lesen',
+          instruction:
+              'Bestimme nur beim ersten Pfeilblock Richtung und Anzahl. Den zweiten Block lässt du zunächst weg.',
+          question: 'Wie lautet der erste Wegabschnitt?',
+          choices: choices,
+          correctChoice: 0,
+          evidenceKey: 'firstRouteSegment',
+          evidenceCompetency: MicroCompetencyId.planDirections,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Ganze Route zusammensetzen',
+          instruction:
+              'Lies jetzt den zweiten Pfeilblock und beschreibe anschließend beide Abschnitte in der gezeigten Reihenfolge.',
         ),
       ],
     );
