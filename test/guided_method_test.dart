@@ -407,6 +407,63 @@ void main() {
     expect(writeIndependent, isEmpty);
   });
 
+  test('Figurenklassifikation beobachtet zuerst Dreieck oder Viereck', () {
+    const squareKey = 'geomrel:figure:0:third';
+    const triangleKey = 'geomrel:figure:2:third';
+
+    final squareGuide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.geometryRelations,
+      taskKey: squareKey,
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.figureClassification,
+    );
+    final squareEvidence = squareGuide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .single;
+
+    expect(squareGuide.methodKey, 'geometry:figure-family');
+    expect(squareEvidence.evidenceKey, 'figureSideFamily');
+    expect(
+      squareEvidence.evidenceCompetency,
+      MicroCompetencyId.figureClassification,
+    );
+    expect(squareEvidence.evidenceWeight, 0.40);
+    expect(
+      squareEvidence.choices[squareEvidence.correctChoice!],
+      'Viereck',
+    );
+    expect(squareEvidence.choices, isNot(contains('Quadrat')));
+
+    final triangleGuide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.geometryRelations,
+      taskKey: triangleKey,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.figureClassification,
+    );
+    final triangleEvidence = triangleGuide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .single;
+    expect(
+      triangleEvidence.choices[triangleEvidence.correctChoice!],
+      'Dreieck',
+    );
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.geometryRelations,
+      taskKey: squareKey,
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.figureClassification,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['figureSideFamily'],
+    );
+  });
+
   test('Rauminhalt beobachtet zuerst eine einzelne Würfelschicht', () {
     const key = 'volume:3:4:2';
     final guide = GuidedMethodFactory.forTask(

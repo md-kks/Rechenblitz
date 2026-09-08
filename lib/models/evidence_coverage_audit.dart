@@ -244,6 +244,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.rightAngle: [
       'angleReferenceRelation',
     ],
+    MicroCompetencyId.figureClassification: [
+      'figureSideFamily',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -419,6 +422,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.rightAngle: [
       'angleReferenceRelation',
+    ],
+    MicroCompetencyId.figureClassification: [
+      'figureSideFamily',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
