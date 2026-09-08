@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 10,
+        fullTaskOnly: 9,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 54,
+        targetedRecovery: 55,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 10,
+        fullTaskOnly: 9,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 56,
+        targetedRecovery: 57,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Würfelnetze bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.cubeNetFoldability,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('cubeNetLocalFaceRelation'));
+    expect(item.independentStepKeys, contains('cubeNetLocalFaceRelation'));
+    expect(item.recoveryStepKeys, contains('cubeNetLocalFaceRelation'));
   });
 
   test('Audit führt Symmetrieachsen bis zur gezielten Recovery', () {

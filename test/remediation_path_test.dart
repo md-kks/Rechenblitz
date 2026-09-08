@@ -1607,6 +1607,52 @@ void main() {
     }
   });
 
+  test('Würfelnetz-Recovery wechselt die lokale Faltrelation im Transfer', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.cubeNetFoldability,
+      stepKey: 'cubeNetLocalFaceRelation',
+      label: GuidedStepCatalog.labelFor('cubeNetLocalFaceRelation'),
+      mode: TrainingMode.geometryBodies,
+      lastSeen: DateTime(2026, 9, 8, 12, 0),
+      sourceTaskKey:
+          'independent:cubeNetLocalFaceRelation:body:cube-net:fold:yes:local:opposite:0,0;1,0;2,0;1,1;1,2;1,3',
+    );
+    final plan = StepRecoveryGenerator(random: Random(920)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    String relation(RemediationTask task) => task.taskKey.split(':').last;
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(relation(plan.tasks[0]), 'opposite');
+    expect(relation(plan.tasks[1]), 'adjacent');
+
+    for (final task in plan.tasks) {
+      final current = relation(task);
+      expect(task.mode, TrainingMode.geometryBodies);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:cubeNetLocalFaceRelation:cube-net-local-face:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(
+        task.choices![task.answer],
+        current == 'opposite'
+            ? 'A und C liegen sich gegenüber'
+            : 'A und C sind Nachbarflächen',
+      );
+      expect(task.prompt, contains('B bleibt liegen'));
+      expect(task.hint, contains('ganzes Würfelnetz'));
+    }
+  });
+
   test('Symmetrie-Recovery wechselt die Kandidatenachse derselben Figur', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.symmetryAxes,

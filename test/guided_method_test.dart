@@ -407,6 +407,69 @@ void main() {
     expect(writeIndependent, isEmpty);
   });
 
+  test('Würfelnetz beobachtet zuerst die lokale Lage von A und C', () {
+    const oppositeKey =
+        'body:cube-net:fold:yes:local:opposite:0,0;1,0;2,0;1,1;1,2;1,3';
+    const adjacentKey =
+        'body:cube-net:fold:no:local:adjacent:0,0;1,0;1,1;2,1;1,2;1,3';
+
+    final oppositeGuide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.geometryBodies,
+      taskKey: oppositeKey,
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.cubeNetFoldability,
+    );
+    final oppositeEvidence = oppositeGuide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .single;
+
+    expect(oppositeGuide.methodKey, 'cube-net:local-face-relation');
+    expect(oppositeEvidence.evidenceKey, 'cubeNetLocalFaceRelation');
+    expect(
+      oppositeEvidence.evidenceCompetency,
+      MicroCompetencyId.cubeNetFoldability,
+    );
+    expect(oppositeEvidence.evidenceWeight, 0.40);
+    expect(
+      oppositeEvidence.choices[oppositeEvidence.correctChoice!],
+      'A und C liegen sich gegenüber',
+    );
+    expect(oppositeEvidence.instruction, contains('drei übrigen Quadrate'));
+    expect(
+      oppositeEvidence.choices,
+      isNot(contains('Ja, es lässt sich falten')),
+    );
+
+    final adjacentGuide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.geometryBodies,
+      taskKey: adjacentKey,
+      expected: 1,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.cubeNetFoldability,
+    );
+    final adjacentEvidence = adjacentGuide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .single;
+    expect(
+      adjacentEvidence.choices[adjacentEvidence.correctChoice!],
+      'A und C sind Nachbarflächen',
+    );
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.geometryBodies,
+      taskKey: oppositeKey,
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.cubeNetFoldability,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['cubeNetLocalFaceRelation'],
+    );
+  });
+
   test('Symmetrie beobachtet zuerst eine einzelne Kandidatenachse', () {
     const validKey = 'symmetry:target:1:0';
     const invalidKey = 'symmetry:target:1:1';

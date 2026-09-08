@@ -478,7 +478,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
             ],
             if (current.hasCubeNet) ...[
               const SizedBox(height: 22),
-              _CubeNetView(cells: current.cubeNetCells!),
+              _CubeNetView(
+                cells: current.cubeNetCells!,
+                labels: current.cubeNetLabels ?? const <GridCell, String>{},
+              ),
             ],
             const SizedBox(height: 18),
             if (!_checkpointsComplete) ...[
@@ -589,9 +592,13 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
 }
 
 class _CubeNetView extends StatelessWidget {
-  const _CubeNetView({required this.cells});
+  const _CubeNetView({
+    required this.cells,
+    required this.labels,
+  });
 
   final List<GridCell> cells;
+  final Map<GridCell, String> labels;
 
   @override
   Widget build(BuildContext context) {
@@ -602,7 +609,9 @@ class _CubeNetView extends StatelessWidget {
     final occupied = cells.toSet();
 
     return Semantics(
-      label: 'Würfelnetz aus sechs Quadraten',
+      label: labels.isEmpty
+          ? 'Würfelnetz aus sechs Quadraten'
+          : 'Würfelnetz aus sechs Quadraten. Die Flächen A, B und C sind markiert.',
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 320),
@@ -617,7 +626,9 @@ class _CubeNetView extends StatelessWidget {
               itemBuilder: (context, index) {
                 final x = index % columns;
                 final y = index ~/ columns;
-                final filled = occupied.contains(GridCell(x, y));
+                final cell = GridCell(x, y);
+                final filled = occupied.contains(cell);
+                final label = labels[cell];
                 return Container(
                   margin: const EdgeInsets.all(1.5),
                   decoration: filled
@@ -628,6 +639,17 @@ class _CubeNetView extends StatelessWidget {
                           border: Border.all(
                             color: Theme.of(context).colorScheme.primary,
                             width: 2,
+                          ),
+                        )
+                      : null,
+                  child: filled && label != null
+                      ? Center(
+                          child: Text(
+                            label,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w900),
                           ),
                         )
                       : null,

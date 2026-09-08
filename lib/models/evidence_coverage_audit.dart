@@ -250,6 +250,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.symmetryAxes: [
       'candidateSymmetryAxis',
     ],
+    MicroCompetencyId.cubeNetFoldability: [
+      'cubeNetLocalFaceRelation',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -431,6 +434,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.symmetryAxes: [
       'candidateSymmetryAxis',
+    ],
+    MicroCompetencyId.cubeNetFoldability: [
+      'cubeNetLocalFaceRelation',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
