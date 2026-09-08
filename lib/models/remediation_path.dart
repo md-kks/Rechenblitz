@@ -256,6 +256,7 @@ class StepRecoveryGenerator {
     'scaleOperationChoice',
     'angleReferenceRelation',
     'figureSideFamily',
+    'candidateSymmetryAxis',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -410,12 +411,90 @@ class StepRecoveryGenerator {
         'scaleOperationChoice' => _scaleOperationChoiceStep(focus, stage),
         'angleReferenceRelation' => _angleReferenceRelationStep(focus, stage),
         'figureSideFamily' => _figureSideFamilyStep(focus, stage),
+        'candidateSymmetryAxis' => _candidateSymmetryAxisStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _candidateSymmetryAxisStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final sourceShape = sourceNumbers.length >= 2
+        ? sourceNumbers[sourceNumbers.length - 2]
+        : null;
+    final sourceCandidate =
+        sourceNumbers.isNotEmpty ? sourceNumbers.last : null;
+
+    var shape = _random.nextInt(4);
+    var candidate = _random.nextInt(2);
+
+    if (stage == RemediationStage.supported &&
+        sourceShape != null &&
+        sourceCandidate != null &&
+        sourceShape >= 0 &&
+        sourceShape <= 3 &&
+        sourceCandidate >= 0 &&
+        sourceCandidate <= 1) {
+      shape = sourceShape;
+      candidate = sourceCandidate;
+    }
+
+    if (stage == RemediationStage.transfer &&
+        sourceShape != null &&
+        sourceCandidate != null &&
+        sourceShape >= 0 &&
+        sourceShape <= 3 &&
+        sourceCandidate >= 0 &&
+        sourceCandidate <= 1) {
+      shape = sourceShape;
+      candidate = 1 - sourceCandidate;
+    }
+
+    final shapeName = const [
+      'Quadrat',
+      'Rechteck',
+      'gleichseitigen Dreieck',
+      'gleichschenkligen Dreieck',
+    ][shape];
+    final lineDescription = switch (shape) {
+      0 => candidate == 0
+          ? 'eine Diagonale von einer Ecke zur gegenüberliegenden Ecke'
+          : 'eine Linie von einer Ecke zur Mitte einer benachbarten Seite',
+      1 => candidate == 0
+          ? 'eine Mittellinie durch die Mittelpunkte zweier gegenüberliegender Seiten'
+          : 'eine Diagonale von einer Ecke zur gegenüberliegenden Ecke',
+      2 => candidate == 0
+          ? 'eine Linie von einer Ecke zur Mitte der gegenüberliegenden Seite'
+          : 'eine Linie parallel zu einer Seite durch das Innere',
+      _ => candidate == 0
+          ? 'eine Linie von der Spitze zur Mitte der Grundseite'
+          : 'eine Linie von einer Basisecke zur Mitte der gegenüberliegenden gleich langen Seite',
+    };
+    const choices = <String>[
+      'Ja, sie teilt die Figur spiegelgleich',
+      'Nein, sie ist keine Symmetrieachse',
+    ];
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'candidate-symmetry-axis:$shape:$candidate',
+      prompt:
+          'Prüfe beim $shapeName $lineDescription. Ist diese Linie eine Symmetrieachse?',
+      choices: choices,
+      answer: candidate == 0 ? 0 : 1,
+      hint:
+          'Denke an Falten oder Spiegeln: Eine echte Symmetrieachse legt beide Hälften deckungsgleich aufeinander. Die Gesamtzahl aller Achsen brauchst du hier noch nicht.',
+    );
+  }
 
   RemediationTask _figureSideFamilyStep(
     IndependentStepRecoveryFocus focus,

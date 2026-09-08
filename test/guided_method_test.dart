@@ -407,6 +407,65 @@ void main() {
     expect(writeIndependent, isEmpty);
   });
 
+  test('Symmetrie beobachtet zuerst eine einzelne Kandidatenachse', () {
+    const validKey = 'symmetry:target:1:0';
+    const invalidKey = 'symmetry:target:1:1';
+
+    final validGuide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.symmetry,
+      taskKey: validKey,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.symmetryAxes,
+    );
+    final validEvidence = validGuide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .single;
+
+    expect(validGuide.methodKey, 'symmetry:candidate-axis');
+    expect(validEvidence.evidenceKey, 'candidateSymmetryAxis');
+    expect(
+      validEvidence.evidenceCompetency,
+      MicroCompetencyId.symmetryAxes,
+    );
+    expect(validEvidence.evidenceWeight, 0.40);
+    expect(
+      validEvidence.choices[validEvidence.correctChoice!],
+      'Ja, sie teilt die Figur spiegelgleich',
+    );
+    expect(validEvidence.instruction, contains('Mittellinie'));
+    expect(validEvidence.choices, isNot(contains('2')));
+
+    final invalidGuide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.symmetry,
+      taskKey: invalidKey,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.symmetryAxes,
+    );
+    final invalidEvidence = invalidGuide.steps
+        .where((step) => step.recordsIntermediateEvidence)
+        .single;
+    expect(
+      invalidEvidence.choices[invalidEvidence.correctChoice!],
+      'Nein, sie ist keine Symmetrieachse',
+    );
+    expect(invalidEvidence.instruction, contains('Diagonale'));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.symmetry,
+      taskKey: validKey,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.symmetryAxes,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['candidateSymmetryAxis'],
+    );
+  });
+
   test('Figurenklassifikation beobachtet zuerst Dreieck oder Viereck', () {
     const squareKey = 'geomrel:figure:0:third';
     const triangleKey = 'geomrel:figure:2:third';

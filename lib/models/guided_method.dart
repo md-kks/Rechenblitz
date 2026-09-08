@@ -172,6 +172,8 @@ class GuidedStepCatalog {
         'Winkelgröße mit einer rechten Referenzecke vergleichen',
     'figureSideFamily':
         'Grundfamilie Dreieck oder Viereck vor der Unterklasse erkennen',
+    'candidateSymmetryAxis':
+        'eine vorgeschlagene Linie auf Spiegelgleichheit prüfen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -407,6 +409,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.geometryRelations &&
         taskKey.startsWith('geomrel:figure:')) {
       return _figureClassificationGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.symmetry &&
+        taskKey.startsWith('symmetry:target:')) {
+      return _symmetryAxisGuide(taskKey);
     }
 
     if (mode == TrainingMode.plansAndOrientation &&
@@ -815,6 +822,18 @@ class GuidedMethodFactory {
         return const <GuidedMethodStep>[];
       }
       return _rightAngleGuide(taskKey)
+          .steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.symmetry) {
+      if (targetCompetency != MicroCompetencyId.symmetryAxes ||
+          !taskKey.startsWith('symmetry:target:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _symmetryAxisGuide(taskKey)
           .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
@@ -3623,6 +3642,87 @@ class GuidedMethodFactory {
           title: 'Winkelart benennen',
           instruction:
               'Ordne erst jetzt zu: kleiner → spitzer Winkel, gleich → rechter Winkel, größer → stumpfer Winkel.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _symmetryAxisGuide(String key) {
+    final numbers = _numbers(key);
+    final shape = numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+    final candidate = numbers.isNotEmpty ? numbers.last : null;
+    if (shape == null ||
+        candidate == null ||
+        shape < 0 ||
+        shape > 3 ||
+        candidate < 0 ||
+        candidate > 1) {
+      return const GuidedMethodGuide(
+        methodKey: 'symmetry:candidate-axis',
+        methodLabel: 'Eine Achse prüfen, dann alle Achsen finden',
+        nudge:
+            'Prüfe zuerst eine vorgeschlagene Linie: Würden beim Falten zwei spiegelgleiche Hälften aufeinanderliegen?',
+        steps: [
+          GuidedMethodStep(
+            title: 'Kandidatenachse prüfen',
+            instruction:
+                'Prüfe zuerst eine vorgeschlagene Linie auf Spiegelgleichheit.',
+          ),
+          GuidedMethodStep(
+            title: 'Alle möglichen Achsen finden',
+            instruction:
+                'Suche anschließend systematisch alle Linien, die zwei spiegelgleiche Hälften erzeugen, und zähle erst dann die Gesamtzahl.',
+          ),
+        ],
+      );
+    }
+
+    final shapeName = const [
+      'Quadrat',
+      'Rechteck',
+      'gleichseitigen Dreieck',
+      'gleichschenkligen Dreieck',
+    ][shape];
+    final lineDescription = switch (shape) {
+      0 => candidate == 0
+          ? 'eine Diagonale von einer Ecke zur gegenüberliegenden Ecke'
+          : 'eine Linie von einer Ecke zur Mitte einer benachbarten Seite',
+      1 => candidate == 0
+          ? 'eine Mittellinie durch die Mittelpunkte zweier gegenüberliegender Seiten'
+          : 'eine Diagonale von einer Ecke zur gegenüberliegenden Ecke',
+      2 => candidate == 0
+          ? 'eine Linie von einer Ecke zur Mitte der gegenüberliegenden Seite'
+          : 'eine Linie parallel zu einer Seite durch das Innere',
+      _ => candidate == 0
+          ? 'eine Linie von der Spitze zur Mitte der Grundseite'
+          : 'eine Linie von einer Basisecke zur Mitte der gegenüberliegenden gleich langen Seite',
+    };
+    const choices = <String>[
+      'Ja, sie teilt die Figur spiegelgleich',
+      'Nein, sie ist keine Symmetrieachse',
+    ];
+
+    return GuidedMethodGuide(
+      methodKey: 'symmetry:candidate-axis',
+      methodLabel: 'Eine Achse prüfen, dann alle Achsen finden',
+      nudge:
+          'Prüfe zuerst eine vorgeschlagene Linie: Würden beim Falten zwei spiegelgleiche Hälften aufeinanderliegen?',
+      steps: [
+        GuidedMethodStep(
+          title: 'Kandidatenachse prüfen',
+          instruction:
+              'Prüfe beim $shapeName zuerst $lineDescription. Zähle die Symmetrieachsen noch nicht.',
+          question: 'Ist diese vorgeschlagene Linie eine Symmetrieachse?',
+          choices: choices,
+          correctChoice: candidate == 0 ? 0 : 1,
+          evidenceKey: 'candidateSymmetryAxis',
+          evidenceCompetency: MicroCompetencyId.symmetryAxes,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Alle möglichen Achsen finden',
+          instruction:
+              'Suche anschließend systematisch alle Linien, die zwei spiegelgleiche Hälften erzeugen, und zähle erst dann die Gesamtzahl.',
         ),
       ],
     );

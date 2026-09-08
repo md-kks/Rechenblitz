@@ -215,7 +215,10 @@ class CurriculumExerciseGenerator {
           targetCompetency == MicroCompetencyId.cubeNetFoldability
               ? _cubeNetFoldability()
               : _geometryBodies(),
-        TrainingMode.symmetry => _symmetry(),
+        TrainingMode.symmetry => _symmetry(
+            targetedAxis:
+                targetCompetency == MicroCompetencyId.symmetryAxes,
+          ),
         TrainingMode.plansAndOrientation => _plansAndOrientation(
             gradeLevel,
             targetedScale: targetCompetency == MicroCompetencyId.scale,
@@ -2066,16 +2069,27 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _symmetry() {
-    const names = ['Quadrat', 'Rechteck', 'gleichseitiges Dreieck', 'gleichschenkliges Dreieck'];
+  CurriculumExercise _symmetry({
+    bool targetedAxis = false,
+  }) {
+    const names = [
+      'Quadrat',
+      'Rechteck',
+      'gleichseitiges Dreieck',
+      'gleichschenkliges Dreieck',
+    ];
     const axes = [4, 2, 3, 1];
     final index = _random.nextInt(names.length);
+    final candidate = targetedAxis ? _random.nextInt(2) : null;
     return CurriculumExercise(
       mode: TrainingMode.symmetry,
       prompt: 'Wie viele Symmetrieachsen hat ein ' + names[index] + '?',
       answer: axes[index],
-      hint: 'Eine Symmetrieachse teilt die Figur in zwei spiegelgleiche Hälften.',
-      key: 'symmetry:' + names[index],
+      hint:
+          'Eine Symmetrieachse teilt die Figur in zwei spiegelgleiche Hälften.',
+      key: candidate == null
+          ? 'symmetry:' + names[index]
+          : 'symmetry:target:$index:$candidate',
       maxAnswerValue: 6,
       method: 'Achsensymmetrie',
     );

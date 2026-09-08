@@ -1607,6 +1607,59 @@ void main() {
     }
   });
 
+  test('Symmetrie-Recovery wechselt die Kandidatenachse derselben Figur', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.symmetryAxes,
+      stepKey: 'candidateSymmetryAxis',
+      label: GuidedStepCatalog.labelFor('candidateSymmetryAxis'),
+      mode: TrainingMode.symmetry,
+      lastSeen: DateTime(2026, 9, 8, 9, 0),
+      sourceTaskKey:
+          'independent:candidateSymmetryAxis:symmetry:target:1:0',
+    );
+    final plan = StepRecoveryGenerator(random: Random(918)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    (int, int) candidate(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      return (
+        int.parse(parts[parts.length - 2]),
+        int.parse(parts.last),
+      );
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(candidate(plan.tasks[0]), (1, 0));
+    expect(candidate(plan.tasks[1]), (1, 1));
+
+    for (final task in plan.tasks) {
+      final (_, candidateIndex) = candidate(task);
+      expect(task.mode, TrainingMode.symmetry);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:candidateSymmetryAxis:candidate-symmetry-axis:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(
+        task.choices![task.answer],
+        candidateIndex == 0
+            ? 'Ja, sie teilt die Figur spiegelgleich'
+            : 'Nein, sie ist keine Symmetrieachse',
+      );
+      expect(task.prompt, contains('Symmetrieachse'));
+      expect(task.hint, contains('deckungsgleich'));
+      expect(task.hint, contains('Gesamtzahl'));
+    }
+  });
+
   test('Figurenklassifikation-Recovery überträgt die Grundfamilie', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.figureClassification,
