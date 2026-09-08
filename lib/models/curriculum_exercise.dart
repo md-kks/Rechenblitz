@@ -27,6 +27,7 @@ class CurriculumExercise {
     this.method,
     this.bars,
     this.cubeNetCells,
+    this.cubeNetLabels,
   });
 
   final TrainingMode mode;
@@ -40,6 +41,7 @@ class CurriculumExercise {
   final String? method;
   final List<CurriculumBar>? bars;
   final List<GridCell>? cubeNetCells;
+  final Map<GridCell, String>? cubeNetLabels;
 
   bool get usesChoices => choices != null && choices!.isNotEmpty;
   bool get hasBars => bars != null && bars!.isNotEmpty;
@@ -2053,7 +2055,9 @@ class CurriculumExerciseGenerator {
   }
 
   CurriculumExercise _cubeNetFoldability() {
-    final pattern = CubeNetGenerator(random: _random).generate();
+    final generator = CubeNetGenerator(random: _random);
+    final pattern = generator.generate();
+    final localStep = generator.localFoldStep(pattern);
     const choices = ['Ja, es lässt sich falten', 'Nein, es lässt sich nicht falten'];
     return CurriculumExercise(
       mode: TrainingMode.geometryBodies,
@@ -2062,9 +2066,11 @@ class CurriculumExerciseGenerator {
       answer: pattern.foldable ? 0 : 1,
       hint:
           'Stelle dir vor, welche Quadrate beim Falten gegenüberliegen. Jede Würfelfläche darf nur einmal belegt werden.',
-      key: 'body:cube-net:fold:${pattern.foldable ? 'yes' : 'no'}:${pattern.key}',
+      key:
+          'body:cube-net:fold:${pattern.foldable ? 'yes' : 'no'}:local:${localStep.relationKey}:${pattern.key}',
       choices: choices,
       cubeNetCells: pattern.cells,
+      cubeNetLabels: localStep.labels,
       method: 'Würfelnetz gedanklich falten',
     );
   }

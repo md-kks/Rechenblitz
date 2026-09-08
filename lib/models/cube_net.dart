@@ -31,6 +31,33 @@ class CubeNetPattern {
   }
 }
 
+enum CubeNetFaceRelation { adjacent, opposite }
+
+class CubeNetLocalFoldStep {
+  const CubeNetLocalFoldStep({
+    required this.first,
+    required this.center,
+    required this.second,
+    required this.relation,
+  });
+
+  final GridCell first;
+  final GridCell center;
+  final GridCell second;
+  final CubeNetFaceRelation relation;
+
+  Map<GridCell, String> get labels => {
+        first: 'A',
+        center: 'B',
+        second: 'C',
+      };
+
+  String get relationKey => switch (relation) {
+        CubeNetFaceRelation.adjacent => 'adjacent',
+        CubeNetFaceRelation.opposite => 'opposite',
+      };
+}
+
 class CubeNetValidator {
   const CubeNetValidator._();
 
@@ -151,6 +178,51 @@ class CubeNetGenerator {
       cells: fallback,
       foldable: CubeNetValidator.isFoldable(fallback),
     );
+  }
+
+  CubeNetLocalFoldStep localFoldStep(CubeNetPattern pattern) {
+    final occupied = pattern.cells.toSet();
+    final candidates = <CubeNetLocalFoldStep>[];
+
+    for (final center in pattern.cells) {
+      final neighbors = CubeNetValidator.moves
+          .map((move) => center.translate(move.dx, move.dy))
+          .where(occupied.contains)
+          .toList(growable: false);
+      for (var firstIndex = 0;
+          firstIndex < neighbors.length;
+          firstIndex++) {
+        for (var secondIndex = firstIndex + 1;
+            secondIndex < neighbors.length;
+            secondIndex++) {
+          final first = neighbors[firstIndex];
+          final second = neighbors[secondIndex];
+          final firstDx = first.x - center.x;
+          final firstDy = first.y - center.y;
+          final secondDx = second.x - center.x;
+          final secondDy = second.y - center.y;
+          final opposite =
+              firstDx == -secondDx && firstDy == -secondDy;
+          candidates.add(
+            CubeNetLocalFoldStep(
+              first: first,
+              center: center,
+              second: second,
+              relation: opposite
+                  ? CubeNetFaceRelation.opposite
+                  : CubeNetFaceRelation.adjacent,
+            ),
+          );
+        }
+      }
+    }
+
+    if (candidates.isEmpty) {
+      throw StateError(
+        'Ein verbundenes Würfelnetz braucht einen lokalen Faltweg A–B–C.',
+      );
+    }
+    return candidates[_random.nextInt(candidates.length)];
   }
 }
 

@@ -48,6 +48,46 @@ void main() {
     expect(CubeNetValidator.isFoldable(invalid), isFalse);
   });
 
+  test('lokaler Würfelnetz-Faltschritt nutzt drei echte Nachbarflächen', () {
+    final generator = CubeNetGenerator(random: Random(20260908));
+    final seenRelations = <CubeNetFaceRelation>{};
+
+    for (var i = 0; i < 250; i++) {
+      final pattern = generator.generate();
+      final step = generator.localFoldStep(pattern);
+      final cells = pattern.cells.toSet();
+
+      expect(step.labels.values.toSet(), {'A', 'B', 'C'});
+      expect(cells, containsAll([step.first, step.center, step.second]));
+      expect(
+        (step.first.x - step.center.x).abs() +
+            (step.first.y - step.center.y).abs(),
+        1,
+      );
+      expect(
+        (step.second.x - step.center.x).abs() +
+            (step.second.y - step.center.y).abs(),
+        1,
+      );
+
+      final firstDx = step.first.x - step.center.x;
+      final firstDy = step.first.y - step.center.y;
+      final secondDx = step.second.x - step.center.x;
+      final secondDy = step.second.y - step.center.y;
+      final expectedRelation =
+          firstDx == -secondDx && firstDy == -secondDy
+              ? CubeNetFaceRelation.opposite
+              : CubeNetFaceRelation.adjacent;
+      expect(step.relation, expectedRelation);
+      seenRelations.add(step.relation);
+    }
+
+    expect(
+      seenRelations,
+      containsAll(CubeNetFaceRelation.values),
+    );
+  });
+
   test('Würfelnetz-Generator klassifiziert jedes erzeugte Netz korrekt', () {
     final generator = CubeNetGenerator(random: Random(20260905));
     final seen = <String>{};
@@ -111,6 +151,8 @@ void main() {
       );
       if (item.id == MicroCompetencyId.cubeNetFoldability) {
         expect(exercise.hasCubeNet, isTrue);
+        expect(exercise.key, contains(':local:'));
+        expect(exercise.cubeNetLabels?.values.toSet(), {'A', 'B', 'C'});
         expect(
           CubeNetValidator.isFoldable(exercise.cubeNetCells!),
           exercise.answer == 0,

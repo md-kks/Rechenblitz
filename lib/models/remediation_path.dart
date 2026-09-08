@@ -257,6 +257,7 @@ class StepRecoveryGenerator {
     'angleReferenceRelation',
     'figureSideFamily',
     'candidateSymmetryAxis',
+    'cubeNetLocalFaceRelation',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -412,12 +413,51 @@ class StepRecoveryGenerator {
         'angleReferenceRelation' => _angleReferenceRelationStep(focus, stage),
         'figureSideFamily' => _figureSideFamilyStep(focus, stage),
         'candidateSymmetryAxis' => _candidateSymmetryAxisStep(focus, stage),
+        'cubeNetLocalFaceRelation' =>
+          _cubeNetLocalFaceRelationStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _cubeNetLocalFaceRelationStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceRelation = focus.sourceTaskKey.contains(':local:opposite:')
+        ? 'opposite'
+        : focus.sourceTaskKey.contains(':local:adjacent:')
+            ? 'adjacent'
+            : null;
+
+    var relation =
+        stage == RemediationStage.supported && sourceRelation != null
+            ? sourceRelation
+            : (_random.nextBool() ? 'opposite' : 'adjacent');
+    if (stage == RemediationStage.transfer && sourceRelation != null) {
+      relation = sourceRelation == 'opposite' ? 'adjacent' : 'opposite';
+    }
+
+    const choices = <String>[
+      'A und C liegen sich gegenüber',
+      'A und C sind Nachbarflächen',
+    ];
+    final straight = relation == 'opposite';
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'cube-net-local-face:$relation',
+      prompt: straight
+          ? 'Drei Quadrate A–B–C liegen in einer geraden Reihe. B bleibt liegen, A und C werden an B hochgefaltet. Wie liegen A und C danach zueinander?'
+          : 'A liegt links von B, C liegt oberhalb von B. B bleibt liegen, A und C werden an B hochgefaltet. Wie liegen A und C danach zueinander?',
+      choices: choices,
+      answer: straight ? 0 : 1,
+      hint:
+          'Falte nur diese drei Flächen. In einer geraden A–B–C-Reihe zeigen A und C nach dem Hochklappen auf gegenüberliegende Seiten; bei der L-Form treffen sie sich als Nachbarflächen. Ob ein ganzes Würfelnetz funktioniert, ist hier noch nicht gefragt.',
+    );
+  }
 
   RemediationTask _candidateSymmetryAxisStep(
     IndependentStepRecoveryFocus focus,

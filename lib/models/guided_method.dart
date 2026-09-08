@@ -174,6 +174,8 @@ class GuidedStepCatalog {
         'Grundfamilie Dreieck oder Viereck vor der Unterklasse erkennen',
     'candidateSymmetryAxis':
         'eine vorgeschlagene Linie auf Spiegelgleichheit prüfen',
+    'cubeNetLocalFaceRelation':
+        'Lage zweier Flächen beim lokalen Falten bestimmen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -414,6 +416,12 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.symmetry &&
         taskKey.startsWith('symmetry:target:')) {
       return _symmetryAxisGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.geometryBodies &&
+        taskKey.startsWith('body:cube-net:fold:') &&
+        taskKey.contains(':local:')) {
+      return _cubeNetLocalFoldGuide(taskKey);
     }
 
     if (mode == TrainingMode.plansAndOrientation &&
@@ -803,6 +811,19 @@ class GuidedMethodFactory {
               ? _dataRepresentationChoiceGuide(taskKey)
               : _dataReadingGuide(taskKey);
       return guide.steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.geometryBodies) {
+      if (targetCompetency != MicroCompetencyId.cubeNetFoldability ||
+          !taskKey.startsWith('body:cube-net:fold:') ||
+          !taskKey.contains(':local:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _cubeNetLocalFoldGuide(taskKey)
+          .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
           .toList(growable: false);
@@ -3642,6 +3663,50 @@ class GuidedMethodFactory {
           title: 'Winkelart benennen',
           instruction:
               'Ordne erst jetzt zu: kleiner → spitzer Winkel, gleich → rechter Winkel, größer → stumpfer Winkel.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _cubeNetLocalFoldGuide(String key) {
+    final opposite = key.contains(':local:opposite:');
+    final adjacent = key.contains(':local:adjacent:');
+    const choices = <String>[
+      'A und C liegen sich gegenüber',
+      'A und C sind Nachbarflächen',
+    ];
+    final correctChoice = opposite
+        ? 0
+        : adjacent
+            ? 1
+            : null;
+
+    return GuidedMethodGuide(
+      methodKey: 'cube-net:local-face-relation',
+      methodLabel: 'Drei Flächen falten, dann das ganze Netz prüfen',
+      nudge:
+          'Betrachte zuerst nur A–B–C. Lass B liegen und klappe A und C an ihren gemeinsamen Kanten mit B hoch.',
+      steps: [
+        GuidedMethodStep(
+          title: 'A–B–C lokal falten',
+          instruction:
+              'Ignoriere zunächst die drei übrigen Quadrate. B bleibt liegen. Klappe nur A und C an B hoch und entscheide, wie A und C danach zueinander liegen.',
+          question: correctChoice == null
+              ? null
+              : 'Wie liegen A und C nach diesem lokalen Falten zueinander?',
+          choices: correctChoice == null ? const <String>[] : choices,
+          correctChoice: correctChoice,
+          evidenceKey:
+              correctChoice == null ? null : 'cubeNetLocalFaceRelation',
+          evidenceCompetency: correctChoice == null
+              ? null
+              : MicroCompetencyId.cubeNetFoldability,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Ganzes Netz prüfen',
+          instruction:
+              'Prüfe erst danach auch die übrigen drei Quadrate. Beim fertigen Würfel darf keine Fläche doppelt belegt werden.',
         ),
       ],
     );
