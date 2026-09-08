@@ -247,6 +247,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.figureClassification: [
       'figureSideFamily',
     ],
+    MicroCompetencyId.symmetryAxes: [
+      'candidateSymmetryAxis',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -425,6 +428,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.figureClassification: [
       'figureSideFamily',
+    ],
+    MicroCompetencyId.symmetryAxes: [
+      'candidateSymmetryAxis',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',

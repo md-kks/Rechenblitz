@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 11,
+        fullTaskOnly: 10,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 53,
+        targetedRecovery: 54,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 11,
+        fullTaskOnly: 10,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 55,
+        targetedRecovery: 56,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Symmetrieachsen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.symmetryAxes,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('candidateSymmetryAxis'));
+    expect(item.independentStepKeys, contains('candidateSymmetryAxis'));
+    expect(item.recoveryStepKeys, contains('candidateSymmetryAxis'));
   });
 
   test('Audit führt Figurenklassifikation bis zur gezielten Recovery', () {

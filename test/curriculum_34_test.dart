@@ -156,6 +156,32 @@ void main() {
     }
   });
 
+  test('Gezielte Symmetrieaufgaben tragen eine prüfbare Kandidatenachse', () {
+    final generator = CurriculumExerciseGenerator(random: Random(917));
+    const expectedAxes = <int>[4, 2, 3, 1];
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.symmetry,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.symmetryAxes,
+        );
+        final parts = exercise.key.split(':');
+        final shape = int.parse(parts[2]);
+        final candidate = int.parse(parts[3]);
+
+        expect(exercise.key, startsWith('symmetry:target:'));
+        expect(shape, inInclusiveRange(0, 3));
+        expect(candidate, inInclusiveRange(0, 1));
+        expect(exercise.answer, expectedAxes[shape]);
+        expect(exercise.usesChoices, isFalse);
+        expect(exercise.method, 'Achsensymmetrie');
+      }
+    }
+  });
+
   test('Gezielte Figurenklassifikation bleibt bei Figurenaufgaben', () {
     final generator = CurriculumExerciseGenerator(random: Random(915));
 
