@@ -168,6 +168,8 @@ class GuidedStepCatalog {
         'beobachtete Häufigkeiten vor der Aussage numerisch vergleichen',
     'scaleOperationChoice':
         'Rechenoperation aus der Maßstabszuordnung erkennen',
+    'angleReferenceRelation':
+        'Winkelgröße mit einer rechten Referenzecke vergleichen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -393,6 +395,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.timeDurations ||
         targetCompetency == MicroCompetencyId.timeDuration) {
       return _timeDuration(taskKey);
+    }
+
+    if (mode == TrainingMode.geometryRelations &&
+        taskKey.startsWith('geomrel:angle:')) {
+      return _rightAngleGuide(taskKey);
     }
 
     if (mode == TrainingMode.plansAndOrientation &&
@@ -782,6 +789,18 @@ class GuidedMethodFactory {
               ? _dataRepresentationChoiceGuide(taskKey)
               : _dataReadingGuide(taskKey);
       return guide.steps
+          .where((step) => step.recordsIntermediateEvidence)
+          .take(1)
+          .toList(growable: false);
+    }
+
+    if (mode == TrainingMode.geometryRelations) {
+      if (targetCompetency != MicroCompetencyId.rightAngle ||
+          !taskKey.startsWith('geomrel:angle:')) {
+        return const <GuidedMethodStep>[];
+      }
+      return _rightAngleGuide(taskKey)
+          .steps
           .where((step) => step.recordsIntermediateEvidence)
           .take(1)
           .toList(growable: false);
@@ -3501,6 +3520,56 @@ class GuidedMethodFactory {
     final hour = normalized ~/ 60;
     final minute = normalized % 60;
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
+  static GuidedMethodGuide _rightAngleGuide(String key) {
+    final relation = key.contains(':smaller:')
+        ? 'smaller'
+        : key.contains(':larger:')
+            ? 'larger'
+            : key.contains(':equal:') || key.contains(':right:')
+                ? 'equal'
+                : null;
+    const choices = <String>[
+      'kleiner als ein rechter Winkel',
+      'genau so groß wie ein rechter Winkel',
+      'größer als ein rechter Winkel',
+    ];
+    final correctChoice = switch (relation) {
+      'smaller' => 0,
+      'equal' => 1,
+      'larger' => 2,
+      _ => null,
+    };
+
+    return GuidedMethodGuide(
+      methodKey: 'geometry:right-angle-reference',
+      methodLabel: 'Mit der Rechteck-Ecke vergleichen, dann benennen',
+      nudge:
+          'Nutze die Ecke eines Rechtecks als Referenz. Vergleiche zuerst nur die Größe des Winkels.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Mit dem rechten Winkel vergleichen',
+          instruction:
+              'Entscheide zuerst, ob der Winkel kleiner, genau so groß oder größer als eine Rechteck-Ecke ist. Benenne die Winkelart noch nicht.',
+          question: correctChoice == null
+              ? null
+              : 'Wie groß ist der Winkel im Vergleich zu einem rechten Winkel?',
+          choices: correctChoice == null ? const <String>[] : choices,
+          correctChoice: correctChoice,
+          evidenceKey:
+              correctChoice == null ? null : 'angleReferenceRelation',
+          evidenceCompetency:
+              correctChoice == null ? null : MicroCompetencyId.rightAngle,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Winkelart benennen',
+          instruction:
+              'Ordne erst jetzt zu: kleiner → spitzer Winkel, gleich → rechter Winkel, größer → stumpfer Winkel.',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _scaleGuide(String key) {

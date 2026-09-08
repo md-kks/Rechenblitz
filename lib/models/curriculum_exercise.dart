@@ -1912,6 +1912,33 @@ class CurriculumExerciseGenerator {
         'spitzer Winkel',
         'stumpfer Winkel',
       ];
+      if (targetCompetency == MicroCompetencyId.rightAngle) {
+        final relation = _random.nextInt(3);
+        final prompt = switch (relation) {
+          0 =>
+            'Ein Winkel ist kleiner als die Ecke eines rechteckigen Blattes. Wie heißt dieser Winkel?',
+          1 =>
+            'Ein Winkel ist genau so groß wie die Ecke eines rechteckigen Blattes. Wie heißt dieser Winkel?',
+          _ =>
+            'Ein Winkel ist größer als die Ecke eines rechteckigen Blattes. Wie heißt dieser Winkel?',
+        };
+        final answer = switch (relation) {
+          0 => 1,
+          1 => 0,
+          _ => 2,
+        };
+        final keyRelation = ['smaller', 'equal', 'larger'][relation];
+        return CurriculumExercise(
+          mode: TrainingMode.geometryRelations,
+          prompt: prompt,
+          answer: answer,
+          hint:
+              'Vergleiche mit einer Rechteck-Ecke: kleiner = spitz, gleich = recht, größer = stumpf.',
+          key: 'geomrel:angle:$keyRelation:reference:${grade.name}',
+          choices: choices,
+          method: 'Rechte Winkel erkennen',
+        );
+      }
       return CurriculumExercise(
         mode: TrainingMode.geometryRelations,
         prompt:

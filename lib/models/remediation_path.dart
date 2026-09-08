@@ -254,6 +254,7 @@ class StepRecoveryGenerator {
     'romanTensBlockValue',
     'observedFrequencyRelation',
     'scaleOperationChoice',
+    'angleReferenceRelation',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -406,12 +407,61 @@ class StepRecoveryGenerator {
         'observedFrequencyRelation' =>
           _observedFrequencyRelationStep(focus, stage),
         'scaleOperationChoice' => _scaleOperationChoiceStep(focus, stage),
+        'angleReferenceRelation' => _angleReferenceRelationStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _angleReferenceRelationStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    const relations = <String>['smaller', 'equal', 'larger'];
+    final sourceRelation = focus.sourceTaskKey.contains(':smaller:')
+        ? 'smaller'
+        : focus.sourceTaskKey.contains(':larger:')
+            ? 'larger'
+            : focus.sourceTaskKey.contains(':equal:') ||
+                    focus.sourceTaskKey.contains(':right:')
+                ? 'equal'
+                : null;
+
+    var relation = stage == RemediationStage.supported &&
+            sourceRelation != null
+        ? sourceRelation
+        : relations[_random.nextInt(relations.length)];
+    if (stage == RemediationStage.transfer && sourceRelation != null) {
+      relation =
+          relations[(relations.indexOf(sourceRelation) + 1) % relations.length];
+    }
+
+    const choices = <String>[
+      'kleiner als ein rechter Winkel',
+      'genau so groß wie ein rechter Winkel',
+      'größer als ein rechter Winkel',
+    ];
+    final answer = relations.indexOf(relation);
+    final description = switch (relation) {
+      'smaller' => 'enger als eine Rechteck-Ecke',
+      'equal' => 'genau wie eine Rechteck-Ecke',
+      _ => 'weiter geöffnet als eine Rechteck-Ecke',
+    };
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'angle-reference-relation:$relation',
+      prompt:
+          'Ein Winkel ist $description. Wie groß ist er im Vergleich zu einem rechten Winkel?',
+      choices: choices,
+      answer: answer,
+      hint:
+          'Die Ecke eines rechteckigen Blattes ist deine Referenz für einen rechten Winkel. Vergleiche nur kleiner, gleich oder größer; benenne die Winkelart noch nicht.',
+    );
+  }
 
   RemediationTask _scaleOperationChoiceStep(
     IndependentStepRecoveryFocus focus,

@@ -267,6 +267,52 @@ void main() {
     expect(pathIndependent, isEmpty);
   });
 
+  test('Winkel beobachtet zuerst die Relation zur rechten Referenz', () {
+    const key = 'geomrel:angle:smaller:reference:third';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.geometryRelations,
+      taskKey: key,
+      expected: 1,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.rightAngle,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'geometry:right-angle-reference');
+    expect(evidence.evidenceKey, 'angleReferenceRelation');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.rightAngle);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(
+      evidence.choices[evidence.correctChoice!],
+      'kleiner als ein rechter Winkel',
+    );
+    expect(evidence.choices.join(' '), isNot(contains('spitzer Winkel')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.geometryRelations,
+      taskKey: key,
+      expected: 1,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.rightAngle,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['angleReferenceRelation'],
+    );
+
+    final otherGeometry =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.geometryRelations,
+      taskKey: 'geomrel:lines:parallel:third',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.rightAngle,
+    );
+    expect(otherGeometry, isEmpty);
+  });
+
   test('Zufallsexperiment beobachtet zuerst die Häufigkeitsrelation', () {
     const key = 'prob:experiment:compare:30:18:12';
     final guide = GuidedMethodFactory.forTask(

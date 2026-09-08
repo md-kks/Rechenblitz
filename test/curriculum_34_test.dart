@@ -66,6 +66,45 @@ void main() {
     }
   });
 
+  test('Gezielte Winkelaufgaben vergleichen zur rechten Referenzecke', () {
+    final generator = CurriculumExerciseGenerator(random: Random(915));
+    final seen = <String>{};
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 120; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.geometryRelations,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.rightAngle,
+        );
+        final parts = exercise.key.split(':');
+        final relation = parts[2];
+        seen.add(relation);
+
+        expect(exercise.key, startsWith('geomrel:angle:'));
+        expect(<String>{'smaller', 'equal', 'larger'}, contains(relation));
+        expect(exercise.usesChoices, isTrue);
+        expect(exercise.choices, [
+          'rechter Winkel',
+          'spitzer Winkel',
+          'stumpfer Winkel',
+        ]);
+        expect(
+          exercise.answer,
+          relation == 'smaller'
+              ? 1
+              : relation == 'equal'
+                  ? 0
+                  : 2,
+        );
+        expect(exercise.method, 'Rechte Winkel erkennen');
+      }
+    }
+
+    expect(seen, containsAll(<String>['smaller', 'equal', 'larger']));
+  });
+
   test('Gezielte Zufallsexperimente bleiben beim Häufigkeitsvergleich', () {
     final generator = CurriculumExerciseGenerator(random: Random(913));
 
