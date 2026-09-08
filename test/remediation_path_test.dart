@@ -1459,6 +1459,53 @@ void main() {
     }
   });
 
+  test('Winkel-Recovery überträgt die Relation zur rechten Referenz', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.rightAngle,
+      stepKey: 'angleReferenceRelation',
+      label: GuidedStepCatalog.labelFor('angleReferenceRelation'),
+      mode: TrainingMode.geometryRelations,
+      lastSeen: DateTime(2026, 9, 8, 8, 0),
+      sourceTaskKey:
+          'independent:angleReferenceRelation:geomrel:angle:smaller:reference:third',
+    );
+    final plan = StepRecoveryGenerator(random: Random(916)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    String relation(RemediationTask task) => task.taskKey.split(':').last;
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(relation(plan.tasks[0]), 'smaller');
+    expect(relation(plan.tasks[1]), 'equal');
+
+    const expected = <String, String>{
+      'smaller': 'kleiner als ein rechter Winkel',
+      'equal': 'genau so groß wie ein rechter Winkel',
+      'larger': 'größer als ein rechter Winkel',
+    };
+    for (final task in plan.tasks) {
+      final current = relation(task);
+      expect(task.mode, TrainingMode.geometryRelations);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:angleReferenceRelation:angle-reference-relation:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices![task.answer], expected[current]);
+      expect(task.prompt, contains('rechten Winkel'));
+      expect(task.hint, contains('rechteck'));
+      expect(task.hint, contains('benenne'));
+    }
+  });
+
   test('Zufallsexperiment-Recovery überträgt die Häufigkeitsrelation', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.probabilityExperiment,

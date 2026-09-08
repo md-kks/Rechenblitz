@@ -241,6 +241,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.scale: [
       'scaleOperationChoice',
     ],
+    MicroCompetencyId.rightAngle: [
+      'angleReferenceRelation',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -413,6 +416,9 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.scale: [
       'scaleOperationChoice',
+    ],
+    MicroCompetencyId.rightAngle: [
+      'angleReferenceRelation',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
