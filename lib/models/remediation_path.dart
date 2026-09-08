@@ -255,6 +255,7 @@ class StepRecoveryGenerator {
     'observedFrequencyRelation',
     'scaleOperationChoice',
     'angleReferenceRelation',
+    'figureSideFamily',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -408,12 +409,65 @@ class StepRecoveryGenerator {
           _observedFrequencyRelationStep(focus, stage),
         'scaleOperationChoice' => _scaleOperationChoiceStep(focus, stage),
         'angleReferenceRelation' => _angleReferenceRelationStep(focus, stage),
+        'figureSideFamily' => _figureSideFamilyStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _figureSideFamilyStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    final sourceNumbers = RegExp(r'\d+')
+        .allMatches(focus.sourceTaskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+    final rawSource = sourceNumbers.isEmpty ? null : sourceNumbers.last;
+    final sourceVariant =
+        rawSource != null && rawSource >= 0 && rawSource <= 3
+            ? rawSource
+            : null;
+
+    var variant = stage == RemediationStage.supported &&
+            sourceVariant != null
+        ? sourceVariant
+        : _random.nextInt(4);
+    if (stage == RemediationStage.transfer && sourceVariant != null) {
+      variant = switch (sourceVariant) {
+        0 => 2,
+        1 => 3,
+        2 => 0,
+        _ => 1,
+      };
+    }
+
+    final prompt = switch (variant) {
+      0 =>
+        'Eine Figur hat vier gleich lange Seiten und vier rechte Winkel. Zu welcher Grundfamilie gehört sie?',
+      1 =>
+        'Eine Figur hat vier Seiten und vier rechte Winkel. Zu welcher Grundfamilie gehört sie?',
+      2 =>
+        'Eine Figur hat drei gleich lange Seiten. Zu welcher Grundfamilie gehört sie?',
+      _ =>
+        'Eine Figur hat drei Seiten, davon mindestens zwei gleich lang. Zu welcher Grundfamilie gehört sie?',
+    };
+    const choices = <String>['Dreieck', 'Viereck'];
+    final answer = variant <= 1 ? 1 : 0;
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'figure-side-family:$variant',
+      prompt: prompt,
+      choices: choices,
+      answer: answer,
+      hint:
+          'Entscheide nur nach der Seitenzahl zwischen Dreieck und Viereck. Quadrat, Rechteck oder Dreiecksart kommen erst im nächsten Schritt.',
+    );
+  }
 
   RemediationTask _angleReferenceRelationStep(
     IndependentStepRecoveryFocus focus,

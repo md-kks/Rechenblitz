@@ -1607,6 +1607,50 @@ void main() {
     }
   });
 
+  test('Figurenklassifikation-Recovery überträgt die Grundfamilie', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.figureClassification,
+      stepKey: 'figureSideFamily',
+      label: GuidedStepCatalog.labelFor('figureSideFamily'),
+      mode: TrainingMode.geometryRelations,
+      lastSeen: DateTime(2026, 9, 8, 8, 0),
+      sourceTaskKey:
+          'independent:figureSideFamily:geomrel:figure:0:third',
+    );
+    final plan = StepRecoveryGenerator(random: Random(916)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+
+    int variant(RemediationTask task) =>
+        int.parse(task.taskKey.split(':').last);
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(variant(plan.tasks[0]), 0);
+    expect(variant(plan.tasks[1]), 2);
+
+    for (final task in plan.tasks) {
+      final current = variant(task);
+      final expected = current <= 1 ? 'Viereck' : 'Dreieck';
+      expect(task.mode, TrainingMode.geometryRelations);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:figureSideFamily:figure-side-family:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(task.choices![task.answer], expected);
+      expect(task.prompt, contains('Grundfamilie'));
+      expect(task.hint, contains('Seitenzahl'));
+      expect(task.hint, contains('nächsten Schritt'));
+    }
+  });
+
   test('Rauminhalt-Recovery überträgt die einzelne Würfelschicht', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.volumeCubes,

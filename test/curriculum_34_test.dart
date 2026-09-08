@@ -156,6 +156,35 @@ void main() {
     }
   });
 
+  test('Gezielte Figurenklassifikation bleibt bei Figurenaufgaben', () {
+    final generator = CurriculumExerciseGenerator(random: Random(915));
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 100; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.geometryRelations,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.figureClassification,
+        );
+        final parts = exercise.key.split(':');
+        final variant = int.parse(parts[2]);
+
+        expect(exercise.key, startsWith('geomrel:figure:'));
+        expect(variant, inInclusiveRange(0, 3));
+        expect(exercise.usesChoices, isTrue);
+        expect(exercise.choices, [
+          'Quadrat',
+          'Rechteck',
+          'gleichseitiges Dreieck',
+          'gleichschenkliges Dreieck',
+        ]);
+        expect(exercise.answer, variant);
+        expect(exercise.method, 'Figuren über Eigenschaften einordnen');
+      }
+    }
+  });
+
   test('Gezielter Rauminhalt hält Schicht und Gesamtzahl getrennt', () {
     final generator = CurriculumExerciseGenerator(random: Random(909));
 

@@ -170,6 +170,8 @@ class GuidedStepCatalog {
         'Rechenoperation aus der Maßstabszuordnung erkennen',
     'angleReferenceRelation':
         'Winkelgröße mit einer rechten Referenzecke vergleichen',
+    'figureSideFamily':
+        'Grundfamilie Dreieck oder Viereck vor der Unterklasse erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -400,6 +402,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.geometryRelations &&
         taskKey.startsWith('geomrel:angle:')) {
       return _rightAngleGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.geometryRelations &&
+        taskKey.startsWith('geomrel:figure:')) {
+      return _figureClassificationGuide(taskKey);
     }
 
     if (mode == TrainingMode.plansAndOrientation &&
@@ -795,6 +802,14 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.geometryRelations) {
+      if (targetCompetency == MicroCompetencyId.figureClassification &&
+          taskKey.startsWith('geomrel:figure:')) {
+        return _figureClassificationGuide(taskKey)
+            .steps
+            .where((step) => step.recordsIntermediateEvidence)
+            .take(1)
+            .toList(growable: false);
+      }
       if (targetCompetency != MicroCompetencyId.rightAngle ||
           !taskKey.startsWith('geomrel:angle:')) {
         return const <GuidedMethodStep>[];
@@ -3520,6 +3535,47 @@ class GuidedMethodFactory {
     final hour = normalized ~/ 60;
     final minute = normalized % 60;
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
+  static GuidedMethodGuide _figureClassificationGuide(String key) {
+    final numbers = _numbers(key);
+    final variant = numbers.isEmpty ? null : numbers.first;
+    final family = switch (variant) {
+      0 || 1 => 'Viereck',
+      2 || 3 => 'Dreieck',
+      _ => null,
+    };
+    const choices = <String>['Dreieck', 'Viereck'];
+
+    return GuidedMethodGuide(
+      methodKey: 'geometry:figure-family',
+      methodLabel: 'Grundfamilie erkennen, dann genauer einordnen',
+      nudge:
+          'Ordne die Figur zuerst nur nach der Anzahl ihrer Seiten als Dreieck oder Viereck ein.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Grundfamilie bestimmen',
+          instruction:
+              'Achte zuerst nur auf die Seitenzahl: Gehört die beschriebene Figur zur Familie der Dreiecke oder der Vierecke? Bestimme die genaue Unterklasse noch nicht.',
+          question: family == null
+              ? null
+              : 'Zu welcher Grundfamilie gehört die beschriebene Figur?',
+          choices: family == null ? const <String>[] : choices,
+          correctChoice:
+              family == null ? null : choices.indexOf(family),
+          evidenceKey: family == null ? null : 'figureSideFamily',
+          evidenceCompetency: family == null
+              ? null
+              : MicroCompetencyId.figureClassification,
+          evidenceWeight: 0.40,
+        ),
+        const GuidedMethodStep(
+          title: 'Eigenschaften genauer prüfen',
+          instruction:
+              'Prüfe anschließend Seitenlängen und Winkel innerhalb dieser Grundfamilie und wähle erst dann die genaue Figurenklasse.',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _rightAngleGuide(String key) {
