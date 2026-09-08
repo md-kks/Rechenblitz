@@ -267,6 +267,60 @@ void main() {
     expect(pathIndependent, isEmpty);
   });
 
+  test('Geraden beobachten Schnitt und rechten Winkel getrennt', () {
+    const key = 'geomrel:lines:neither:third';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.geometryRelations,
+      taskKey: key,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.lineRelations,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).toList();
+
+    expect(guide.methodKey, 'geometry:line-relations');
+    expect(evidence.map((step) => step.evidenceKey), [
+      'lineIntersectionDecision',
+      'lineRightAngleDecision',
+    ]);
+    expect(evidence[0].choices[evidence[0].correctChoice!], 'Ja');
+    expect(evidence[1].choices[evidence[1].correctChoice!], 'Nein');
+    expect(
+      evidence.every(
+        (step) => step.evidenceCompetency == MicroCompetencyId.lineRelations,
+      ),
+      isTrue,
+    );
+    expect(evidence.every((step) => step.evidenceWeight == 0.40), isTrue);
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.geometryRelations,
+      taskKey: key,
+      expected: 2,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.lineRelations,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['lineIntersectionDecision', 'lineRightAngleDecision'],
+    );
+
+    final parallelIndependent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.geometryRelations,
+      taskKey: 'geomrel:lines:parallel:third',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.lineRelations,
+    );
+    expect(
+      parallelIndependent.map((step) => step.evidenceKey),
+      ['lineIntersectionDecision'],
+    );
+  });
+
   test('Winkel beobachtet zuerst die Relation zur rechten Referenz', () {
     const key = 'geomrel:angle:smaller:reference:third';
     final guide = GuidedMethodFactory.forTask(

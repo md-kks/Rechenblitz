@@ -170,6 +170,10 @@ class GuidedStepCatalog {
         'Rechenoperation aus der Maßstabszuordnung erkennen',
     'angleReferenceRelation':
         'Winkelgröße mit einer rechten Referenzecke vergleichen',
+    'lineIntersectionDecision':
+        'entscheiden, ob sich zwei Geraden schneiden',
+    'lineRightAngleDecision':
+        'am Schnittpunkt einen rechten Winkel erkennen',
   };
 
   static String labelFor(String key) => labels[key] ?? key;
@@ -395,6 +399,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.timeDurations ||
         targetCompetency == MicroCompetencyId.timeDuration) {
       return _timeDuration(taskKey);
+    }
+
+    if (mode == TrainingMode.geometryRelations &&
+        taskKey.startsWith('geomrel:lines:')) {
+      return _lineRelationsGuide(taskKey);
     }
 
     if (mode == TrainingMode.geometryRelations &&
@@ -795,15 +804,23 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.geometryRelations) {
-      if (targetCompetency != MicroCompetencyId.rightAngle ||
-          !taskKey.startsWith('geomrel:angle:')) {
-        return const <GuidedMethodStep>[];
+      if (targetCompetency == MicroCompetencyId.lineRelations &&
+          taskKey.startsWith('geomrel:lines:')) {
+        return _lineRelationsGuide(taskKey)
+            .steps
+            .where((step) => step.recordsIntermediateEvidence)
+            .take(2)
+            .toList(growable: false);
       }
-      return _rightAngleGuide(taskKey)
-          .steps
-          .where((step) => step.recordsIntermediateEvidence)
-          .take(1)
-          .toList(growable: false);
+      if (targetCompetency == MicroCompetencyId.rightAngle &&
+          taskKey.startsWith('geomrel:angle:')) {
+        return _rightAngleGuide(taskKey)
+            .steps
+            .where((step) => step.recordsIntermediateEvidence)
+            .take(1)
+            .toList(growable: false);
+      }
+      return const <GuidedMethodStep>[];
     }
 
     if (mode == TrainingMode.plansAndOrientation) {
@@ -3520,6 +3537,81 @@ class GuidedMethodFactory {
     final hour = normalized ~/ 60;
     final minute = normalized % 60;
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
+  static GuidedMethodGuide _lineRelationsGuide(String key) {
+    final relation = key.contains(':parallel:')
+        ? 'parallel'
+        : key.contains(':perpendicular:')
+            ? 'perpendicular'
+            : key.contains(':neither:')
+                ? 'neither'
+                : null;
+    const yesNo = <String>['Ja', 'Nein'];
+    final intersects = relation == null ? null : relation != 'parallel';
+    final rightAngle = relation == 'perpendicular'
+        ? true
+        : relation == 'neither'
+            ? false
+            : null;
+
+    final steps = <GuidedMethodStep>[
+      GuidedMethodStep(
+        title: 'Schnitt prüfen',
+        instruction:
+            'Prüfe zuerst nur, ob sich die beiden Geraden überhaupt schneiden. Benenne ihre Lagebeziehung noch nicht.',
+        question:
+            intersects == null ? null : 'Schneiden sich die beiden Geraden?',
+        choices: intersects == null ? const <String>[] : yesNo,
+        correctChoice:
+            intersects == null ? null : intersects ? 0 : 1,
+        evidenceKey:
+            intersects == null ? null : 'lineIntersectionDecision',
+        evidenceCompetency:
+            intersects == null ? null : MicroCompetencyId.lineRelations,
+        evidenceWeight: 0.40,
+      ),
+    ];
+
+    if (intersects == true) {
+      steps.add(
+        GuidedMethodStep(
+          title: 'Winkel am Schnittpunkt prüfen',
+          instruction:
+              'Da sich die Geraden schneiden, prüfe jetzt, ob dort ein rechter Winkel entsteht. Verwende den Namen „senkrecht“ noch nicht.',
+          question: 'Entsteht am Schnittpunkt ein rechter Winkel?',
+          choices: yesNo,
+          correctChoice: rightAngle == true ? 0 : 1,
+          evidenceKey: 'lineRightAngleDecision',
+          evidenceCompetency: MicroCompetencyId.lineRelations,
+          evidenceWeight: 0.40,
+        ),
+      );
+    } else {
+      steps.add(
+        const GuidedMethodStep(
+          title: 'Abstand beachten',
+          instruction:
+              'Wenn sich die Geraden nicht schneiden und überall den gleichen Abstand behalten, kannst du ihre Lagebeziehung benennen.',
+        ),
+      );
+    }
+
+    steps.add(
+      const GuidedMethodStep(
+        title: 'Lagebeziehung benennen',
+        instruction:
+            'Benenne erst jetzt: kein Schnitt bei gleichem Abstand → parallel; Schnitt im rechten Winkel → senkrecht; sonst weder noch.',
+      ),
+    );
+
+    return GuidedMethodGuide(
+      methodKey: 'geometry:line-relations',
+      methodLabel: 'Schnitt prüfen, Winkel prüfen, dann benennen',
+      nudge:
+          'Prüfe nacheinander: Schneiden sich die Geraden? Wenn ja, entsteht ein rechter Winkel?',
+      steps: steps,
+    );
   }
 
   static GuidedMethodGuide _rightAngleGuide(String key) {

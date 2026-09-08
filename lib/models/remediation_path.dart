@@ -255,6 +255,8 @@ class StepRecoveryGenerator {
     'observedFrequencyRelation',
     'scaleOperationChoice',
     'angleReferenceRelation',
+    'lineIntersectionDecision',
+    'lineRightAngleDecision',
   };
 
   static bool supports(String stepKey) => supportedStepKeys.contains(stepKey);
@@ -408,12 +410,96 @@ class StepRecoveryGenerator {
           _observedFrequencyRelationStep(focus, stage),
         'scaleOperationChoice' => _scaleOperationChoiceStep(focus, stage),
         'angleReferenceRelation' => _angleReferenceRelationStep(focus, stage),
+        'lineIntersectionDecision' =>
+          _lineIntersectionDecisionStep(focus, stage),
+        'lineRightAngleDecision' =>
+          _lineRightAngleDecisionStep(focus, stage),
         'tallyFiveBlocks' => _tallyFiveBlocksStep(focus, stage),
         'perimeterEdges' => _perimeterEdgesStep(focus, stage, range),
         'areaUnitSquareStructure' =>
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _lineIntersectionDecisionStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    const relations = <String>['parallel', 'perpendicular', 'neither'];
+    final sourceRelation = focus.sourceTaskKey.contains(':parallel:')
+        ? 'parallel'
+        : focus.sourceTaskKey.contains(':perpendicular:')
+            ? 'perpendicular'
+            : focus.sourceTaskKey.contains(':neither:')
+                ? 'neither'
+                : null;
+    var relation = stage == RemediationStage.supported &&
+            sourceRelation != null
+        ? sourceRelation
+        : relations[_random.nextInt(relations.length)];
+    if (stage == RemediationStage.transfer && sourceRelation != null) {
+      relation =
+          relations[(relations.indexOf(sourceRelation) + 1) % relations.length];
+    }
+
+    final description = switch (relation) {
+      'parallel' => 'Die Geraden behalten überall den gleichen Abstand.',
+      'perpendicular' =>
+        'Die Geraden laufen in verschiedene Richtungen und treffen sich an einer Stelle mit vier rechten Ecken.',
+      _ =>
+        'Die Geraden laufen in verschiedene Richtungen und treffen sich an einer Stelle ohne rechte Ecke.',
+    };
+    const choices = <String>['Ja', 'Nein'];
+    final intersects = relation != 'parallel';
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'line-intersection-decision:$relation',
+      prompt:
+          '$description Prüfe zuerst nur: Schneiden sich die beiden Geraden?',
+      choices: choices,
+      answer: intersects ? 0 : 1,
+      hint:
+          'Entscheide nur, ob es einen Schnittpunkt gibt. Parallel, senkrecht oder weder noch benennst du erst später.',
+    );
+  }
+
+  RemediationTask _lineRightAngleDecisionStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+  ) {
+    const relations = <String>['perpendicular', 'neither'];
+    final sourceRelation = focus.sourceTaskKey.contains(':perpendicular:')
+        ? 'perpendicular'
+        : focus.sourceTaskKey.contains(':neither:')
+            ? 'neither'
+            : null;
+    var relation = stage == RemediationStage.supported &&
+            sourceRelation != null
+        ? sourceRelation
+        : relations[_random.nextInt(relations.length)];
+    if (stage == RemediationStage.transfer && sourceRelation != null) {
+      relation = sourceRelation == 'perpendicular' ? 'neither' : 'perpendicular';
+    }
+
+    final description = relation == 'perpendicular'
+        ? 'Der Schnittpunkt sieht genau wie eine Rechteck-Ecke aus.'
+        : 'Der Schnittpunkt ist enger oder weiter geöffnet als eine Rechteck-Ecke.';
+    const choices = <String>['Ja', 'Nein'];
+
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'line-right-angle-decision:$relation',
+      prompt:
+          'Zwei Geraden schneiden sich. $description Entsteht am Schnittpunkt ein rechter Winkel?',
+      choices: choices,
+      answer: relation == 'perpendicular' ? 0 : 1,
+      hint:
+          'Vergleiche den Schnittpunkt mit einer Rechteck-Ecke. Den Namen der Lagebeziehung brauchst du in diesem Schritt noch nicht.',
+    );
+  }
 
   RemediationTask _angleReferenceRelationStep(
     IndependentStepRecoveryFocus focus,

@@ -1459,6 +1459,93 @@ void main() {
     }
   });
 
+  test('Geraden-Recovery überträgt die Schnittentscheidung', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.lineRelations,
+      stepKey: 'lineIntersectionDecision',
+      label: GuidedStepCatalog.labelFor('lineIntersectionDecision'),
+      mode: TrainingMode.geometryRelations,
+      lastSeen: DateTime(2026, 9, 8, 8, 30),
+      sourceTaskKey:
+          'independent:lineIntersectionDecision:geomrel:lines:parallel:third',
+    );
+    final plan = StepRecoveryGenerator(random: Random(918)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+    String relation(RemediationTask task) => task.taskKey.split(':').last;
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(relation(plan.tasks[0]), 'parallel');
+    expect(relation(plan.tasks[1]), 'perpendicular');
+
+    for (final task in plan.tasks) {
+      final current = relation(task);
+      expect(task.mode, TrainingMode.geometryRelations);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:lineIntersectionDecision:line-intersection-decision:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(
+        task.choices![task.answer],
+        current == 'parallel' ? 'Nein' : 'Ja',
+      );
+      expect(task.prompt, contains('Schneiden'));
+      expect(task.hint, contains('Schnittpunkt'));
+    }
+  });
+
+  test('Geraden-Recovery überträgt die rechte-Winkel-Entscheidung', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.lineRelations,
+      stepKey: 'lineRightAngleDecision',
+      label: GuidedStepCatalog.labelFor('lineRightAngleDecision'),
+      mode: TrainingMode.geometryRelations,
+      lastSeen: DateTime(2026, 9, 8, 8, 31),
+      sourceTaskKey:
+          'independent:lineRightAngleDecision:geomrel:lines:perpendicular:third',
+    );
+    final plan = StepRecoveryGenerator(random: Random(919)).generate(
+      focus: focus,
+      range: NumberRangeLevel.thousand,
+    );
+    String relation(RemediationTask task) => task.taskKey.split(':').last;
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+    expect(relation(plan.tasks[0]), 'perpendicular');
+    expect(relation(plan.tasks[1]), 'neither');
+
+    for (final task in plan.tasks) {
+      final current = relation(task);
+      expect(<String>{'perpendicular', 'neither'}, contains(current));
+      expect(task.mode, TrainingMode.geometryRelations);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:lineRightAngleDecision:line-right-angle-decision:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(
+        task.choices![task.answer],
+        current == 'perpendicular' ? 'Ja' : 'Nein',
+      );
+      expect(task.prompt, contains('rechter Winkel'));
+      expect(task.hint, contains('Rechteck'));
+    }
+  });
+
   test('Winkel-Recovery überträgt die Relation zur rechten Referenz', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.rightAngle,

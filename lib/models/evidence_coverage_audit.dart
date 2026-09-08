@@ -244,6 +244,10 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.rightAngle: [
       'angleReferenceRelation',
     ],
+    MicroCompetencyId.lineRelations: [
+      'lineIntersectionDecision',
+      'lineRightAngleDecision',
+    ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',
     ],
@@ -419,6 +423,10 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.rightAngle: [
       'angleReferenceRelation',
+    ],
+    MicroCompetencyId.lineRelations: [
+      'lineIntersectionDecision',
+      'lineRightAngleDecision',
     ],
     MicroCompetencyId.unitConversion: [
       'unitRelation',

@@ -66,6 +66,42 @@ void main() {
     }
   });
 
+  test('Gezielte Geradenaufgaben decken drei Lagebeziehungen ab', () {
+    final generator = CurriculumExerciseGenerator(random: Random(917));
+    final seen = <String>{};
+
+    for (final grade in [GradeLevel.third, GradeLevel.fourth]) {
+      for (var i = 0; i < 160; i++) {
+        final exercise = generator.generate(
+          mode: TrainingMode.geometryRelations,
+          gradeLevel: grade,
+          maxValue: grade == GradeLevel.third ? 1000 : 1000000,
+          targetCompetency: MicroCompetencyId.lineRelations,
+        );
+        final relation = exercise.key.split(':')[2];
+        seen.add(relation);
+
+        expect(exercise.key, startsWith('geomrel:lines:'));
+        expect(
+          <String>{'parallel', 'perpendicular', 'neither'},
+          contains(relation),
+        );
+        expect(exercise.usesChoices, isTrue);
+        expect(exercise.choices, ['parallel', 'senkrecht', 'weder noch']);
+        expect(
+          exercise.answer,
+          ['parallel', 'perpendicular', 'neither'].indexOf(relation),
+        );
+        expect(exercise.method, 'Lagebeziehungen erkennen');
+      }
+    }
+
+    expect(
+      seen,
+      containsAll(<String>['parallel', 'perpendicular', 'neither']),
+    );
+  });
+
   test('Gezielte Winkelaufgaben vergleichen zur rechten Referenzecke', () {
     final generator = CurriculumExerciseGenerator(random: Random(915));
     final seen = <String>{};

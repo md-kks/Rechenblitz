@@ -1889,8 +1889,30 @@ class CurriculumExerciseGenerator {
                     : _random.nextInt(4);
 
     if (kind == 0) {
-      final parallel = _random.nextBool();
       const choices = ['parallel', 'senkrecht', 'weder noch'];
+      if (targetCompetency == MicroCompetencyId.lineRelations) {
+        final relation = _random.nextInt(3);
+        final keyRelation = ['parallel', 'perpendicular', 'neither'][relation];
+        final prompt = switch (relation) {
+          0 =>
+            'Zwei Geraden haben überall den gleichen Abstand und schneiden sich nicht. Wie liegen sie zueinander?',
+          1 =>
+            'Zwei Geraden schneiden sich so, dass vier rechte Winkel entstehen. Wie liegen sie zueinander?',
+          _ =>
+            'Zwei Geraden schneiden sich, aber am Schnittpunkt entsteht kein rechter Winkel. Wie liegen sie zueinander?',
+        };
+        return CurriculumExercise(
+          mode: TrainingMode.geometryRelations,
+          prompt: prompt,
+          answer: relation,
+          hint:
+              'Prüfe zuerst, ob sich die Geraden schneiden. Falls ja, prüfe danach, ob am Schnittpunkt ein rechter Winkel entsteht.',
+          key: 'geomrel:lines:$keyRelation:${grade.name}',
+          choices: choices,
+          method: 'Lagebeziehungen erkennen',
+        );
+      }
+      final parallel = _random.nextBool();
       return CurriculumExercise(
         mode: TrainingMode.geometryRelations,
         prompt: parallel

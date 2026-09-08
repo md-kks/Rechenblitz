@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 12,
+        fullTaskOnly: 11,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 52,
+        targetedRecovery: 53,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 12,
+        fullTaskOnly: 11,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 54,
+        targetedRecovery: 55,
       ),
     };
 
@@ -191,6 +191,20 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Geraden-Lagebeziehungen bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.lineRelations,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('lineIntersectionDecision'));
+    expect(item.guidedStepKeys, contains('lineRightAngleDecision'));
+    expect(item.independentStepKeys, contains('lineIntersectionDecision'));
+    expect(item.independentStepKeys, contains('lineRightAngleDecision'));
+    expect(item.recoveryStepKeys, contains('lineIntersectionDecision'));
+    expect(item.recoveryStepKeys, contains('lineRightAngleDecision'));
   });
 
   test('Audit führt rechte Winkel bis zur gezielten Recovery', () {
