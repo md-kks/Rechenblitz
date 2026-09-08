@@ -135,28 +135,32 @@ void main() {
     const expected = {
       GradeLevel.first: (
         total: 21,
-        fullTaskOnly: 5,
+        atomicFullTask: 5,
+        fullTaskOnly: 0,
         guidedOnly: 0,
         independentOnly: 0,
         targetedRecovery: 16,
       ),
       GradeLevel.second: (
         total: 26,
-        fullTaskOnly: 5,
+        atomicFullTask: 5,
+        fullTaskOnly: 0,
         guidedOnly: 0,
         independentOnly: 0,
         targetedRecovery: 21,
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 8,
+        atomicFullTask: 8,
+        fullTaskOnly: 0,
         guidedOnly: 0,
         independentOnly: 0,
         targetedRecovery: 56,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 8,
+        atomicFullTask: 8,
+        fullTaskOnly: 0,
         guidedOnly: 0,
         independentOnly: 0,
         targetedRecovery: 58,
@@ -168,6 +172,11 @@ void main() {
       final baseline = expected[grade]!;
 
       expect(audit.total, baseline.total, reason: grade.name);
+      expect(
+        audit.atomicFullTaskCount,
+        baseline.atomicFullTask,
+        reason: grade.name,
+      );
       expect(
         audit.fullTaskOnlyCount,
         baseline.fullTaskOnly,
@@ -188,8 +197,46 @@ void main() {
         baseline.targetedRecovery,
         reason: grade.name,
       );
+      expect(audit.fineGrainedGaps, isEmpty, reason: grade.name);
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
+    }
+  });
+
+  test('Audit dokumentiert atomare Gesamtkompetenzen ohne Fake-Steps', () {
+    const sharedAtomic = <MicroCompetencyId>{
+      MicroCompetencyId.countingNeighbors,
+      MicroCompetencyId.additionNoBridge,
+      MicroCompetencyId.subtractionNoBridge,
+      MicroCompetencyId.shapeProperties,
+      MicroCompetencyId.representationTranslation,
+    };
+    const upperPrimaryAtomic = <MicroCompetencyId>{
+      ...sharedAtomic,
+      MicroCompetencyId.lineRelations,
+      MicroCompetencyId.circleParts,
+      MicroCompetencyId.geometryBodies,
+    };
+
+    for (final grade in GradeLevel.values) {
+      final audit = EvidenceCoverageAuditCatalog.audit(grade);
+      final expected = grade.index >= GradeLevel.third.index
+          ? upperPrimaryAtomic
+          : sharedAtomic;
+      final actual = audit.atomicFullTasks
+          .map((item) => item.definition.id)
+          .toSet();
+
+      expect(actual, expected, reason: grade.name);
+      for (final item in audit.atomicFullTasks) {
+        expect(item.depth, EvidenceCoverageDepth.atomicFullTask);
+        expect(item.atomicFullTask, isTrue);
+        expect(item.atomicReason, isNotNull);
+        expect(item.atomicReason!.trim(), isNotEmpty);
+        expect(item.guidedStepKeys, isEmpty);
+        expect(item.independentStepKeys, isEmpty);
+        expect(item.recoveryStepKeys, isEmpty);
+      }
     }
   });
 

@@ -4,6 +4,7 @@ import 'remediation_path.dart';
 import 'training.dart';
 
 enum EvidenceCoverageDepth {
+  atomicFullTask,
   fullTaskOnly,
   guidedStep,
   independentStep,
@@ -12,7 +13,10 @@ enum EvidenceCoverageDepth {
 
 extension EvidenceCoverageDepthX on EvidenceCoverageDepth {
   String get label => switch (this) {
-        EvidenceCoverageDepth.fullTaskOnly => 'nur Gesamtaufgabe',
+        EvidenceCoverageDepth.atomicFullTask =>
+          'atomare Gesamtaufgabe',
+        EvidenceCoverageDepth.fullTaskOnly =>
+          'noch ohne sinnvollen Zwischenschritt',
         EvidenceCoverageDepth.guidedStep => 'geführter Zwischenschritt',
         EvidenceCoverageDepth.independentStep =>
           'selbstständiger Zwischenschritt',
@@ -28,6 +32,8 @@ class EvidenceCoverageItem {
     required this.helpAware,
     required this.delayedReview,
     required this.transferEvidence,
+    required this.atomicFullTask,
+    required this.atomicReason,
     required this.guidedStepKeys,
     required this.independentStepKeys,
     required this.recoveryStepKeys,
@@ -38,6 +44,8 @@ class EvidenceCoverageItem {
   final bool helpAware;
   final bool delayedReview;
   final bool transferEvidence;
+  final bool atomicFullTask;
+  final String? atomicReason;
   final List<String> guidedStepKeys;
   final List<String> independentStepKeys;
   final List<String> recoveryStepKeys;
@@ -56,6 +64,9 @@ class EvidenceCoverageItem {
     if (hasGuidedStep) {
       return EvidenceCoverageDepth.guidedStep;
     }
+    if (atomicFullTask) {
+      return EvidenceCoverageDepth.atomicFullTask;
+    }
     return EvidenceCoverageDepth.fullTaskOnly;
   }
 
@@ -64,7 +75,11 @@ class EvidenceCoverageItem {
 
   bool get internallyConsistent =>
       independentStepKeys.every(guidedStepKeys.contains) &&
-      recoveryStepKeys.every(independentStepKeys.contains);
+      recoveryStepKeys.every(independentStepKeys.contains) &&
+      (!atomicFullTask ||
+          (!hasGuidedStep &&
+              atomicReason != null &&
+              atomicReason!.trim().isNotEmpty));
 }
 
 class EvidenceCoverageAuditSummary {
@@ -81,6 +96,8 @@ class EvidenceCoverageAuditSummary {
   int count(EvidenceCoverageDepth depth) =>
       items.where((item) => item.depth == depth).length;
 
+  int get atomicFullTaskCount =>
+      count(EvidenceCoverageDepth.atomicFullTask);
   int get fullTaskOnlyCount =>
       count(EvidenceCoverageDepth.fullTaskOnly);
   int get guidedStepCount => count(EvidenceCoverageDepth.guidedStep);
@@ -89,8 +106,12 @@ class EvidenceCoverageAuditSummary {
   int get targetedRecoveryCount =>
       count(EvidenceCoverageDepth.targetedRecovery);
 
+  List<EvidenceCoverageItem> get atomicFullTasks => items
+      .where((item) => item.depth == EvidenceCoverageDepth.atomicFullTask)
+      .toList(growable: false);
+
   List<EvidenceCoverageItem> get fineGrainedGaps => items
-      .where((item) => !item.hasIndependentStep)
+      .where((item) => item.depth == EvidenceCoverageDepth.fullTaskOnly)
       .toList(growable: false);
 
   List<EvidenceCoverageItem> get guidedOnlyGaps => items
@@ -112,6 +133,25 @@ class EvidenceCoverageAuditSummary {
 }
 
 abstract final class EvidenceCoverageAuditCatalog {
+  static const Map<MicroCompetencyId, String> _atomicFullTaskReasons = {
+    MicroCompetencyId.countingNeighbors:
+        'Vorgänger oder Nachfolger ist die direkte Zielbeobachtung; ein vorgeschalteter Pflichtschritt würde dieselbe Information erneut abfragen.',
+    MicroCompetencyId.additionNoBridge:
+        'Eine Plus-Grundaufgabe ohne Übergang ist bereits ein einzelner Rechenschritt und soll nicht künstlich zerlegt werden.',
+    MicroCompetencyId.subtractionNoBridge:
+        'Eine Minus-Grundaufgabe ohne Übergang ist bereits ein einzelner Rechenschritt und soll nicht künstlich zerlegt werden.',
+    MicroCompetencyId.shapeProperties:
+        'Formname oder einzelne Eigenschaft wird direkt am Bild erkannt; generische Vorfragen wären redundant oder würden die Endantwort verraten.',
+    MicroCompetencyId.representationTranslation:
+        'Die Übersetzung zwischen zwei Darstellungen ist selbst der Zielprozess; ihre inhaltlichen Bestandteile werden bereits durch Stellenwert- oder Gruppenkompetenzen separat beobachtet.',
+    MicroCompetencyId.lineRelations:
+        'Parallel oder senkrecht ist die direkte Lagebeziehung; Schnitt- oder Winkelvorfragen bestimmen die Endantwort bereits.',
+    MicroCompetencyId.circleParts:
+        'Radius und Durchmesser werden unmittelbar über ihre Lage zum Mittelpunkt unterschieden; ein zusätzlicher Pflichtschritt würde die Lösung vorwegnehmen.',
+    MicroCompetencyId.geometryBodies:
+        'Körpermerkmale wie Ecken, Kanten und Flächen sind direkte Wissensbeobachtungen; komplexes Würfelnetz-Falten besitzt bereits eine eigene tief diagnostizierte Kompetenz.',
+  };
+
   static const Map<MicroCompetencyId, List<String>> _guidedSteps = {
     MicroCompetencyId.numberDecomposition: [
       'remainingAddend',
@@ -499,6 +539,7 @@ abstract final class EvidenceCoverageAuditCatalog {
     final recovery = independent
         .where(StepRecoveryGenerator.supports)
         .toList(growable: false);
+    final atomicReason = _atomicFullTaskReasons[definition.id];
 
     return EvidenceCoverageItem(
       definition: definition,
@@ -513,6 +554,8 @@ abstract final class EvidenceCoverageAuditCatalog {
       // contextual story transfer, other targets use a changed task in
       // their preferred learning mode.
       transferEvidence: true,
+      atomicFullTask: atomicReason != null,
+      atomicReason: atomicReason,
       guidedStepKeys: List.unmodifiable(guided),
       independentStepKeys: List.unmodifiable(independent),
       recoveryStepKeys: List.unmodifiable(recovery),
