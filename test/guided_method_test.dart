@@ -218,6 +218,53 @@ void main() {
   });
 
 
+  test('Pfeilroute beobachtet zuerst den ersten Wegabschnitt', () {
+    const key = 'plan:route:right:3:up:2';
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: key,
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.planDirections,
+    );
+    final evidence =
+        guide.steps.where((step) => step.recordsIntermediateEvidence).single;
+
+    expect(guide.methodKey, 'plan-route:first-segment');
+    expect(evidence.evidenceKey, 'firstRouteSegment');
+    expect(evidence.evidenceCompetency, MicroCompetencyId.planDirections);
+    expect(evidence.evidenceWeight, 0.40);
+    expect(
+      evidence.choices[evidence.correctChoice!],
+      '3 Felder nach rechts',
+    );
+    expect(evidence.instruction, contains('zweiten Block lässt du zunächst weg'));
+    expect(evidence.choices.join(' '), isNot(contains('2 Felder nach oben')));
+
+    final independent =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: key,
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.planDirections,
+    );
+    expect(
+      independent.map((step) => step.evidenceKey),
+      ['firstRouteSegment'],
+    );
+
+    final legacyPath =
+        GuidedMethodFactory.independentWrittenStepsForTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: 'plan:path:6:4',
+      expected: 10,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.planDirections,
+    );
+    expect(legacyPath, isEmpty);
+  });
+
   test('Maßstab beobachtet zuerst die passende Operation', () {
     const key = 'plan:scale:100:6';
     final guide = GuidedMethodFactory.forTask(

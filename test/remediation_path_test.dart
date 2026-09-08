@@ -1653,6 +1653,66 @@ void main() {
     }
   });
 
+  test('Pfeilrouten-Recovery überträgt den ersten Wegabschnitt', () {
+    final focus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.planDirections,
+      stepKey: 'firstRouteSegment',
+      label: GuidedStepCatalog.labelFor('firstRouteSegment'),
+      mode: TrainingMode.plansAndOrientation,
+      lastSeen: DateTime(2026, 9, 8, 16, 0),
+      sourceTaskKey:
+          'independent:firstRouteSegment:plan:route:right:3:up:2',
+    );
+    final plan = StepRecoveryGenerator(
+      random: Random(922),
+    ).generate(focus: focus, range: NumberRangeLevel.thousand);
+
+    ({String token, int length}) segment(RemediationTask task) {
+      final parts = task.taskKey.split(':');
+      return (
+        token: parts[parts.length - 2],
+        length: int.parse(parts.last),
+      );
+    }
+
+    expect(plan.tasks.map((task) => task.stage), [
+      RemediationStage.supported,
+      RemediationStage.transfer,
+      RemediationStage.check,
+    ]);
+
+    final supported = segment(plan.tasks[0]);
+    final transfer = segment(plan.tasks[1]);
+    expect(supported.token, 'right');
+    expect(supported.length, 3);
+    expect(transfer.token, isNot('right'));
+    expect(transfer.length, 4);
+
+    const labels = <String, String>{
+      'right': 'nach rechts',
+      'up': 'nach oben',
+      'left': 'nach links',
+      'down': 'nach unten',
+    };
+    for (final task in plan.tasks) {
+      final current = segment(task);
+      expect(task.mode, TrainingMode.plansAndOrientation);
+      expect(
+        task.taskKey,
+        startsWith(
+          'step-recovery:firstRouteSegment:route-first-segment:',
+        ),
+      );
+      expect(task.usesChoices, isTrue);
+      expect(
+        task.choices![task.answer],
+        '${current.length} Felder ${labels[current.token]}',
+      );
+      expect(task.prompt, contains('Pfeilblock'));
+      expect(task.hint, contains('restliche Route'));
+    }
+  });
+
   test('Symmetrie-Recovery wechselt die Kandidatenachse derselben Figur', () {
     final focus = IndependentStepRecoveryFocus(
       competencyId: MicroCompetencyId.symmetryAxes,

@@ -224,6 +224,8 @@ class CurriculumExerciseGenerator {
         TrainingMode.plansAndOrientation => _plansAndOrientation(
             gradeLevel,
             targetedScale: targetCompetency == MicroCompetencyId.scale,
+            targetedDirections:
+                targetCompetency == MicroCompetencyId.planDirections,
           ),
         TrainingMode.volumeCubes => _volumeCubes(
             gradeLevel,
@@ -2101,10 +2103,64 @@ class CurriculumExerciseGenerator {
     );
   }
 
+  CurriculumExercise _planDirectionsDiagnostic(GradeLevel grade) {
+    const directions = <({String token, String arrow, String label})>[
+      (token: 'right', arrow: '→', label: 'nach rechts'),
+      (token: 'up', arrow: '↑', label: 'nach oben'),
+      (token: 'left', arrow: '←', label: 'nach links'),
+      (token: 'down', arrow: '↓', label: 'nach unten'),
+    ];
+    final firstIndex = _random.nextInt(directions.length);
+    var secondIndex = _random.nextInt(directions.length - 1);
+    if (secondIndex >= firstIndex) secondIndex += 1;
+    final first = directions[firstIndex];
+    final second = directions[secondIndex];
+    final maxLength = grade == GradeLevel.third ? 5 : 7;
+    final firstLength = _between(2, maxLength);
+    var secondLength = _between(2, maxLength);
+    if (secondLength == firstLength) {
+      secondLength =
+          secondLength == maxLength ? secondLength - 1 : secondLength + 1;
+    }
+
+    final firstBlock = List.filled(firstLength, first.arrow).join(' ');
+    final secondBlock = List.filled(secondLength, second.arrow).join(' ');
+    final correct =
+        '$firstLength Felder ${first.label}, dann $secondLength Felder ${second.label}';
+    final swappedDirections =
+        '$firstLength Felder ${second.label}, dann $secondLength Felder ${first.label}';
+    final swappedLengths =
+        '$secondLength Felder ${first.label}, dann $firstLength Felder ${second.label}';
+    final rawChoices = [correct, swappedDirections, swappedLengths];
+    final rotation =
+        (firstIndex + secondIndex + firstLength + secondLength) % rawChoices.length;
+    final choices = [
+      ...rawChoices.skip(rotation),
+      ...rawChoices.take(rotation),
+    ];
+
+    return CurriculumExercise(
+      mode: TrainingMode.plansAndOrientation,
+      prompt:
+          'Lies den Weg im Pfeilplan:\n$firstBlock  |  $secondBlock\nWelche Beschreibung passt zum ganzen Weg?',
+      answer: choices.indexOf(correct),
+      hint:
+          'Lies zuerst den ersten Pfeilblock mit Richtung und Anzahl. Lies danach den zweiten Block.',
+      key:
+          'plan:route:${first.token}:$firstLength:${second.token}:$secondLength',
+      choices: choices,
+      method: 'Pfeilpläne und Wegabschnitte lesen',
+    );
+  }
+
   CurriculumExercise _plansAndOrientation(
     GradeLevel grade, {
     bool targetedScale = false,
+    bool targetedDirections = false,
   }) {
+    if (targetedDirections) {
+      return _planDirectionsDiagnostic(grade);
+    }
     final right = _between(1, grade == GradeLevel.third ? 8 : 15);
     final up = _between(1, grade == GradeLevel.third ? 8 : 15);
     if (grade == GradeLevel.fourth &&

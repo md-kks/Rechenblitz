@@ -149,17 +149,17 @@ void main() {
       ),
       GradeLevel.third: (
         total: 64,
-        fullTaskOnly: 9,
+        fullTaskOnly: 8,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 55,
+        targetedRecovery: 56,
       ),
       GradeLevel.fourth: (
         total: 66,
-        fullTaskOnly: 9,
+        fullTaskOnly: 8,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 57,
+        targetedRecovery: 58,
       ),
     };
 
@@ -191,6 +191,17 @@ void main() {
       expect(audit.coreEvidenceComplete, isTrue, reason: grade.name);
       expect(audit.internallyConsistent, isTrue, reason: grade.name);
     }
+  });
+
+  test('Audit führt Pläne und Wege bis zur gezielten Recovery', () {
+    final item = EvidenceCoverageAuditCatalog.item(
+      MicroCompetencyId.planDirections,
+    );
+
+    expect(item.depth, EvidenceCoverageDepth.targetedRecovery);
+    expect(item.guidedStepKeys, contains('firstRouteSegment'));
+    expect(item.independentStepKeys, contains('firstRouteSegment'));
+    expect(item.recoveryStepKeys, contains('firstRouteSegment'));
   });
 
   test('Audit führt Würfelnetze bis zur gezielten Recovery', () {
