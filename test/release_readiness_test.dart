@@ -91,6 +91,36 @@ void main() {
     }
   });
 
+  test('CI supply chain uses immutable action and Gradle pins', () {
+    final workflow =
+        File('.github/workflows/flutter.yml').readAsLinesSync();
+    final actionLines = workflow
+        .where((line) => line.trimLeft().startsWith('- uses:'))
+        .toList(growable: false);
+    final immutableAction =
+        RegExp(r'@[0-9a-f]{40}(?:\s+#.*)?$');
+
+    expect(actionLines, hasLength(5));
+    for (final line in actionLines) {
+      expect(
+        immutableAction.hasMatch(line),
+        isTrue,
+        reason: 'GitHub Action ist nicht auf einen Commit-SHA gepinnt: $line',
+      );
+    }
+
+    final wrapper = File(
+      'android/gradle/wrapper/gradle-wrapper.properties',
+    ).readAsStringSync();
+    expect(
+      wrapper,
+      contains(
+        'distributionSha256Sum='
+        '17f277867f6914d61b1aa02efab1ba7bb439ad652ca485cd8ca6842fccec6e43',
+      ),
+    );
+  });
+
   testWidgets('Datenschutzerklärung ist direkt in der App lesbar',
       (tester) async {
     await tester.pumpWidget(
