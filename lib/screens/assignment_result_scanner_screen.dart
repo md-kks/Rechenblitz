@@ -1,7 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter_zxing/flutter_zxing.dart';
 
 import '../models/micro_competency.dart';
 import '../models/teacher_assignment_result.dart';
@@ -17,28 +15,18 @@ class AssignmentResultScannerScreen extends StatefulWidget {
 
 class _AssignmentResultScannerScreenState
     extends State<AssignmentResultScannerScreen> {
-  final MobileScannerController scanner = MobileScannerController(
-    formats: const [BarcodeFormat.qrCode],
-  );
   final TextEditingController codeController = TextEditingController();
   TeacherAssignmentResult? result;
   String? errorText;
   bool handling = false;
 
   @override
-  void initState() {
-    super.initState();
-    unawaited(scanner.start());
-  }
-
-  @override
   void dispose() {
-    scanner.dispose();
     codeController.dispose();
     super.dispose();
   }
 
-  Future<void> _handlePayload(String raw) async {
+  void _handlePayload(String raw) {
     if (handling) return;
     final parsed = TeacherAssignmentResult.tryParse(raw);
     if (parsed == null) {
@@ -48,23 +36,20 @@ class _AssignmentResultScannerScreenState
       return;
     }
 
-    handling = true;
-    await scanner.stop();
-    if (!mounted) return;
     setState(() {
+      handling = true;
       result = parsed;
       errorText = null;
-      handling = false;
     });
   }
 
-  Future<void> _scanAgain() async {
+  void _scanAgain() {
     setState(() {
       result = null;
       errorText = null;
+      handling = false;
       codeController.clear();
     });
-    await scanner.start();
   }
 
   @override
@@ -90,18 +75,17 @@ class _AssignmentResultScannerScreenState
               borderRadius: BorderRadius.circular(18),
               child: SizedBox(
                 height: 310,
-                child: MobileScanner(
-                  controller: scanner,
-                  onDetect: (capture) {
-                    for (final barcode in capture.barcodes) {
-                      final raw = barcode.rawValue;
-                      if (raw != null &&
-                          raw.startsWith(
-                            TeacherAssignmentResult.prefix,
-                          )) {
-                        _handlePayload(raw);
-                        break;
-                      }
+                child: ReaderWidget(
+                  codeFormat: Format.qrCode,
+                  showGallery: false,
+                  showToggleCamera: false,
+                  onScan: (code) {
+                    final raw = code.text;
+                    if (raw != null &&
+                        raw.startsWith(
+                          TeacherAssignmentResult.prefix,
+                        )) {
+                      _handlePayload(raw);
                     }
                   },
                 ),

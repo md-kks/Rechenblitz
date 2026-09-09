@@ -1,7 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter_zxing/flutter_zxing.dart';
 
 import '../models/teacher_assignment.dart';
 import '../models/training.dart';
@@ -22,22 +20,12 @@ class AssignmentScannerScreen extends StatefulWidget {
 }
 
 class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
-  final MobileScannerController scanner = MobileScannerController(
-    formats: const [BarcodeFormat.qrCode],
-  );
   final TextEditingController codeController = TextEditingController();
   bool handling = false;
   String? errorText;
 
   @override
-  void initState() {
-    super.initState();
-    unawaited(scanner.start());
-  }
-
-  @override
   void dispose() {
-    scanner.dispose();
     codeController.dispose();
     super.dispose();
   }
@@ -52,9 +40,10 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
       return;
     }
 
-    handling = true;
-    await scanner.stop();
-    if (!mounted) return;
+    setState(() {
+      handling = true;
+      errorText = null;
+    });
 
     final accepted = await showDialog<bool>(
       context: context,
@@ -104,8 +93,9 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
         assignment,
       );
     }
-    handling = false;
-    if (mounted) await scanner.start();
+    if (mounted) {
+      setState(() => handling = false);
+    }
   }
 
   @override
@@ -127,18 +117,20 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
               borderRadius: BorderRadius.circular(18),
               child: SizedBox(
                 height: 310,
-                child: MobileScanner(
-                  controller: scanner,
-                  onDetect: (capture) {
-                    for (final barcode in capture.barcodes) {
-                      final raw = barcode.rawValue;
-                      if (raw != null && raw.startsWith(TeacherAssignment.prefix)) {
-                        _handlePayload(raw);
-                        break;
-                      }
-                    }
-                  },
-                ),
+                child: handling
+                    ? const ColoredBox(color: Colors.black)
+                    : ReaderWidget(
+                        codeFormat: Format.qrCode,
+                        showGallery: false,
+                        showToggleCamera: false,
+                        onScan: (code) {
+                          final raw = code.text;
+                          if (raw != null &&
+                              raw.startsWith(TeacherAssignment.prefix)) {
+                            _handlePayload(raw);
+                          }
+                        },
+                      ),
               ),
             ),
             if (errorText != null) ...[

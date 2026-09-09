@@ -55,6 +55,43 @@ jobs:
             sort -V | tail -n 1)"
           test -x "$APKSIGNER"
           "$APKSIGNER" verify --verbose --print-certs             build/app/outputs/flutter-apk/app-release.apk
+      - name: Verify release privacy permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          AAPT2="$(find "$SDK_ROOT/build-tools" -type f -name aapt2 |
+            sort -V | tail -n 1)"
+          test -x "$AAPT2"
+          PERMISSIONS="$("$AAPT2" dump permissions "$APK")"
+          printf '%s\n' "$PERMISSIONS"
+          grep -Fq "android.permission.CAMERA" <<< "$PERMISSIONS"
+          forbidden=(
+            android.permission.INTERNET
+            android.permission.ACCESS_NETWORK_STATE
+            android.permission.RECORD_AUDIO
+            android.permission.READ_EXTERNAL_STORAGE
+            android.permission.WRITE_EXTERNAL_STORAGE
+            android.permission.MANAGE_EXTERNAL_STORAGE
+            android.permission.READ_MEDIA_IMAGES
+            android.permission.READ_MEDIA_VIDEO
+            android.permission.READ_MEDIA_AUDIO
+            android.permission.ACCESS_FINE_LOCATION
+            android.permission.ACCESS_COARSE_LOCATION
+            android.permission.READ_CONTACTS
+            android.permission.WRITE_CONTACTS
+            android.permission.READ_PHONE_STATE
+            android.permission.READ_PHONE_NUMBERS
+            android.permission.POST_NOTIFICATIONS
+            com.google.android.gms.permission.AD_ID
+          )
+          for permission in "${forbidden[@]}"; do
+            if grep -Fq "$permission" <<< "$PERMISSIONS"; then
+              echo "::error::Unexpected release permission: $permission"
+              exit 1
+            fi
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: Rechenblitz-Release-APK
