@@ -182,6 +182,39 @@ void main() {
 
     expect(checklist, contains('512 × 512 px'));
     expect(checklist, contains('1.024 × 500 px'));
+
+    ({int width, int height, int colorType}) pngInfo(String path) {
+      final bytes = File(path).readAsBytesSync();
+      expect(
+        bytes.sublist(0, 8),
+        equals(<int>[137, 80, 78, 71, 13, 10, 26, 10]),
+        reason: '$path ist keine PNG-Datei',
+      );
+      int read32(int offset) =>
+          (bytes[offset] << 24) |
+          (bytes[offset + 1] << 16) |
+          (bytes[offset + 2] << 8) |
+          bytes[offset + 3];
+      return (
+        width: read32(16),
+        height: read32(20),
+        colorType: bytes[25],
+      );
+    }
+
+    final icon = pngInfo('store/google-play/app-icon-512.png');
+    expect((icon.width, icon.height), (512, 512));
+    expect(icon.colorType, 6, reason: 'Play-Icon braucht RGBA/Alpha');
+    expect(
+      File('store/google-play/app-icon-512.png').lengthSync(),
+      lessThanOrEqualTo(1024 * 1024),
+    );
+
+    final feature =
+        pngInfo('store/google-play/feature-graphic-1024x500.png');
+    expect((feature.width, feature.height), (1024, 500));
+    expect(feature.colorType, 2, reason: 'Feature Graphic muss RGB sein');
+
     expect(checklist, contains('mindestens 2 echte App-Screenshots'));
     expect(
       checklist,

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <rect width="1024" height="500" fill="#F7F5FF"/>
+  <circle cx="905" cy="76" r="132" fill="#EEE9FF"/>
+  <circle cx="845" cy="440" r="170" fill="#F0ECFF"/>
+  <rect x="72" y="82" width="104" height="104" rx="24" fill="#6B5DD3"/>
+  <rect x="91" y="118" width="66" height="10" rx="3" fill="#FFFFFF"/>
+  <rect x="119" y="98" width="10" height="65" rx="3" fill="#FFFFFF"/>
+  <rect x="94" y="158" width="60" height="10" rx="3" fill="#FFFFFF"/>
+  <text x="72" y="252" font-family="Noto Sans, sans-serif" font-size="64"
+        font-weight="700" fill="#252333">Rechenblitz</text>
+  <text x="72" y="307" font-family="Noto Sans, sans-serif" font-size="27"
+        font-weight="600" fill="#6B5DD3">Mathe, das genau dort weiterhilft,</text>
+  <text x="72" y="344" font-family="Noto Sans, sans-serif" font-size="27"
+        font-weight="600" fill="#6B5DD3">wo noch ein Rechenschritt fehlt.</text>
+  <rect x="72" y="389" width="117" height="42" rx="21" fill="#FFFFFF"/>
+  <text x="130" y="417" text-anchor="middle" font-family="Noto Sans, sans-serif"
+        font-size="18" font-weight="600" fill="#454254">Klasse 1–4</text>
+  <rect x="201" y="389" width="132" height="42" rx="21" fill="#FFFFFF"/>
+  <text x="267" y="417" text-anchor="middle" font-family="Noto Sans, sans-serif"
+        font-size="18" font-weight="600" fill="#454254">ohne Werbung</text>
+  <g transform="translate(610 72)">
+    <rect x="0" y="0" width="292" height="356" rx="34" fill="#FFFFFF"/>
+    <rect x="30" y="34" width="232" height="64" rx="18" fill="#F4F1FF"/>
+    <text x="52" y="75" font-family="Noto Sans, sans-serif" font-size="24"
+          font-weight="700" fill="#454254">46 − 18</text>
+    <circle cx="54" cy="147" r="19" fill="#6B5DD3"/>
+    <text x="54" y="154" text-anchor="middle" font-family="Noto Sans, sans-serif"
+          font-size="20" font-weight="700" fill="#FFFFFF">1</text>
+    <text x="91" y="154" font-family="Noto Sans, sans-serif" font-size="20"
+          font-weight="600" fill="#454254">Erst bis zum Zehner</text>
+    <line x1="46" y1="218" x2="246" y2="218" stroke="#B7AFE8" stroke-width="6"
+          stroke-linecap="round"/>
+    <circle cx="70" cy="218" r="10" fill="#6B5DD3"/>
+    <circle cx="150" cy="218" r="10" fill="#8F83E8"/>
+    <circle cx="222" cy="218" r="10" fill="#B7AFE8"/>
+    <text x="60" y="254" font-family="Noto Sans, sans-serif" font-size="16"
+          fill="#6A667A">46</text>
+    <text x="140" y="254" font-family="Noto Sans, sans-serif" font-size="16"
+          fill="#6A667A">40</text>
+    <text x="212" y="254" font-family="Noto Sans, sans-serif" font-size="16"
+          fill="#6A667A">28</text>
+    <rect x="30" y="292" width="232" height="42" rx="21" fill="#6B5DD3"/>
+    <text x="146" y="320" text-anchor="middle" font-family="Noto Sans, sans-serif"
+          font-size="18" font-weight="700" fill="#FFFFFF">Passender nächster Schritt</text>
+  </g>
+</svg>
