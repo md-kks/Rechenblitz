@@ -215,7 +215,26 @@ void main() {
     expect((feature.width, feature.height), (1024, 500));
     expect(feature.colorType, 2, reason: 'Feature Graphic muss RGB sein');
 
-    expect(checklist, contains('mindestens 2 echte App-Screenshots'));
+    for (final path in const [
+      'store/google-play/screenshots/01-startseite.png',
+      'store/google-play/screenshots/02-meine-runde.png',
+      'store/google-play/screenshots/03-rundenplan.png',
+      'store/google-play/screenshots/04-rechenhilfe.png',
+    ]) {
+      final screenshot = pngInfo(path);
+      expect((screenshot.width, screenshot.height), (1080, 1920));
+      expect(
+        screenshot.colorType,
+        2,
+        reason: '$path muss ein RGB-PNG ohne Alpha sein',
+      );
+      expect(screenshot.width, greaterThanOrEqualTo(320));
+      expect(screenshot.height, lessThanOrEqualTo(3840));
+      expect(screenshot.height / screenshot.width, lessThanOrEqualTo(2));
+    }
+
+    expect(checklist, contains('4 echte App-Screenshots in 1080 × 1920 px'));
+    expect(checklist, contains('Alt-Text für jedes Bild dokumentiert'));
     expect(
       checklist,
       contains('BLOCKER – noch nicht mit verifizierten öffentlichen Daten gefüllt.'),
