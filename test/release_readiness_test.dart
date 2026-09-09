@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/accessibility_preferences.dart';
 import 'package:rechenblitz/models/beta_feedback.dart';
@@ -14,6 +15,7 @@ import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:rechenblitz/services/adaptive_engine.dart';
 import 'package:rechenblitz/services/storage_service.dart';
+import 'package:rechenblitz/screens/privacy_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -37,6 +39,38 @@ void main() {
     expect(adaptiveIcon, contains('<background'));
     expect(adaptiveIcon, contains('<foreground'));
     expect(adaptiveIcon, contains('<monochrome'));
+  });
+
+  testWidgets('Datenschutzerklärung ist direkt in der App lesbar',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: PrivacyScreen()),
+    );
+
+    expect(find.text('Datenschutzerklärung'), findsOneWidget);
+    expect(find.text('Datenschutz bei Rechenblitz'), findsOneWidget);
+    expect(
+      find.textContaining('Lernprofile bleiben auf dem Gerät'),
+      findsOneWidget,
+    );
+  });
+
+  test('Web-Datenschutz und Data-Safety-Hilfe bleiben releasefähig', () {
+    final webPolicy = File('docs/privacy-policy.html').readAsStringSync();
+    final dataSafety =
+        File('docs/google-play-data-safety.md').readAsStringSync();
+
+    expect(
+      PrivacyScreen.publicPolicyUrl,
+      'https://md-kks.github.io/Rechenblitz/privacy-policy.html',
+    );
+    expect(webPolicy, contains('Datenschutzerklärung für Rechenblitz'));
+    expect(webPolicy, contains('Kamera und QR-Codes'));
+    expect(webPolicy, contains('Vorlesen über System-TTS'));
+    expect(webPolicy, contains('Aufbewahrung und Löschen'));
+    expect(dataSafety, contains('Werden Nutzerdaten erhoben oder geteilt?'));
+    expect(dataSafety, contains('android.permission.CAMERA'));
+    expect(dataSafety, contains(PrivacyScreen.publicPolicyUrl));
   });
 
   test('Transfer-Sachaufgaben Klasse 3/4 enthalten anspruchsvollere Strukturen',

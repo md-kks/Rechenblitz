@@ -9,6 +9,7 @@ import 'beta_feedback_screen.dart';
 import 'curriculum_audit_screen.dart';
 import 'teacher_mode_screen.dart';
 import 'method_screen.dart';
+import 'privacy_screen.dart';
 import 'profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -244,11 +245,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: controller.setHaptic,
           ),
           const SizedBox(height: 14),
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Rechenblitz arbeitet local first: Lernprofile, Lernfortschritt und Rechenwege bleiben auf diesem Gerät. Es ist kein Konto erforderlich.',
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text('Datenschutz'),
+              subtitle: const Text(
+                'Local first, Kamera, QR-Codes und Vorlesen transparent erklärt',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const PrivacyScreen(),
+                ),
               ),
             ),
           ),

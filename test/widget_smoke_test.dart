@@ -58,6 +58,29 @@ void main() {
     expect(find.textContaining('von 12 Aufgaben'), findsOneWidget);
   });
 
+  testWidgets('Datenschutz ist aus den Einstellungen erreichbar',
+      (tester) async {
+    final controller = AppController();
+    controller.facts = const [];
+    controller.loaded = true;
+    await tester.pumpWidget(RechenblitzApp(controller: controller));
+
+    await tester.tap(find.byTooltip('Einstellungen'));
+    await tester.pumpAndSettle();
+
+    final settingsScroll = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.text('Datenschutz'),
+      350,
+      scrollable: settingsScroll,
+    );
+    await tester.tap(find.text('Datenschutz'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Datenschutzerklärung'), findsOneWidget);
+    expect(find.text('Datenschutz bei Rechenblitz'), findsOneWidget);
+  });
+
   testWidgets('Erfolgsseite ist für das Kind direkt erreichbar', (tester) async {
     final controller = AppController();
     controller.facts = const [];
