@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing/flutter_zxing.dart';
 
 import '../models/teacher_assignment.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../services/assignment_launcher.dart';
+import '../widgets/qr_camera_panel.dart';
 
 class AssignmentScannerScreen extends StatefulWidget {
   const AssignmentScannerScreen({
@@ -119,14 +119,9 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
                 height: 310,
                 child: handling
                     ? const ColoredBox(color: Colors.black)
-                    : ReaderWidget(
-                        codeFormat: Format.qrCode,
-                        showGallery: false,
-                        showToggleCamera: false,
-                        onScan: (code) {
-                          final raw = code.text;
-                          if (raw != null &&
-                              raw.startsWith(TeacherAssignment.prefix)) {
+                    : QrCameraPanel(
+                        onPayload: (raw) {
+                          if (raw.startsWith(TeacherAssignment.prefix)) {
                             _handlePayload(raw);
                           }
                         },

@@ -13,6 +13,7 @@ dependencies:
   qr_flutter: ^4.1.0
   flutter_tts: ^4.2.5
   flutter_zxing: ^3.0.1
+  camera: ^0.12.1
 
 dev_dependencies:
   flutter_test:

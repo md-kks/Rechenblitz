@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing/flutter_zxing.dart';
 
 import '../models/micro_competency.dart';
 import '../models/teacher_assignment_result.dart';
 import '../models/training.dart';
+import '../widgets/qr_camera_panel.dart';
 
 class AssignmentResultScannerScreen extends StatefulWidget {
   const AssignmentResultScannerScreen({super.key});
@@ -75,16 +75,11 @@ class _AssignmentResultScannerScreenState
               borderRadius: BorderRadius.circular(18),
               child: SizedBox(
                 height: 310,
-                child: ReaderWidget(
-                  codeFormat: Format.qrCode,
-                  showGallery: false,
-                  showToggleCamera: false,
-                  onScan: (code) {
-                    final raw = code.text;
-                    if (raw != null &&
-                        raw.startsWith(
-                          TeacherAssignmentResult.prefix,
-                        )) {
+                child: QrCameraPanel(
+                  onPayload: (raw) {
+                    if (raw.startsWith(
+                      TeacherAssignmentResult.prefix,
+                    )) {
                       _handlePayload(raw);
                     }
                   },
