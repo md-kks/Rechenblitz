@@ -41,6 +41,24 @@ void main() {
     expect(adaptiveIcon, contains('<monochrome'));
   });
 
+  test('Android camera hardware stays optional for Play filtering', () {
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+
+    for (final feature in const [
+      'android.hardware.camera.any',
+      'android.hardware.camera',
+      'android.hardware.camera.autofocus',
+      'android.hardware.camera.flash',
+    ]) {
+      expect(
+        manifest,
+        contains('android:name="$feature"\n        android:required="false"'),
+      );
+    }
+    expect(manifest, contains('tools:node="replace"'));
+  });
+
   testWidgets('Datenschutzerklärung ist direkt in der App lesbar',
       (tester) async {
     await tester.pumpWidget(

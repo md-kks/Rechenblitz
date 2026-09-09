@@ -92,6 +92,30 @@ jobs:
               exit 1
             fi
           done
+      - name: Verify optional camera hardware
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          AAPT2="$(find "$SDK_ROOT/build-tools" -type f -name aapt2 |
+            sort -V | tail -n 1)"
+          test -x "$AAPT2"
+          BADGING="$("$AAPT2" dump badging "$APK")"
+          printf '%s\n' "$BADGING" |
+            grep -E "uses-feature.*android.hardware.camera" || true
+          camera_features=(
+            android.hardware.camera.any
+            android.hardware.camera
+            android.hardware.camera.autofocus
+            android.hardware.camera.flash
+          )
+          for feature in "${camera_features[@]}"; do
+            if ! grep -Fq               "uses-feature-not-required: name='$feature'" <<< "$BADGING"; then
+              echo "::error::Camera hardware must stay optional: $feature"
+              exit 1
+            fi
+          done
       - name: Verify Android 16 KB page size compatibility
         shell: bash
         run: |
