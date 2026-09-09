@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +19,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  test('Android launcher icon supports adaptive and themed icons', () {
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    final adaptiveIcon = File(
+      'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
+    ).readAsStringSync();
+    final legacyIcon = File(
+      'android/app/src/main/res/mipmap-anydpi/ic_launcher.xml',
+    );
+
+    expect(manifest, contains('android:icon="@mipmap/ic_launcher"'));
+    expect(legacyIcon.existsSync(), isTrue);
+    expect(adaptiveIcon, contains('<adaptive-icon'));
+    expect(adaptiveIcon, contains('<background'));
+    expect(adaptiveIcon, contains('<foreground'));
+    expect(adaptiveIcon, contains('<monochrome'));
   });
 
   test('Transfer-Sachaufgaben Klasse 3/4 enthalten anspruchsvollere Strukturen',
