@@ -39,9 +39,11 @@ Grafiken vor Veröffentlichung bereitstellen:
       (`store/google-play/app-icon-512.png`)
 - [x] Vorstellungsgrafik: 1.024 × 500 px, RGB-PNG ohne Alpha
       (`store/google-play/feature-graphic-1024x500.png`)
-- [ ] mindestens 2 echte App-Screenshots
-- [ ] empfohlen: mindestens 4 Smartphone-Screenshots in 1080 × 1920 px
-- [ ] Alt-Text für jedes hochgeladene Bild
+- [x] 4 echte App-Screenshots in 1080 × 1920 px
+      (store/google-play/screenshots/)
+- [x] mindestens 4 Smartphone-Screenshots für die Store-Präsentation
+- [x] Alt-Text für jedes Bild dokumentiert
+      (store/google-play/screenshots/README.md)
 
 Screenshot-Regeln:
 - JPEG oder 24-Bit-PNG ohne Alpha
