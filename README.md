@@ -519,12 +519,13 @@ Der Elternbereich zeigt Trefferquoten, Entwicklungen über mehrere Runden, Grund
 
 ## Datenschutz
 
-- vollständig offline
-- kein Benutzerkonto
-- kein Backend
-- keine Werbung
-- keine Analyse-Dienste
-- Lernfortschritt ausschließlich lokal auf dem Gerät
+- local-first: Lernprofile und Lernfortschritt bleiben auf dem Gerät
+- kein Benutzerkonto und kein eigenes Backend
+- keine Werbung, keine Analyse- oder Tracking-Dienste
+- Kamera nur für lokale QR-Code-Erkennung
+- Vorlesen über die vom Gerät ausgewählte System-TTS
+- vollständige In-App-Datenschutzerklärung unter Einstellungen
+- öffentliche Fassung: https://md-kks.github.io/Rechenblitz/privacy-policy.html
 
 ## Entwicklung
 
@@ -532,4 +533,4 @@ Voraussetzung: aktuelles Flutter Stable mit Dart 3.9 oder neuer.
 
 Zum Starten: flutter pub get, danach flutter run.
 
-Qualitätsprüfung: flutter analyze und flutter test. Dieselben Prüfungen laufen auf GitHub Actions bei Pushes und Pull Requests.
+Qualitätsprüfung: flutter analyze und flutter test. Dieselben Prüfungen laufen auf GitHub Actions bei Pushes im Repository.
