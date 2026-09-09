@@ -96,35 +96,24 @@ Aktueller technischer Stand:
 - [ ] TTS-Hinweis beachten: Rechenblitz selbst hat kein Netzwerkrecht;
       der vom Gerät gewählte System-TTS-Anbieter liegt außerhalb der App
 
-## 6. Harter Blocker vor Veröffentlichung
+## 6. Öffentlicher Support- und Datenschutzkontakt
 
-### Datenschutz-Kontakt
+Festgelegte öffentliche Adresse:
 
-**BLOCKER – noch nicht mit verifizierten öffentlichen Daten gefüllt.**
+**mahajana.dasa@gmail.com**
 
-Vor Production Release muss die Datenschutzerklärung einen eindeutigen
-Entwickler-/Datenschutz-Kontakt oder einen konkreten Mechanismus für
-Datenschutzanfragen enthalten. Die öffentlich genannte Entwickler-
-Identität muss zum Store-Eintrag passen.
+- [x] Datenschutz-Ansprechpartner bzw. Anfrageweg festgelegt
+- [x] öffentliche Support-E-Mail festgelegt
+- [x] docs/privacy-policy.html enthält denselben Kontakt
+- [x] In-App-Datenschutzerklärung enthält denselben Kontakt
+- [x] Store-Listing-Dokument enthält denselben Kontakt
+- [ ] verpflichtende Support-E-Mail in der Play Console eintragen
+- [ ] öffentliche GitHub-Pages-Seite nach Merge auf HTTP 200 und
+      denselben Kontakt prüfen
 
-Zusätzlich verlangt Google Play in den Store-Einstellungen eine
-Support-E-Mail-Adresse.
-
-- [ ] öffentlichen Entwicklernamen festlegen
-- [ ] Datenschutz-Ansprechpartner oder Anfrageweg festlegen
-- [ ] verpflichtende Support-E-Mail in Play Store-Einstellungen eintragen
-- [ ] prüfen, ob dieselbe öffentliche E-Mail als Datenschutz-Kontakt dient
-
-Nicht eintragen:
-- erfundene Adresse
-- private Adresse aus anderen Quellen
-- unbestätigte E-Mail-Adresse
-
-Erst nach Festlegung des öffentlichen Entwicklerkontakts:
-- [ ] docs/privacy-policy.html aktualisieren
-- [ ] In-App-Datenschutzerklärung bei Bedarf angleichen
-- [ ] öffentliche GitHub-Pages-Seite auf HTTP 200 und neuen Kontakt prüfen
-- [ ] denselben Kontakt in der Play Console verwenden
+Die öffentlich genannte Entwickleridentität bleibt
+**md-kks · Rechenblitz** und muss im Store-Eintrag konsistent verwendet
+werden.
 
 ## 7. Unmittelbar vor Production Release
 
@@ -137,8 +126,9 @@ Erst nach Festlegung des öffentlichen Entwicklerkontakts:
 - [ ] Store-Texte und Grafiken auf aktuelle App-Version prüfen
 - [ ] IARC abgeschlossen
 - [ ] Zielgruppe/Families abgeschlossen
-- [ ] Datenschutz-Kontakt gelöst
-- [ ] Datenschutzerklärungs-URL live
+- [x] Datenschutz-Kontakt gelöst
+- [ ] Support-E-Mail in Play Console eingetragen
+- [ ] Datenschutzerklärungs-URL mit aktuellem Kontakt live geprüft
 - [ ] Production-Release erst danach einreichen
 
 ## Offizielle Referenzen

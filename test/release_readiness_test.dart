@@ -235,9 +235,22 @@ void main() {
 
     expect(checklist, contains('4 echte App-Screenshots in 1080 × 1920 px'));
     expect(checklist, contains('Alt-Text für jedes Bild dokumentiert'));
+
+    const publicContact = 'mahajana.dasa@gmail.com';
+    final webPolicy = File('docs/privacy-policy.html').readAsStringSync();
+    final privacySource =
+        File('lib/screens/privacy_screen.dart').readAsStringSync();
+    expect(listing, contains(publicContact));
+    expect(checklist, contains(publicContact));
+    expect(webPolicy, contains(publicContact));
+    expect(privacySource, contains(publicContact));
     expect(
       checklist,
-      contains('BLOCKER – noch nicht mit verifizierten öffentlichen Daten gefüllt.'),
+      isNot(
+        contains(
+          'BLOCKER – noch nicht mit verifizierten öffentlichen Daten gefüllt.',
+        ),
+      ),
     );
   });
 

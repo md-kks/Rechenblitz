@@ -85,6 +85,10 @@ Nicht verwenden:
 
 https://md-kks.github.io/Rechenblitz/privacy-policy.html
 
+## Support- und Datenschutzkontakt
+
+mahajana.dasa@gmail.com
+
 ## Offiziell geprüfte Play-Limits
 
 - App-Name: maximal 30 Zeichen
