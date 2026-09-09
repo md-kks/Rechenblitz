@@ -59,6 +59,38 @@ void main() {
     expect(manifest, contains('tools:node="replace"'));
   });
 
+  test('Android backup bleibt für lokale Lerndaten deaktiviert', () {
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    final rules = File(
+      'android/app/src/main/res/xml/data_extraction_rules.xml',
+    ).readAsStringSync();
+
+    expect(manifest, contains('android:allowBackup="false"'));
+    expect(manifest, contains('android:fullBackupContent="false"'));
+    expect(
+      manifest,
+      contains('android:dataExtractionRules="@xml/data_extraction_rules"'),
+    );
+
+    for (final domain in const [
+      'root',
+      'file',
+      'database',
+      'sharedpref',
+      'external',
+      'device_root',
+      'device_file',
+      'device_database',
+      'device_sharedpref',
+    ]) {
+      expect(
+        '<exclude domain="$domain" path="." />'.allMatches(rules).length,
+        2,
+      );
+    }
+  });
+
   testWidgets('Datenschutzerklärung ist direkt in der App lesbar',
       (tester) async {
     await tester.pumpWidget(

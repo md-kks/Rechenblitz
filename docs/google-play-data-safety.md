@@ -31,7 +31,9 @@ ausdrücklich für Vorschulkinder ausgelegt werden.
 Rechenblitz betreibt kein Konto, kein eigenes Backend und keine
 Analyseplattform. Lern- und Profildaten werden nicht automatisch
 außerhalb des Geräts übertragen. Die fertige Android-Release-APK besitzt
-keine INTERNET- oder ACCESS_NETWORK_STATE-Berechtigung.
+keine INTERNET- oder ACCESS_NETWORK_STATE-Berechtigung. Android-Cloud-
+Backup ist deaktiviert; alle lokalen App-Datenbereiche sind zusätzlich
+von Android-Cloud-Backup und Geräteübertragung ausgeschlossen.
 
 Google Play definiert „Erhebung“ im Data-Safety-Formular als Übertragung
 von Daten vom Gerät. Rein lokale Verarbeitung ist dort nicht als

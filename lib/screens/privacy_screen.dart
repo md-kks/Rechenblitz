@@ -31,7 +31,9 @@ class PrivacyScreen extends StatelessWidget {
               'Kompetenz-Evidenz, Abzeichen, Einstellungen und freiwilliges '
               'Beta-Feedback gespeichert werden. Diese Daten liegen im '
               'lokalen App-Speicher und sind für den Entwickler nicht '
-              'einsehbar.',
+              'einsehbar. Android-Cloud-Backup ist für Rechenblitz deaktiviert; '
+              'die App schließt ihre lokalen Daten zusätzlich von Android-'
+              'Cloud-Backup und Geräteübertragung aus.',
         ),
         _PrivacySection(
           title: '3. Kamera und QR-Codes',

@@ -92,6 +92,20 @@ jobs:
               exit 1
             fi
           done
+      - name: Verify local-only Android backup policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          APKANALYZER="$(find "$SDK_ROOT/cmdline-tools" -type f -name apkanalyzer |
+            sort -V | tail -n 1)"
+          test -x "$APKANALYZER"
+          MANIFEST="$("$APKANALYZER" manifest print "$APK")"
+          printf '%s\n' "$MANIFEST" | grep -A12 "<application" | head -20
+          grep -Fq 'android:allowBackup="false"' <<< "$MANIFEST"
+          grep -Fq 'android:fullBackupContent="false"' <<< "$MANIFEST"
+          grep -Fq 'android:dataExtractionRules=' <<< "$MANIFEST"
       - name: Verify optional camera hardware
         shell: bash
         run: |
