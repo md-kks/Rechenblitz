@@ -43,6 +43,12 @@ jobs:
           echo "RECHENBLITZ_KEY_PROPERTIES=$KEY_PROPERTIES_PATH" >> "$GITHUB_ENV"
           echo "RECHENBLITZ_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
       - run: flutter pub get
+      - name: Verify dependency lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f pubspec.lock
+          git diff --exit-code -- pubspec.lock
       - run: flutter analyze
       - run: flutter test
       - run: flutter build apk --release
