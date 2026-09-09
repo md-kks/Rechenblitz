@@ -92,6 +92,71 @@ jobs:
               exit 1
             fi
           done
+      - name: Verify Android 16 KB page size compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+
+          ZIPALIGN="$(find "$SDK_ROOT/build-tools" -type f -name zipalign |
+            sort -V | tail -n 1)"
+          ndk_roots=()
+          for root in \
+            "${ANDROID_NDK_HOME:-}" \
+            "${ANDROID_NDK_ROOT:-}" \
+            "${ANDROID_SDK_ROOT:-}/ndk" \
+            "${ANDROID_HOME:-}/ndk" \
+            "$HOME/android-sdk/ndk"; do
+            if [ -n "$root" ] && [ -d "$root" ]; then
+              ndk_roots+=("$root")
+            fi
+          done
+          if [ "${#ndk_roots[@]}" -eq 0 ]; then
+            echo "::error::No Android NDK directory found"
+            exit 1
+          fi
+
+          OBJDUMP="$(
+            find "${ndk_roots[@]}" \
+              -type f \
+              -path "*/toolchains/llvm/prebuilt/*/bin/llvm-objdump" |
+              sort -V | tail -n 1
+          )"
+          test -x "$ZIPALIGN"
+          test -x "$OBJDUMP"
+
+          "$ZIPALIGN" -c -P 16 -v 4 "$APK" > /dev/null
+
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          unzip -q "$APK" "lib/arm64-v8a/*.so" "lib/x86_64/*.so"             -d "$TMP_DIR"
+
+          native_count=0
+          failed=0
+          while IFS= read -r -d '' so; do
+            native_count=$((native_count + 1))
+            bad_loads="$("$OBJDUMP" -p "$so" | awk '
+              /^    LOAD/ {
+                alignment = $NF
+                sub(/^2\*\*/, "", alignment)
+                if ((alignment + 0) < 14) print
+              }
+            ')"
+            if [ -n "$bad_loads" ]; then
+              echo "::error::16 KB ELF alignment failed: $so"
+              printf '%s\n' "$bad_loads"
+              failed=1
+            fi
+          done < <(
+            find "$TMP_DIR/lib/arm64-v8a" "$TMP_DIR/lib/x86_64"               -type f -name "*.so" -print0
+          )
+
+          if [ "$native_count" -eq 0 ]; then
+            echo "::error::No 64-bit native libraries found in release APK"
+            exit 1
+          fi
+          exit "$failed"
       - uses: actions/upload-artifact@v4
         with:
           name: Rechenblitz-Release-APK
