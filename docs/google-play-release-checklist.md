@@ -35,8 +35,10 @@ In Play Console unter Store-Haupteintrag eintragen:
   https://md-kks.github.io/Rechenblitz/privacy-policy.html
 
 Grafiken vor Veröffentlichung bereitstellen:
-- [ ] Play-App-Symbol: 512 × 512 px, 32-Bit-PNG mit Alpha, max. 1.024 KB
-- [ ] Vorstellungsgrafik: 1.024 × 500 px, JPEG oder 24-Bit-PNG ohne Alpha
+- [x] Play-App-Symbol: 512 × 512 px, 32-Bit-RGBA-PNG, 3.710 Byte
+      (`store/google-play/app-icon-512.png`)
+- [x] Vorstellungsgrafik: 1.024 × 500 px, RGB-PNG ohne Alpha
+      (`store/google-play/feature-graphic-1024x500.png`)
 - [ ] mindestens 2 echte App-Screenshots
 - [ ] empfohlen: mindestens 4 Smartphone-Screenshots in 1080 × 1920 px
 - [ ] Alt-Text für jedes hochgeladene Bild
