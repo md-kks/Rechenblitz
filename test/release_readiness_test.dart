@@ -153,6 +153,42 @@ void main() {
     expect(dataSafety, contains(PrivacyScreen.publicPolicyUrl));
   });
 
+  test('Google-Play-Storetexte bleiben innerhalb der Pflichtlimits', () {
+    final listing =
+        File('docs/google-play-store-listing-de.md').readAsStringSync();
+    final checklist =
+        File('docs/google-play-release-checklist.md').readAsStringSync();
+
+    String firstParagraph(String heading) {
+      final marker = '## $heading\n\n';
+      final rest = listing.split(marker).last;
+      return rest.split('\n\n').first.replaceAll('\n', ' ').trim();
+    }
+
+    final appName = firstParagraph('App-Name');
+    final shortDescription = firstParagraph('Kurze Beschreibung');
+    final fullDescription = listing
+        .split('## Vollständige Beschreibung\n\n')
+        .last
+        .split('\n## Store-Positionierung')
+        .first
+        .trim();
+
+    expect(appName.runes.length, lessThanOrEqualTo(30));
+    expect(appName, 'Rechenblitz');
+    expect(shortDescription.runes.length, lessThanOrEqualTo(80));
+    expect(shortDescription.runes.length, 73);
+    expect(fullDescription.runes.length, lessThanOrEqualTo(4000));
+
+    expect(checklist, contains('512 × 512 px'));
+    expect(checklist, contains('1.024 × 500 px'));
+    expect(checklist, contains('mindestens 2 echte App-Screenshots'));
+    expect(
+      checklist,
+      contains('BLOCKER – noch nicht mit verifizierten öffentlichen Daten gefüllt.'),
+    );
+  });
+
   test('Transfer-Sachaufgaben Klasse 3/4 enthalten anspruchsvollere Strukturen',
       () {
     final generator = StructuredExerciseGenerator(random: Random(20260905));
