@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../models/learner_profile.dart';
-import '../models/learning_methods.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'assessment_screen.dart';
@@ -20,9 +19,6 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
   int step = 0;
   late GradeLevel grade;
   late GermanState state;
-  late SubtractionStrategy subtraction;
-  late MultiplicationStrategy multiplication;
-  late WrittenSubtractionStrategy writtenSubtraction;
 
   @override
   void initState() {
@@ -32,10 +28,6 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
         profile.name == 'Lernprofil' ? '' : profile.name;
     grade = profile.gradeLevel;
     state = profile.state;
-    subtraction = widget.controller.methodPreferences.subtraction;
-    multiplication = widget.controller.methodPreferences.multiplication;
-    writtenSubtraction =
-        widget.controller.methodPreferences.writtenSubtraction;
   }
 
   @override
@@ -44,17 +36,10 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
     super.dispose();
   }
 
-  MethodPreferences get methods => MethodPreferences(
-        subtraction: subtraction,
-        multiplication: multiplication,
-        writtenSubtraction: writtenSubtraction,
-      );
-
   Future<void> _saveSetup() => widget.controller.saveLearningStartSetup(
         name: nameController.text,
         grade: grade,
         state: state,
-        methods: methods,
       );
 
   Future<void> _startAssessment() async {
@@ -100,7 +85,7 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: LinearProgressIndicator(
-                value: (step + 1) / 3,
+                value: (step + 1) / 2,
                 minHeight: 8,
                 borderRadius: BorderRadius.circular(99),
               ),
@@ -110,7 +95,6 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
                 duration: const Duration(milliseconds: 220),
                 child: switch (step) {
                   0 => _profileStep(),
-                  1 => _methodsStep(),
                   _ => _assessmentStep(),
                 },
               ),
@@ -210,113 +194,6 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
         ],
       );
 
-  Widget _methodsStep() => ListView(
-        key: const ValueKey('learning-start-methods'),
-        padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
-        children: [
-          Text(
-            'So rechnen wir in der Schule',
-            style: Theme.of(context)
-                .textTheme
-                .headlineMedium
-                ?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Rechenblitz verwendet diese Wege später in Hilfen und Erklärungen. Die Auswahl kann jederzeit geändert werden.',
-          ),
-          const SizedBox(height: 22),
-          DropdownButtonFormField<SubtractionStrategy>(
-            initialValue: subtraction,
-            decoration: const InputDecoration(
-              labelText: 'Minus über den Zehner',
-              border: OutlineInputBorder(),
-            ),
-            items: SubtractionStrategy.values
-                .map(
-                  (value) => DropdownMenuItem(
-                    value: value,
-                    child: Text(value.label),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value != null) setState(() => subtraction = value);
-            },
-          ),
-          const SizedBox(height: 10),
-          Text(subtraction.description),
-          if (grade.index >= GradeLevel.second.index) ...[
-            const SizedBox(height: 18),
-            DropdownButtonFormField<MultiplicationStrategy>(
-              initialValue: multiplication,
-              decoration: const InputDecoration(
-                labelText: 'Einmaleins verstehen',
-                border: OutlineInputBorder(),
-              ),
-              items: MultiplicationStrategy.values
-                  .map(
-                    (value) => DropdownMenuItem(
-                      value: value,
-                      child: Text(value.label),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => multiplication = value);
-                }
-              },
-            ),
-            const SizedBox(height: 10),
-            Text(multiplication.description),
-          ],
-          if (grade.index >= GradeLevel.third.index) ...[
-            const SizedBox(height: 18),
-            DropdownButtonFormField<WrittenSubtractionStrategy>(
-              initialValue: writtenSubtraction,
-              decoration: const InputDecoration(
-                labelText: 'Schriftliche Subtraktion',
-                border: OutlineInputBorder(),
-              ),
-              items: WrittenSubtractionStrategy.values
-                  .map(
-                    (value) => DropdownMenuItem(
-                      value: value,
-                      child: Text(value.label),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => writtenSubtraction = value);
-                }
-              },
-            ),
-            const SizedBox(height: 10),
-            Text(writtenSubtraction.description),
-          ],
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => setState(() => step = 0),
-                  child: const Text('Zurück'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () => setState(() => step = 2),
-                  child: const Text('Weiter'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-
   Widget _assessmentStep() => ListView(
         key: const ValueKey('learning-start-assessment'),
         padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
@@ -382,7 +259,7 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
           ),
           const SizedBox(height: 8),
           TextButton(
-            onPressed: () => setState(() => step = 1),
+            onPressed: () => setState(() => step = 0),
             child: const Text('Zurück'),
           ),
         ],

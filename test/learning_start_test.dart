@@ -62,7 +62,6 @@ void main() {
       name: 'Testkind',
       grade: GradeLevel.second,
       state: controller.activeProfile.state,
-      methods: const MethodPreferences(),
     );
 
     await controller.completeAssessment(const [
@@ -157,10 +156,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('learning-start-next')));
     await tester.pumpAndSettle();
-    expect(find.text('So rechnen wir in der Schule'), findsOneWidget);
-
-    await tester.tap(find.text('Weiter').last);
-    await tester.pumpAndSettle();
+    expect(find.text('So rechnen wir in der Schule'), findsNothing);
     expect(find.text('Wo stehst du gerade?'), findsOneWidget);
     expect(
       find.text(
@@ -177,6 +173,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(controller.needsOnboarding, isFalse);
+    expect(
+      controller.methodPreferences.selectionPreference,
+      MethodSelectionPreference.automatic,
+    );
     expect(find.text('Rechenblitz'), findsWidgets);
     expect(find.text('Klassenstufe'), findsOneWidget);
   });

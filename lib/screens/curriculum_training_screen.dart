@@ -132,6 +132,19 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         targetCompetency: widget.targetCompetency,
       );
 
+  List<GuidedMethodGuide> get _guideAlternatives {
+    if (widget.controller.hasTeacherAssignment) {
+      return const <GuidedMethodGuide>[];
+    }
+    return GuidedMethodFactory.alternativesForTask(
+      mode: widget.mode,
+      taskKey: current.key,
+      expected: current.answer,
+      preferences: widget.controller.effectiveMethodPreferences,
+      targetCompetency: widget.targetCompetency,
+    );
+  }
+
   List<GuidedMethodStep> get _independentWrittenSteps {
     if (widget.reviewEmphasis ||
         widget.transferEmphasis ||
@@ -515,6 +528,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               GuidedMethodPanel(
                 key: ValueKey('guide:${current.key}:$completed'),
                 guide: _guide,
+                alternativeGuides: _guideAlternatives,
                 pattern: _helpPattern,
                 initialLevel: HelpLevel.values[helpLevel],
                 taskKey: current.key,
@@ -523,7 +537,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                   return widget.controller.recordGuidedStepAttempt(
                     mode: widget.mode,
                     taskKey: current.key,
-                    methodKey: _guide.methodKey,
+                    methodKey: activeMethodKey ?? _guide.methodKey,
                     stepKey: step.evidenceKey!,
                     competencyId: step.evidenceCompetency!,
                     correct: correct,
@@ -534,7 +548,13 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                   if (!mounted) return;
                   setState(() {
                     helpLevel = level.value;
-                    activeMethodKey = _guide.methodKey;
+                    activeMethodKey ??= _guide.methodKey;
+                  });
+                },
+                onGuideChanged: (guide) {
+                  if (!mounted) return;
+                  setState(() {
+                    activeMethodKey = guide.methodKey;
                   });
                 },
                 onSpeak: widget.controller.speakOnDemand,
