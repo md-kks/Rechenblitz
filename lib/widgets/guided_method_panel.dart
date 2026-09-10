@@ -44,6 +44,7 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
   final Set<int> solvedSteps = <int>{};
   final Set<int> attemptedSteps = <int>{};
   String feedback = '';
+  bool methodChoiceVisible = false;
 
   @override
   void initState() {
@@ -66,6 +67,7 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
       solvedSteps.clear();
       attemptedSteps.clear();
       feedback = '';
+      methodChoiceVisible = false;
     }
   }
 
@@ -91,6 +93,7 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
       solvedSteps.clear();
       attemptedSteps.clear();
       feedback = '';
+      methodChoiceVisible = false;
     });
     widget.onGuideChanged?.call(guide);
   }
@@ -127,7 +130,7 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
   }
 
   void _nextStep() {
-    if (stepIndex + 1 >= widget.guide.steps.length) return;
+    if (stepIndex + 1 >= activeGuide.steps.length) return;
     setState(() {
       stepIndex += 1;
       feedback = '';
@@ -151,21 +154,21 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
       label: 'Rechenhilfe ${guide.methodLabel}',
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.route_rounded),
+                  Icon(
+                    Icons.lightbulb_outline_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Rechenweg: ${guide.methodLabel}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w900),
+                      'Hilfe · ${guide.methodLabel}',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
                   if (widget.onSpeak != null)
@@ -181,64 +184,56 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
                 ],
               ),
               const SizedBox(height: 10),
-              if (_availableGuides.length > 1) ...[
-                Text(
-                  'Passt dieser Rechenweg nicht? Probiere einen anderen. Die Einstellung in „Rechenwege“ bleibt dabei unverändert.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  key: ValueKey('guided-method-choice:${guide.methodKey}'),
-                  initialValue: guide.methodKey,
-                  decoration: const InputDecoration(
-                    labelText: 'Rechenweg ausprobieren',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _availableGuides
-                      .map(
-                        (entry) => DropdownMenuItem(
-                          value: entry.methodKey,
-                          child: Text(entry.methodLabel),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) _chooseGuide(value);
-                  },
-                ),
-                const SizedBox(height: 10),
-              ],
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _LevelChip(
-                    label: '1 Denkhinweis',
-                    selected: level.index >= HelpLevel.nudge.index,
-                    onTap: () => _setLevel(HelpLevel.nudge),
-                  ),
-                  if (hasVisual)
-                    _LevelChip(
-                      label: '2 Darstellung',
-                      selected: level.index >= HelpLevel.visual.index,
-                      onTap: () => _setLevel(HelpLevel.visual),
-                    ),
-                  _LevelChip(
-                    label: hasVisual
-                        ? '3 Schritt für Schritt'
-                        : '2 Schritt für Schritt',
-                    selected: level.index >= HelpLevel.guided.index,
-                    onTap: () => _setLevel(HelpLevel.guided),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
               Text(
                 guide.nudge,
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
+              if (_availableGuides.length > 1) ...[
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const ValueKey('help-toggle-methods'),
+                    onPressed: () => setState(
+                      () => methodChoiceVisible = !methodChoiceVisible,
+                    ),
+                    icon: Icon(
+                      methodChoiceVisible
+                          ? Icons.expand_less_rounded
+                          : Icons.swap_horiz_rounded,
+                    ),
+                    label: const Text('Anderen Rechenweg probieren'),
+                  ),
+                ),
+                if (methodChoiceVisible) ...[
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    key: ValueKey('guided-method-choice:${guide.methodKey}'),
+                    initialValue: guide.methodKey,
+                    decoration: const InputDecoration(
+                      labelText: 'Rechenweg',
+                    ),
+                    items: _availableGuides
+                        .map(
+                          (entry) => DropdownMenuItem(
+                            value: entry.methodKey,
+                            child: Text(entry.methodLabel),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) _chooseGuide(value);
+                    },
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Gilt nur für diese Hilfe. Deine Einstellung bleibt gleich.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ],
               if (hasVisual && level.index >= HelpLevel.visual.index) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 LearningVisualAid(
                   pattern: widget.pattern,
                   taskKey: widget.taskKey,
@@ -247,11 +242,16 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
                 ),
               ],
               if (level == HelpLevel.guided && step != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 const Divider(),
                 Text(
-                  'Schritt ${stepIndex + 1} von ${guide.steps.length}: ${step.title}',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                  'Schritt ${stepIndex + 1} von ${guide.steps.length}',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  step.title,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 6),
                 Text(step.instruction),
@@ -298,12 +298,32 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
                       Icon(Icons.check_circle_outline_rounded),
                       SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          'Der Rechenweg ist vollständig. Jetzt probiere die Aufgabe selbst.',
-                        ),
+                        child: Text('Jetzt probiere die Aufgabe selbst.'),
                       ),
                     ],
                   ),
+              ] else ...[
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (hasVisual && level == HelpLevel.nudge)
+                      OutlinedButton.icon(
+                        key: const ValueKey('help-show-visual'),
+                        onPressed: () => _setLevel(HelpLevel.visual),
+                        icon: const Icon(Icons.visibility_outlined),
+                        label: const Text('Bild zeigen'),
+                      ),
+                    if (guide.steps.isNotEmpty)
+                      OutlinedButton.icon(
+                        key: const ValueKey('help-show-guided'),
+                        onPressed: () => _setLevel(HelpLevel.guided),
+                        icon: const Icon(Icons.format_list_numbered_rounded),
+                        label: const Text('Schritt für Schritt'),
+                      ),
+                  ],
+                ),
               ],
             ],
           ),
@@ -311,25 +331,4 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
       ),
     );
   }
-}
-
-class _LevelChip extends StatelessWidget {
-  const _LevelChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => ActionChip(
-        avatar: selected
-            ? const Icon(Icons.check_rounded, size: 18)
-            : null,
-        label: Text(label),
-        onPressed: onTap,
-      );
 }
