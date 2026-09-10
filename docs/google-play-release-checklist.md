@@ -1,6 +1,6 @@
 # Google Play Release-Checkliste – Rechenblitz
 
-Stand: 9. September 2026.
+Stand: 10. September 2026.
 
 Diese Checkliste trennt den technisch verifizierten App-Stand von
 manuellen Play-Console-Schritten.
@@ -11,6 +11,8 @@ manuellen Play-Console-Schritten.
 - [x] Version: 1.0.0, versionCode 1
 - [x] targetSdk / compileSdk: API 36
 - [x] signierte Release-AAB wird im CI erzeugt
+- [x] Release-AAB wird mit Bundletool 1.18.3 validiert
+- [x] Bundletool-Download ist per SHA-256 gepinnt
 - [x] signierte Release-APK wird zusätzlich geprüft
 - [x] Flutter 3.47.2 ist im CI fest gepinnt
 - [x] pubspec.lock ist versioniert und wird im CI geprüft
@@ -108,8 +110,8 @@ Festgelegte öffentliche Adresse:
 - [x] In-App-Datenschutzerklärung enthält denselben Kontakt
 - [x] Store-Listing-Dokument enthält denselben Kontakt
 - [ ] verpflichtende Support-E-Mail in der Play Console eintragen
-- [ ] öffentliche GitHub-Pages-Seite nach Merge auf HTTP 200 und
-      denselben Kontakt prüfen
+- [x] öffentliche GitHub-Pages-Seite nach Merge auf HTTP 200 und
+      denselben Kontakt geprüft
 
 Die öffentlich genannte Entwickleridentität bleibt
 **md-kks · Rechenblitz** und muss im Store-Eintrag konsistent verwendet
@@ -128,7 +130,7 @@ werden.
 - [ ] Zielgruppe/Families abgeschlossen
 - [x] Datenschutz-Kontakt gelöst
 - [ ] Support-E-Mail in Play Console eingetragen
-- [ ] Datenschutzerklärungs-URL mit aktuellem Kontakt live geprüft
+- [x] Datenschutzerklärungs-URL mit aktuellem Kontakt live geprüft
 - [ ] Production-Release erst danach einreichen
 
 ## Offizielle Referenzen
