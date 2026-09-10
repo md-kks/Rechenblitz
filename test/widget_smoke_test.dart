@@ -10,26 +10,29 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('Startseite zeigt Grundschulstruktur und Lernwelten', (tester) async {
+  testWidgets('Startseite zeigt zuerst nur die wichtigsten Kinderaktionen',
+      (tester) async {
     final controller = AppController();
     controller.facts = const [];
     controller.loaded = true;
     await tester.pumpWidget(RechenblitzApp(controller: controller));
 
     expect(find.text('Hallo!'), findsOneWidget);
-    expect(find.text('Klassenstufe'), findsOneWidget);
-    expect(find.text('Zahlenraum'), findsOneWidget);
+    expect(find.text('Deine Runde'), findsOneWidget);
+    expect(find.text('5 Blitzaufgaben'), findsOneWidget);
+    expect(find.text('Lernlandkarte'), findsOneWidget);
+    expect(find.text('Mehr üben'), findsOneWidget);
+    expect(find.text('Schulauftrag'), findsOneWidget);
+    expect(find.text('Klassenstufe'), findsNothing);
+    expect(find.text('Zahlenraum'), findsNothing);
+    expect(find.text('Plus & Minus'), findsNothing);
     expect(find.byIcon(Icons.emoji_events_rounded), findsOneWidget);
 
-    final scrollable = find.byType(Scrollable).first;
-    for (final label in ['Plus & Minus', 'Malnehmen', 'Zahlenmauern']) {
-      await tester.scrollUntilVisible(
-        find.text(label),
-        250,
-        scrollable: scrollable,
-      );
-      expect(find.text(label), findsOneWidget);
-    }
+    await tester.tap(find.text('Mehr üben'));
+    await tester.pumpAndSettle();
+    expect(find.text('Plus & Minus'), findsOneWidget);
+    expect(find.text('Malnehmen'), findsOneWidget);
+    expect(find.text('Zahlenmauern'), findsOneWidget);
   });
 
   testWidgets('Meine Runde und Lernlandkarte sind direkt erreichbar', (tester) async {
@@ -45,8 +48,8 @@ void main() {
       scrollable: scrollable,
     );
 
-    expect(find.text('Meine Runde'), findsOneWidget);
-    expect(find.text('Meine Lernlandkarte'), findsOneWidget);
+    expect(find.text('Deine Runde'), findsOneWidget);
+    expect(find.text('Lernlandkarte'), findsOneWidget);
 
     final myRoundButton = find.byKey(const ValueKey('my-round-button'));
     await tester.ensureVisible(myRoundButton);
@@ -93,19 +96,20 @@ void main() {
     expect(find.text('So entstehen Erfolge'), findsOneWidget);
   });
 
-  testWidgets('Klasse 3 aktiviert neue Lehrplanbereiche', (tester) async {
+  testWidgets('Klasse 3 zeigt ihre Lernbereiche erst nach Mehr üben',
+      (tester) async {
     final controller = AppController();
     controller.facts = const [];
     controller.loaded = true;
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
     await tester.pumpWidget(RechenblitzApp(controller: controller));
 
-    await tester.tap(find.text('3').first);
+    expect(find.textContaining('bis 1.000'), findsOneWidget);
+    expect(find.text('Große Zahlen'), findsNothing);
+
+    await tester.tap(find.text('Mehr üben'));
     await tester.pumpAndSettle();
-
-    expect(controller.gradeLevel, GradeLevel.third);
-    expect(controller.numberRange, NumberRangeLevel.thousand);
-    expect(find.text('bis 1.000'), findsOneWidget);
-
     final scrollable = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(
       find.text('Große Zahlen'),
