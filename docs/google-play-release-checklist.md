@@ -125,10 +125,10 @@ werden.
 - [ ] aktuelles Release-AAB aus einem grünen main-CI-Lauf verwenden
 - [ ] main-Commit-SHA dokumentieren
 - [ ] VersionCode vor jedem weiteren Upload erhöhen
-- [ ] Data-Safety-Angaben gegen aktuelle Dependencies erneut prüfen
-- [ ] flutter pub outdated prüfen
-- [ ] Privacy-/Backup-/Kamera-/16-KB-CI-Gates grün
-- [ ] Store-Texte und Grafiken auf aktuelle App-Version prüfen
+- [x] Data-Safety-Angaben gegen aktuelle Dependencies erneut geprüft (10.09.2026)
+- [x] flutter pub outdated geprüft (direkte + Dev-Dependencies aktuell)
+- [x] Privacy-/Backup-/Kamera-/16-KB-CI-Gates grün
+- [x] Store-Texte und Grafiken auf aktuelle App-Version geprüft
 - [ ] IARC abgeschlossen
 - [ ] Zielgruppe/Families abgeschlossen
 - [x] Datenschutz-Kontakt gelöst
