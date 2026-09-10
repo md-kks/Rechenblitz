@@ -151,19 +151,30 @@ void main() {
     await controller.load();
     await tester.pumpWidget(RechenblitzApp(controller: controller));
 
-    expect(find.text('Rechenblitz Lernstart'), findsOneWidget);
-    expect(find.text('Für wen ist Rechenblitz?'), findsOneWidget);
+    expect(find.text('Rechenblitz'), findsOneWidget);
+    expect(find.text('Start 1 von 2'), findsOneWidget);
+    expect(find.text('Kurz einrichten'), findsOneWidget);
+    expect(find.text('Name oder Spitzname (optional)'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('learning-start-grade-third')),
+    );
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('learning-start-next')));
     await tester.pumpAndSettle();
     expect(find.text('So rechnen wir in der Schule'), findsNothing);
-    expect(find.text('Wo stehst du gerade?'), findsOneWidget);
+    expect(find.text('Start 2 von 2'), findsOneWidget);
+    expect(find.text('Ein kurzer Lerncheck'), findsOneWidget);
     expect(
       find.text(
-        '12 kurze Aufgaben aus verschiedenen Bereichen helfen Rechenblitz, die erste Lernlandkarte sinnvoll zu starten.',
+        '12 Aufgaben ohne Zeitdruck. So findet Rechenblitz einen guten Startpunkt.',
       ),
       findsOneWidget,
     );
+    expect(find.text('Kein Zeitdruck'), findsOneWidget);
+    expect(find.text('Keine Note'), findsOneWidget);
+    expect(find.text('Ohne Lerncheck starten'), findsOneWidget);
 
     final later =
         find.byKey(const ValueKey('learning-start-assessment-later'));
@@ -177,6 +188,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(controller.needsOnboarding, isFalse);
+    expect(controller.gradeLevel, GradeLevel.third);
     expect(
       controller.methodPreferences.selectionPreference,
       MethodSelectionPreference.automatic,
