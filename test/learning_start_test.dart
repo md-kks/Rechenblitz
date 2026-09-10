@@ -167,7 +167,11 @@ void main() {
 
     final later =
         find.byKey(const ValueKey('learning-start-assessment-later'));
-    await tester.ensureVisible(later);
+    await tester.scrollUntilVisible(
+      later,
+      180,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.pumpAndSettle();
     await tester.tap(later);
     await tester.pumpAndSettle();
