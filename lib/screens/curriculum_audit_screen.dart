@@ -135,11 +135,7 @@ class _DomainCard extends StatelessWidget {
                     objective.label,
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
-                  subtitle: Text(
-                    progress.observations == 0
-                        ? 'Noch keine Lernbeobachtung'
-                        : '${progress.state.label} · ${(progress.accuracy * 100).round()} % · ${progress.observations} Beobachtungen',
-                  ),
+                  subtitle: Text(_progressSubtitle(progress)),
                   trailing: Wrap(
                     spacing: 6,
                     children: [
@@ -175,6 +171,15 @@ class _DomainCard extends StatelessWidget {
           ),
         ),
       );
+}
+
+
+String _progressSubtitle(MicroCompetencyProgress progress) {
+  if (progress.observations == 0) return 'Noch keine Lernbeobachtung';
+  final evidence = progress.hasIndependentBasisEvidence
+      ? 'selbstständig ${(progress.independentAccuracy * 100).round()} %'
+      : 'selbstständige Basis noch offen';
+  return '${progress.state.label} · $evidence · ${progress.observations} Beobachtungen';
 }
 
 class _Metric extends StatelessWidget {
