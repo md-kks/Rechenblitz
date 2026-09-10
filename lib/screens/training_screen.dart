@@ -12,6 +12,7 @@ import '../services/app_controller.dart';
 import '../widgets/guided_method_panel.dart';
 import '../widgets/independent_step_card.dart';
 import '../widgets/number_answer_pad.dart';
+import '../widgets/round_completion_dialog.dart';
 
 class TrainingScreen extends StatefulWidget {
   const TrainingScreen({
@@ -484,48 +485,21 @@ class _TrainingScreenState extends State<TrainingScreen> {
       starsEarned: widget.controller.rewardStarsForSession(result),
     );
     if (completed > 0) await widget.controller.addSession(result);
+    final newBadges = widget.controller.lastSessionNewBadges;
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('Runde geschafft!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Du hast $completed Aufgaben gerechnet.'),
-            const SizedBox(height: 8),
-            Text('$correctFirstTry davon waren direkt richtig.'),
-            if (widget.mode == TrainingMode.tempo ||
-                widget.mode == TrainingMode.speed) ...[
-              const SizedBox(height: 8),
-              Text('Ø ${(avg / 1000).toStringAsFixed(1)} Sekunden pro Aufgabe'),
-            ],
-            if (result.starsEarned > 0) ...[
-              const SizedBox(height: 14),
-              Text(
-                '+${result.starsEarned} ★',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              Text(rewardReason),
-            ],
-          ],
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-            },
-            child: const Text('Fertig'),
-          ),
-        ],
-      ),
+    await showRoundCompletionDialog(
+      context,
+      completed: completed,
+      correctFirstTry: correctFirstTry,
+      starsEarned: result.starsEarned,
+      rewardReason: rewardReason,
+      newBadges: newBadges,
+      averageSeconds: widget.mode == TrainingMode.tempo ||
+              widget.mode == TrainingMode.speed
+          ? avg / 1000
+          : null,
     );
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
