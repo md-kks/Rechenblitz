@@ -2353,7 +2353,7 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 700));
 
-    expect(find.text('0 davon waren direkt richtig.'), findsOneWidget);
+    expect(find.text('0 von 1 direkt richtig'), findsOneWidget);
     expect(
       controller
           .recentTaskKeys(TrainingMode.practice)
@@ -2511,7 +2511,7 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 700));
 
-    expect(find.text('0 direkt richtig.'), findsOneWidget);
+    expect(find.text('0 von 1 direkt richtig'), findsOneWidget);
     expect(
       controller
           .recentTaskKeys(TrainingMode.writtenAddSub)
@@ -2692,7 +2692,7 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 700));
 
-    expect(find.text('0 direkt richtig.'), findsOneWidget);
+    expect(find.text('0 von 1 direkt richtig'), findsOneWidget);
     expect(
       controller
           .recentTaskKeys(TrainingMode.writtenMultiply)
@@ -2762,7 +2762,7 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 700));
 
-    expect(find.text('0 davon waren direkt richtig.'), findsOneWidget);
+    expect(find.text('0 von 1 direkt richtig'), findsOneWidget);
     expect(
       controller
           .recentTaskKeys(TrainingMode.multiply)

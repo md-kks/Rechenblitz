@@ -14,6 +14,7 @@ import '../widgets/geometry_relation_visual.dart';
 import '../widgets/guided_method_panel.dart';
 import '../widgets/independent_step_card.dart';
 import '../widgets/number_answer_pad.dart';
+import '../widgets/round_completion_dialog.dart';
 
 class CurriculumTrainingScreen extends StatefulWidget {
   const CurriculumTrainingScreen({
@@ -366,56 +367,15 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     if (completed > 0) await widget.controller.addSession(result);
     final newBadges = widget.controller.lastSessionNewBadges;
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('Runde geschafft!'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$completed Aufgaben bearbeitet.'),
-              const SizedBox(height: 8),
-              Text('$correctFirstTry direkt richtig.'),
-              const SizedBox(height: 14),
-              Text(
-                '+${result.starsEarned} ★',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              Text(reason),
-              if (newBadges.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'Neues Abzeichen!',
-                  style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 6),
-                ...newBadges.map(
-                  (badge) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text('🏅 ${badge.title}  +${badge.stars} ★'),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-            },
-            child: const Text('Fertig'),
-          ),
-        ],
-      ),
+    await showRoundCompletionDialog(
+      context,
+      completed: completed,
+      correctFirstTry: correctFirstTry,
+      starsEarned: result.starsEarned,
+      rewardReason: reason,
+      newBadges: newBadges,
     );
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
