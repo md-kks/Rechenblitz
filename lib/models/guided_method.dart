@@ -250,10 +250,9 @@ class GuidedMethodFactory {
       return _representationGuide(taskKey);
     }
 
-    if (fact != null &&
-        fact.operation == MathOperation.plus &&
-        _needsAdditionBridge(fact)) {
-      return _additionBridge(fact);
+    if (fact != null && fact.operation == MathOperation.plus) {
+      if (_landsOnNextTen(fact)) return _additionToFullTen(fact);
+      if (_needsAdditionBridge(fact)) return _additionBridge(fact);
     }
 
     if (fact != null && fact.operation == MathOperation.minus) {
@@ -1373,6 +1372,32 @@ class GuidedMethodFactory {
           instruction: groups == null || each == null
               ? 'Schreibe: Anzahl der Gruppen × Anzahl je Gruppe.'
               : '$groups Gruppen mit je $each Punkten entsprechen $groups × $each.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _additionToFullTen(MathFact fact) {
+    final a = fact.a;
+    final b = fact.b;
+    final result = a + b;
+    final choices = _numberChoices(b, maxValue: max(10, b));
+
+    return GuidedMethodGuide(
+      methodKey: 'addition:toFullTen',
+      methodLabel: 'Zum vollen Zehner',
+      nudge: '$a + $b landet genau auf dem vollen Zehner $result.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Bis zum vollen Zehner',
+          instruction: 'Von $a fehlt genau $b bis $result.',
+          question: 'Wie viel fehlt von $a bis $result?',
+          choices: choices,
+          correctChoice: choices.indexOf('$b'),
+        ),
+        GuidedMethodStep(
+          title: 'Ergebnis prüfen',
+          instruction: '$a + $b = $result. Ein weiterer Rechenschritt ist nicht nötig.',
         ),
       ],
     );
@@ -5168,8 +5193,14 @@ class GuidedMethodFactory {
         _ => 'betroffenen Stelle',
       };
 
+  static bool _landsOnNextTen(MathFact fact) {
+    if (fact.a % 10 == 0 || fact.b <= 0) return false;
+    final nextTen = ((fact.a ~/ 10) + 1) * 10;
+    return fact.result == nextTen;
+  }
+
   static bool _needsAdditionBridge(MathFact fact) =>
-      (fact.a % 10) + (fact.b % 10) >= 10;
+      needsAdditionTenBridge(fact.a, fact.b);
 
   static bool _needsSubtractionBridge(MathFact fact) =>
       needsSubtractionTenBridge(fact.a, fact.b);

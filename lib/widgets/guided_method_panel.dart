@@ -97,6 +97,7 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
     final hasVisual = LearningVisualAid.canRender(
       pattern: widget.pattern,
       taskKey: widget.taskKey,
+      methodKey: guide.methodKey,
     );
 
     return Semantics(

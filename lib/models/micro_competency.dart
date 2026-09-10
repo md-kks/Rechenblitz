@@ -377,6 +377,7 @@ class MicroCompetencyCatalog {
       domain: MicroCompetencyDomain.arithmetic,
       preferredMode: TrainingMode.practice,
       minGrade: GradeLevel.first,
+      minNumberRange: NumberRangeLevel.twenty,
       prerequisites: [
         MicroCompetencyId.numberDecomposition,
         MicroCompetencyId.additionNoBridge,
@@ -1132,7 +1133,7 @@ class MicroCompetencyCatalog {
 
     switch (fact.operation) {
       case MathOperation.plus:
-        final bridge = (fact.a % 10) + (fact.b % 10) >= 10;
+        final bridge = needsAdditionTenBridge(fact.a, fact.b);
         return [
           MicroCompetencyTag(
             bridge
@@ -1550,7 +1551,7 @@ class MicroCompetencyCatalog {
     final a = int.tryParse(parts[parts.length - 2]);
     final b = int.tryParse(parts.last);
     if (a == null || b == null) return false;
-    if (key.contains(':+:')) return (a % 10) + (b % 10) >= 10;
+    if (key.contains(':+:')) return needsAdditionTenBridge(a, b);
     if (key.contains(':-:')) return needsSubtractionTenBridge(a, b);
     return false;
   }

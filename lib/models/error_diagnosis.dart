@@ -438,7 +438,7 @@ class ErrorClassifier {
         if (actual != expected && _usedOnlyPartOfSecondOperand(fact, actual)) {
           return ErrorPattern.partialOperand;
         }
-        final crossesTen = (fact.a % 10) + (fact.b % 10) >= 10;
+        final crossesTen = needsAdditionTenBridge(fact.a, fact.b);
         if (actual != expected &&
             crossesTen &&
             actual == expected - 10) {
@@ -573,7 +573,7 @@ class ErrorClassifier {
     final b = int.tryParse(parts[3]);
     if (a == null || b == null) return ErrorPattern.mentalStrategy;
 
-    if (parts[1] == '+' && (a % 10) + (b % 10) >= 10) {
+    if (parts[1] == '+' && needsAdditionTenBridge(a, b)) {
       return ErrorPattern.tenBridge;
     }
     if (parts[1] == '-' && needsSubtractionTenBridge(a, b)) {

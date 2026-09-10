@@ -10,6 +10,26 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  test('Exakte Plus-Zehnerergänzung ist kein künstlicher Übergangsfehler', () {
+    final fact = MathFact(
+      a: 17,
+      b: 3,
+      operation: MathOperation.plus,
+    );
+
+    final pattern = ErrorClassifier.classify(
+      mode: TrainingMode.practice,
+      taskKey: fact.key,
+      expected: 20,
+      actual: 10,
+      fact: fact,
+    );
+
+    expect(pattern, ErrorPattern.placeValue);
+    expect(pattern, isNot(ErrorPattern.tenBridge));
+    expect(pattern, isNot(ErrorPattern.carryOmitted));
+  });
+
   test('Zehnerübergang wird von bloßer falscher Rechenart unterschieden', () {
     final fact = MathFact(
       a: 13,

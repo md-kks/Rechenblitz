@@ -661,10 +661,10 @@ void main() {
           final a = int.parse(parts[6]);
           final b = int.parse(parts[7]);
           if (target == MicroCompetencyId.additionTenBridge) {
-            expect((a % 10) + (b % 10), greaterThanOrEqualTo(10));
+            expect(needsAdditionTenBridge(a, b), isTrue);
           }
           if (target == MicroCompetencyId.additionNoBridge) {
-            expect((a % 10) + (b % 10), lessThan(10));
+            expect(needsAdditionTenBridge(a, b), isFalse);
           }
           if (target == MicroCompetencyId.subtractionTenBridge) {
             expect(needsSubtractionTenBridge(a, b), isTrue);
