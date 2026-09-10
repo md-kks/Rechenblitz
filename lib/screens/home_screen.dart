@@ -43,22 +43,92 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
-  void _startParentGate() {
+  void _startParentGate({BuildContext? sheetContext}) {
     _parentGateTimer?.cancel();
     _parentGateTimer = Timer(const Duration(seconds: 2), () {
       if (!mounted) return;
       _parentGateTimer = null;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ParentScreen(controller: widget.controller),
-        ),
-      );
+      unawaited(_openParentArea(sheetContext));
     });
+  }
+
+  Future<void> _openParentArea(BuildContext? sheetContext) async {
+    if (!mounted) return;
+    if (sheetContext != null && Navigator.of(sheetContext).canPop()) {
+      Navigator.of(sheetContext).pop();
+      await Future<void>.delayed(Duration.zero);
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ParentScreen(controller: widget.controller),
+      ),
+    );
   }
 
   void _cancelParentGate() {
     _parentGateTimer?.cancel();
     _parentGateTimer = null;
+  }
+
+  Future<void> _showMoreMenu() async {
+    _cancelParentGate();
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Text(
+                  'Mehr',
+                  style: Theme.of(sheetContext).textTheme.titleLarge,
+                ),
+              ),
+              ListTile(
+                key: const ValueKey('more-settings'),
+                leading: const Icon(Icons.tune_rounded),
+                title: const Text('Einstellungen'),
+                subtitle: const Text('Profil, Rechenwege und Darstellung'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          SettingsScreen(controller: widget.controller),
+                    ),
+                  );
+                },
+              ),
+              Listener(
+                key: const ValueKey('parent-gate'),
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (_) =>
+                    _startParentGate(sheetContext: sheetContext),
+                onPointerUp: (_) => _cancelParentGate(),
+                onPointerCancel: (_) => _cancelParentGate(),
+                child: Semantics(
+                  button: true,
+                  label: 'Elternbereich – 2 Sekunden gedrückt halten',
+                  child: const ListTile(
+                    leading: Icon(Icons.lock_outline_rounded),
+                    title: Text('Elternbereich'),
+                    subtitle: Text('2 Sekunden gedrückt halten'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    _cancelParentGate();
   }
 
   Future<void> _openMode(TrainingMode mode) async {
@@ -137,28 +207,10 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.emoji_events_rounded),
           ),
           IconButton(
-            tooltip: 'Einstellungen',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => SettingsScreen(controller: controller),
-              ),
-            ),
-            icon: const Icon(Icons.tune_rounded),
-          ),
-          Listener(
-            key: const ValueKey('parent-gate'),
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: (_) => _startParentGate(),
-            onPointerUp: (_) => _cancelParentGate(),
-            onPointerCancel: (_) => _cancelParentGate(),
-            child: Semantics(
-              button: true,
-              label: 'Elternbereich – 2 Sekunden gedrückt halten',
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Icon(Icons.admin_panel_settings_rounded),
-              ),
-            ),
+            key: const ValueKey('home-more'),
+            tooltip: 'Mehr',
+            onPressed: _showMoreMenu,
+            icon: const Icon(Icons.more_horiz_rounded),
           ),
         ],
       ),
@@ -171,11 +223,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? 'Hallo!'
                   : 'Hallo, ${controller.activeProfileName}!',
               style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${controller.gradeLevel.label} · ${controller.numberRange.label}',
-              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 18),
             Card(
