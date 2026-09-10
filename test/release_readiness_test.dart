@@ -109,6 +109,17 @@ void main() {
       );
     }
 
+    final workflowText = workflow.join('\n');
+    expect(workflowText, contains('BUNDLETOOL_VERSION=1.18.3'));
+    expect(
+      workflowText,
+      contains(
+        'BUNDLETOOL_SHA256='
+        'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29',
+      ),
+    );
+    expect(workflowText, contains(r'validate --bundle="$AAB"'));
+
     final wrapper = File(
       'android/gradle/wrapper/gradle-wrapper.properties',
     ).readAsStringSync();
