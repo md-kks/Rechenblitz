@@ -847,16 +847,15 @@ class StructuredExerciseGenerator {
       for (var attempt = 0; attempt < 120; attempt++) {
         final candidateA = _between(1, max(1, limit - 1));
         final candidateB = _between(1, max(1, limit - candidateA));
-        final bridge =
-            (candidateA % 10) + (candidateB % 10) >= 10;
+        final bridge = needsAdditionTenBridge(candidateA, candidateB);
         if (bridge == needsBridge) {
           a = candidateA;
           b = candidateB;
           break;
         }
       }
-      if (needsBridge && (a % 10) + (b % 10) < 10) {
-        a = min(limit - 1, 7);
+      if (needsBridge && !needsAdditionTenBridge(a, b)) {
+        a = min(limit - 1, 8);
         b = min(limit - a, 3);
       }
       final contexts = [

@@ -2,6 +2,14 @@ import 'dart:math';
 
 enum MathOperation { plus, minus, multiply, divide }
 
+bool needsAdditionTenBridge(int firstAddend, int secondAddend) {
+  final firstOnes = firstAddend % 10;
+  final secondOnes = secondAddend % 10;
+  if (firstOnes + secondOnes < 10) return false;
+  final toNextTen = 10 - firstOnes;
+  return secondAddend > toNextTen;
+}
+
 bool needsSubtractionTenBridge(int minuend, int subtrahend) {
   final minuendOnes = minuend % 10;
   final subtrahendOnes = subtrahend % 10;

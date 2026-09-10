@@ -188,6 +188,44 @@ void main() {
     );
   });
 
+  test('exakte Zehnerergänzung ist kein Plus über den Zehner', () {
+    final fact = MathFact(a: 17, b: 3, operation: MathOperation.plus);
+    final tags = MicroCompetencyCatalog.tagsForTask(
+      mode: TrainingMode.practice,
+      taskKey: fact.key,
+      fact: fact,
+    );
+
+    expect(needsAdditionTenBridge(17, 3), isFalse);
+    expect(tags.first.id, MicroCompetencyId.additionNoBridge);
+    expect(
+      tags.any((tag) => tag.id == MicroCompetencyId.additionTenBridge),
+      isFalse,
+    );
+    expect(needsAdditionTenBridge(17, 4), isTrue);
+    expect(needsAdditionTenBridge(47, 13), isTrue);
+  });
+
+  test('Plus-Zehnerübergang ist im Zahlenraum bis 10 kein Lernziel', () {
+    final ten = MicroCompetencyCatalog.forContext(
+      GradeLevel.first,
+      NumberRangeLevel.ten,
+    );
+    final twenty = MicroCompetencyCatalog.forContext(
+      GradeLevel.first,
+      NumberRangeLevel.twenty,
+    );
+
+    expect(
+      ten.any((item) => item.id == MicroCompetencyId.additionTenBridge),
+      isFalse,
+    );
+    expect(
+      twenty.any((item) => item.id == MicroCompetencyId.additionTenBridge),
+      isTrue,
+    );
+  });
+
   test('adaptive Grundaufgaben können gezielt Zehnerübergang erzeugen', () {
     final engine = AdaptiveEngine(random: Random(44));
     final facts = AdaptiveEngine.buildFactPool(maxValue: 100);
@@ -210,6 +248,9 @@ void main() {
         ),
         isTrue,
       );
+      expect(needsAdditionTenBridge(fact.a, fact.b), isTrue);
+      final nextTen = ((fact.a ~/ 10) + 1) * 10;
+      expect(fact.result, isNot(nextTen));
     }
   });
 
@@ -727,10 +768,15 @@ void main() {
 
   testWidgets('Transfer-Runde speichert aus der Oberfläche Transfer-Evidenz',
       (tester) async {
+    tester.view.physicalSize = const Size(1080, 1920);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final controller = AppController();
     await controller.load();
     controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.ten;
+    controller.numberRange = NumberRangeLevel.twenty;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -745,11 +791,15 @@ void main() {
     );
     await tester.pump();
 
-    final answerButton = find.widgetWithText(FilledButton, '10');
-    expect(answerButton, findsOneWidget);
-    await tester.ensureVisible(answerButton);
+    final zeroButton = find.widgetWithText(FilledButton, '0');
+    expect(zeroButton, findsOneWidget);
+    await tester.ensureVisible(zeroButton);
+    await tester.tap(zeroButton);
     await tester.pump();
-    await tester.tap(answerButton);
+    final okButton = find.widgetWithText(FilledButton, 'OK');
+    expect(okButton, findsOneWidget);
+    await tester.ensureVisible(okButton);
+    await tester.tap(okButton);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
 

@@ -1953,7 +1953,7 @@ void main() {
     expect(guide.steps.last.recordsIntermediateEvidence, isFalse);
   });
 
-  test('Exakter Zehner erzeugt keinen künstlichen Rest-Zwischenschritt', () {
+  test('Exakter Zehner erzeugt keine künstliche Übergangs-Evidenz', () {
     final fact = MathFact(
       a: 17,
       b: 3,
@@ -1966,9 +1966,47 @@ void main() {
       preferences: const MethodPreferences(),
       targetCompetency: MicroCompetencyId.additionTenBridge,
     );
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.practice,
+      taskKey: fact.key,
+      expected: fact.result,
+      preferences: const MethodPreferences(),
+      fact: fact,
+    );
 
-    expect(steps, hasLength(1));
-    expect(steps.single.evidenceKey, 'bridgeAmount');
+    expect(steps, isEmpty);
+    expect(guide.methodKey, 'addition:toFullTen');
+    expect(guide.methodLabel, 'Zum vollen Zehner');
+    expect(guide.steps.where((step) => step.recordsIntermediateEvidence), isEmpty);
+  });
+
+  testWidgets('Exakter Plus-Zehner behält eine passende Darstellung',
+      (tester) async {
+    final fact = MathFact(a: 17, b: 3, operation: MathOperation.plus);
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.practice,
+      taskKey: fact.key,
+      expected: fact.result,
+      preferences: const MethodPreferences(),
+      fact: fact,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.numberBond,
+            taskKey: fact.key,
+            expected: fact.result,
+            methodKey: guide.methodKey,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Start'), findsOneWidget);
+    expect(find.text('voller Zehner'), findsOneWidget);
+    expect(find.text('17 + 3 = 20'), findsOneWidget);
   });
 
   test('Unabhängige Rechenschritte bleiben gezielt und untimed', () {

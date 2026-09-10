@@ -21,8 +21,10 @@ class LearningVisualAid extends StatelessWidget {
   static bool canRender({
     required ErrorPattern pattern,
     required String taskKey,
+    String? methodKey,
   }) {
-    if (taskKey.startsWith('minus:') ||
+    if (methodKey == 'addition:toFullTen' ||
+        taskKey.startsWith('minus:') ||
         taskKey.startsWith('process:strategy:') ||
         taskKey.startsWith('process:error:') ||
         taskKey.startsWith('process:plausibility:') ||
@@ -56,19 +58,21 @@ class LearningVisualAid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final processChild = taskKey.startsWith('minus:')
-        ? _subtractionProcessAid()
-        : taskKey.startsWith('large:compare:')
-            ? _largeNumberCompareAid()
-            : taskKey.startsWith('process:strategy:')
-                ? _strategyProcessAid()
-                : taskKey.startsWith('process:error:')
-                    ? _writtenColumnAid()
-                    : taskKey.startsWith('process:plausibility:')
-                        ? _plausibilityAid()
-                        : taskKey.startsWith('process:representation:')
-                            ? _representationAid()
-                            : null;
+    final processChild = methodKey == 'addition:toFullTen'
+        ? _additionToFullTenAid()
+        : taskKey.startsWith('minus:')
+            ? _subtractionProcessAid()
+            : taskKey.startsWith('large:compare:')
+                ? _largeNumberCompareAid()
+                : taskKey.startsWith('process:strategy:')
+                    ? _strategyProcessAid()
+                    : taskKey.startsWith('process:error:')
+                        ? _writtenColumnAid()
+                        : taskKey.startsWith('process:plausibility:')
+                            ? _plausibilityAid()
+                            : taskKey.startsWith('process:representation:')
+                                ? _representationAid()
+                                : null;
     final child = processChild ?? switch (pattern) {
       ErrorPattern.tenBridge ||
       ErrorPattern.carryOmitted ||
@@ -100,6 +104,26 @@ class LearningVisualAid extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: child,
       ),
+    );
+  }
+
+  Widget _additionToFullTenAid() {
+    final numbers = _numbers(taskKey);
+    if (numbers.length < 2) {
+      return const _AidLabel(
+        title: 'Rechenweg',
+        text: 'Die Aufgabe endet genau auf einem vollen Zehner.',
+      );
+    }
+    final a = numbers[numbers.length - 2];
+    final b = numbers.last;
+    return _ProcessAid(
+      title: 'Rechenweg',
+      text: 'Lies von links nach rechts: Startzahl und voller Zehner.',
+      nodes: [a, expected],
+      nodeLabels: const ['Start', 'voller Zehner'],
+      operations: ['+$b'],
+      footer: '$a + $b = $expected',
     );
   }
 
