@@ -85,9 +85,8 @@ class PrivacyScreen extends StatelessWidget {
           title: '8. Anbieter und Kontakt',
           body:
               'Projekt/Entwickler: md-kks · Rechenblitz. '
-              'Datenschutzanfragen können über die im Google-Play-Store-'
-              'Eintrag angegebenen Entwickler-Kontaktdaten gestellt '
-              'werden. Allgemeine technische Anfragen: '
+              'Datenschutz- und Supportanfragen: '
+              'mahajana.dasa@gmail.com. Allgemeine technische Anfragen: '
               'github.com/md-kks/Rechenblitz. Die öffentliche Fassung '
               'dieser Datenschutzerklärung steht unter $publicPolicyUrl.',
         ),
@@ -95,7 +94,7 @@ class PrivacyScreen extends StatelessWidget {
           title: '9. Änderungen',
           body:
               'Diese Erklärung wird angepasst, wenn sich Funktionen oder '
-              'Datenflüsse von Rechenblitz ändern. Stand: 9. September 2026.',
+              'Datenflüsse von Rechenblitz ändern. Stand: 10. September 2026.',
         ),
       ],
     ),
