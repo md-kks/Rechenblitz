@@ -1980,8 +1980,12 @@ class AppController extends ChangeNotifier {
         ? ' Beim geführten Zwischenschritt „${guidedFocus.label}“ waren ${guidedFocus.incorrectFirstAttempts} von ${guidedFocus.observations} ersten Versuchen falsch.'
         : '';
 
+    final independentDetail = progress.independentEvidence <= _evidenceEpsilon
+        ? 'Für selbstständige Basisaufgaben liegt noch keine auswertbare Beobachtung vor.'
+        : 'Bei selbstständigen Basisaufgaben liegt die gewichtete Sicherheit bei $independentPercent %.';
+
     return '${parts.join(' · ')}. '
-        'Bei selbstständigen Basisaufgaben liegt die gewichtete Sicherheit bei $independentPercent %.$guidedDetail '
+        '$independentDetail$guidedDetail '
         'Die Einschätzung bezieht sich nur auf die in Rechenblitz bearbeiteten Aufgaben im aktuellen Profil, in ${gradeLevel.label} und im Zahlenraum ${numberRange.label}.';
   }
 
@@ -2077,9 +2081,12 @@ class AppController extends ChangeNotifier {
               '${guidedFocus.incorrectFirstAttempts} von ${guidedFocus.observations} ersten Versuchen waren falsch. '
               'Deshalb bekommt „${priority.definition.label}“ jetzt gezielt weitere Übung.';
         } else {
+          final independentStatus = priority.independentEvidence <= _evidenceEpsilon
+              ? 'Es liegen noch keine selbstständigen Basislösungen vor.'
+              : 'Selbstständig ${(priority.independentAccuracy * 100).round()} %.';
           focusText =
               'Der konkrete Teilschritt „${priority.definition.label}“ braucht aktuell am meisten Übung. '
-              'Status: ${priority.state.label}; selbstständig ${(priority.independentAccuracy * 100).round()} %.';
+              'Status: ${priority.state.label}. $independentStatus';
         }
       } else if (dueReview != null &&
           dueReview.definition.id == priority.definition.id) {
