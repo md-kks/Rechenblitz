@@ -1,6 +1,6 @@
 # Google-Play-Screenshots – de-DE
 
-Erstellt am 9. September 2026 aus dem aktuellen Android-Build auf einem
+Erstellt am 10. September 2026 aus dem aktuellen Android-Build auf einem
 frischen Android-35-Emulator mit 1080 × 1920 Pixeln.
 
 Datenschutz:
@@ -35,3 +35,10 @@ Alt-Text:
 Rechenaufgabe in Rechenblitz mit der dreistufigen Hilfe
 Denkhinweis, Darstellung und Gemeinsam lösen sowie einer visuellen
 Rechenweg-Darstellung.
+
+## 05-lernlandkarte.png
+
+Alt-Text:
+Lernlandkarte von Rechenblitz für Klasse 2 mit einzelnen mathematischen
+Teilschritten, Kompetenzstatus sowie Evidenz zu selbstständigem Lösen,
+Hilfen, Wiederholung mit Abstand und Transfer.
