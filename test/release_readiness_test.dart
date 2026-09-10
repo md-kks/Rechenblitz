@@ -119,6 +119,12 @@ void main() {
       ),
     );
     expect(workflowText, contains(r'validate --bundle="$AAB"'));
+    expect(workflowText, contains('build-apks'));
+    expect(workflowText, contains('--mode=universal'));
+    expect(workflowText, contains(r'--ks-pass="file:$STORE_PASS_FILE"'));
+    expect(workflowText, contains(r'--key-pass="file:$KEY_PASS_FILE"'));
+    expect(workflowText, contains(r'verify --verbose "$UNIVERSAL_APK"'));
+    expect(workflowText, contains(r'de\.mdkks\.rechenblitz'));
 
     final wrapper = File(
       'android/gradle/wrapper/gradle-wrapper.properties',

@@ -12,6 +12,9 @@ manuellen Play-Console-Schritten.
 - [x] targetSdk / compileSdk: API 36
 - [x] signierte Release-AAB wird im CI erzeugt
 - [x] Release-AAB wird mit Bundletool 1.18.3 validiert
+- [x] Bundletool erzeugt zusätzlich ein signiertes Universal-APK-Set
+- [x] Universal-APK wird auf Signatur, Paketname und Version geprüft
+- [x] Bundletool-Passwörter werden über temporäre 0600-Dateien übergeben
 - [x] Bundletool-Download ist per SHA-256 gepinnt
 - [x] signierte Release-APK wird zusätzlich geprüft
 - [x] Flutter 3.47.2 ist im CI fest gepinnt

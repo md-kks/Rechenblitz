@@ -224,13 +224,29 @@ jobs:
           jarsigner -verify "$AAB" > /dev/null
       - name: Validate release AAB with bundletool
         shell: bash
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           AAB=build/app/outputs/bundle/release/app-release.aab
           BUNDLETOOL_VERSION=1.18.3
           BUNDLETOOL_SHA256=a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29
           BUNDLETOOL_JAR="$RUNNER_TEMP/bundletool-all-$BUNDLETOOL_VERSION.jar"
-          trap 'rm -f "$BUNDLETOOL_JAR"' EXIT
+          APKS="$RUNNER_TEMP/rechenblitz-universal.apks"
+          UNIVERSAL_APK="$RUNNER_TEMP/rechenblitz-universal.apk"
+          STORE_PASS_FILE="$RUNNER_TEMP/rechenblitz-store-pass.txt"
+          KEY_PASS_FILE="$RUNNER_TEMP/rechenblitz-key-pass.txt"
+          cleanup() {
+            rm -f "$BUNDLETOOL_JAR" "$APKS" "$UNIVERSAL_APK"
+            rm -f "$STORE_PASS_FILE" "$KEY_PASS_FILE"
+          }
+          trap cleanup EXIT
+
+          printf '%s\n' "$ANDROID_KEYSTORE_PASSWORD" > "$STORE_PASS_FILE"
+          printf '%s\n' "$ANDROID_KEY_PASSWORD" > "$KEY_PASS_FILE"
+          chmod 600 "$STORE_PASS_FILE" "$KEY_PASS_FILE"
 
           curl --fail --location --silent --show-error \
             --retry 3 --retry-delay 2 \
@@ -243,6 +259,31 @@ jobs:
           actual="$(java -jar "$BUNDLETOOL_JAR" version)"
           test "$actual" = "$BUNDLETOOL_VERSION"
           java -jar "$BUNDLETOOL_JAR" validate --bundle="$AAB" > /dev/null
+
+          java -jar "$BUNDLETOOL_JAR" build-apks \
+            --bundle="$AAB" \
+            --output="$APKS" \
+            --mode=universal \
+            --ks="$RECHENBLITZ_KEYSTORE_PATH" \
+            --ks-key-alias="$ANDROID_KEY_ALIAS" \
+            --ks-pass="file:$STORE_PASS_FILE" \
+            --key-pass="file:$KEY_PASS_FILE" \
+            --overwrite
+
+          unzip -p "$APKS" universal.apk > "$UNIVERSAL_APK"
+          test -s "$UNIVERSAL_APK"
+
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner |
+            sort -V | tail -n 1)"
+          AAPT2="$(find "$SDK_ROOT/build-tools" -type f -name aapt2 |
+            sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          test -x "$AAPT2"
+          "$APKSIGNER" verify --verbose "$UNIVERSAL_APK" > /dev/null
+
+          BADGING="$("$AAPT2" dump badging "$UNIVERSAL_APK")"
+          grep -Eq "^package: name='de\.mdkks\.rechenblitz' versionCode='[1-9][0-9]*' versionName='[^']+'" <<< "$BADGING"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Rechenblitz-Release-AAB
