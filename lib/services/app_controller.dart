@@ -11,6 +11,7 @@ import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
 import '../models/learning_path.dart';
 import '../models/math_fact.dart';
+import '../models/method_key_label.dart';
 import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/reward_badge.dart';
@@ -2663,21 +2664,14 @@ class AppController extends ChangeNotifier {
         })
         .toList()
       ..sort((a, b) => b.accuracy.compareTo(a.accuracy));
-    if (eligible.isEmpty) return null;
-    final best = eligible.first;
-    final label = best.key
-        .split(':')
-        .last
-        .replaceAll('bridgeToTen', 'Erst zum Zehner')
-        .replaceAll('fromFullTen', 'Direkt vom Zehner')
-        .replaceAll('takeAway', 'Schrittweise wegnehmen')
-        .replaceAll('complement', 'Ergänzen')
-        .replaceAll('groups', 'Gleich große Gruppen')
-        .replaceAll('decompose', 'Zerlegen')
-        .replaceAll('neighborFacts', 'Nachbaraufgaben');
-    return 'Mit „$label“ wurden ${(best.accuracy * 100).round()} % der '
-        '${best.total} beobachteten Aufgaben direkt richtig gelöst. '
-        'Das ist eine Lernbeobachtung und ändert die Schulmethode nicht automatisch.';
+    for (final best in eligible) {
+      final label = MethodKeyLabel.resolve(best.key);
+      if (label == null) continue;
+      return 'Mit „$label“ waren ${(best.accuracy * 100).round()} % der '
+          '${best.total} beobachteten Antworten richtig. '
+          'Das ist eine Lernbeobachtung und ändert die Schulmethode nicht automatisch.';
+    }
+    return null;
   }
 
   Future<void> setSound(bool value) async {
