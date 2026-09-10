@@ -27,6 +27,9 @@ void main() {
     expect(find.text('Zahlenraum'), findsNothing);
     expect(find.text('Plus & Minus'), findsNothing);
     expect(find.byIcon(Icons.emoji_events_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.more_horiz_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.tune_rounded), findsNothing);
+    expect(find.byIcon(Icons.admin_panel_settings_rounded), findsNothing);
 
     await tester.tap(find.text('Mehr üben'));
     await tester.pumpAndSettle();
@@ -68,7 +71,9 @@ void main() {
     controller.loaded = true;
     await tester.pumpWidget(RechenblitzApp(controller: controller));
 
-    await tester.tap(find.byTooltip('Einstellungen'));
+    await tester.tap(find.byTooltip('Mehr'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('more-settings')));
     await tester.pumpAndSettle();
 
     final settingsScroll = find.byType(Scrollable).first;
@@ -105,7 +110,7 @@ void main() {
     controller.numberRange = NumberRangeLevel.thousand;
     await tester.pumpWidget(RechenblitzApp(controller: controller));
 
-    expect(find.textContaining('bis 1.000'), findsOneWidget);
+    expect(find.textContaining('bis 1.000'), findsNothing);
     expect(find.text('Große Zahlen'), findsNothing);
 
     await tester.tap(find.text('Mehr üben'));
@@ -126,7 +131,11 @@ void main() {
     controller.loaded = true;
     await tester.pumpWidget(RechenblitzApp(controller: controller));
 
-    final gate = find.byIcon(Icons.admin_panel_settings_rounded);
+    expect(find.byKey(const ValueKey('parent-gate')), findsNothing);
+    await tester.tap(find.byTooltip('Mehr'));
+    await tester.pumpAndSettle();
+
+    final gate = find.byKey(const ValueKey('parent-gate'));
     expect(gate, findsOneWidget);
 
     final gesture = await tester.startGesture(tester.getCenter(gate));
