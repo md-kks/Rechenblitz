@@ -457,7 +457,7 @@ class ErrorClassifier {
         if (actual != expected && _usedOnlyPartOfSecondOperand(fact, actual)) {
           return ErrorPattern.partialOperand;
         }
-        final needsBorrow = (fact.a % 10) < (fact.b % 10);
+        final needsBorrow = needsSubtractionTenBridge(fact.a, fact.b);
         if (actual != expected &&
             needsBorrow &&
             _looksLikeDigitwiseSubtraction(fact, actual)) {
@@ -576,7 +576,7 @@ class ErrorClassifier {
     if (parts[1] == '+' && (a % 10) + (b % 10) >= 10) {
       return ErrorPattern.tenBridge;
     }
-    if (parts[1] == '-' && (a % 10) < (b % 10)) {
+    if (parts[1] == '-' && needsSubtractionTenBridge(a, b)) {
       return ErrorPattern.tenBridge;
     }
     return ErrorPattern.mentalStrategy;

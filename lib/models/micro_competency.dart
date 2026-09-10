@@ -99,6 +99,7 @@ class MicroCompetencyDefinition {
     required this.domain,
     required this.preferredMode,
     required this.minGrade,
+    this.minNumberRange = NumberRangeLevel.ten,
     this.prerequisites = const <MicroCompetencyId>[],
   });
 
@@ -108,9 +109,15 @@ class MicroCompetencyDefinition {
   final MicroCompetencyDomain domain;
   final TrainingMode preferredMode;
   final GradeLevel minGrade;
+  final NumberRangeLevel minNumberRange;
   final List<MicroCompetencyId> prerequisites;
 
   bool appliesTo(GradeLevel grade) => grade.index >= minGrade.index;
+
+  bool appliesToNumberRange(NumberRangeLevel range) =>
+      range.index >= minNumberRange.index;
+
+  bool supportsMaxValue(int maxValue) => maxValue >= minNumberRange.maxValue;
 }
 
 class MicroCompetencyTag {
@@ -390,6 +397,7 @@ class MicroCompetencyCatalog {
       domain: MicroCompetencyDomain.arithmetic,
       preferredMode: TrainingMode.minus,
       minGrade: GradeLevel.first,
+      minNumberRange: NumberRangeLevel.twenty,
       prerequisites: [
         MicroCompetencyId.numberDecomposition,
         MicroCompetencyId.subtractionNoBridge,
@@ -871,6 +879,17 @@ class MicroCompetencyCatalog {
   static List<MicroCompetencyDefinition> forGrade(GradeLevel grade) =>
       definitions.where((value) => value.appliesTo(grade)).toList();
 
+  static List<MicroCompetencyDefinition> forContext(
+    GradeLevel grade,
+    NumberRangeLevel range,
+  ) =>
+      definitions
+          .where(
+            (value) =>
+                value.appliesTo(grade) && value.appliesToNumberRange(range),
+          )
+          .toList();
+
   static List<MicroCompetencyTag> tagsForTask({
     required TrainingMode mode,
     required String taskKey,
@@ -1127,7 +1146,7 @@ class MicroCompetencyCatalog {
             ),
         ];
       case MathOperation.minus:
-        final bridge = (fact.a % 10) < (fact.b % 10);
+        final bridge = needsSubtractionTenBridge(fact.a, fact.b);
         return [
           MicroCompetencyTag(
             bridge
@@ -1532,7 +1551,7 @@ class MicroCompetencyCatalog {
     final b = int.tryParse(parts.last);
     if (a == null || b == null) return false;
     if (key.contains(':+:')) return (a % 10) + (b % 10) >= 10;
-    if (key.contains(':-:')) return (a % 10) < (b % 10);
+    if (key.contains(':-:')) return needsSubtractionTenBridge(a, b);
     return false;
   }
 

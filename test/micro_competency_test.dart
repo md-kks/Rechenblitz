@@ -38,6 +38,37 @@ void main() {
     );
   });
 
+  test('voller Zehner ist kein künstlicher Minus-Zehnerübergang', () {
+    final fact = MathFact(
+      a: 10,
+      b: 6,
+      operation: MathOperation.minus,
+    );
+
+    final tags = MicroCompetencyCatalog.tagsForTask(
+      mode: TrainingMode.minus,
+      taskKey: fact.key,
+      fact: fact,
+    );
+
+    expect(needsSubtractionTenBridge(10, 6), isFalse);
+    expect(tags.first.id, MicroCompetencyId.subtractionNoBridge);
+    expect(
+      tags.any((tag) => tag.id == MicroCompetencyId.numberDecomposition),
+      isFalse,
+    );
+  });
+
+  test('Minus-Zehnerübergang ist im Zahlenraum bis 10 kein Lernziel', () {
+    final ids = MicroCompetencyCatalog.forContext(
+      GradeLevel.first,
+      NumberRangeLevel.ten,
+    ).map((definition) => definition.id);
+
+    expect(ids, isNot(contains(MicroCompetencyId.subtractionTenBridge)));
+    expect(ids, contains(MicroCompetencyId.subtractionNoBridge));
+  });
+
   test('schriftliches Verfahren trennt Entbündeln von reiner Ausrichtung', () {
     final withBorrow = MicroCompetencyCatalog.tagsForTask(
       mode: TrainingMode.writtenAddSub,
@@ -179,6 +210,22 @@ void main() {
         ),
         isTrue,
       );
+    }
+  });
+
+  test('gezieltes Minus über den Zehner wählt keinen vollen Startzehner', () {
+    final engine = AdaptiveEngine(random: Random(45));
+    final facts = AdaptiveEngine.buildFactPool(maxValue: 100);
+
+    for (var i = 0; i < 40; i++) {
+      final fact = engine.selectNext(
+        facts: facts,
+        mode: TrainingMode.minus,
+        maxValue: 100,
+        targetCompetency: MicroCompetencyId.subtractionTenBridge,
+      );
+      expect(needsSubtractionTenBridge(fact.a, fact.b), isTrue);
+      expect(fact.a % 10, isNot(0));
     }
   });
 
