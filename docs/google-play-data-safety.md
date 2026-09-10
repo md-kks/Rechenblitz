@@ -78,6 +78,30 @@ Ob der installierte System-TTS-Anbieter lokal oder online arbeitet,
 liegt außerhalb des Rechenblitz-Backends und muss bei Änderungen der
 Plattform-/SDK-Nutzung erneut geprüft werden.
 
+## Dependency-Audit vom 10. September 2026
+
+Geprüft mit Flutter 3.47.2 und Dart 3.13.2. Direkte
+Laufzeit-Abhängigkeiten sind ausschließlich:
+
+- `shared_preferences 2.5.5` für lokale Einstellungen und Lerndaten
+- `qr_flutter 4.1.0` für lokal erzeugte QR-Codes
+- `flutter_tts 4.2.5` für die gewählte System-Sprachausgabe
+- `flutter_zxing 3.0.1` für lokale QR-Erkennung
+- `camera 0.12.1` für den QR-Kamerazugriff
+
+`flutter pub outdated` meldet alle direkten Laufzeit- und
+Entwicklungsabhängigkeiten als aktuell. Neuere Versionen existieren nur
+für derzeit nicht auflösbare transitive Pakete (`material_color_utilities`,
+`qr`) sowie die transitive Entwicklungsabhängigkeit `test_api`.
+
+`http 1.6.0` ist transitiv über die von `flutter_zxing` eingebrachte
+`image_picker`/`file_selector`-Kette vorhanden. Rechenblitz importiert
+`package:http` nicht direkt. Entscheidend für den Android-Release bleibt
+zudem das CI-geprüfte Release-Manifest: Es enthält weder `INTERNET` noch
+`ACCESS_NETWORK_STATE`. Neue direkte Laufzeit-Abhängigkeiten oder direkte
+Netzwerk-/Analytics-Imports lassen den Release-Readiness-Test fehlschlagen
+und erfordern einen neuen Data-Safety-Audit.
+
 ## Kinder-/Families-Prüfpunkte
 
 - keine INTERNET- oder ACCESS_NETWORK_STATE-Berechtigung

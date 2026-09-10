@@ -170,6 +170,66 @@ void main() {
     expect(dataSafety, contains(PrivacyScreen.publicPolicyUrl));
   });
 
+  test('Local-first Dependency-Oberfläche bleibt explizit auditiert', () {
+    final pubspec = File('pubspec.yaml').readAsLinesSync();
+    final dependenciesStart = pubspec.indexOf('dependencies:');
+    final devDependenciesStart = pubspec.indexOf('dev_dependencies:');
+    expect(dependenciesStart, greaterThanOrEqualTo(0));
+    expect(devDependenciesStart, greaterThan(dependenciesStart));
+
+    final dependencyLine = RegExp(r'^  ([a-zA-Z0-9_]+):');
+    final directDependencies = pubspec
+        .sublist(dependenciesStart + 1, devDependenciesStart)
+        .map(dependencyLine.firstMatch)
+        .whereType<RegExpMatch>()
+        .map((match) => match.group(1)!)
+        .toSet();
+
+    expect(
+      directDependencies,
+      equals({
+        'flutter',
+        'shared_preferences',
+        'qr_flutter',
+        'flutter_tts',
+        'flutter_zxing',
+        'camera',
+      }),
+      reason: 'Neue direkte Laufzeit-Abhängigkeiten brauchen vor Release '
+          'einen erneuten Data-Safety-/Local-first-Audit.',
+    );
+
+    final sources = Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.dart'))
+        .map((file) => file.readAsStringSync())
+        .join('\n');
+    for (final package in const [
+      'package:http/',
+      'package:dio/',
+      'package:firebase_',
+      'package:sentry_',
+      'package:google_mobile_ads/',
+      'package:amplitude_',
+      'package:mixpanel_',
+    ]) {
+      expect(
+        sources,
+        isNot(contains(package)),
+        reason: '$package würde den dokumentierten Local-first-Audit ändern.',
+      );
+    }
+
+    final dataSafety =
+        File('docs/google-play-data-safety.md').readAsStringSync();
+    expect(dataSafety, contains('Dependency-Audit vom 10. September 2026'));
+    for (final package in directDependencies.where((name) => name != 'flutter')) {
+      expect(dataSafety, contains(package));
+    }
+    expect(dataSafety, contains('http 1.6.0'));
+  });
+
   test('Google-Play-Storetexte bleiben innerhalb der Pflichtlimits', () {
     final listing =
         File('docs/google-play-store-listing-de.md').readAsStringSync();
