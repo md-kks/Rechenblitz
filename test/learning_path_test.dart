@@ -194,11 +194,17 @@ void main() {
       now: DateTime(2026, 9, 5, 11),
     );
 
-    expect(insight.focus, contains('selbstständig 0 %'));
+    expect(insight.focus, contains('keine selbstständigen Basislösungen'));
+    expect(insight.focus, isNot(contains('selbstständig 0 %')));
     expect(insight.mastery, contains('Für „Sicher“'));
     expect(insight.notYet, contains('Noch nicht „Sicher“'));
     expect(insight.evidence, contains('8 mit Hilfe'));
     expect(insight.evidence, contains('0 ohne Hilfe'));
+    expect(
+      insight.evidence,
+      contains('noch keine auswertbare Beobachtung'),
+    );
+    expect(insight.evidence, isNot(contains('Sicherheit bei 0 %')));
   });
 
 
