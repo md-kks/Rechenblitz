@@ -66,6 +66,8 @@ In „Zielgruppe und Inhalte“:
 - [ ] bis 5 Jahre nicht auswählen
 - [ ] Angaben zur Kinder-Zielgruppe vollständig bestätigen
 - [ ] IARC-Altersfreigabe ausfüllen
+- [x] technischer Families-Audit dokumentiert
+      (`docs/google-play-families-compliance.md`, 10.09.2026)
 
 Werbung:
 - [ ] „Enthält Werbung?“ → **Nein**

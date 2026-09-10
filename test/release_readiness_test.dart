@@ -230,6 +230,44 @@ void main() {
     expect(dataSafety, contains('http 1.6.0'));
   });
 
+  test('Families-Audit bleibt mit Release-Schutzregeln verknüpft', () {
+    final families = File(
+      'docs/google-play-families-compliance.md',
+    ).readAsStringSync();
+    final checklist =
+        File('docs/google-play-release-checklist.md').readAsStringSync();
+    final workflow =
+        File('.github/workflows/flutter.yml').readAsStringSync();
+
+    for (final text in const [
+      '6–8',
+      '9–12',
+      'keine Werbung oder Werbe-SDKs',
+      'keine In-App-Käufe',
+      'kein Konto, Login oder eigenes Backend',
+      'keine sozialen Funktionen',
+      'Kamerabilder werden lokal verarbeitet',
+      'System-TTS',
+      'https://support.google.com/googleplay/android-developer/answer/9893335',
+    ]) {
+      expect(families, contains(text));
+    }
+    for (final permission in const [
+      'com.google.android.gms.permission.AD_ID',
+      'android.permission.ACCESS_FINE_LOCATION',
+      'android.permission.READ_CONTACTS',
+      'android.permission.READ_PHONE_STATE',
+      'android.permission.RECORD_AUDIO',
+    ]) {
+      expect(workflow, contains(permission));
+    }
+    expect(checklist, contains('technischer Families-Audit dokumentiert'));
+    expect(
+      checklist,
+      contains('docs/google-play-families-compliance.md'),
+    );
+  });
+
   test('Google-Play-Storetexte bleiben innerhalb der Pflichtlimits', () {
     final listing =
         File('docs/google-play-store-listing-de.md').readAsStringSync();
