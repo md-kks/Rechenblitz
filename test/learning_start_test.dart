@@ -182,7 +182,7 @@ void main() {
       MethodSelectionPreference.automatic,
     );
     expect(find.text('Rechenblitz'), findsWidgets);
-    expect(find.text('Klassenstufe'), findsOneWidget);
+    expect(find.text('Deine Runde'), findsOneWidget);
   });
 
   test('Klassenwechsel verwirft nur die alte Einstufungs-Baseline', () async {

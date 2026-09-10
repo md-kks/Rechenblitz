@@ -91,10 +91,9 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final unresolvedStepRecovery =
-        widget.controller.independentStepRecoveryFocus();
-    final stepRecovery =
-        stepRecoveryAttempted ? null : unresolvedStepRecovery;
+    final unresolvedStepRecovery = widget.controller
+        .independentStepRecoveryFocus();
+    final stepRecovery = stepRecoveryAttempted ? null : unresolvedStepRecovery;
     final remediation = unresolvedStepRecovery == null
         ? widget.controller.remediationCandidate()
         : null;
@@ -105,43 +104,48 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
       for (var i = 0; i < plan.length; i++)
         if (completed.contains(i)) plan[i].tasks,
     ].fold<int>(0, (a, b) => a + b);
-    final doneTasks =
-        regularDoneTasks + (stepRecoveryCompleted ? 3 : 0);
-    final regularTotalTasks =
-        plan.fold<int>(0, (sum, segment) => sum + segment.tasks);
-    final totalTasks =
-        regularTotalTasks + (hadStepRecoveryAtStart ? 3 : 0);
-    final allDone = completed.length == plan.length &&
+    final doneTasks = regularDoneTasks + (stepRecoveryCompleted ? 3 : 0);
+    final regularTotalTasks = plan.fold<int>(
+      0,
+      (sum, segment) => sum + segment.tasks,
+    );
+    final totalTasks = regularTotalTasks + (hadStepRecoveryAtStart ? 3 : 0);
+    final allDone =
+        completed.length == plan.length &&
         (!hadStepRecoveryAtStart || stepRecoveryCompleted);
-    final hasTransfer = plan.any((segment) => segment.transferEmphasis);
+
+    int? nextIndex;
+    for (var i = 0; i < plan.length; i++) {
+      if (!completed.contains(i)) {
+        nextIndex = i;
+        break;
+      }
+    }
+    final nextSegment = nextIndex == null ? null : plan[nextIndex];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Meine Runde')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 10, 18, 34),
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
         children: [
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    allDone ? 'Für heute geschafft.' : 'Etwa 5–8 Minuten Mathe.',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w900),
+                    allDone
+                        ? 'Für heute geschafft.'
+                        : 'Etwa 5–8 Minuten Mathe.',
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     allDone
-                        ? hasTransfer
-                            ? 'Grundlage, Lernziel, Wiederholung und Transfer sind erledigt. Mehr ist heute nicht nötig.'
-                            : 'Grundlage, Lernziel, Wiederholung und Abschluss sind erledigt. Mehr ist heute nicht nötig.'
-                        : hasTransfer
-                            ? 'Rechenblitz stellt die Runde aus sicherer Grundlage, einem konkreten Teilschritt, fälliger Wiederholung und Transfer zusammen.'
-                            : 'Rechenblitz stellt die Runde aus sicherer Grundlage, einem konkreten Teilschritt, fälliger Wiederholung und einem passenden Abschluss zusammen.',
+                        ? 'Mehr ist heute nicht nötig.'
+                        : '$doneTasks von $totalTasks Aufgaben',
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 14),
                   LinearProgressIndicator(
@@ -149,52 +153,39 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                     minHeight: 12,
                     borderRadius: BorderRadius.circular(99),
                   ),
-                  const SizedBox(height: 6),
-                  Text('$doneTasks von $totalTasks Aufgaben'),
                 ],
               ),
             ),
           ),
           if (stepRecovery != null) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.center_focus_strong_rounded),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Rechenschritt kurz festigen',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'Rechenschritt kurz festigen',
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Beim letzten selbstständigen Versuch war „${stepRecovery.label}“ noch unsicher. Drei kurze Aufgaben üben nur diesen Schritt: einmal mit Hinweis, einmal verändert und einmal als Kontrolle.',
+                      '„${stepRecovery.label}“ übst du jetzt in drei kurzen Aufgaben.',
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     FilledButton.icon(
                       key: const ValueKey('step-recovery-button'),
                       onPressed: () async {
-                        final recoveryFinished =
-                            await Navigator.of(context).push<bool>(
-                          MaterialPageRoute(
-                            builder: (_) => StepRecoveryScreen(
-                              controller: widget.controller,
-                              focus: stepRecovery,
-                            ),
-                          ),
-                        );
+                        final recoveryFinished = await Navigator.of(context)
+                            .push<bool>(
+                              MaterialPageRoute(
+                                builder: (_) => StepRecoveryScreen(
+                                  controller: widget.controller,
+                                  focus: stepRecovery,
+                                ),
+                              ),
+                            );
                         if (mounted && recoveryFinished == true) {
                           setState(() {
                             stepRecoveryAttempted = true;
@@ -202,46 +193,34 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                           });
                         }
                       },
-                      icon: const Icon(Icons.route_rounded),
-                      label: const Text('Rechenschritt festigen'),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('3 Aufgaben starten'),
                     ),
                   ],
                 ),
               ),
             ),
-          ],
-          if (remediation != null && remediation.modes.isNotEmpty) ...[
-            const SizedBox(height: 18),
+          ] else if (remediation != null && remediation.modes.isNotEmpty) ...[
+            const SizedBox(height: 14),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.healing_rounded),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            reviewOnly
-                                ? 'Kurze Kontrolle fällig'
-                                : 'Knacknuss zuerst',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      reviewOnly
+                          ? 'Kurze Kontrolle fällig'
+                          : 'Knacknuss zuerst',
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       reviewOnly
-                          ? '„${remediation.pattern.label}“ wurde bereits besser. Zwei Kontrollaufgaben prüfen jetzt, ob der Rechenweg stabil geblieben ist.'
-                          : '„${remediation.pattern.label}“ ist wiederholt aufgefallen. Ein kurzer Förderpfad führt von Hilfe über selbstständiges Anwenden bis zur Kontrolle.',
+                          ? 'Zwei Aufgaben prüfen, ob „${remediation.pattern.label}“ jetzt sicher sitzt.'
+                          : '„${remediation.pattern.label}“ übst du zuerst mit passender Hilfe.',
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     FilledButton.icon(
                       key: const ValueKey('remediation-button'),
                       onPressed: () async {
@@ -260,84 +239,77 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                           });
                         }
                       },
-                      icon: Icon(
-                        reviewOnly
-                            ? Icons.fact_check_outlined
-                            : Icons.route_rounded,
-                      ),
+                      icon: const Icon(Icons.play_arrow_rounded),
                       label: Text(
-                        reviewOnly
-                            ? 'Kontrollrunde starten'
-                            : 'Förderpfad starten',
+                        reviewOnly ? 'Kontrolle starten' : 'Übung starten',
                       ),
                     ),
                   ],
                 ),
               ),
             ),
+          ] else if (!allDone && nextSegment != null && nextIndex != null) ...[
+            const SizedBox(height: 14),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Als Nächstes',
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      nextSegment.mode.title,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 6),
+                    Text('${nextSegment.tasks} Aufgaben'),
+                    if (nextSegment.targetCompetency != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        MicroCompetencyCatalog.definition(
+                          nextSegment.targetCompetency!,
+                        ).label,
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    FilledButton.icon(
+                      key: const ValueKey('round-next-button'),
+                      onPressed: () => _start(nextIndex!),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: Text(nextIndex == 0 ? 'Starten' : 'Weiter'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
-          const SizedBox(height: 18),
-          ...List.generate(plan.length, (index) {
-            final segment = plan[index];
-            final isDone = completed.contains(index);
-            final isNext = index == 0 || completed.contains(index - 1);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CircleAvatar(
-                        child: isDone
+          if (plan.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Card(
+              child: ExpansionTile(
+                key: const ValueKey('round-plan-expansion'),
+                leading: const Icon(Icons.format_list_numbered_rounded),
+                title: const Text('Rundenplan'),
+                subtitle: const Text('Nur wenn du genauer schauen möchtest'),
+                children: [
+                  for (var index = 0; index < plan.length; index++)
+                    ListTile(
+                      leading: CircleAvatar(
+                        child: completed.contains(index)
                             ? const Icon(Icons.check_rounded)
                             : Text('${index + 1}'),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              segment.mode.title,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w900),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              '${segment.tasks} Aufgaben · ${segment.reason}',
-                            ),
-                            if (segment.targetCompetency != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                'Ziel: ${MicroCompetencyCatalog.definition(segment.targetCompetency!).label}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                            if (!isDone && isNext) ...[
-                              const SizedBox(height: 12),
-                              FilledButton.icon(
-                                onPressed: () => _start(index),
-                                icon: const Icon(Icons.play_arrow_rounded),
-                                label: Text(
-                                  index == 0 ? 'Runde starten' : 'Weiter',
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                      title: Text(plan[index].mode.title),
+                      subtitle: Text('${plan[index].tasks} Aufgaben'),
+                    ),
+                ],
               ),
-            );
-          }),
+            ),
+          ],
         ],
       ),
     );

@@ -9,7 +9,6 @@ import 'competency_map_screen.dart';
 import 'curriculum_training_screen.dart';
 import 'my_round_screen.dart';
 import 'parent_screen.dart';
-import 'profile_screen.dart';
 import 'reward_screen.dart';
 import 'settings_screen.dart';
 import 'structured_training_screen.dart';
@@ -122,11 +121,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
-    final today = controller.todayHistory.toList();
-    final todayCorrect =
-        today.fold<int>(0, (sum, e) => sum + e.correctFirstTry);
-    final todayTotal = today.fold<int>(0, (sum, e) => sum + e.total);
-    final todayAccuracy = todayTotal == 0 ? 0.0 : todayCorrect / todayTotal;
     final recommendation = controller.recommendationText();
 
     return Scaffold(
@@ -170,122 +164,55 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 36),
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
           children: [
             Text(
               controller.activeProfileName == 'Lernprofil'
                   ? 'Hallo!'
                   : 'Hallo, ${controller.activeProfileName}!',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              'Rechnen üben, verstehen und Schritt für Schritt sicherer werden.',
-              style: Theme.of(context).textTheme.titleMedium,
+              '${controller.gradeLevel.label} · ${controller.numberRange.label}',
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 18),
             Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                  child: Text(
-                    controller.activeProfileName.isEmpty
-                        ? '?'
-                        : controller.activeProfileName.substring(0, 1).toUpperCase(),
-                  ),
-                ),
-                title: Text(
-                  controller.activeProfileName,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                subtitle: Text(
-                  '${controller.gradeLevel.label} · ${controller.numberRange.label} · nur auf diesem Gerät',
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ProfileScreen(controller: controller),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Klassenstufe',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 30,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Deine Runde',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        const Chip(label: Text('5–8 Min')),
+                      ],
                     ),
                     const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: SegmentedButton<GradeLevel>(
-                        showSelectedIcon: false,
-                        segments: const [
-                          ButtonSegment(
-                            value: GradeLevel.first,
-                            label: Text('1'),
-                          ),
-                          ButtonSegment(
-                            value: GradeLevel.second,
-                            label: Text('2'),
-                          ),
-                          ButtonSegment(
-                            value: GradeLevel.third,
-                            label: Text('3'),
-                          ),
-                          ButtonSegment(
-                            value: GradeLevel.fourth,
-                            label: Text('4'),
-                          ),
-                        ],
-                        selected: {controller.gradeLevel},
-                        onSelectionChanged: (values) =>
-                            controller.setGradeLevel(values.first),
+                    Text(recommendation),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      key: const ValueKey('my-round-button'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MyRoundScreen(controller: controller),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(controller.gradeLevel.description),
-                    const SizedBox(height: 18),
-                    Text(
-                      'Zahlenraum',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<NumberRangeLevel>(
-                      initialValue: controller.numberRange,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.numbers_rounded),
-                      ),
-                      items: controller.availableRanges
-                          .map(
-                            (range) => DropdownMenuItem(
-                              value: range,
-                              child: Text(range.label),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) controller.setNumberRange(value);
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      controller.gradeLevel.index >= GradeLevel.third.index
-                          ? 'Die Klassenstufe bestimmt die Lernmethoden. Der Zahlenraum kann für Wiederholung und Förderung kleiner gewählt werden.'
-                          : 'Die Aufgaben passen sich innerhalb des gewählten Zahlenraums an den Lernstand an.',
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Runde starten'),
                     ),
                   ],
                 ),
@@ -295,38 +222,21 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               children: [
                 Expanded(
-                  child: Card(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => RewardScreen(controller: controller),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.star_rounded, size: 30),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${controller.stars} Sterne',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                  Text('${controller.badges.length} Abzeichen'),
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.chevron_right_rounded),
-                          ],
-                        ),
+                  child: _QuickAction(
+                    icon: Icons.flash_on_rounded,
+                    label: '5 Blitzaufgaben',
+                    onTap: () => _openMode(TrainingMode.blitz),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.route_rounded,
+                    label: 'Lernlandkarte',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            CompetencyMapScreen(controller: controller),
                       ),
                     ),
                   ),
@@ -334,82 +244,90 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 14),
+            _PracticeCatalog(controller: controller, onOpenMode: _openMode),
+            const SizedBox(height: 14),
             Card(
               child: ListTile(
+                dense: true,
                 leading: const Icon(Icons.qr_code_scanner_rounded),
-                title: const Text(
-                  'Schulauftrag scannen',
-                  style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-                subtitle: const Text(
-                  'QR-Auftrag der Lehrkraft lokal öffnen – ohne Konto.',
-                ),
+                title: const Text('Schulauftrag'),
+                subtitle: const Text('QR-Code der Lehrkraft öffnen'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => AssignmentScannerScreen(
-                      controller: controller,
-                    ),
+                    builder: (_) =>
+                        AssignmentScannerScreen(controller: controller),
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 14),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.auto_awesome_rounded, size: 28),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Meine Runde',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                        const Chip(label: Text('ca. 5–8 Min')),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(recommendation),
-                    const SizedBox(height: 6),
-                    const Text(
-                      '12 Aufgaben: sicher ankommen, gezielten Teilschritt üben, wiederholen und Wissen übertragen.',
-                    ),
-                    const SizedBox(height: 14),
-                    FilledButton.icon(
-                      key: const ValueKey('my-round-button'),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => MyRoundScreen(controller: controller),
-                        ),
-                      ),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text('Meine Runde starten'),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              CompetencyMapScreen(controller: controller),
-                        ),
-                      ),
-                      icon: const Icon(Icons.route_rounded),
-                      label: const Text('Meine Lernlandkarte'),
-                    ),
-                  ],
-                ),
-              ),
+            Text(
+              controller.todayTasks == 0
+                  ? 'Für heute ist noch alles offen.'
+                  : 'Heute schon ${controller.todayTasks} Aufgaben geschafft.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: InkWell(
+      borderRadius: BorderRadius.circular(22),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        child: Column(
+          children: [
+            Icon(icon, size: 30, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _PracticeCatalog extends StatelessWidget {
+  const _PracticeCatalog({required this.controller, required this.onOpenMode});
+
+  final AppController controller;
+  final Future<void> Function(TrainingMode mode) onOpenMode;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: ExpansionTile(
+      key: const ValueKey('more-practice-expansion'),
+      leading: const Icon(Icons.grid_view_rounded),
+      title: const Text('Mehr üben'),
+      subtitle: const Text('Alle Lernbereiche anzeigen'),
+      childrenPadding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             const _SectionTitle(title: 'Schnell starten'),
             const SizedBox(height: 10),
             _LearningGrid(
@@ -418,25 +336,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.school_rounded,
                   title: 'Plus & Minus',
                   subtitle: 'adaptiv üben',
-                  onTap: () => _openMode(TrainingMode.practice),
+                  onTap: () => onOpenMode(TrainingMode.practice),
                 ),
                 _LearningTile(
                   icon: Icons.flash_on_rounded,
                   title: '5 Blitzaufgaben',
                   subtitle: 'kurze Runde',
-                  onTap: () => _openMode(TrainingMode.blitz),
+                  onTap: () => onOpenMode(TrainingMode.blitz),
                 ),
                 _LearningTile(
                   icon: Icons.speed_rounded,
                   title: 'Schnell rechnen',
                   subtitle: 'Tempo trainieren',
-                  onTap: () => _openMode(TrainingMode.speed),
+                  onTap: () => onOpenMode(TrainingMode.speed),
                 ),
                 _LearningTile(
                   icon: Icons.fact_check_outlined,
                   title: 'Rechencheck',
                   subtitle: 'mit optionaler Zeit',
-                  onTap: () => _openMode(TrainingMode.tempo),
+                  onTap: () => onOpenMode(TrainingMode.tempo),
                 ),
               ],
             ),
@@ -449,25 +367,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.remove_circle_outline_rounded,
                   title: 'Minus üben',
                   subtitle: 'mit Hilfen',
-                  onTap: () => _openMode(TrainingMode.minus),
+                  onTap: () => onOpenMode(TrainingMode.minus),
                 ),
                 _LearningTile(
                   icon: Icons.close_rounded,
                   title: 'Malnehmen',
                   subtitle: 'Einmaleins aufbauen',
-                  onTap: () => _openMode(TrainingMode.multiply),
+                  onTap: () => onOpenMode(TrainingMode.multiply),
                 ),
                 _LearningTile(
                   icon: Icons.horizontal_rule_rounded,
                   title: 'Teilen',
                   subtitle: 'Umkehraufgaben nutzen',
-                  onTap: () => _openMode(TrainingMode.divide),
+                  onTap: () => onOpenMode(TrainingMode.divide),
                 ),
                 _LearningTile(
                   icon: Icons.shuffle_rounded,
                   title: 'Gemischt',
                   subtitle: 'alle Grundrechenarten',
-                  onTap: () => _openMode(TrainingMode.mixed),
+                  onTap: () => onOpenMode(TrainingMode.mixed),
                 ),
               ],
             ),
@@ -480,31 +398,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.extension_rounded,
                   title: 'Zahlenfreunde',
                   subtitle: 'Zerlegen & ergänzen',
-                  onTap: () => _openMode(TrainingMode.numberFriends),
+                  onTap: () => onOpenMode(TrainingMode.numberFriends),
                 ),
                 _LearningTile(
                   icon: Icons.swap_horiz_rounded,
                   title: 'Nachbarzahlen',
                   subtitle: 'vorher & nachher',
-                  onTap: () => _openMode(TrainingMode.neighbors),
+                  onTap: () => onOpenMode(TrainingMode.neighbors),
                 ),
                 _LearningTile(
                   icon: Icons.view_column_rounded,
                   title: 'Zehner & Einer',
                   subtitle: 'Stellenwert verstehen',
-                  onTap: () => _openMode(TrainingMode.placeValue),
+                  onTap: () => onOpenMode(TrainingMode.placeValue),
                 ),
                 _LearningTile(
                   icon: Icons.balance_rounded,
                   title: 'Doppelt & Hälfte',
                   subtitle: 'Zahlbeziehungen',
-                  onTap: () => _openMode(TrainingMode.doublesHalves),
+                  onTap: () => onOpenMode(TrainingMode.doublesHalves),
                 ),
                 _LearningTile(
                   icon: Icons.trending_up_rounded,
                   title: 'Zahlenfolgen',
                   subtitle: 'Muster erkennen',
-                  onTap: () => _openMode(TrainingMode.sequences),
+                  onTap: () => onOpenMode(TrainingMode.sequences),
                 ),
               ],
             ),
@@ -517,19 +435,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.account_balance_rounded,
                   title: 'Zahlenmauern',
                   subtitle: 'Steine ergänzen',
-                  onTap: () => _openMode(TrainingMode.numberWall),
+                  onTap: () => onOpenMode(TrainingMode.numberWall),
                 ),
                 _LearningTile(
                   icon: Icons.question_mark_rounded,
                   title: 'Lückenaufgaben',
                   subtitle: 'fehlende Zahl finden',
-                  onTap: () => _openMode(TrainingMode.missingNumber),
+                  onTap: () => onOpenMode(TrainingMode.missingNumber),
                 ),
                 _LearningTile(
                   icon: Icons.family_restroom_rounded,
                   title: 'Rechenfamilien',
                   subtitle: 'Umkehraufgaben',
-                  onTap: () => _openMode(TrainingMode.factFamilies),
+                  onTap: () => onOpenMode(TrainingMode.factFamilies),
                 ),
               ],
             ),
@@ -542,31 +460,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.menu_book_rounded,
                   title: 'Sachaufgaben',
                   subtitle: 'Rechnen aus Geschichten',
-                  onTap: () => _openMode(TrainingMode.wordProblems),
+                  onTap: () => onOpenMode(TrainingMode.wordProblems),
                 ),
                 _LearningTile(
                   icon: Icons.euro_rounded,
                   title: 'Geld',
                   subtitle: 'Euro, Cent & Rückgeld',
-                  onTap: () => _openMode(TrainingMode.money),
+                  onTap: () => onOpenMode(TrainingMode.money),
                 ),
                 _LearningTile(
                   icon: Icons.schedule_rounded,
                   title: 'Uhrzeit',
                   subtitle: 'Uhren lesen',
-                  onTap: () => _openMode(TrainingMode.clock),
+                  onTap: () => onOpenMode(TrainingMode.clock),
                 ),
                 _LearningTile(
                   icon: Icons.straighten_rounded,
                   title: 'Längen & Größen',
                   subtitle: 'cm, dm & m',
-                  onTap: () => _openMode(TrainingMode.measures),
+                  onTap: () => onOpenMode(TrainingMode.measures),
                 ),
                 _LearningTile(
                   icon: Icons.category_rounded,
                   title: 'Geometrie',
                   subtitle: 'Formen, Seiten & Ecken',
-                  onTap: () => _openMode(TrainingMode.geometry),
+                  onTap: () => onOpenMode(TrainingMode.geometry),
                 ),
               ],
             ),
@@ -582,62 +500,62 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.format_list_numbered_rounded,
                     title: 'Große Zahlen',
                     subtitle: 'Stellenwert & Orientierung',
-                    onTap: () => _openMode(TrainingMode.largeNumbers),
+                    onTap: () => onOpenMode(TrainingMode.largeNumbers),
                   ),
                   _LearningTile(
                     icon: Icons.adjust_rounded,
                     title: 'Runden',
                     subtitle: 'sinnvoll annähern',
-                    onTap: () => _openMode(TrainingMode.rounding),
+                    onTap: () => onOpenMode(TrainingMode.rounding),
                   ),
                   _LearningTile(
                     icon: Icons.psychology_alt_rounded,
                     title: 'Halbschriftlich',
                     subtitle: 'geschickt zerlegen',
-                    onTap: () => _openMode(TrainingMode.mentalStrategies),
+                    onTap: () => onOpenMode(TrainingMode.mentalStrategies),
                   ),
                   _LearningTile(
                     icon: Icons.add_box_outlined,
                     title: 'Schriftlich + / −',
                     subtitle: 'mit Überträgen',
-                    onTap: () => _openMode(TrainingMode.writtenAddSub),
+                    onTap: () => onOpenMode(TrainingMode.writtenAddSub),
                   ),
                   _LearningTile(
                     icon: Icons.close_rounded,
                     title: 'Schriftlich mal',
                     subtitle: 'Stelle für Stelle',
-                    onTap: () => _openMode(TrainingMode.writtenMultiply),
+                    onTap: () => onOpenMode(TrainingMode.writtenMultiply),
                   ),
                   _LearningTile(
                     icon: Icons.horizontal_rule_rounded,
                     title: 'Schriftlich teilen',
                     subtitle: 'mit Probe',
-                    onTap: () => _openMode(TrainingMode.writtenDivide),
+                    onTap: () => onOpenMode(TrainingMode.writtenDivide),
                   ),
                   _LearningTile(
                     icon: Icons.calculate_outlined,
                     title: 'Überschlag',
                     subtitle: 'Ergebnisse prüfen',
-                    onTap: () => _openMode(TrainingMode.estimation),
+                    onTap: () => onOpenMode(TrainingMode.estimation),
                   ),
                   _LearningTile(
                     icon: Icons.lightbulb_circle_outlined,
                     title: 'Rechenvorteile',
                     subtitle: 'Gesetze nutzen',
-                    onTap: () => _openMode(TrainingMode.arithmeticLaws),
+                    onTap: () => onOpenMode(TrainingMode.arithmeticLaws),
                   ),
                   _LearningTile(
-                      icon: Icons.history_edu_rounded,
-                      title: 'Römische Zahlen',
-                      subtitle: 'lesen & schreiben',
-                      onTap: () => _openMode(TrainingMode.romanNumerals),
-                    ),
+                    icon: Icons.history_edu_rounded,
+                    title: 'Römische Zahlen',
+                    subtitle: 'lesen & schreiben',
+                    onTap: () => onOpenMode(TrainingMode.romanNumerals),
+                  ),
                   _LearningTile(
-                      icon: Icons.pie_chart_outline_rounded,
-                      title: 'Bruchteile',
-                      subtitle: '1/2, 1/4 und Größen',
-                      onTap: () => _openMode(TrainingMode.fractions),
-                    ),
+                    icon: Icons.pie_chart_outline_rounded,
+                    title: 'Bruchteile',
+                    subtitle: '1/2, 1/4 und Größen',
+                    onTap: () => onOpenMode(TrainingMode.fractions),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -649,20 +567,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.straighten_rounded,
                     title: 'Größen umwandeln',
                     subtitle: 'Länge, Masse, Volumen',
-                    onTap: () => _openMode(TrainingMode.advancedMeasures),
+                    onTap: () => onOpenMode(TrainingMode.advancedMeasures),
                   ),
                   _LearningTile(
                     icon: Icons.timer_outlined,
                     title: 'Zeitspannen',
                     subtitle: 'Dauer berechnen',
-                    onTap: () => _openMode(TrainingMode.timeDurations),
+                    onTap: () => onOpenMode(TrainingMode.timeDurations),
                   ),
                   _LearningTile(
-                      icon: Icons.swap_vert_circle_outlined,
-                      title: 'Zuordnungen',
-                      subtitle: 'proportional denken',
-                      onTap: () => _openMode(TrainingMode.proportionality),
-                    ),
+                    icon: Icons.swap_vert_circle_outlined,
+                    title: 'Zuordnungen',
+                    subtitle: 'proportional denken',
+                    onTap: () => onOpenMode(TrainingMode.proportionality),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -674,38 +592,38 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.crop_square_rounded,
                     title: 'Umfang & Fläche',
                     subtitle: 'Rechtecke untersuchen',
-                    onTap: () => _openMode(TrainingMode.perimeterArea),
+                    onTap: () => onOpenMode(TrainingMode.perimeterArea),
                   ),
                   _LearningTile(
                     icon: Icons.architecture_rounded,
                     title: 'Geraden & Winkel',
                     subtitle: 'parallel, senkrecht & Kreis',
-                    onTap: () => _openMode(TrainingMode.geometryRelations),
+                    onTap: () => onOpenMode(TrainingMode.geometryRelations),
                   ),
                   _LearningTile(
                     icon: Icons.view_in_ar_rounded,
                     title: 'Körper & Netze',
                     subtitle: 'Ecken, Kanten, Flächen',
-                    onTap: () => _openMode(TrainingMode.geometryBodies),
+                    onTap: () => onOpenMode(TrainingMode.geometryBodies),
                   ),
                   _LearningTile(
                     icon: Icons.vertical_align_center_rounded,
                     title: 'Symmetrie',
                     subtitle: 'Achsen erkennen',
-                    onTap: () => _openMode(TrainingMode.symmetry),
+                    onTap: () => onOpenMode(TrainingMode.symmetry),
                   ),
                   _LearningTile(
                     icon: Icons.map_outlined,
                     title: 'Pläne & Wege',
                     subtitle: 'Orientierung & Maßstab',
-                    onTap: () => _openMode(TrainingMode.plansAndOrientation),
+                    onTap: () => onOpenMode(TrainingMode.plansAndOrientation),
                   ),
                   _LearningTile(
-                      icon: Icons.grid_4x4_rounded,
-                      title: 'Rauminhalt',
-                      subtitle: 'mit Einheitswürfeln',
-                      onTap: () => _openMode(TrainingMode.volumeCubes),
-                    ),
+                    icon: Icons.grid_4x4_rounded,
+                    title: 'Rauminhalt',
+                    subtitle: 'mit Einheitswürfeln',
+                    onTap: () => onOpenMode(TrainingMode.volumeCubes),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -717,56 +635,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.bar_chart_rounded,
                     title: 'Daten & Diagramme',
                     subtitle: 'lesen & auswerten',
-                    onTap: () => _openMode(TrainingMode.dataCharts),
+                    onTap: () => onOpenMode(TrainingMode.dataCharts),
                   ),
                   _LearningTile(
                     icon: Icons.casino_outlined,
                     title: 'Wahrscheinlichkeit',
                     subtitle: 'Chancen einschätzen',
-                    onTap: () => _openMode(TrainingMode.probability),
+                    onTap: () => onOpenMode(TrainingMode.probability),
                   ),
                   _LearningTile(
                     icon: Icons.account_tree_outlined,
                     title: 'Kombinatorik',
                     subtitle: 'Möglichkeiten finden',
-                    onTap: () => _openMode(TrainingMode.combinatorics),
+                    onTap: () => onOpenMode(TrainingMode.combinatorics),
                   ),
                 ],
               ),
             ],
-            const SizedBox(height: 26),
-            const _SectionTitle(title: 'Heute'),
-            const SizedBox(height: 10),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Wrap(
-                  spacing: 22,
-                  runSpacing: 16,
-                  children: [
-                    _Stat(label: 'Runden', value: '${today.length}'),
-                    _Stat(label: 'Aufgaben', value: '$todayTotal'),
-                    _Stat(
-                      label: 'direkt richtig',
-                      value: todayTotal == 0
-                          ? '–'
-                          : '${(todayAccuracy * 100).round()} %',
-                    ),
-                    _Stat(label: 'Sterne', value: '${controller.stars} ★'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Kurze Runden reichen aus. Sicherheit kommt vor Geschwindigkeit.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
           ],
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -775,12 +665,11 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        title,
-        style: Theme.of(context)
-            .textTheme
-            .titleLarge
-            ?.copyWith(fontWeight: FontWeight.w800),
-      );
+    title,
+    style: Theme.of(
+      context,
+    ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+  );
 }
 
 class _LearningGrid extends StatelessWidget {
@@ -789,19 +678,19 @@ class _LearningGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final count = constraints.maxWidth >= 700 ? 3 : 2;
-          return GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: count,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: constraints.maxWidth < 390 ? 1.08 : 1.25,
-            children: children,
-          );
-        },
+    builder: (context, constraints) {
+      final count = constraints.maxWidth >= 700 ? 3 : 2;
+      return GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: count,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: constraints.maxWidth < 390 ? 1.08 : 1.25,
+        children: children,
       );
+    },
+  );
 }
 
 class _LearningTile extends StatelessWidget {
@@ -819,59 +708,37 @@ class _LearningTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        margin: EdgeInsets.zero,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(13),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, size: 28),
-                const Spacer(),
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+    margin: EdgeInsets.zero,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 28),
+            const Spacer(),
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
-          ),
+            const SizedBox(height: 3),
+            Text(
+              subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
         ),
-      );
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          Text(label),
-        ],
-      );
+      ),
+    ),
+  );
 }
 
 class TempoConfig {
@@ -893,54 +760,52 @@ class _TempoConfiguratorState extends State<_TempoConfigurator> {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Rechencheck einstellen',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 18),
-            const Text('Aufgaben'),
-            SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 10, label: Text('10')),
-                ButtonSegment(value: 20, label: Text('20')),
-                ButtonSegment(value: 30, label: Text('30')),
-              ],
-              selected: {tasks},
-              onSelectionChanged: (values) =>
-                  setState(() => tasks = values.first),
-            ),
-            const SizedBox(height: 18),
-            const Text('Zeit'),
-            DropdownButtonFormField<int>(
-              initialValue: minutes,
-              items: const [
-                DropdownMenuItem(value: 1, child: Text('1 Minute')),
-                DropdownMenuItem(value: 2, child: Text('2 Minuten')),
-                DropdownMenuItem(value: 3, child: Text('3 Minuten')),
-                DropdownMenuItem(value: 0, child: Text('Ohne festes Limit')),
-              ],
-              onChanged: (value) => setState(() => minutes = value ?? 2),
-            ),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: () => Navigator.pop(
-                context,
-                TempoConfig(
-                  tasks,
-                  minutes == 0 ? null : Duration(minutes: minutes),
-                ),
-              ),
-              child: const Text('Rechencheck starten'),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Rechencheck einstellen',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
-      );
+        const SizedBox(height: 18),
+        const Text('Aufgaben'),
+        SegmentedButton<int>(
+          segments: const [
+            ButtonSegment(value: 10, label: Text('10')),
+            ButtonSegment(value: 20, label: Text('20')),
+            ButtonSegment(value: 30, label: Text('30')),
+          ],
+          selected: {tasks},
+          onSelectionChanged: (values) => setState(() => tasks = values.first),
+        ),
+        const SizedBox(height: 18),
+        const Text('Zeit'),
+        DropdownButtonFormField<int>(
+          initialValue: minutes,
+          items: const [
+            DropdownMenuItem(value: 1, child: Text('1 Minute')),
+            DropdownMenuItem(value: 2, child: Text('2 Minuten')),
+            DropdownMenuItem(value: 3, child: Text('3 Minuten')),
+            DropdownMenuItem(value: 0, child: Text('Ohne festes Limit')),
+          ],
+          onChanged: (value) => setState(() => minutes = value ?? 2),
+        ),
+        const SizedBox(height: 20),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            TempoConfig(
+              tasks,
+              minutes == 0 ? null : Duration(minutes: minutes),
+            ),
+          ),
+          child: const Text('Rechencheck starten'),
+        ),
+      ],
+    ),
+  );
 }
