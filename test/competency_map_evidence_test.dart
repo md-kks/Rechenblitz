@@ -6,8 +6,9 @@ import 'package:rechenblitz/screens/competency_map_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 
 void main() {
-  testWidgets('Lernlandkarte trennt fehlende von falscher Selbstständigkeit',
-      (tester) async {
+  testWidgets('Lernlandkarte trennt fehlende von falscher Selbstständigkeit', (
+    tester,
+  ) async {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
@@ -58,16 +59,34 @@ void main() {
       MaterialApp(home: CompetencyMapScreen(controller: controller)),
     );
     await tester.pump();
+
+    expect(find.text('Als Nächstes'), findsOneWidget);
+    expect(find.text('Dein Fortschritt'), findsOneWidget);
+    expect(find.text('Plus über den Zehner'), findsOneWidget);
+    expect(find.textContaining('noch nicht beobachtet'), findsNothing);
+
+    await tester.tap(
+      find.byKey(const ValueKey('learning-group:Zahlen & Rechnen')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('learning-mode:practice')));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Plus über den Zehner'),
-      300,
+      find.byKey(const ValueKey('micro-info:additionTenBridge')),
+      250,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('micro-info:additionTenBridge')),
+    );
+    await tester.pumpAndSettle();
 
-    expect(find.textContaining('Selbstständig: noch nicht beobachtet'), findsOneWidget);
-    expect(find.textContaining('Abstand: bisher nur mit Hilfe'), findsOneWidget);
-    expect(find.textContaining('Transfer: bisher nur mit Hilfe'), findsOneWidget);
-    expect(find.textContaining('Selbstständig: 0 %'), findsNothing);
+    expect(find.text('Selbstständig'), findsOneWidget);
+    expect(find.text('noch nicht beobachtet'), findsOneWidget);
+    expect(find.text('Nach einigen Tagen'), findsOneWidget);
+    expect(find.text('In anderer Aufgabe'), findsOneWidget);
+    expect(find.text('bisher nur mit Hilfe'), findsNWidgets(2));
+    expect(find.text('0 % richtig'), findsNothing);
   });
 }

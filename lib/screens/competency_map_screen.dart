@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/error_diagnosis.dart';
 import '../models/learning_path.dart';
 import '../models/micro_competency.dart';
-import '../models/remediation_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'curriculum_training_screen.dart';
@@ -78,35 +76,38 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
     final grade = widget.controller.gradeLevel;
     if (grade.index < GradeLevel.third.index) {
       final modes = widget.controller.learningModesForGrade(grade);
-      final numbers = modes.where(
-        (mode) => {
-          TrainingMode.practice,
-          TrainingMode.minus,
-          TrainingMode.multiply,
-          TrainingMode.divide,
-          TrainingMode.numberFriends,
-          TrainingMode.missingNumber,
-          TrainingMode.neighbors,
-          TrainingMode.placeValue,
-          TrainingMode.doublesHalves,
-          TrainingMode.sequences,
-          TrainingMode.factFamilies,
-          TrainingMode.numberWall,
-        }.contains(mode),
-      ).toList();
-      final everyday = modes.where(
-        (mode) => {
-          TrainingMode.wordProblems,
-          TrainingMode.money,
-          TrainingMode.clock,
-          TrainingMode.measures,
-          TrainingMode.geometry,
-        }.contains(mode),
-      ).toList();
+      final numbers = modes
+          .where(
+            (mode) => {
+              TrainingMode.practice,
+              TrainingMode.minus,
+              TrainingMode.multiply,
+              TrainingMode.divide,
+              TrainingMode.numberFriends,
+              TrainingMode.missingNumber,
+              TrainingMode.neighbors,
+              TrainingMode.placeValue,
+              TrainingMode.doublesHalves,
+              TrainingMode.sequences,
+              TrainingMode.factFamilies,
+              TrainingMode.numberWall,
+            }.contains(mode),
+          )
+          .toList();
+      final everyday = modes
+          .where(
+            (mode) => {
+              TrainingMode.wordProblems,
+              TrainingMode.money,
+              TrainingMode.clock,
+              TrainingMode.measures,
+              TrainingMode.geometry,
+            }.contains(mode),
+          )
+          .toList();
       return [
         ('Zahlen & Rechnen', numbers),
-        if (everyday.isNotEmpty)
-          ('Sachrechnen, Größen & Geometrie', everyday),
+        if (everyday.isNotEmpty) ('Sachrechnen, Größen & Geometrie', everyday),
       ];
     }
 
@@ -158,22 +159,127 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
     ];
   }
 
+  Future<void> _showMicroDetails(MicroCompetencyProgress progress) async {
+    final independent = progress.hasIndependentBasisEvidence
+        ? '${(progress.independentAccuracy * 100).round()} % richtig'
+        : 'noch nicht beobachtet';
+    final aided = progress.aidedObservations == 0
+        ? 'bisher nicht benötigt'
+        : '${progress.aidedObservations} Beobachtungen';
+    final review = progress.reviewObservations == 0
+        ? 'noch offen'
+        : !progress.hasIndependentReviewEvidence
+        ? 'bisher nur mit Hilfe'
+        : '${(progress.reviewIndependentAccuracy * 100).round()} % selbstständig';
+    final transfer = progress.transferObservations == 0
+        ? 'noch offen'
+        : !progress.hasIndependentTransferEvidence
+        ? 'bisher nur mit Hilfe'
+        : '${(progress.transferIndependentAccuracy * 100).round()} % selbstständig';
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  progress.definition.label,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  progress.state.label,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 18),
+                _EvidenceLine(label: 'Selbstständig', value: independent),
+                _EvidenceLine(label: 'Mit Hilfe', value: aided),
+                _EvidenceLine(label: 'Nach einigen Tagen', value: review),
+                _EvidenceLine(label: 'In anderer Aufgabe', value: transfer),
+                const SizedBox(height: 10),
+                Text(
+                  'Diese Details erklären nur den Lernstand. Geübte Hilfen werden nicht als selbstständiges Können gezählt.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final groups = _groups();
-    final micro = widget.controller.microCompetenciesForGrade();
-    final mastered = micro
+    final allMicro = widget.controller.microCompetenciesForGrade();
+    final mastered = allMicro
+        .where((progress) => progress.state == MicroCompetencyState.mastered)
+        .length;
+    final secure = allMicro
+        .where((progress) => progress.state == MicroCompetencyState.secure)
+        .length;
+    final working = allMicro
         .where(
           (progress) =>
-              progress.state == MicroCompetencyState.mastered,
+              progress.state == MicroCompetencyState.discovering ||
+              progress.state == MicroCompetencyState.practicing,
         )
         .length;
+    final safe = mastered + secure;
+    final focus =
+        widget.controller.currentMicroFocus() ??
+        widget.controller.nextNewMicroCompetency();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Meine Lernlandkarte')),
+      appBar: AppBar(title: const Text('Lernlandkarte')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 10, 18, 34),
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 34),
         children: [
+          if (focus != null) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Als Nächstes',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      focus.definition.label,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      focus.state == MicroCompetencyState.newSkill
+                          ? 'Diesen Schritt kannst du jetzt neu entdecken.'
+                          : 'Diesen Schritt üben wir jetzt weiter.',
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      key: const ValueKey('learning-map-next-button'),
+                      onPressed: () => _open(
+                        focus.definition.preferredMode,
+                        targetCompetency: focus.definition.id,
+                      ),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Jetzt üben'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
           Card(
             child: Padding(
               padding: const EdgeInsets.all(18),
@@ -181,122 +287,149 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${widget.controller.gradeLevel.label} · $mastered von ${micro.length} Teilschritten gemeistert',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w900),
+                    'Dein Fortschritt',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Die großen Lernbereiche bleiben sichtbar. Darunter zeigt Rechenblitz jetzt die einzelnen mathematischen Teilschritte und ihre Evidenz.',
+                  Text(
+                    '$safe von ${allMicro.length} Teilschritten sind sicher.',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  LinearProgressIndicator(
+                    value: allMicro.isEmpty ? 0 : safe / allMicro.length,
+                    minHeight: 10,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '$working in Arbeit · $secure sicher · $mastered gemeistert',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 18),
-          ...groups.expand(
-            (group) => [
-              Text(
-                group.$1,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 8),
-              ...group.$2.map((mode) {
-                final progress = widget.controller.competencyProgress(mode);
-                final diagnostic =
-                    widget.controller.topDiagnosticForMode(mode);
-                final remediationStatus = diagnostic == null
-                    ? null
-                    : widget.controller
-                        .remediationStatusFor(diagnostic.pattern);
-                final micro = widget.controller
-                    .microCompetenciesForMode(mode);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Card(
-                    child: Column(
-                      children: [
-                        ListTile(
-                          onTap: () => _open(mode),
-                          leading: _StateIcon(state: progress.state),
-                          title: Text(
-                            mode.title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                progress.tasks == 0
-                                    ? 'Noch nicht bearbeitet'
-                                    : '${progress.tasks} Aufgaben · ${(progress.accuracy * 100).round()} % direkt richtig',
-                              ),
-                              if (diagnostic != null) ...[
-                                const SizedBox(height: 3),
-                                Text(
-                                  remediationStatus == null
-                                      ? 'Auffällig: ${diagnostic.pattern.label} · ${diagnostic.confidenceLabel}'
-                                      : 'Knacknuss: ${diagnostic.pattern.label} · ${remediationStatus.label}',
-                                  style: TextStyle(
-                                    color: remediationStatus ==
-                                                RemediationStatus.improved ||
-                                            remediationStatus ==
-                                                RemediationStatus.stable
-                                        ? Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .error,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          trailing:
-                              Chip(label: Text(progress.state.label)),
-                        ),
-                        if (micro.isNotEmpty) ...[
-                          const Divider(height: 1),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              16,
-                              10,
-                              16,
-                              12,
-                            ),
-                            child: Column(
-                              children: micro
-                                  .map(
-                                    (step) => _MicroStepTile(
-                                      progress: step,
-                                      onTap: () => _open(
-                                        mode,
-                                        targetCompetency:
-                                            step.definition.id,
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 14),
-            ],
+          Text(
+            widget.controller.gradeLevel.label,
+            style: Theme.of(context).textTheme.titleLarge,
           ),
+          const SizedBox(height: 10),
+          ...groups.map((group) {
+            final groupSteps = group.$2
+                .expand(widget.controller.microCompetenciesForMode)
+                .toList();
+            final groupSafe = groupSteps
+                .where(
+                  (progress) =>
+                      progress.state == MicroCompetencyState.secure ||
+                      progress.state == MicroCompetencyState.mastered,
+                )
+                .length;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Card(
+                child: ExpansionTile(
+                  key: ValueKey('learning-group:${group.$1}'),
+                  leading: const Icon(Icons.folder_outlined),
+                  title: Text(group.$1),
+                  subtitle: Text(
+                    groupSteps.isEmpty
+                        ? 'Noch keine Teilschritte'
+                        : '$groupSafe von ${groupSteps.length} sicher',
+                  ),
+                  childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  children: group.$2
+                      .map(
+                        (mode) => _ModeTile(
+                          mode: mode,
+                          progress: widget.controller.competencyProgress(mode),
+                          micro: widget.controller.microCompetenciesForMode(
+                            mode,
+                          ),
+                          onOpenMode: () => _open(mode),
+                          onOpenMicro: (progress) => _open(
+                            mode,
+                            targetCompetency: progress.definition.id,
+                          ),
+                          onInfo: _showMicroDetails,
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeTile extends StatelessWidget {
+  const _ModeTile({
+    required this.mode,
+    required this.progress,
+    required this.micro,
+    required this.onOpenMode,
+    required this.onOpenMicro,
+    required this.onInfo,
+  });
+
+  final TrainingMode mode;
+  final CompetencyProgress progress;
+  final List<MicroCompetencyProgress> micro;
+  final VoidCallback onOpenMode;
+  final ValueChanged<MicroCompetencyProgress> onOpenMicro;
+  final ValueChanged<MicroCompetencyProgress> onInfo;
+
+  @override
+  Widget build(BuildContext context) {
+    final microSafe = micro
+        .where(
+          (entry) =>
+              entry.state == MicroCompetencyState.secure ||
+              entry.state == MicroCompetencyState.mastered,
+        )
+        .length;
+    final summary = micro.isEmpty
+        ? progress.state.label
+        : '$microSafe von ${micro.length} Teilschritten sicher';
+
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: ExpansionTile(
+        key: ValueKey('learning-mode:${mode.name}'),
+        leading: _StateIcon(state: progress.state),
+        title: Text(mode.title),
+        subtitle: Text(summary),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onOpenMode,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('Bereich üben'),
+            ),
+          ),
+          if (micro.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 4, 4, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Hier gibt es noch keine einzelnen Teilschritte.'),
+              ),
+            )
+          else
+            ...micro.map(
+              (entry) => _MicroStepTile(
+                progress: entry,
+                onTap: () => onOpenMicro(entry),
+                onInfo: () => onInfo(entry),
+              ),
+            ),
         ],
       ),
     );
@@ -307,74 +440,42 @@ class _MicroStepTile extends StatelessWidget {
   const _MicroStepTile({
     required this.progress,
     required this.onTap,
+    required this.onInfo,
   });
 
   final MicroCompetencyProgress progress;
   final VoidCallback onTap;
+  final VoidCallback onInfo;
 
   @override
-  Widget build(BuildContext context) {
-    final reviewDetail = progress.reviewObservations == 0
-        ? 'Abstand: noch offen'
-        : !progress.hasIndependentReviewEvidence
-            ? 'Abstand: bisher nur mit Hilfe'
-            : 'Abstand: ${(progress.reviewIndependentAccuracy * 100).round()} % selbstständig';
-    final transferDetail = progress.transferObservations == 0
-        ? 'Transfer: noch offen'
-        : !progress.hasIndependentTransferEvidence
-            ? 'Transfer: bisher nur mit Hilfe'
-            : 'Transfer: ${(progress.transferIndependentAccuracy * 100).round()} % selbstständig';
-    final helpDetail = progress.aidedObservations == 0
-        ? 'Hilfe: bisher nicht benötigt'
-        : 'Hilfe: ${progress.aidedObservations} Beobachtungen';
-    final independentStepDetail =
-        progress.independentStepObservations == 0
-            ? null
-            : 'Teilfragen im Aufgabenfluss: ${(progress.independentStepAccuracy * 100).round()} % · '
-                '${progress.independentStepObservations} erste Versuche';
-    final guidedDetail = progress.guidedStepObservations == 0
-        ? null
-        : 'Geführte Teilfragen: ${(progress.guidedStepAccuracy * 100).round()} % · '
-            '${progress.guidedStepObservations} erste Versuche';
-    final independentDetail = progress.hasIndependentBasisEvidence
-        ? 'Selbstständig: ${(progress.independentAccuracy * 100).round()} % · ${progress.independentEvidence.toStringAsFixed(1)} Evidenz'
-        : 'Selbstständig: noch nicht beobachtet';
-    final detail = progress.observations == 0
-        ? progress.state.label
-        : '${progress.state.label}\n'
-            '$independentDetail\n'
-            '$helpDetail\n'
-            '${independentStepDetail == null ? '' : '$independentStepDetail\n'}'
-            '${guidedDetail == null ? '' : '$guidedDetail\n'}'
-            '$reviewDetail · $transferDetail';
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      onTap: onTap,
-      leading: Icon(
-        switch (progress.state) {
-          MicroCompetencyState.newSkill =>
-            Icons.radio_button_unchecked_rounded,
-          MicroCompetencyState.discovering =>
-            Icons.explore_outlined,
-          MicroCompetencyState.practicing =>
-            Icons.timelapse_rounded,
-          MicroCompetencyState.secure =>
-            Icons.check_circle_outline_rounded,
-          MicroCompetencyState.mastered =>
-            Icons.workspace_premium_rounded,
-        },
-        size: 20,
-      ),
-      title: Text(
-        progress.definition.label,
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(detail),
-      trailing: const Icon(Icons.play_arrow_rounded, size: 20),
-    );
-  }
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+    onTap: onTap,
+    leading: Icon(_microIcon(progress.state), size: 22),
+    title: Text(progress.definition.label),
+    subtitle: Text(progress.state.label),
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          key: ValueKey('micro-info:${progress.definition.id.name}'),
+          tooltip: 'Lernstand erklären',
+          onPressed: onInfo,
+          icon: const Icon(Icons.info_outline_rounded),
+        ),
+        const Icon(Icons.play_arrow_rounded),
+      ],
+    ),
+  );
 }
+
+IconData _microIcon(MicroCompetencyState state) => switch (state) {
+  MicroCompetencyState.newSkill => Icons.radio_button_unchecked_rounded,
+  MicroCompetencyState.discovering => Icons.explore_outlined,
+  MicroCompetencyState.practicing => Icons.timelapse_rounded,
+  MicroCompetencyState.secure => Icons.check_circle_outline_rounded,
+  MicroCompetencyState.mastered => Icons.workspace_premium_rounded,
+};
 
 class _StateIcon extends StatelessWidget {
   const _StateIcon({required this.state});
@@ -389,6 +490,31 @@ class _StateIcon extends StatelessWidget {
       CompetencyState.secure => Icons.check_circle_outline_rounded,
       CompetencyState.mastered => Icons.workspace_premium_rounded,
     };
-    return CircleAvatar(child: Icon(icon));
+    return Icon(icon, size: 24);
   }
+}
+
+class _EvidenceLine extends StatelessWidget {
+  const _EvidenceLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(child: Text(value, textAlign: TextAlign.end)),
+      ],
+    ),
+  );
 }
