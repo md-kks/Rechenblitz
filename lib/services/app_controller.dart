@@ -1633,6 +1633,11 @@ class AppController extends ChangeNotifier {
           '${guided.incorrectFirstAttempts} von ${guided.observations} ersten Versuchen waren falsch. '
           'Deshalb übt Rechenblitz gezielt „${focus.definition.label}“.';
     }
+    if (!focus.hasIndependentBasisEvidence) {
+      return '„${focus.definition.label}“ ist aktuell der sinnvollste '
+          'Teilschritt: ${focus.observations} passende Beobachtungen, '
+          'aber noch keine selbstständige Basisbeobachtung.';
+    }
     final percentage = (focus.independentAccuracy * 100).round();
     return '„${focus.definition.label}“ ist aktuell der sinnvollste '
         'Teilschritt: ${focus.observations} passende Beobachtungen, '

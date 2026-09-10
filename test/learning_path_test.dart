@@ -169,6 +169,33 @@ void main() {
     expect(insight.mastery, contains('Nachweis nach zeitlichem Abstand'));
   });
 
+  test('Mikro-Fokus verwechselt fehlende Selbstständigkeit nicht mit 0 Prozent', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      3,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        occurredAt: DateTime(2026, 9, 10, 9, index),
+        correct: true,
+        evidenceWeight: 0.8,
+        source: MicroEvidenceSource.practice,
+        usedHelp: true,
+        helpLevel: 1,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:17:4:$index',
+      ),
+    );
+
+    final reason = controller.microFocusReason();
+
+    expect(reason, contains('noch keine selbstständige Basisbeobachtung'));
+    expect(reason, isNot(contains('0 % selbstständig richtig')));
+  });
+
   test('Elternerklärung macht Hilfebedarf sichtbar ohne ihn aufzuwerten', () {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;

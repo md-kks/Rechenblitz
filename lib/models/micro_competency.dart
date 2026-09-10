@@ -296,6 +296,10 @@ class MicroCompetencyProgress {
   final DateTime? lastSeen;
   final DateTime? lastReviewSeen;
   final DateTime? lastTransferSeen;
+
+  bool get hasIndependentBasisEvidence => independentEvidence > 0;
+  bool get hasIndependentReviewEvidence => reviewIndependentEvidence > 0;
+  bool get hasIndependentTransferEvidence => transferIndependentEvidence > 0;
 }
 
 class MicroCompetencyCatalog {
