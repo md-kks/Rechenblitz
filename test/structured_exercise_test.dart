@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/models/training.dart';
@@ -631,6 +632,10 @@ void main() {
 
     for (final maxValue in [10, 20, 100]) {
       for (final target in targets) {
+        if (!MicroCompetencyCatalog.definition(target)
+            .supportsMaxValue(maxValue)) {
+          continue;
+        }
         for (var i = 0; i < 25; i++) {
           final exercise = generator.generate(
             mode: TrainingMode.wordProblems,
@@ -662,10 +667,10 @@ void main() {
             expect((a % 10) + (b % 10), lessThan(10));
           }
           if (target == MicroCompetencyId.subtractionTenBridge) {
-            expect(a % 10, lessThan(b % 10));
+            expect(needsSubtractionTenBridge(a, b), isTrue);
           }
           if (target == MicroCompetencyId.subtractionNoBridge) {
-            expect(a % 10, greaterThanOrEqualTo(b % 10));
+            expect(needsSubtractionTenBridge(a, b), isFalse);
           }
           if (operation == 'x') {
             expect(a * b, exercise.answer);

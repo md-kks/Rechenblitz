@@ -64,7 +64,8 @@ void main() {
       fact: fact,
     );
 
-    expect(guide.methodKey, 'subtraction:bridgeToTen');
+    expect(guide.methodKey, 'subtraction:fromFullTen');
+    expect(guide.methodLabel, 'Direkt vom Zehner');
     expect(guide.nudge, contains('schon ein voller Zehner'));
     expect(guide.nudge, isNot(contains('unter 10')));
     expect(guide.steps.first.title, 'Voller Zehner ist schon da');

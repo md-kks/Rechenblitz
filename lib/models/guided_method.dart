@@ -257,6 +257,12 @@ class GuidedMethodFactory {
     }
 
     if (fact != null && fact.operation == MathOperation.minus) {
+      final strategy = preferences.effectiveSubtraction(taskKey: fact.key);
+      if (fact.a % 10 == 0 &&
+          fact.b > 0 &&
+          strategy == SubtractionStrategy.bridgeToTen) {
+        return _subtractionFromFullTen(fact);
+      }
       if (_needsSubtractionBridge(fact)) {
         return _subtractionBridge(fact, preferences);
       }
@@ -1563,8 +1569,8 @@ class GuidedMethodFactory {
     final resultChoices = _numberChoices(result, maxValue: max(20, a));
 
     return GuidedMethodGuide(
-      methodKey: 'subtraction:bridgeToTen',
-      methodLabel: 'Erst zum Zehner',
+      methodKey: 'subtraction:fromFullTen',
+      methodLabel: 'Direkt vom Zehner',
       nudge:
           '$a ist schon ein voller Zehner. Du kannst $b direkt von $a wegnehmen.',
       steps: [
@@ -5166,7 +5172,7 @@ class GuidedMethodFactory {
       (fact.a % 10) + (fact.b % 10) >= 10;
 
   static bool _needsSubtractionBridge(MathFact fact) =>
-      (fact.a % 10) < (fact.b % 10);
+      needsSubtractionTenBridge(fact.a, fact.b);
 
   static String _romanText(int value) {
     const pairs = <(int, String)>[

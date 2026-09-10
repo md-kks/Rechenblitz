@@ -1276,14 +1276,14 @@ class AppController extends ChangeNotifier {
   }
 
   List<MicroCompetencyProgress> microCompetenciesForGrade() =>
-      MicroCompetencyCatalog.forGrade(gradeLevel)
+      MicroCompetencyCatalog.forContext(gradeLevel, numberRange)
           .map((definition) => microCompetencyProgress(definition.id))
           .toList();
 
   List<MicroCompetencyProgress> microCompetenciesForMode(
     TrainingMode mode,
   ) =>
-      MicroCompetencyCatalog.forGrade(gradeLevel)
+      MicroCompetencyCatalog.forContext(gradeLevel, numberRange)
           .where((definition) => definition.preferredMode == mode)
           .map((definition) => microCompetencyProgress(definition.id))
           .toList();
@@ -1606,14 +1606,14 @@ class AppController extends ChangeNotifier {
 
   MicroCompetencyProgress? nextNewMicroCompetency() {
     final preferred = recommendedMode();
-    for (final definition in MicroCompetencyCatalog.forGrade(gradeLevel)) {
+    for (final definition in MicroCompetencyCatalog.forContext(gradeLevel, numberRange)) {
       final progress = microCompetencyProgress(definition.id);
       if (progress.state == MicroCompetencyState.newSkill &&
           definition.preferredMode == preferred) {
         return progress;
       }
     }
-    for (final definition in MicroCompetencyCatalog.forGrade(gradeLevel)) {
+    for (final definition in MicroCompetencyCatalog.forContext(gradeLevel, numberRange)) {
       final progress = microCompetencyProgress(definition.id);
       if (progress.state == MicroCompetencyState.newSkill) return progress;
     }
@@ -2669,6 +2669,7 @@ class AppController extends ChangeNotifier {
         .split(':')
         .last
         .replaceAll('bridgeToTen', 'Erst zum Zehner')
+        .replaceAll('fromFullTen', 'Direkt vom Zehner')
         .replaceAll('takeAway', 'Schrittweise wegnehmen')
         .replaceAll('complement', 'Ergänzen')
         .replaceAll('groups', 'Gleich große Gruppen')

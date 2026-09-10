@@ -35,7 +35,7 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
     range = widget.controller.numberRange;
     final focus = widget.controller.currentMicroFocus();
     target = focus?.definition.id ??
-        MicroCompetencyCatalog.forGrade(grade).firstOrNull?.id;
+        MicroCompetencyCatalog.forContext(grade, range).firstOrNull?.id;
   }
 
   List<NumberRangeLevel> _rangesFor(GradeLevel value) => switch (value) {
@@ -59,7 +59,7 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
       };
 
   List<MicroCompetencyDefinition> get _targets =>
-      MicroCompetencyCatalog.forGrade(grade);
+      MicroCompetencyCatalog.forContext(grade, range);
 
   TeacherAssignment get _assignment {
     final definition = target == null
@@ -84,7 +84,7 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
     setState(() {
       grade = value;
       if (!ranges.contains(range)) range = value.recommendedRange;
-      final targets = MicroCompetencyCatalog.forGrade(value);
+      final targets = MicroCompetencyCatalog.forContext(value, range);
       if (target == null || !targets.any((item) => item.id == target)) {
         target = targets.isEmpty ? null : targets.first.id;
       }
@@ -144,11 +144,24 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
                 )
                 .toList(),
             onChanged: (value) {
-              if (value != null) setState(() => range = value);
+              if (value != null) {
+                setState(() {
+                  range = value;
+                  final targets =
+                      MicroCompetencyCatalog.forContext(grade, range);
+                  if (target == null ||
+                      !targets.any((item) => item.id == target)) {
+                    target = targets.firstOrNull?.id;
+                  }
+                });
+              }
             },
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<MicroCompetencyId>(
+            key: ValueKey(
+              'teacher-target:${grade.name}:${range.name}:${target?.name}',
+            ),
             initialValue: target,
             decoration: const InputDecoration(
               labelText: 'Lernziel',

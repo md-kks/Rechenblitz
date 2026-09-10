@@ -2,6 +2,12 @@ import 'dart:math';
 
 enum MathOperation { plus, minus, multiply, divide }
 
+bool needsSubtractionTenBridge(int minuend, int subtrahend) {
+  final minuendOnes = minuend % 10;
+  final subtrahendOnes = subtrahend % 10;
+  return minuendOnes != 0 && minuendOnes < subtrahendOnes;
+}
+
 extension MathOperationX on MathOperation {
   String get symbol => switch (this) {
         MathOperation.plus => '+',

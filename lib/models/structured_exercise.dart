@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'math_fact.dart';
 import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../models/task_diversity.dart';
@@ -606,8 +607,14 @@ class StructuredExerciseGenerator {
     bool transferEmphasis,
     MicroCompetencyId? targetCompetency,
   ) {
+    final targetSupported = targetCompetency == null ||
+        (MicroCompetencyCatalog.definition(targetCompetency)
+                .appliesTo(gradeLevel) &&
+            MicroCompetencyCatalog.definition(targetCompetency)
+                .supportsMaxValue(maxValue));
     if (transferEmphasis &&
         targetCompetency != null &&
+        targetSupported &&
         _isArithmeticTransferTarget(targetCompetency)) {
       return _arithmeticTransferWordProblem(
         maxValue,
@@ -887,16 +894,16 @@ class StructuredExerciseGenerator {
       for (var attempt = 0; attempt < 120; attempt++) {
         final candidateA = _between(2, limit);
         final candidateB = _between(1, candidateA);
-        final bridge = (candidateA % 10) < (candidateB % 10);
+        final bridge = needsSubtractionTenBridge(candidateA, candidateB);
         if (bridge == needsBridge) {
           a = candidateA;
           b = candidateB;
           break;
         }
       }
-      if (needsBridge && (a % 10) >= (b % 10)) {
-        a = min(limit, 10);
-        b = min(a, 3);
+      if (needsBridge && !needsSubtractionTenBridge(a, b)) {
+        a = min(limit, 12);
+        b = min(a, 5);
       }
       final contexts = [
         (
