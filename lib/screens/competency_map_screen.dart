@@ -316,10 +316,14 @@ class _MicroStepTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final reviewDetail = progress.reviewObservations == 0
         ? 'Abstand: noch offen'
-        : 'Abstand: ${(progress.reviewIndependentAccuracy * 100).round()} % selbstständig';
+        : !progress.hasIndependentReviewEvidence
+            ? 'Abstand: bisher nur mit Hilfe'
+            : 'Abstand: ${(progress.reviewIndependentAccuracy * 100).round()} % selbstständig';
     final transferDetail = progress.transferObservations == 0
         ? 'Transfer: noch offen'
-        : 'Transfer: ${(progress.transferIndependentAccuracy * 100).round()} % selbstständig';
+        : !progress.hasIndependentTransferEvidence
+            ? 'Transfer: bisher nur mit Hilfe'
+            : 'Transfer: ${(progress.transferIndependentAccuracy * 100).round()} % selbstständig';
     final helpDetail = progress.aidedObservations == 0
         ? 'Hilfe: bisher nicht benötigt'
         : 'Hilfe: ${progress.aidedObservations} Beobachtungen';
@@ -332,11 +336,13 @@ class _MicroStepTile extends StatelessWidget {
         ? null
         : 'Geführte Teilfragen: ${(progress.guidedStepAccuracy * 100).round()} % · '
             '${progress.guidedStepObservations} erste Versuche';
+    final independentDetail = progress.hasIndependentBasisEvidence
+        ? 'Selbstständig: ${(progress.independentAccuracy * 100).round()} % · ${progress.independentEvidence.toStringAsFixed(1)} Evidenz'
+        : 'Selbstständig: noch nicht beobachtet';
     final detail = progress.observations == 0
         ? progress.state.label
         : '${progress.state.label}\n'
-            'Selbstständig: ${(progress.independentAccuracy * 100).round()} % · '
-            '${progress.independentEvidence.toStringAsFixed(1)} Evidenz\n'
+            '$independentDetail\n'
             '$helpDetail\n'
             '${independentStepDetail == null ? '' : '$independentStepDetail\n'}'
             '${guidedDetail == null ? '' : '$guidedDetail\n'}'
