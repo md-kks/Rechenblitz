@@ -539,7 +539,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
             .toInt();
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.mode.title} · ${widget.controller.effectiveNumberRange.label}'),
+        title: Text(widget.mode.title),
         actions: [
           if (visibleTimer)
             Padding(
@@ -563,26 +563,19 @@ class _TrainingScreenState extends State<TrainingScreen> {
                   BoxConstraints(minHeight: constraints.maxHeight - 40),
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: LinearProgressIndicator(
-                          value: widget.targetTasks == 0
-                              ? 0
-                              : completed / widget.targetTasks,
-                          minHeight: 10,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text('$completed/${widget.targetTasks}'),
-                    ],
+                  LinearProgressIndicator(
+                    value: widget.targetTasks == 0
+                        ? 0
+                        : completed / widget.targetTasks,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(99),
                   ),
-                  const SizedBox(height: 30),
-                  if (widget.mode == TrainingMode.minus) ...[
-                    Chip(label: Text('Minus · Lernstufe $_minusStage')),
-                    const SizedBox(height: 12),
-                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    'Aufgabe ${completed < widget.targetTasks ? completed + 1 : widget.targetTasks} von ${widget.targetTasks}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -692,7 +685,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                         activeMethodKey = _guide.methodKey;
                       }),
                       icon: const Icon(Icons.lightbulb_outline_rounded),
-                      label: const Text('Zeig mir eine Hilfe'),
+                      label: const Text('Ich brauche Hilfe'),
                     ),
                   const SizedBox(height: 24),
                   if (_checkpointsComplete)

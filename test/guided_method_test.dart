@@ -1518,8 +1518,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('2 Darstellung'), findsOneWidget);
-    await tester.tap(find.text('2 Darstellung'));
+    expect(find.text('Bild zeigen'), findsOneWidget);
+    await tester.tap(find.text('Bild zeigen'));
     await tester.pump();
     expect(find.text('Rechenweg'), findsOneWidget);
     expect(find.text('47'), findsOneWidget);
@@ -1552,8 +1552,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('2 Darstellung'), findsNothing);
-    expect(find.text('2 Schritt für Schritt'), findsOneWidget);
+    expect(find.text('Bild zeigen'), findsNothing);
+    expect(find.text('Schritt für Schritt'), findsOneWidget);
   });
   test('Automatisch vergleicht Methoden ohne gespeicherte Schulmethode zu ändern',
       () {
@@ -1833,7 +1833,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('2 Schritt für Schritt'));
+    await tester.tap(find.byKey(const ValueKey('help-show-guided')));
     await tester.pump();
 
     await tester.tap(find.widgetWithText(ChoiceChip, '3'));
@@ -1913,10 +1913,8 @@ void main() {
     await tester.pump();
 
     expect(levels, [HelpLevel.visual]);
-    final visualChip = tester.widget<ActionChip>(
-      find.widgetWithText(ActionChip, '2 Darstellung'),
-    );
-    expect(visualChip.avatar, isNotNull);
+    expect(find.byType(LearningVisualAid), findsOneWidget);
+    expect(find.text('Bild zeigen'), findsNothing);
   });
 
 
@@ -4195,7 +4193,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('3 Schritt für Schritt'), findsOneWidget);
+    expect(find.textContaining('Schritt 1 von'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('help-toggle-methods')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(
       const ValueKey('guided-method-choice:subtraction:bridgeToTen'),
     ));
@@ -4204,7 +4204,62 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(chosen?.methodKey, 'subtraction:complement');
-    expect(find.text('Rechenweg: Ergänzen'), findsOneWidget);
+    expect(find.text('Hilfe · Ergänzen'), findsOneWidget);
+  });
+
+
+  testWidgets('Alternativer Rechenweg nutzt seine eigene Schrittzahl',
+      (tester) async {
+    const first = GuidedMethodGuide(
+      methodKey: 'test:first',
+      methodLabel: 'Erster Weg',
+      nudge: 'Erster Hinweis.',
+      steps: [
+        GuidedMethodStep(title: 'Einziger Schritt', instruction: 'Fertig.'),
+      ],
+    );
+    const second = GuidedMethodGuide(
+      methodKey: 'test:second',
+      methodLabel: 'Zweiter Weg',
+      nudge: 'Zweiter Hinweis.',
+      steps: [
+        GuidedMethodStep(title: 'Schritt A', instruction: 'A.'),
+        GuidedMethodStep(title: 'Schritt B', instruction: 'B.'),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: GuidedMethodPanel(
+              guide: first,
+              alternativeGuides: [second],
+              pattern: ErrorPattern.unknown,
+              taskKey: 'test:alternative-steps',
+              expected: 0,
+              initialLevel: HelpLevel.guided,
+              onHelpLevelChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('help-toggle-methods')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('guided-method-choice:test:first')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zweiter Weg').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Schritt 1 von 2'), findsOneWidget);
+
+    await tester.tap(find.text('Nächster Schritt'));
+    await tester.pumpAndSettle();
+    expect(find.text('Schritt 2 von 2'), findsOneWidget);
   });
 
 

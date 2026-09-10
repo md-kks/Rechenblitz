@@ -408,29 +408,26 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(
-              '${widget.mode.title} · ${widget.controller.effectiveNumberRange.label}'),
+          title: Text(widget.mode.title),
         ),
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: LinearProgressIndicator(
-                      value: widget.targetTasks == 0
-                          ? 0
-                          : completed / widget.targetTasks,
-                      minHeight: 10,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text('$completed/${widget.targetTasks}'),
-                ],
+              LinearProgressIndicator(
+                value: widget.targetTasks == 0
+                    ? 0
+                    : completed / widget.targetTasks,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(99),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 6),
+              Text(
+                'Aufgabe ${completed < widget.targetTasks ? completed + 1 : widget.targetTasks} von ${widget.targetTasks}',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 20),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -574,7 +571,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                   activeMethodKey = _guide.methodKey;
                 }),
                   icon: const Icon(Icons.lightbulb_outline_rounded),
-                  label: const Text('Hinweis anzeigen'),
+                  label: const Text('Ich brauche Hilfe'),
                 ),
               ],
               const SizedBox(height: 18),
