@@ -24,8 +24,7 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
   void initState() {
     super.initState();
     final profile = widget.controller.activeProfile;
-    nameController.text =
-        profile.name == 'Lernprofil' ? '' : profile.name;
+    nameController.text = profile.name == 'Lernprofil' ? '' : profile.name;
     grade = profile.gradeLevel;
     state = profile.state;
   }
@@ -37,10 +36,10 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
   }
 
   Future<void> _saveSetup() => widget.controller.saveLearningStartSetup(
-        name: nameController.text,
-        grade: grade,
-        state: state,
-      );
+    name: nameController.text,
+    grade: grade,
+    state: state,
+  );
 
   Future<void> _startAssessment() async {
     await _saveSetup();
@@ -67,17 +66,24 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
               child: Row(
                 children: [
-                  const Icon(Icons.flash_on_rounded, size: 30),
+                  Icon(
+                    Icons.flash_on_rounded,
+                    size: 28,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Rechenblitz',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
                   Text(
-                    'Rechenblitz Lernstart',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w900),
+                    'Start ${step + 1} von 2',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
@@ -86,13 +92,13 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: LinearProgressIndicator(
                 value: (step + 1) / 2,
-                minHeight: 8,
+                minHeight: 6,
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
             Expanded(
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
+                duration: const Duration(milliseconds: 180),
                 child: switch (step) {
                   0 => _profileStep(),
                   _ => _assessmentStep(),
@@ -106,184 +112,161 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
   }
 
   Widget _profileStep() => ListView(
-        key: const ValueKey('learning-start-profile'),
-        padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
-        children: [
-          Text(
-            'Für wen ist Rechenblitz?',
-            style: Theme.of(context)
-                .textTheme
-                .headlineMedium
-                ?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Das Lernprofil bleibt ausschließlich auf diesem Gerät. Ein Konto ist nicht nötig.',
-          ),
-          const SizedBox(height: 24),
-          TextField(
-            key: const ValueKey('learning-start-name'),
-            controller: nameController,
-            maxLength: 24,
-            decoration: const InputDecoration(
-              labelText: 'Name oder Spitzname',
-              hintText: 'z. B. Mia',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.person_outline_rounded),
-            ),
-          ),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<GradeLevel>(
-            key: const ValueKey('learning-start-grade'),
-            initialValue: grade,
-            decoration: const InputDecoration(
-              labelText: 'Klassenstufe',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.school_outlined),
-            ),
-            items: GradeLevel.values
-                .map(
-                  (value) => DropdownMenuItem(
-                    value: value,
-                    child: Text(value.label),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value != null) setState(() => grade = value);
-            },
-          ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<GermanState>(
-            key: const ValueKey('learning-start-state'),
-            initialValue: state,
-            decoration: const InputDecoration(
-              labelText: 'Bundesland',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.location_on_outlined),
-            ),
-            items: GermanState.values
-                .map(
-                  (value) => DropdownMenuItem(
-                    value: value,
-                    child: Text(value.label),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value != null) setState(() => state = value);
-            },
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Text(
-                state == GermanState.thuringia
-                    ? 'Für Thüringen ist der Lehrplan bereits vollständig geprüft.'
-                    : 'Das Bundesland wird lokal gespeichert. Thüringen ist derzeit vollständig lehrplangeprüft; für andere Bundesländer nutzt Rechenblitz zunächst den gemeinsamen Grundschul-Mathematikkern.',
+    key: const ValueKey('learning-start-profile'),
+    padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
+    children: [
+      Text(
+        'Kurz einrichten',
+        style: Theme.of(context).textTheme.headlineMedium,
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        'Damit die Aufgaben zur Klasse passen. Alles bleibt auf diesem Gerät.',
+      ),
+      const SizedBox(height: 24),
+      TextField(
+        key: const ValueKey('learning-start-name'),
+        controller: nameController,
+        maxLength: 24,
+        decoration: const InputDecoration(
+          labelText: 'Name oder Spitzname (optional)',
+          hintText: 'z. B. Mia',
+          prefixIcon: Icon(Icons.person_outline_rounded),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text('Klasse', style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: GradeLevel.values
+            .map(
+              (value) => ChoiceChip(
+                key: ValueKey('learning-start-grade-${value.name}'),
+                label: Text(value.label),
+                selected: grade == value,
+                onSelected: (_) => setState(() => grade = value),
               ),
-            ),
-          ),
-          const SizedBox(height: 22),
-          FilledButton(
-            key: const ValueKey('learning-start-next'),
-            onPressed: () => setState(() => step = 1),
-            child: const Text('Weiter'),
-          ),
-        ],
-      );
+            )
+            .toList(),
+      ),
+      const SizedBox(height: 22),
+      DropdownButtonFormField<GermanState>(
+        key: const ValueKey('learning-start-state'),
+        initialValue: state,
+        decoration: const InputDecoration(
+          labelText: 'Bundesland',
+          prefixIcon: Icon(Icons.location_on_outlined),
+        ),
+        items: GermanState.values
+            .map(
+              (value) =>
+                  DropdownMenuItem(value: value, child: Text(value.label)),
+            )
+            .toList(),
+        onChanged: (value) {
+          if (value != null) setState(() => state = value);
+        },
+      ),
+      const SizedBox(height: 10),
+      Text(
+        state == GermanState.thuringia
+            ? 'Thüringen: Lehrplan vollständig geprüft.'
+            : 'Das Bundesland hilft bei der Lehrplan-Zuordnung.',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      const SizedBox(height: 28),
+      FilledButton(
+        key: const ValueKey('learning-start-next'),
+        onPressed: () => setState(() => step = 1),
+        child: const Text('Weiter zum Lerncheck'),
+      ),
+    ],
+  );
 
   Widget _assessmentStep() => ListView(
-        key: const ValueKey('learning-start-assessment'),
-        padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
-        children: [
-          Icon(
-            Icons.route_rounded,
-            size: 62,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Wo stehst du gerade?',
-            textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .headlineMedium
-                ?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            '12 kurze Aufgaben aus verschiedenen Bereichen helfen Rechenblitz, die erste Lernlandkarte sinnvoll zu starten.',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 22),
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(17),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _CheckPoint(
-                    icon: Icons.timer_off_outlined,
-                    text: 'Keine Stoppuhr und kein Zeitdruck',
-                  ),
-                  _CheckPoint(
-                    icon: Icons.grade_outlined,
-                    text: 'Keine Note und keine verlorenen Sterne',
-                  ),
-                  _CheckPoint(
-                    icon: Icons.help_outline_rounded,
-                    text: '„Weiß ich noch nicht“ ist eine ganz normale Antwort',
-                  ),
-                  _CheckPoint(
-                    icon: Icons.route_outlined,
-                    text: 'Das Ergebnis bestimmt nur den ersten Lernschritt',
-                  ),
-                ],
+    key: const ValueKey('learning-start-assessment'),
+    padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
+    children: [
+      Icon(
+        Icons.route_rounded,
+        size: 56,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      const SizedBox(height: 18),
+      Text(
+        'Ein kurzer Lerncheck',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.headlineMedium,
+      ),
+      const SizedBox(height: 10),
+      const Text(
+        '12 Aufgaben ohne Zeitdruck. So findet Rechenblitz einen guten Startpunkt.',
+        textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 22),
+      const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            children: [
+              _CheckPoint(
+                icon: Icons.timer_off_outlined,
+                text: 'Kein Zeitdruck',
               ),
-            ),
+              _CheckPoint(icon: Icons.grade_outlined, text: 'Keine Note'),
+              _CheckPoint(
+                icon: Icons.help_outline_rounded,
+                text: '„Weiß ich noch nicht“ ist völlig in Ordnung',
+              ),
+            ],
           ),
-          const SizedBox(height: 22),
-          FilledButton.icon(
-            key: const ValueKey('learning-start-assessment-start'),
-            onPressed: _startAssessment,
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('Lerncheck starten'),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            key: const ValueKey('learning-start-assessment-later'),
-            onPressed: _skipAssessment,
-            child: const Text('Lerncheck später machen'),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => setState(() => step = 0),
-            child: const Text('Zurück'),
-          ),
-        ],
-      );
+        ),
+      ),
+      const SizedBox(height: 22),
+      FilledButton.icon(
+        key: const ValueKey('learning-start-assessment-start'),
+        onPressed: _startAssessment,
+        icon: const Icon(Icons.play_arrow_rounded),
+        label: const Text('Lerncheck starten'),
+      ),
+      const SizedBox(height: 8),
+      TextButton(
+        key: const ValueKey('learning-start-assessment-later'),
+        onPressed: _skipAssessment,
+        child: const Text('Ohne Lerncheck starten'),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        'Der Lerncheck kann später in den Einstellungen nachgeholt werden.',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      const SizedBox(height: 10),
+      TextButton(
+        onPressed: () => setState(() => step = 0),
+        child: const Text('Zurück'),
+      ),
+    ],
+  );
 }
 
 class _CheckPoint extends StatelessWidget {
-  const _CheckPoint({
-    required this.icon,
-    required this.text,
-  });
+  const _CheckPoint({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Row(
-          children: [
-            Icon(icon),
-            const SizedBox(width: 11),
-            Expanded(child: Text(text)),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Row(
+      children: [
+        Icon(icon),
+        const SizedBox(width: 11),
+        Expanded(child: Text(text)),
+      ],
+    ),
+  );
 }
