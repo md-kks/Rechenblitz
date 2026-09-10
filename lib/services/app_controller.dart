@@ -2505,12 +2505,13 @@ class AppController extends ChangeNotifier {
     required String name,
     required GradeLevel grade,
     required GermanState state,
-    required MethodPreferences methods,
   }) async {
     final cleanName = name.trim().isEmpty ? 'Lernprofil' : name.trim();
     gradeLevel = grade;
     numberRange = grade.recommendedRange;
-    methodPreferences = methods;
+    methodPreferences = methodPreferences.copyWith(
+      selectionPreference: MethodSelectionPreference.automatic,
+    );
 
     profiles = profiles
         .map(

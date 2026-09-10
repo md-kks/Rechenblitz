@@ -1553,7 +1553,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('2 Darstellung'), findsNothing);
-    expect(find.text('2 Gemeinsam lösen'), findsOneWidget);
+    expect(find.text('2 Schritt für Schritt'), findsOneWidget);
   });
   test('Automatisch vergleicht Methoden ohne gespeicherte Schulmethode zu ändern',
       () {
@@ -1833,7 +1833,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('2 Gemeinsam lösen'));
+    await tester.tap(find.text('2 Schritt für Schritt'));
     await tester.pump();
 
     await tester.tap(find.widgetWithText(ChoiceChip, '3'));
@@ -4087,6 +4087,156 @@ void main() {
       isTrue,
     );
   });
+  test('Hilfen bieten mehrere Rechenwege ohne Schulmethode zu verändern', () {
+    const preferences = MethodPreferences(
+      subtraction: SubtractionStrategy.bridgeToTen,
+      selectionPreference: MethodSelectionPreference.schoolMethod,
+    );
+    final fact = MathFact(a: 43, b: 18, operation: MathOperation.minus);
+
+    final alternatives = GuidedMethodFactory.alternativesForTask(
+      mode: TrainingMode.minus,
+      taskKey: fact.key,
+      expected: 25,
+      preferences: preferences,
+      fact: fact,
+    );
+
+    expect(
+      alternatives.map((guide) => guide.methodLabel).toSet(),
+      {'Erst zum Zehner', 'Schrittweise wegnehmen', 'Ergänzen'},
+    );
+    expect(preferences.subtraction, SubtractionStrategy.bridgeToTen);
+    expect(
+      preferences.selectionPreference,
+      MethodSelectionPreference.schoolMethod,
+    );
+  });
+
+  test('Schrittweise wegnehmen zerlegt 43 minus 18 schulnah', () {
+    final fact = MathFact(a: 43, b: 18, operation: MathOperation.minus);
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.minus,
+      taskKey: fact.key,
+      expected: 25,
+      preferences: const MethodPreferences(
+        subtraction: SubtractionStrategy.takeAway,
+      ),
+      fact: fact,
+    );
+
+    expect(guide.nudge, contains('10 + 3 + 5'));
+    expect(guide.steps[0].instruction, 'Rechne jetzt 43 − 10.');
+    expect(guide.steps[1].instruction, 'Rechne jetzt 33 − 3.');
+    expect(guide.steps[2].instruction, 'Rechne jetzt 30 − 5.');
+    expect(guide.steps[2].choices[guide.steps[2].correctChoice!], '25');
+  });
+
+  test('Ergänzen führt 18 über volle Zehner kleinschrittig zu 43', () {
+    final fact = MathFact(a: 43, b: 18, operation: MathOperation.minus);
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.minus,
+      taskKey: fact.key,
+      expected: 25,
+      preferences: const MethodPreferences(
+        subtraction: SubtractionStrategy.complement,
+      ),
+      fact: fact,
+    );
+
+    expect(guide.steps[0].instruction, 'Ergänze von 18 bis 20.');
+    expect(guide.steps[0].choices[guide.steps[0].correctChoice!], '2');
+    expect(guide.steps[1].instruction, 'Ergänze von 20 bis 40.');
+    expect(guide.steps[1].choices[guide.steps[1].correctChoice!], '20');
+    expect(guide.steps[2].instruction, 'Ergänze von 40 bis 43.');
+    expect(guide.steps[2].choices[guide.steps[2].correctChoice!], '3');
+    expect(guide.steps.last.instruction, '2 + 20 + 3 = 25.');
+  });
+
+  testWidgets('Kind kann den Rechenweg direkt in der Hilfe wechseln',
+      (tester) async {
+    final fact = MathFact(a: 13, b: 5, operation: MathOperation.minus);
+    const preferences = MethodPreferences(
+      subtraction: SubtractionStrategy.bridgeToTen,
+    );
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.minus,
+      taskKey: fact.key,
+      expected: 8,
+      preferences: preferences,
+      fact: fact,
+    );
+    final alternatives = GuidedMethodFactory.alternativesForTask(
+      mode: TrainingMode.minus,
+      taskKey: fact.key,
+      expected: 8,
+      preferences: preferences,
+      fact: fact,
+    );
+    GuidedMethodGuide? chosen;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: GuidedMethodPanel(
+              guide: guide,
+              alternativeGuides: alternatives,
+              pattern: ErrorPattern.tenBridge,
+              taskKey: fact.key,
+              expected: 8,
+              initialLevel: HelpLevel.guided,
+              onHelpLevelChanged: (_) {},
+              onGuideChanged: (value) => chosen = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('3 Schritt für Schritt'), findsOneWidget);
+    await tester.tap(find.byKey(
+      const ValueKey('guided-method-choice:subtraction:bridgeToTen'),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ergänzen').last);
+    await tester.pumpAndSettle();
+
+    expect(chosen?.methodKey, 'subtraction:complement');
+    expect(find.text('Rechenweg: Ergänzen'), findsOneWidget);
+  });
+
+
+  test('Hilfen bieten auch Mal- und schriftliche Minus-Alternativen', () {
+    final multiplication = MathFact(
+      a: 6,
+      b: 7,
+      operation: MathOperation.multiply,
+    );
+    final multiplyGuides = GuidedMethodFactory.alternativesForTask(
+      mode: TrainingMode.multiply,
+      taskKey: multiplication.key,
+      expected: 42,
+      preferences: const MethodPreferences(),
+      fact: multiplication,
+    );
+    expect(
+      multiplyGuides.map((guide) => guide.methodLabel).toSet(),
+      {'Gleich große Gruppen', 'Zerlegen', 'Nachbaraufgaben'},
+    );
+
+    final writtenGuides = GuidedMethodFactory.alternativesForTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'written:-:402:187',
+      expected: 215,
+      preferences: const MethodPreferences(),
+    );
+    expect(
+      writtenGuides.map((guide) => guide.methodLabel).toSet(),
+      {'Entbündeln', 'Ergänzungsverfahren'},
+    );
+  });
 
 }
 
@@ -4104,6 +4254,8 @@ class _FixedCurriculumExerciseGenerator extends CurriculumExerciseGenerator {
     MicroCompetencyId? targetCompetency,
   }) =>
       exercise;
+
+
 
 
 

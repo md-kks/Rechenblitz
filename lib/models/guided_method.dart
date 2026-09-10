@@ -505,6 +505,64 @@ class GuidedMethodFactory {
     );
   }
 
+  static List<GuidedMethodGuide> alternativesForTask({
+    required TrainingMode mode,
+    required String taskKey,
+    required int expected,
+    required MethodPreferences preferences,
+    MicroCompetencyId? targetCompetency,
+    MathFact? fact,
+  }) {
+    final candidates = <GuidedMethodGuide>[];
+
+    void add(MethodPreferences variant) {
+      final guide = forTask(
+        mode: mode,
+        taskKey: taskKey,
+        expected: expected,
+        preferences: variant,
+        targetCompetency: targetCompetency,
+        fact: fact,
+      );
+      if (!candidates.any((entry) => entry.methodKey == guide.methodKey)) {
+        candidates.add(guide);
+      }
+    }
+
+    if (fact?.operation == MathOperation.minus) {
+      for (final strategy in SubtractionStrategy.values) {
+        add(
+          preferences.copyWith(
+            subtraction: strategy,
+            selectionPreference: MethodSelectionPreference.schoolMethod,
+          ),
+        );
+      }
+    } else if (fact?.operation == MathOperation.multiply) {
+      for (final strategy in MultiplicationStrategy.values) {
+        add(
+          preferences.copyWith(
+            multiplication: strategy,
+            selectionPreference: MethodSelectionPreference.schoolMethod,
+          ),
+        );
+      }
+    } else if (mode == TrainingMode.writtenAddSub && taskKey.contains(':-:')) {
+      for (final strategy in WrittenSubtractionStrategy.values) {
+        add(
+          preferences.copyWith(
+            writtenSubtraction: strategy,
+            selectionPreference: MethodSelectionPreference.schoolMethod,
+          ),
+        );
+      }
+    }
+
+    return candidates.length > 1
+        ? candidates
+        : const <GuidedMethodGuide>[];
+  }
+
   static List<GuidedMethodStep> independentArithmeticStepsForTask({
     required TrainingMode mode,
     required MathFact fact,
@@ -1515,74 +1573,12 @@ class GuidedMethodFactory {
         );
 
       case SubtractionStrategy.takeAway:
-        final first = min(b, max(1, b ~/ 2));
-        final second = b - first;
-        final middle = a - first;
-        final choices1 = _numberChoices(middle, maxValue: max(20, a));
-        final choices2 = _numberChoices(result, maxValue: max(20, a));
-        return GuidedMethodGuide(
-          methodKey: 'subtraction:${strategy.name}',
-          methodLabel: strategy.label,
-          nudge: 'Zerlege $b in zwei gut rechenbare Teile.',
-          steps: [
-            GuidedMethodStep(
-              title: 'Ersten Teil wegnehmen',
-              instruction: 'Nimm zuerst $first von $a weg.',
-              question: 'Wo landest du nach dem ersten Schritt?',
-              choices: choices1,
-              correctChoice: choices1.indexOf('$middle'),
-              evidenceKey: 'firstPartialSubtraction',
-              evidenceCompetency: MicroCompetencyId.numberDecomposition,
-            ),
-            GuidedMethodStep(
-              title: 'Rest wegnehmen',
-              instruction: 'Jetzt fehlen noch $second.',
-              question: '$middle − $second = ?',
-              choices: choices2,
-              correctChoice: choices2.indexOf('$result'),
-            ),
-          ],
-        );
+        return _takeAwaySubtraction(fact);
 
       case SubtractionStrategy.complement:
-        final firstJump = bridge - b;
-        final secondJump = a - bridge;
-        final choices = _numberChoices(result, maxValue: max(20, a));
-        final firstJumpChoices =
-            _numberChoices(firstJump, maxValue: max(10, a));
-        final secondJumpChoices =
-            _numberChoices(secondJump, maxValue: max(10, a));
-        return GuidedMethodGuide(
-          methodKey: 'subtraction:${strategy.name}',
-          methodLabel: strategy.label,
-          nudge: 'Starte bei $b und ergänze schrittweise bis $a.',
-          steps: [
-            GuidedMethodStep(
-              title: 'Bis zum Zehner ergänzen',
-              instruction: 'Ergänze von $b bis zum nächsten vollen Zehner.',
-              question: 'Wie groß ist der erste Sprung?',
-              choices: firstJumpChoices,
-              correctChoice: firstJumpChoices.indexOf('$firstJump'),
-              evidenceKey: 'firstComplementJump',
-              evidenceCompetency: MicroCompetencyId.subtractionTenBridge,
-            ),
-            GuidedMethodStep(
-              title: 'Bis zur größeren Zahl',
-              instruction: 'Ergänze vom vollen Zehner weiter bis $a.',
-              question: 'Wie groß ist der zweite Sprung?',
-              choices: secondJumpChoices,
-              correctChoice: secondJumpChoices.indexOf('$secondJump'),
-              evidenceKey: 'secondComplementJump',
-              evidenceCompetency: MicroCompetencyId.subtractionTenBridge,
-            ),
-            GuidedMethodStep(
-              title: 'Sprünge zusammenzählen',
-              instruction: '$firstJump + $secondJump = $result.',
-              question: 'Wie groß ist der Unterschied?',
-              choices: choices,
-              correctChoice: choices.indexOf('$result'),
-            ),
-          ],
+        return _complementSubtraction(
+          fact,
+          recordBridgeEvidence: true,
         );
     }
   }
@@ -1615,6 +1611,142 @@ class GuidedMethodFactory {
     );
   }
 
+  static GuidedMethodGuide _takeAwaySubtraction(MathFact fact) {
+    var current = fact.a;
+    var remaining = fact.b;
+    final parts = <int>[];
+
+    final wholeTens = (remaining ~/ 10) * 10;
+    if (wholeTens > 0) {
+      parts.add(wholeTens);
+      current -= wholeTens;
+      remaining -= wholeTens;
+    }
+
+    if (remaining > 0) {
+      final toPreviousTen = current % 10;
+      if (toPreviousTen > 0 && remaining > toPreviousTen) {
+        parts.add(toPreviousTen);
+        current -= toPreviousTen;
+        remaining -= toPreviousTen;
+      }
+      if (remaining > 0) parts.add(remaining);
+    }
+
+    if (parts.isEmpty) parts.add(fact.b);
+    final decomposition = parts.join(' + ');
+    final steps = <GuidedMethodStep>[];
+    current = fact.a;
+    for (var index = 0; index < parts.length; index++) {
+      final part = parts[index];
+      final before = current;
+      final after = before - part;
+      final choices = _numberChoices(after, maxValue: max(20, fact.a));
+      final title = part >= 10 && part % 10 == 0
+          ? 'Zehner wegnehmen'
+          : after % 10 == 0 && index + 1 < parts.length
+              ? 'Bis zum vollen Zehner'
+              : index + 1 == parts.length
+                  ? 'Rest wegnehmen'
+                  : 'Nächsten Teil wegnehmen';
+      steps.add(
+        GuidedMethodStep(
+          title: title,
+          instruction: 'Rechne jetzt $before − $part.',
+          question: 'Wo landest du?',
+          choices: choices,
+          correctChoice: choices.indexOf('$after'),
+          evidenceKey:
+              index == 0 && parts.length > 1 ? 'firstPartialSubtraction' : null,
+          evidenceCompetency: index == 0 && parts.length > 1
+              ? MicroCompetencyId.numberDecomposition
+              : null,
+        ),
+      );
+      current = after;
+    }
+
+    return GuidedMethodGuide(
+      methodKey: 'subtraction:${SubtractionStrategy.takeAway.name}',
+      methodLabel: SubtractionStrategy.takeAway.label,
+      nudge:
+          'Zerlege ${fact.b} in gut rechenbare Teile: $decomposition. Nimm jeden Teil nacheinander weg.',
+      steps: steps,
+    );
+  }
+
+  static GuidedMethodGuide _complementSubtraction(
+    MathFact fact, {
+    required bool recordBridgeEvidence,
+  }) {
+    var current = fact.b;
+    final targets = <int>[];
+    final jumps = <int>[];
+
+    void addTarget(int target) {
+      if (target <= current || target > fact.a) return;
+      targets.add(target);
+      jumps.add(target - current);
+      current = target;
+    }
+
+    if (current % 10 != 0) {
+      addTarget(((current ~/ 10) + 1) * 10);
+    }
+    addTarget((fact.a ~/ 10) * 10);
+    addTarget(fact.a);
+    if (jumps.isEmpty) {
+      targets.add(fact.a);
+      jumps.add(fact.a - fact.b);
+    }
+
+    final steps = <GuidedMethodStep>[];
+    var from = fact.b;
+    for (var index = 0; index < jumps.length; index++) {
+      final jump = jumps[index];
+      final target = targets[index];
+      final choices = _numberChoices(jump, maxValue: max(20, fact.a));
+      steps.add(
+        GuidedMethodStep(
+          title: index == 0 ? 'Ersten Sprung ergänzen' : 'Weiter ergänzen',
+          instruction: 'Ergänze von $from bis $target.',
+          question: 'Wie groß ist dieser Sprung?',
+          choices: choices,
+          correctChoice: choices.indexOf('$jump'),
+          evidenceKey: recordBridgeEvidence && index < 2
+              ? index == 0
+                  ? 'firstComplementJump'
+                  : 'secondComplementJump'
+              : null,
+          evidenceCompetency: recordBridgeEvidence && index < 2
+              ? MicroCompetencyId.subtractionTenBridge
+              : null,
+        ),
+      );
+      from = target;
+    }
+
+    final result = fact.a - fact.b;
+    final resultChoices = _numberChoices(result, maxValue: max(20, fact.a));
+    steps.add(
+      GuidedMethodStep(
+        title: 'Sprünge zusammenzählen',
+        instruction: '${jumps.join(' + ')} = $result.',
+        question: 'Wie groß ist der Unterschied insgesamt?',
+        choices: resultChoices,
+        correctChoice: resultChoices.indexOf('$result'),
+      ),
+    );
+
+    return GuidedMethodGuide(
+      methodKey: 'subtraction:${SubtractionStrategy.complement.name}',
+      methodLabel: SubtractionStrategy.complement.label,
+      nudge:
+          'Starte bei ${fact.b} und ergänze in überschaubaren Sprüngen bis ${fact.a}.',
+      steps: steps,
+    );
+  }
+
   static GuidedMethodGuide _subtractionWithoutBridge(
     MathFact fact,
     MethodPreferences preferences,
@@ -1624,55 +1756,14 @@ class GuidedMethodFactory {
     final result = a - b;
     final strategy = preferences.effectiveSubtraction(taskKey: fact.key);
 
-    if (strategy == SubtractionStrategy.takeAway && b > 1) {
-      final first = max(1, b ~/ 2);
-      final second = b - first;
-      final middle = a - first;
-      final middleChoices = _numberChoices(middle, maxValue: max(20, a));
-      final resultChoices = _numberChoices(result, maxValue: max(20, a));
-      return GuidedMethodGuide(
-        methodKey: 'subtraction:${strategy.name}',
-        methodLabel: strategy.label,
-        nudge: 'Zerlege $b in zwei kleine, gut rechenbare Teile.',
-        steps: [
-          GuidedMethodStep(
-            title: 'Ersten Teil wegnehmen',
-            instruction: '$a − $first = $middle.',
-            question: 'Wo landest du zuerst?',
-            choices: middleChoices,
-            correctChoice: middleChoices.indexOf('$middle'),
-          ),
-          GuidedMethodStep(
-            title: 'Rest wegnehmen',
-            instruction: '$middle − $second = $result.',
-            question: 'Wie lautet das Ergebnis?',
-            choices: resultChoices,
-            correctChoice: resultChoices.indexOf('$result'),
-          ),
-        ],
-      );
+    if (strategy == SubtractionStrategy.takeAway) {
+      return _takeAwaySubtraction(fact);
     }
 
     if (strategy == SubtractionStrategy.complement) {
-      final resultChoices = _numberChoices(result, maxValue: max(20, a));
-      return GuidedMethodGuide(
-        methodKey: 'subtraction:${strategy.name}',
-        methodLabel: strategy.label,
-        nudge:
-            'Starte bei $b und ergänze bis $a. Die gesamte Ergänzung ist der Unterschied.',
-        steps: [
-          GuidedMethodStep(
-            title: 'Von der kleineren Zahl starten',
-            instruction: 'Beginne bei $b und ergänze schrittweise bis $a.',
-          ),
-          GuidedMethodStep(
-            title: 'Unterschied bestimmen',
-            instruction: 'Die Ergänzung von $b bis $a ist $result.',
-            question: 'Wie groß ist der Unterschied?',
-            choices: resultChoices,
-            correctChoice: resultChoices.indexOf('$result'),
-          ),
-        ],
+      return _complementSubtraction(
+        fact,
+        recordBridgeEvidence: false,
       );
     }
 
@@ -1698,6 +1789,7 @@ class GuidedMethodFactory {
       ],
     );
   }
+
   static GuidedMethodGuide _multiplication(
     MathFact fact,
     MethodPreferences preferences,

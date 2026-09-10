@@ -41,7 +41,7 @@ class _MethodScreenState extends State<MethodScreen> {
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: Text(
-                'Wähle die Rechenwege, die in der Schule verwendet werden. Rechenblitz nutzt diese Auswahl in Hilfen und Erklärungen für ${widget.controller.activeProfileName}.',
+                'Du musst die Schulmethode nicht kennen. Lass die Methodenwahl auf „Automatisch / weiß ich nicht“, dann kann ${widget.controller.activeProfileName} in den Hilfen verschiedene schulübliche Wege ausprobieren. Wenn die Schule einen festen Rechenweg vorgibt, kannst du ihn hier hinterlegen.',
               ),
             ),
           ),
@@ -85,8 +85,8 @@ class _MethodScreenState extends State<MethodScreen> {
                   Text(
                     methods.selectionPreference ==
                             MethodSelectionPreference.schoolMethod
-                        ? 'Die gewählten Schulmethoden werden konsequent verwendet.'
-                        : 'Rechenblitz darf verschiedene schulübliche Darstellungen vergleichen. Die hinterlegte Schulmethode wird dabei niemals automatisch geändert.',
+                        ? 'Die gewählten Schulmethoden werden bei normalen Aufgaben bevorzugt. In einer geöffneten Hilfe kann trotzdem bewusst ein anderer Weg ausprobiert werden; die Einstellung hier ändert sich dadurch nicht.'
+                        : 'Rechenblitz wählt passend zur Aufgabe einen schulüblichen Rechenweg. In der Hilfe können weitere Wege ausprobiert werden, ohne dass du vorher wissen musst, welche Methode die Schule nutzt.',
                   ),
                 ],
               ),

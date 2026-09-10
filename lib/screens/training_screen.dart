@@ -182,6 +182,20 @@ class _TrainingScreenState extends State<TrainingScreen> {
         fact: current,
       );
 
+  List<GuidedMethodGuide> get _guideAlternatives {
+    if (widget.controller.hasTeacherAssignment) {
+      return const <GuidedMethodGuide>[];
+    }
+    return GuidedMethodFactory.alternativesForTask(
+      mode: widget.mode,
+      taskKey: current.key,
+      expected: _expectedAnswer,
+      preferences: widget.controller.effectiveMethodPreferences,
+      targetCompetency: widget.targetCompetency,
+      fact: current,
+    );
+  }
+
   List<GuidedMethodStep> get _independentArithmeticSteps {
     if (widget.reviewEmphasis ||
         widget.transferEmphasis ||
@@ -632,6 +646,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                     GuidedMethodPanel(
                       key: ValueKey('guide:${current.key}:$completed'),
                       guide: _guide,
+                      alternativeGuides: _guideAlternatives,
                       pattern: _helpPattern,
                       initialLevel: HelpLevel.values[helpLevel],
                       taskKey: current.key,
@@ -640,7 +655,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                           widget.controller.recordGuidedStepAttempt(
                             mode: widget.mode,
                             taskKey: current.key,
-                            methodKey: _guide.methodKey,
+                            methodKey: activeMethodKey ?? _guide.methodKey,
                             stepKey: step.evidenceKey!,
                             competencyId: step.evidenceCompetency!,
                             correct: correct,
@@ -651,7 +666,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
                         setState(() {
                           usedHelp = true;
                           helpLevel = level.value;
-                          activeMethodKey = _guide.methodKey;
+                          activeMethodKey ??= _guide.methodKey;
+                        });
+                      },
+                      onGuideChanged: (guide) {
+                        if (!mounted) return;
+                        setState(() {
+                          usedHelp = true;
+                          activeMethodKey = guide.methodKey;
                         });
                       },
                       onSpeak: widget.controller.speakOnDemand,
