@@ -265,8 +265,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
       checkpointWrongAttempts[index] = attempts;
       setState(() {
         checkpointFeedback = attempts >= 2
-            ? 'Nutze bei Bedarf die Hilfe und prüfe diesen Schritt noch einmal.'
-            : 'Noch nicht. Prüfe diesen Rechenschritt noch einmal.';
+            ? 'Schau dir die Hilfe an und probier den Schritt noch einmal.'
+            : 'Noch nicht. Probier den Schritt noch einmal.';
         if (attempts >= 2) {
           showHelp = true;
           usedHelp = true;
@@ -281,7 +281,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
     setState(() {
       checkpointLocked = true;
-      checkpointFeedback = 'Genau. Dieser Schritt stimmt.';
+      checkpointFeedback = 'Genau!';
     });
     await Future<void>.delayed(const Duration(milliseconds: 350));
     if (!mounted ||
@@ -366,7 +366,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         feedback = wrongOnCurrent >= 2
             ? 'Schau dir die Hilfe an und probier noch einmal.'
             : diagnosedPattern?.firstResponseHint ??
-                'Prüfe deinen Rechenweg noch einmal.';
+                'Probier es noch einmal.';
         if (wrongOnCurrent >= 2) {
           showHelp = true;
           usedHelp = true;

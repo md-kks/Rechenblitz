@@ -193,8 +193,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       checkpointWrongAttempts[index] = attempts;
       setState(() {
         checkpointFeedback = attempts >= 2
-            ? 'Nutze bei Bedarf den Hinweis und prüfe diesen Schritt noch einmal.'
-            : 'Noch nicht. Schau genau auf die Darstellung.';
+            ? 'Schau dir die Hilfe an und probier den Schritt noch einmal.'
+            : 'Noch nicht. Probier den Schritt noch einmal.';
         if (attempts >= 2) {
           showHint = true;
           if (helpLevel < HelpLevel.nudge.value) {
@@ -208,7 +208,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
 
     setState(() {
       checkpointLocked = true;
-      checkpointFeedback = 'Genau. Dieser Schritt stimmt.';
+      checkpointFeedback = 'Genau!';
     });
     await Future<void>.delayed(const Duration(milliseconds: 350));
     if (!mounted ||
@@ -272,9 +272,9 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       setState(() {
         currentErrorPattern ??= diagnosedPattern;
         feedback = wrongOnCurrent >= 2
-            ? 'Nutze den Hinweis und probier noch einmal.'
+            ? 'Schau dir die Hilfe an und probier noch einmal.'
             : diagnosedPattern?.firstResponseHint ??
-                'Prüfe die Aufgabe noch einmal.';
+                'Probier es noch einmal.';
         showHint = wrongOnCurrent >= 2;
         if (showHint && helpLevel < HelpLevel.nudge.value) {
           helpLevel = HelpLevel.nudge.value;
