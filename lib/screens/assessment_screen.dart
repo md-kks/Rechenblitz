@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../models/assessment.dart';
-import '../models/learning_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../widgets/number_answer_pad.dart';
@@ -88,64 +87,41 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: !widget.fromOnboarding,
-        title: const Text('Kurzer Lerncheck'),
+        title: const Text('Lerncheck'),
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 10,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text('${index + 1}/${tasks.length}'),
-              ],
+            LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(99),
             ),
-            const SizedBox(height: 18),
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    Icon(Icons.favorite_outline_rounded),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Kein Test und keine Note. Wenn du etwas noch nicht weißt, ist das völlig okay.',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 8),
             Text(
-              current.mode.title,
+              'Aufgabe ${index + 1} von ${tasks.length}',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelLarge,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 4),
+            Text(
+              'Ohne Zeitdruck · ohne Note',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 34),
             Text(
               current.prompt,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 31,
-                height: 1.28,
-                fontWeight: FontWeight.w900,
-              ),
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
             if (current.answerSuffix != null) ...[
               const SizedBox(height: 8),
               Text(
                 'Antwort in ${current.answerSuffix}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
             ],
             const SizedBox(height: 30),
@@ -156,8 +132,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: FilledButton.tonal(
                     key: ValueKey('assessment-choice-$choiceIndex'),
-                    onPressed:
-                        locked ? null : () => _answer(choiceIndex),
+                    onPressed: locked ? null : () => _answer(choiceIndex),
                     child: Text(
                       current.choices![choiceIndex],
                       textAlign: TextAlign.center,
@@ -185,138 +160,86 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   }
 
   Widget _buildResult(BuildContext context) {
-    final modes = <String, AssessmentTask>{};
-    for (final task in tasks) {
-      modes.putIfAbsent(task.mode.name, () => task);
-    }
-
-    final progress = modes.values
-        .map((task) => widget.controller.competencyProgress(task.mode))
-        .toList();
-    final secure = progress
-        .where((item) => item.state == CompetencyState.secure)
-        .toList();
     final focus = widget.controller.recommendedMode();
 
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Dein Lernstart'),
+        title: const Text('Lerncheck'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 34),
-        children: [
-          Icon(
-            Icons.route_rounded,
-            size: 54,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Jetzt weiß Rechenblitz schon etwas mehr.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Der Lerncheck ist nur ein Startpunkt. Die Lernlandkarte wird mit jeder echten Runde genauer.',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 22),
-          _ResultCard(
-            icon: Icons.check_circle_outline_rounded,
-            title: 'Das wirkt schon sicher',
-            text: secure.isEmpty
-                ? 'Noch kein Bereich wird vorschnell als sicher markiert. Das ist beim ersten Check völlig normal.'
-                : secure.map((item) => item.mode.title).join(' · '),
-          ),
-          const SizedBox(height: 12),
-          _ResultCard(
-            icon: Icons.track_changes_rounded,
-            title: 'Damit starten wir',
-            text:
-                '${focus.title} ist für die erste persönliche Runde ein sinnvoller Schwerpunkt.',
-          ),
-          const SizedBox(height: 12),
-          ...progress.map(
-            (item) => Card(
-              child: ListTile(
-                leading: Icon(
-                  item.state == CompetencyState.secure
-                      ? Icons.check_circle_outline_rounded
-                      : Icons.timelapse_rounded,
-                ),
-                title: Text(item.mode.title),
-                subtitle: Text(
-                  '${(item.accuracy * 100).round()} % im Lerncheck',
-                ),
-                trailing: Chip(label: Text(item.state.label)),
-              ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 34),
+          children: [
+            Icon(
+              Icons.check_circle_rounded,
+              size: 64,
+              color: Theme.of(context).colorScheme.primary,
             ),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            key: const ValueKey('assessment-start-my-round'),
-            onPressed: () {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      MyRoundScreen(controller: widget.controller),
-                ),
-              );
-            },
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('Meine erste Runde starten'),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Zur Startseite'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResultCard extends StatelessWidget {
-  const _ResultCard({
-    required this.icon,
-    required this.title,
-    required this.text,
-  });
-
-  final IconData icon;
-  final String title;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(17),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon),
-              const SizedBox(width: 12),
-              Expanded(
+            const SizedBox(height: 14),
+            Text(
+              'Lerncheck geschafft!',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Rechenblitz kennt jetzt einen guten Startpunkt. Beim Üben wird die Lernlandkarte immer genauer.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 26),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    Icon(
+                      Icons.route_rounded,
+                      size: 34,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
-                    const SizedBox(height: 4),
-                    Text(text),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Als Nächstes',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      focus.title,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      'Damit starten wir in deiner ersten Runde.',
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 22),
+            FilledButton.icon(
+              key: const ValueKey('assessment-start-my-round'),
+              onPressed: () {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        MyRoundScreen(controller: widget.controller),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('Erste Runde starten'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Zur Startseite'),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }

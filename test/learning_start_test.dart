@@ -7,6 +7,7 @@ import 'package:rechenblitz/models/assessment.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/learning_path.dart';
 import 'package:rechenblitz/models/training.dart';
+import 'package:rechenblitz/screens/assessment_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -195,6 +196,45 @@ void main() {
     );
     expect(find.text('Rechenblitz'), findsWidgets);
     expect(find.text('Deine Runde'), findsOneWidget);
+  });
+
+  testWidgets('Lerncheck hält Aufgaben und Ergebnis kindlich knapp', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    await tester.pumpWidget(
+      MaterialApp(home: AssessmentScreen(controller: controller)),
+    );
+
+    expect(find.text('Lerncheck'), findsOneWidget);
+    expect(find.text('Aufgabe 1 von 12'), findsOneWidget);
+    expect(find.text('Ohne Zeitdruck · ohne Note'), findsOneWidget);
+
+    for (var task = 0; task < 12; task += 1) {
+      final dontKnow = find.byKey(const ValueKey('assessment-dont-know'));
+      await tester.scrollUntilVisible(
+        dontKnow,
+        180,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.pump();
+      await tester.tap(dontKnow);
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.text('Lerncheck geschafft!'), findsOneWidget);
+    expect(find.text('Als Nächstes'), findsOneWidget);
+    expect(
+      find.text('Damit starten wir in deiner ersten Runde.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('% im Lerncheck'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('assessment-start-my-round')),
+      findsOneWidget,
+    );
   });
 
   test('Klassenwechsel verwirft nur die alte Einstufungs-Baseline', () async {
