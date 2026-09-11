@@ -433,9 +433,9 @@ void main() {
     await tester.tap(button);
     await tester.pumpAndSettle();
 
-    expect(find.text('Förderpfad'), findsOneWidget);
-    expect(find.text('Mit Hilfe'), findsOneWidget);
-    expect(find.text('Zehnerübergang'), findsOneWidget);
+    expect(find.text('Knacknuss üben'), findsOneWidget);
+    expect(find.text('Wir lösen das zusammen'), findsOneWidget);
+    expect(find.textContaining('Zehnerübergang'), findsOneWidget);
   });
 
 
@@ -789,8 +789,8 @@ void main() {
     await tester.tap(button);
     await tester.pumpAndSettle();
 
-    expect(find.text('Rechenschritt festigen'), findsOneWidget);
-    expect(find.text('1/3'), findsOneWidget);
+    expect(find.text('Kurz üben'), findsOneWidget);
+    expect(find.text('Aufgabe 1 von 3'), findsOneWidget);
     expect(
       find.text('Übertrag beim schriftlichen Multiplizieren bestimmen'),
       findsOneWidget,

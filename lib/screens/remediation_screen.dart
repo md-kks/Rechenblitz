@@ -43,20 +43,18 @@ class _RemediationScreenState extends State<RemediationScreen> {
   RemediationTask get current => plan.tasks[index];
 
   GuidedMethodGuide get _guide => GuidedMethodFactory.forTask(
-        mode: current.mode,
-        taskKey: current.taskKey,
-        expected: current.answer,
-        preferences: widget.controller.effectiveMethodPreferences,
-      );
+    mode: current.mode,
+    taskKey: current.taskKey,
+    expected: current.answer,
+    preferences: widget.controller.effectiveMethodPreferences,
+  );
 
   int get _currentHelpLevel => switch (current.stage) {
-        RemediationStage.guided => HelpLevel.guided.value,
-        RemediationStage.supported => HelpLevel.visual.value,
-        RemediationStage.transfer || RemediationStage.check =>
-          showHint ? HelpLevel.nudge.value : HelpLevel.none.value,
-      };
-
-
+    RemediationStage.guided => HelpLevel.guided.value,
+    RemediationStage.supported => HelpLevel.visual.value,
+    RemediationStage.transfer || RemediationStage.check =>
+      showHint ? HelpLevel.nudge.value : HelpLevel.none.value,
+  };
 
   @override
   void initState() {
@@ -162,32 +160,19 @@ class _RemediationScreenState extends State<RemediationScreen> {
       builder: (context) => AlertDialog(
         title: Text(
           progress.status == RemediationStatus.stable
-              ? 'Knacknuss stabil gemeistert'
+              ? 'Geschafft!'
               : progress.status == RemediationStatus.improved
-                  ? 'Deutlich verbessert'
-                  : 'Wir bleiben dran',
+              ? 'Das wird sicherer'
+              : 'Wir üben weiter',
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Kontrolle: $checkCorrect von $checkTotal direkt richtig.',
-            ),
-            const SizedBox(height: 12),
-            Text(
-              switch (progress.status) {
-                RemediationStatus.stable =>
-                  'Das Fehlermuster ist jetzt stabil. Rechenblitz beobachtet es weiter, ohne es noch als aktuelle Knacknuss zu behandeln.',
-                RemediationStatus.improved =>
-                  'Der Rechenweg wirkt sicherer. In einigen Tagen folgt nur noch eine kurze Kontrolle – oder die Stabilität bestätigt sich vorher in normalen Aufgaben.',
-                RemediationStatus.recurring =>
-                  'Die Kontrollaufgaben waren noch nicht sicher genug. Der Förderpfad bleibt als aktuelle Knacknuss erhalten.',
-                RemediationStatus.inProgress =>
-                  'Der Förderpfad wird weitergeführt.',
-              },
-            ),
-          ],
+        content: Text(
+          '$checkCorrect von $checkTotal Aufgaben direkt richtig.\n\n'
+          '${switch (progress.status) {
+            RemediationStatus.stable => 'Das klappt jetzt sicher. Wir üben später wieder ganz normal weiter.',
+            RemediationStatus.improved => 'Das hat schon besser geklappt. Wir schauen später noch einmal kurz danach.',
+            RemediationStatus.recurring => 'Dieser Schritt braucht noch etwas Übung. Rechenblitz zeigt ihn dir später wieder.',
+            RemediationStatus.inProgress => 'Wir machen beim nächsten Mal hier weiter.',
+          }}',
         ),
         actions: [
           FilledButton(
@@ -211,62 +196,34 @@ class _RemediationScreenState extends State<RemediationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(reviewOnly ? 'Kurze Kontrolle' : 'Förderpfad'),
+        title: Text(reviewOnly ? 'Kurze Kontrolle' : 'Knacknuss üben'),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 10,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text('${index + 1}/${plan.tasks.length}'),
-              ],
+            LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(99),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Aufgabe ${index + 1} von ${plan.tasks.length}',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 18),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(_stageIcon(stage)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            stage.label,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(stage.description),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
             Text(
-              widget.pattern.label,
+              _stageTitle(stage),
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Heute üben wir: ${widget.pattern.label}',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
             Text(
@@ -311,9 +268,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
                       Icon(Icons.visibility_outlined),
                       SizedBox(width: 10),
                       Expanded(
-                        child: Text(
-                          'Kontrollaufgabe: Starte ohne Hilfe. Wenn es noch nicht klappt, bekommst du danach wieder einen Hinweis.',
-                        ),
+                        child: Text('Probier diese Aufgabe zuerst ohne Hilfe.'),
                       ),
                     ],
                   ),
@@ -356,12 +311,12 @@ class _RemediationScreenState extends State<RemediationScreen> {
     );
   }
 
-  IconData _stageIcon(RemediationStage stage) => switch (stage) {
-        RemediationStage.guided => Icons.assistant_direction_rounded,
-        RemediationStage.supported => Icons.lightbulb_outline_rounded,
-        RemediationStage.transfer => Icons.psychology_alt_outlined,
-        RemediationStage.check => Icons.fact_check_outlined,
-      };
+  String _stageTitle(RemediationStage stage) => switch (stage) {
+    RemediationStage.guided => 'Wir lösen das zusammen',
+    RemediationStage.supported => 'Ein Hinweis hilft dir',
+    RemediationStage.transfer => 'Jetzt probierst du es selbst',
+    RemediationStage.check => 'Ohne Hilfe probieren',
+  };
 }
 
 class _HintCard extends StatelessWidget {
@@ -371,21 +326,21 @@ class _HintCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.route_rounded),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  text,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.route_rounded),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
