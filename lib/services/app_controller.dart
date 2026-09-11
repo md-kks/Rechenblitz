@@ -2331,7 +2331,7 @@ class AppController extends ChangeNotifier {
     return best;
   }
 
-  String recommendationText() {
+  String childRecommendationText() {
     final mode = recommendedMode();
     return switch (mode) {
       TrainingMode.practice => 'Starte mit einer kurzen Übungsrunde.',
@@ -2341,6 +2341,27 @@ class AppController extends ChangeNotifier {
       TrainingMode.tempo => 'Ein kurzer „Rechencheck“ passt jetzt gut.',
       _ => 'Als Nächstes passt „${mode.title}“.',
     };
+  }
+
+  String recommendationText() {
+    final mode = recommendedMode();
+    if (gradeLevel.index >= GradeLevel.third.index) {
+      final accuracy = modeAccuracy(mode);
+      if (accuracy == 0) {
+        return 'Für ${gradeLevel.label} passt als Nächstes „${mode.title}“. '
+            'Damit wird ein weiterer Lehrplanbereich erschlossen.';
+      }
+      return 'Im Bereich „${mode.title}“ liegt aktuell noch das größte '
+          'Übungspotenzial. Eine kurze Runde dazu passt gut.';
+    }
+    if (mode != TrainingMode.practice &&
+        mode != TrainingMode.minus &&
+        mode != TrainingMode.speed &&
+        mode != TrainingMode.tempo) {
+      return 'Als nächster Lernschritt passt „${mode.title}“. '
+          'Die Grundaufgaben bleiben dabei weiterhin in der Wiederholung.';
+    }
+    return engine.recommendation(facts, maxValue: maxValue);
   }
 
   TrainingMode recommendedMode() {
