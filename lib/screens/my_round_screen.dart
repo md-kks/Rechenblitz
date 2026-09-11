@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/error_diagnosis.dart';
 import '../models/learning_path.dart';
-import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'curriculum_training_screen.dart';
@@ -166,12 +165,12 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Rechenschritt kurz festigen',
+                      'Kurz üben',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '„${stepRecovery.label}“ übst du jetzt in drei kurzen Aufgaben.',
+                      'Wir schauen uns „${stepRecovery.label}“ in drei kurzen Aufgaben an.',
                     ),
                     const SizedBox(height: 14),
                     FilledButton.icon(
@@ -194,7 +193,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                         }
                       },
                       icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text('3 Aufgaben starten'),
+                      label: const Text('Los geht’s'),
                     ),
                   ],
                 ),
@@ -209,16 +208,14 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      reviewOnly
-                          ? 'Kurze Kontrolle fällig'
-                          : 'Knacknuss zuerst',
+                      reviewOnly ? 'Kurz nochmal' : 'Knacknuss',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       reviewOnly
-                          ? 'Zwei Aufgaben prüfen, ob „${remediation.pattern.label}“ jetzt sicher sitzt.'
-                          : '„${remediation.pattern.label}“ übst du zuerst mit passender Hilfe.',
+                          ? 'Zwei Aufgaben zeigen, ob „${remediation.pattern.label}“ schon sicher klappt.'
+                          : 'Wir üben „${remediation.pattern.label}“ zuerst mit Hilfe.',
                     ),
                     const SizedBox(height: 14),
                     FilledButton.icon(
@@ -241,7 +238,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                       },
                       icon: const Icon(Icons.play_arrow_rounded),
                       label: Text(
-                        reviewOnly ? 'Kontrolle starten' : 'Übung starten',
+                        reviewOnly ? '2 Aufgaben starten' : 'Knacknuss üben',
                       ),
                     ),
                   ],
@@ -267,14 +264,6 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text('${nextSegment.tasks} Aufgaben'),
-                    if (nextSegment.targetCompetency != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        MicroCompetencyCatalog.definition(
-                          nextSegment.targetCompetency!,
-                        ).label,
-                      ),
-                    ],
                     const SizedBox(height: 14),
                     FilledButton.icon(
                       key: const ValueKey('round-next-button'),
@@ -294,7 +283,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                 key: const ValueKey('round-plan-expansion'),
                 leading: const Icon(Icons.format_list_numbered_rounded),
                 title: const Text('Rundenplan'),
-                subtitle: const Text('Nur wenn du genauer schauen möchtest'),
+                subtitle: const Text('Alle Teile deiner Runde'),
                 children: [
                   for (var index = 0; index < plan.length; index++)
                     ListTile(
