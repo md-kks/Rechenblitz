@@ -170,12 +170,12 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
         ? 'noch nicht wiederholt'
         : !progress.hasIndependentReviewEvidence
         ? 'bisher mit Hilfe'
-        : '${(progress.reviewIndependentAccuracy * 100).round()} % selbstständig';
+        : '${(progress.reviewIndependentAccuracy * 100).round()} % allein richtig';
     final transfer = progress.transferObservations == 0
         ? 'noch nicht in anderer Aufgabe probiert'
         : !progress.hasIndependentTransferEvidence
         ? 'bisher mit Hilfe'
-        : '${(progress.transferIndependentAccuracy * 100).round()} % selbstständig';
+        : '${(progress.transferIndependentAccuracy * 100).round()} % allein richtig';
 
     await showModalBottomSheet<void>(
       context: context,
@@ -331,7 +331,7 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                   title: Text(group.$1),
                   subtitle: Text(
                     groupSteps.isEmpty
-                        ? 'Noch keine Teilschritte'
+                        ? 'Noch keine Schritte'
                         : '$groupSafe von ${groupSteps.length} sicher',
                   ),
                   childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -390,7 +390,7 @@ class _ModeTile extends StatelessWidget {
         .length;
     final summary = micro.isEmpty
         ? progress.state.label
-        : '$microSafe von ${micro.length} Teilschritten sicher';
+        : '$microSafe von ${micro.length} Schritten sicher';
 
     return Card(
       margin: const EdgeInsets.only(top: 8),
@@ -414,7 +414,7 @@ class _ModeTile extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(4, 4, 4, 8),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Hier gibt es noch keine einzelnen Teilschritte.'),
+                child: Text('Hier gibt es noch keine einzelnen Schritte.'),
               ),
             )
           else

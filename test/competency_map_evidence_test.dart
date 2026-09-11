@@ -68,6 +68,7 @@ void main() {
     );
     expect(find.textContaining('Teilschritten sind sicher'), findsNothing);
     expect(find.textContaining('in Arbeit ·'), findsNothing);
+    expect(find.textContaining('Teilschritte'), findsNothing);
     expect(find.text('Plus über den Zehner'), findsOneWidget);
     expect(find.textContaining('noch nicht beobachtet'), findsNothing);
 
@@ -77,6 +78,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('learning-mode:practice')));
     await tester.pumpAndSettle();
+    expect(find.textContaining('Teilschritte'), findsNothing);
+    expect(find.textContaining('Schritten sicher'), findsWidgets);
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('micro-info:additionTenBridge')),
       250,
