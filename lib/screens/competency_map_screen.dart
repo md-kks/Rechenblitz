@@ -219,20 +219,20 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
   Widget build(BuildContext context) {
     final groups = _groups();
     final allMicro = widget.controller.microCompetenciesForGrade();
-    final mastered = allMicro
-        .where((progress) => progress.state == MicroCompetencyState.mastered)
-        .length;
-    final secure = allMicro
-        .where((progress) => progress.state == MicroCompetencyState.secure)
-        .length;
-    final working = allMicro
+    final safe = allMicro
         .where(
           (progress) =>
-              progress.state == MicroCompetencyState.discovering ||
-              progress.state == MicroCompetencyState.practicing,
+              progress.state == MicroCompetencyState.secure ||
+              progress.state == MicroCompetencyState.mastered,
         )
         .length;
-    final safe = mastered + secure;
+    final progressText = allMicro.isEmpty
+        ? 'Deine Lernkarte füllt sich beim Üben Schritt für Schritt.'
+        : safe == allMicro.length
+        ? 'Alle Schritte in deiner Lernkarte sind sicher.'
+        : safe == 0
+        ? 'Deine Lernkarte füllt sich beim Üben Schritt für Schritt.'
+        : 'Erste Schritte sind schon sicher. Wir machen Schritt für Schritt weiter.';
     final focus =
         widget.controller.currentMicroFocus() ??
         widget.controller.nextNewMicroCompetency();
@@ -292,7 +292,7 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '$safe von ${allMicro.length} Teilschritten sind sicher.',
+                    progressText,
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 12),
@@ -300,11 +300,6 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                     value: allMicro.isEmpty ? 0 : safe / allMicro.length,
                     minHeight: 10,
                     borderRadius: BorderRadius.circular(99),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '$working in Arbeit · $secure sicher · $mastered gemeistert',
-                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),

@@ -62,6 +62,12 @@ void main() {
 
     expect(find.text('Als Nächstes'), findsOneWidget);
     expect(find.text('Dein Fortschritt'), findsOneWidget);
+    expect(
+      find.text('Deine Lernkarte füllt sich beim Üben Schritt für Schritt.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Teilschritten sind sicher'), findsNothing);
+    expect(find.textContaining('in Arbeit ·'), findsNothing);
     expect(find.text('Plus über den Zehner'), findsOneWidget);
     expect(find.textContaining('noch nicht beobachtet'), findsNothing);
 
