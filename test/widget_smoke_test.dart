@@ -22,7 +22,8 @@ void main() {
     expect(find.text('5 Blitzaufgaben'), findsOneWidget);
     expect(find.text('Lernlandkarte'), findsOneWidget);
     expect(find.text('Mehr üben'), findsOneWidget);
-    expect(find.text('Schulauftrag'), findsOneWidget);
+    expect(find.text('Schulauftrag'), findsNothing);
+    expect(find.text('Für heute ist noch alles offen.'), findsNothing);
     expect(find.text('Klassenstufe'), findsNothing);
     expect(find.text('Zahlenraum'), findsNothing);
     expect(find.text('Plus & Minus'), findsNothing);
@@ -30,6 +31,13 @@ void main() {
     expect(find.byIcon(Icons.more_horiz_rounded), findsOneWidget);
     expect(find.byIcon(Icons.tune_rounded), findsNothing);
     expect(find.byIcon(Icons.admin_panel_settings_rounded), findsNothing);
+
+    await tester.tap(find.byTooltip('Mehr'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('more-school-assignment')), findsOneWidget);
+    expect(find.text('Schulauftrag'), findsOneWidget);
+    Navigator.of(tester.element(find.text('Schulauftrag'))).pop();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Mehr üben'));
     await tester.pumpAndSettle();
