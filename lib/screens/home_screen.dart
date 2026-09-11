@@ -211,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
-    final recommendation = controller.recommendationText();
+    final recommendation = controller.childRecommendationText();
 
     return Scaffold(
       appBar: AppBar(

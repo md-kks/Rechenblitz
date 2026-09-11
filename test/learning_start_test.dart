@@ -50,16 +50,17 @@ void main() {
     await controller.load();
 
     expect(
-      controller.recommendationText(),
+      controller.childRecommendationText(),
       'Starte mit einer kurzen Übungsrunde.',
     );
 
     controller.gradeLevel = GradeLevel.third;
     controller.numberRange = NumberRangeLevel.thousand;
-    final upperPrimaryText = controller.recommendationText();
+    final upperPrimaryText = controller.childRecommendationText();
     expect(upperPrimaryText, startsWith('Als Nächstes passt „'));
     expect(upperPrimaryText, isNot(contains('Lehrplan')));
     expect(upperPrimaryText, isNot(contains('Übungspotenzial')));
+    expect(controller.recommendationText(), contains('Lehrplanbereich'));
   });
 
   test('frische Installation startet im Lernstart', () async {
