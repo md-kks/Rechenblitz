@@ -45,6 +45,23 @@ void main() {
     }
   });
 
+  test('Startempfehlung bleibt kindlich kurz', () async {
+    final controller = AppController();
+    await controller.load();
+
+    expect(
+      controller.recommendationText(),
+      'Starte mit einer kurzen Übungsrunde.',
+    );
+
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    final upperPrimaryText = controller.recommendationText();
+    expect(upperPrimaryText, startsWith('Als Nächstes passt „'));
+    expect(upperPrimaryText, isNot(contains('Lehrplan')));
+    expect(upperPrimaryText, isNot(contains('Übungspotenzial')));
+  });
+
   test('frische Installation startet im Lernstart', () async {
     final controller = AppController();
     await controller.load();
