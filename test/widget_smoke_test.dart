@@ -98,7 +98,13 @@ void main() {
     await tester.tap(find.byIcon(Icons.emoji_events_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Meine Erfolge'), findsOneWidget);
-    expect(find.text('So entstehen Erfolge'), findsOneWidget);
+    expect(find.text('Deine Abzeichen'), findsOneWidget);
+    expect(find.text('Wie bekomme ich Sterne und Abzeichen?'), findsOneWidget);
+    expect(find.text('Runden abschließen'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('reward-how-it-works')));
+    await tester.pumpAndSettle();
+    expect(find.text('Runden abschließen'), findsOneWidget);
   });
 
   testWidgets('Klasse 3 zeigt ihre Lernbereiche erst nach Mehr üben',
