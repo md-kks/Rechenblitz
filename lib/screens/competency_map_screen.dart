@@ -162,19 +162,19 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
   Future<void> _showMicroDetails(MicroCompetencyProgress progress) async {
     final independent = progress.hasIndependentBasisEvidence
         ? '${(progress.independentAccuracy * 100).round()} % richtig'
-        : 'noch nicht beobachtet';
+        : 'noch nicht allein probiert';
     final aided = progress.aidedObservations == 0
-        ? 'bisher nicht benötigt'
-        : '${progress.aidedObservations} Beobachtungen';
+        ? 'noch keine Hilfe gebraucht'
+        : '${progress.aidedObservations}× mit Hilfe';
     final review = progress.reviewObservations == 0
-        ? 'noch offen'
+        ? 'noch nicht wiederholt'
         : !progress.hasIndependentReviewEvidence
-        ? 'bisher nur mit Hilfe'
+        ? 'bisher mit Hilfe'
         : '${(progress.reviewIndependentAccuracy * 100).round()} % selbstständig';
     final transfer = progress.transferObservations == 0
-        ? 'noch offen'
+        ? 'noch nicht in anderer Aufgabe probiert'
         : !progress.hasIndependentTransferEvidence
-        ? 'bisher nur mit Hilfe'
+        ? 'bisher mit Hilfe'
         : '${(progress.transferIndependentAccuracy * 100).round()} % selbstständig';
 
     await showModalBottomSheet<void>(
@@ -198,13 +198,13 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 18),
-                _EvidenceLine(label: 'Selbstständig', value: independent),
+                _EvidenceLine(label: 'Allein', value: independent),
                 _EvidenceLine(label: 'Mit Hilfe', value: aided),
-                _EvidenceLine(label: 'Nach einigen Tagen', value: review),
-                _EvidenceLine(label: 'In anderer Aufgabe', value: transfer),
+                _EvidenceLine(label: 'Später noch einmal', value: review),
+                _EvidenceLine(label: 'Bei anderer Aufgabe', value: transfer),
                 const SizedBox(height: 10),
                 Text(
-                  'Diese Details erklären nur den Lernstand. Geübte Hilfen werden nicht als selbstständiges Können gezählt.',
+                  'Hilfe ist völlig okay. Sie zählt hier nur nicht als allein geschafft.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -459,7 +459,7 @@ class _MicroStepTile extends StatelessWidget {
       children: [
         IconButton(
           key: ValueKey('micro-info:${progress.definition.id.name}'),
-          tooltip: 'Lernstand erklären',
+          tooltip: 'Lernstand ansehen',
           onPressed: onInfo,
           icon: const Icon(Icons.info_outline_rounded),
         ),

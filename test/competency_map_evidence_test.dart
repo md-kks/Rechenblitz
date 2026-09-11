@@ -82,11 +82,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Selbstständig'), findsOneWidget);
-    expect(find.text('noch nicht beobachtet'), findsOneWidget);
-    expect(find.text('Nach einigen Tagen'), findsOneWidget);
-    expect(find.text('In anderer Aufgabe'), findsOneWidget);
-    expect(find.text('bisher nur mit Hilfe'), findsNWidgets(2));
+    expect(find.text('Allein'), findsOneWidget);
+    expect(find.text('noch nicht allein probiert'), findsOneWidget);
+    expect(find.text('Später noch einmal'), findsOneWidget);
+    expect(find.text('Bei anderer Aufgabe'), findsOneWidget);
+    expect(find.text('bisher mit Hilfe'), findsNWidgets(2));
     expect(find.text('0 % richtig'), findsNothing);
   });
 }
