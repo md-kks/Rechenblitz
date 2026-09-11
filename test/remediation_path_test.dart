@@ -425,7 +425,7 @@ void main() {
       MaterialApp(home: MyRoundScreen(controller: controller)),
     );
 
-    expect(find.text('Knacknuss zuerst'), findsOneWidget);
+    expect(find.text('Knacknuss'), findsOneWidget);
     final button = find.byKey(const ValueKey('remediation-button'));
     expect(button, findsOneWidget);
 
@@ -777,7 +777,7 @@ void main() {
       MaterialApp(home: MyRoundScreen(controller: controller)),
     );
 
-    expect(find.text('Rechenschritt kurz festigen'), findsOneWidget);
+    expect(find.text('Kurz üben'), findsOneWidget);
     expect(
       find.textContaining('Übertrag beim schriftlichen Multiplizieren'),
       findsWidgets,
