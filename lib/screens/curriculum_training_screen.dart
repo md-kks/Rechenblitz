@@ -215,8 +215,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       checkpointWrongAttempts[index] = attempts;
       setState(() {
         checkpointFeedback = attempts >= 2
-            ? 'Nutze bei Bedarf den Rechenhinweis und prüfe diesen Schritt noch einmal.'
-            : 'Noch nicht. Prüfe diesen Rechenschritt noch einmal.';
+            ? 'Schau dir die Hilfe an und probier den Schritt noch einmal.'
+            : 'Noch nicht. Probier den Schritt noch einmal.';
         if (attempts >= 2) {
           showHint = true;
           if (helpLevel < HelpLevel.nudge.value) {
@@ -230,7 +230,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
 
     setState(() {
       checkpointLocked = true;
-      checkpointFeedback = 'Genau. Dieser Schritt stimmt.';
+      checkpointFeedback = 'Genau!';
     });
     await Future<void>.delayed(const Duration(milliseconds: 350));
     if (!mounted ||
@@ -276,9 +276,9 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       setState(() {
         currentErrorPattern ??= diagnosedPattern;
         feedback = wrongOnCurrent >= 2
-            ? 'Nutze den Rechenhinweis und probiere noch einmal.'
+            ? 'Schau dir die Hilfe an und probier noch einmal.'
             : diagnosedPattern?.firstResponseHint ??
-                'Prüfe deinen Rechenweg noch einmal.';
+                'Probier es noch einmal.';
         if (wrongOnCurrent >= 2) {
           showHint = true;
           if (helpLevel < HelpLevel.nudge.value) {
@@ -314,7 +314,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       feedback = [
         'Richtig!',
         'Genau!',
-        'Rechenweg stimmt!',
+        'Stimmt!',
         'Gut gelöst!',
       ][completed % 4];
     });
