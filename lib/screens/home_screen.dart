@@ -76,54 +76,74 @@ class _HomeScreenState extends State<HomeScreen> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                child: Text(
-                  'Mehr',
-                  style: Theme.of(sheetContext).textTheme.titleLarge,
-                ),
-              ),
-              ListTile(
-                key: const ValueKey('more-settings'),
-                leading: const Icon(Icons.tune_rounded),
-                title: const Text('Einstellungen'),
-                subtitle: const Text('Profil, Rechenwege und Darstellung'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          SettingsScreen(controller: widget.controller),
-                    ),
-                  );
-                },
-              ),
-              Listener(
-                key: const ValueKey('parent-gate'),
-                behavior: HitTestBehavior.opaque,
-                onPointerDown: (_) =>
-                    _startParentGate(sheetContext: sheetContext),
-                onPointerUp: (_) => _cancelParentGate(),
-                onPointerCancel: (_) => _cancelParentGate(),
-                child: Semantics(
-                  button: true,
-                  label: 'Elternbereich – 2 Sekunden gedrückt halten',
-                  child: const ListTile(
-                    leading: Icon(Icons.lock_outline_rounded),
-                    title: Text('Elternbereich'),
-                    subtitle: Text('2 Sekunden gedrückt halten'),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                  child: Text(
+                    'Mehr',
+                    style: Theme.of(sheetContext).textTheme.titleLarge,
                   ),
                 ),
-              ),
-            ],
+                ListTile(
+                  key: const ValueKey('more-school-assignment'),
+                  leading: const Icon(Icons.qr_code_scanner_rounded),
+                  title: const Text('Schulauftrag'),
+                  subtitle: const Text('QR-Code der Lehrkraft öffnen'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => AssignmentScannerScreen(
+                          controller: widget.controller,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  key: const ValueKey('more-settings'),
+                  leading: const Icon(Icons.tune_rounded),
+                  title: const Text('Einstellungen'),
+                  subtitle: const Text('Profil, Rechenwege und Darstellung'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            SettingsScreen(controller: widget.controller),
+                      ),
+                    );
+                  },
+                ),
+                Listener(
+                  key: const ValueKey('parent-gate'),
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: (_) =>
+                      _startParentGate(sheetContext: sheetContext),
+                  onPointerUp: (_) => _cancelParentGate(),
+                  onPointerCancel: (_) => _cancelParentGate(),
+                  child: Semantics(
+                    button: true,
+                    label: 'Elternbereich – 2 Sekunden gedrückt halten',
+                    child: const ListTile(
+                      leading: Icon(Icons.lock_outline_rounded),
+                      title: Text('Elternbereich'),
+                      subtitle: Text('2 Sekunden gedrückt halten'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -292,30 +312,14 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 14),
             _PracticeCatalog(controller: controller, onOpenMode: _openMode),
-            const SizedBox(height: 14),
-            Card(
-              child: ListTile(
-                dense: true,
-                leading: const Icon(Icons.qr_code_scanner_rounded),
-                title: const Text('Schulauftrag'),
-                subtitle: const Text('QR-Code der Lehrkraft öffnen'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        AssignmentScannerScreen(controller: controller),
-                  ),
-                ),
+            if (controller.todayTasks > 0) ...[
+              const SizedBox(height: 14),
+              Text(
+                'Heute schon ${controller.todayTasks} Aufgaben geschafft.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              controller.todayTasks == 0
-                  ? 'Für heute ist noch alles offen.'
-                  : 'Heute schon ${controller.todayTasks} Aufgaben geschafft.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            ],
           ],
         ),
       ),
