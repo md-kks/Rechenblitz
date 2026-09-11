@@ -115,7 +115,8 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
     finishing = true;
 
     final nextFocus = widget.controller.independentStepRecoveryFocus();
-    final recovered = nextFocus == null ||
+    final recovered =
+        nextFocus == null ||
         nextFocus.competencyId != widget.focus.competencyId ||
         nextFocus.stepKey != widget.focus.stepKey;
 
@@ -124,15 +125,11 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text(
-          recovered
-              ? 'Rechenschritt bestätigt'
-              : 'Rechenschritt bleibt im Blick',
-        ),
+        title: Text(recovered ? 'Geschafft!' : 'Wir üben noch ein bisschen'),
         content: Text(
           recovered
-              ? 'Der zuvor unsichere Schritt wurde jetzt zweimal selbstständig richtig bestätigt. Rechenblitz kehrt wieder zum normalen Lernfluss zurück.'
-              : 'Mindestens eine selbstständige Bestätigung war noch unsicher. Rechenblitz behält genau diesen Schritt als aktuellen Fokus, ohne eine Endlosschleife zu starten.',
+              ? 'Dieser Rechenschritt klappt jetzt sicher. Weiter geht es mit deiner normalen Runde.'
+              : 'Dieser Rechenschritt braucht noch etwas Übung. Rechenblitz zeigt ihn dir später wieder.',
         ),
         actions: [
           FilledButton(
@@ -153,67 +150,35 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
     final progress = (index + 1) / plan.tasks.length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Rechenschritt festigen')),
+      appBar: AppBar(title: const Text('Kurz üben')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 10,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text('${index + 1}/${plan.tasks.length}'),
-              ],
+            LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(99),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Aufgabe ${index + 1} von ${plan.tasks.length}',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 18),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(_stageIcon(stage)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            stage.label,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            stage == RemediationStage.supported
-                                ? 'Ein kurzer Hinweis richtet den Blick nur auf den unsicheren Teilschritt.'
-                                : stage == RemediationStage.transfer
-                                    ? 'Jetzt löst du denselben Teilschritt an einer veränderten Aufgabe selbst.'
-                                    : 'Zum Schluss wird derselbe Teilschritt noch einmal ohne Starthilfe geprüft.',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            Text(
+              _stageTitle(stage),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 14),
             Text(
               widget.focus.label,
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
             Text(
@@ -240,9 +205,7 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
                   ),
                 ),
               ),
-            if (!_autoHint &&
-                !showHint &&
-                stage != RemediationStage.check)
+            if (!_autoHint && !showHint && stage != RemediationStage.check)
               TextButton.icon(
                 onPressed: () => setState(() => showHint = true),
                 icon: const Icon(Icons.lightbulb_outline_rounded),
@@ -252,9 +215,7 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(14),
-                  child: Text(
-                    'Kontrolle: Starte ohne Hilfe. Nur der erste Versuch zählt als selbstständige Bestätigung.',
-                  ),
+                  child: Text('Probier diese Aufgabe zuerst ohne Hilfe.'),
                 ),
               ),
             const SizedBox(height: 12),
@@ -274,17 +235,14 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
                 (choiceIndex) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: FilledButton.tonal(
-                    onPressed:
-                        locked ? null : () => _answer(choiceIndex),
+                    onPressed: locked ? null : () => _answer(choiceIndex),
                     child: Text(current.choices![choiceIndex]),
                   ),
                 ),
               )
             else
               NumberAnswerPad(
-                key: ValueKey(
-                  'step-recovery:$index:${current.taskKey}',
-                ),
+                key: ValueKey('step-recovery:$index:${current.taskKey}'),
                 maxValue: current.maxAnswerValue,
                 onAnswer: _answer,
               ),
@@ -294,10 +252,10 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
     );
   }
 
-  IconData _stageIcon(RemediationStage stage) => switch (stage) {
-        RemediationStage.guided => Icons.assistant_direction_rounded,
-        RemediationStage.supported => Icons.lightbulb_outline_rounded,
-        RemediationStage.transfer => Icons.psychology_alt_outlined,
-        RemediationStage.check => Icons.fact_check_outlined,
-      };
+  String _stageTitle(RemediationStage stage) => switch (stage) {
+    RemediationStage.guided => 'Wir lösen das zusammen',
+    RemediationStage.supported => 'Ein Hinweis hilft dir',
+    RemediationStage.transfer => 'Jetzt probierst du es selbst',
+    RemediationStage.check => 'Ohne Hilfe probieren',
+  };
 }
