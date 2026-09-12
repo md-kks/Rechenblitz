@@ -69,7 +69,7 @@ class LearningVisualAid extends StatelessWidget {
                 : taskKey.startsWith('minus:')
                     ? _subtractionProcessAid()
                     : taskKey.startsWith('large:compare:')
-                ? _largeNumberCompareAid()
+                ? _largeNumberCompareAid(context)
                 : taskKey.startsWith('process:strategy:')
                     ? _strategyProcessAid()
                     : taskKey.startsWith('process:error:')
@@ -77,16 +77,16 @@ class LearningVisualAid extends StatelessWidget {
                         : taskKey.startsWith('process:plausibility:')
                             ? _plausibilityAid()
                             : taskKey.startsWith('process:representation:')
-                                ? _representationAid()
+                                ? _representationAid(context)
                                 : null;
     final child = processChild ?? switch (pattern) {
       ErrorPattern.tenBridge ||
       ErrorPattern.carryOmitted ||
       ErrorPattern.borrowAvoided ||
-      ErrorPattern.partialOperand => _numberLineAid(),
+      ErrorPattern.partialOperand => _numberLineAid(context),
       ErrorPattern.multiplicationFact ||
       ErrorPattern.multiplicationAsAddition => _multiplicationAid(),
-      ErrorPattern.placeValue => _placeValueAid(),
+      ErrorPattern.placeValue => _placeValueAid(context),
       ErrorPattern.writtenRegrouping ||
       ErrorPattern.writtenProcedure => _writtenColumnAid(),
       ErrorPattern.unitConversion => _UnitLadderAid(taskKey: taskKey),
@@ -99,7 +99,7 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.wordProblemRelevantInformation ||
       ErrorPattern.wordProblemModel ||
       ErrorPattern.wordProblemInterpretation => const _OperationAid(),
-      ErrorPattern.representationTranslation => _representationAid(),
+      ErrorPattern.representationTranslation => _representationAid(context),
       _ => null,
     };
 
@@ -298,9 +298,9 @@ class LearningVisualAid extends StatelessWidget {
     );
   }
 
-  Widget _largeNumberCompareAid() {
+  Widget _largeNumberCompareAid(BuildContext context) {
     final numbers = _numbers(taskKey);
-    if (numbers.length < 2) return _placeValueAid();
+    if (numbers.length < 2) return _placeValueAid(context);
     final a = numbers[numbers.length - 2];
     final b = numbers.last;
     final place = _firstDifferentPlace(a, b);
@@ -376,7 +376,7 @@ class LearningVisualAid extends StatelessWidget {
     }
     return buffer.toString();
   }
-  Widget _numberLineAid() {
+  Widget _numberLineAid(BuildContext context) {
     final numbers = _numbers(taskKey);
     if (numbers.length < 2) {
       return const _AidLabel(
@@ -429,6 +429,8 @@ class LearningVisualAid extends StatelessWidget {
               start: a,
               bridge: bridge,
               end: expected,
+              lineColor: Theme.of(context).colorScheme.outline,
+              accentColor: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -442,12 +444,12 @@ class LearningVisualAid extends StatelessWidget {
     );
   }
 
-  Widget _representationAid() {
+  Widget _representationAid(BuildContext context) {
     if (taskKey.contains(':groups:') ||
         taskKey.contains(':equation:')) {
       return _multiplicationAid();
     }
-    return _placeValueAid();
+    return _placeValueAid(context);
   }
 
   Widget _multiplicationAid() {
@@ -480,7 +482,7 @@ class LearningVisualAid extends StatelessWidget {
     );
   }
 
-  Widget _placeValueAid() {
+  Widget _placeValueAid(BuildContext context) {
     final numbers = _numbers(taskKey);
     final value = numbers.isEmpty
         ? expected
@@ -513,7 +515,7 @@ class LearningVisualAid extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: Colors.black12,
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1251,20 +1253,24 @@ class _NumberLinePainter extends CustomPainter {
     required this.start,
     required this.bridge,
     required this.end,
+    required this.lineColor,
+    required this.accentColor,
   });
 
   final int start;
   final int bridge;
   final int end;
+  final Color lineColor;
+  final Color accentColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.black54
+      ..color = lineColor
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
     final accent = Paint()
-      ..color = Colors.black87
+      ..color = accentColor
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke;
 
@@ -1287,8 +1293,8 @@ class _NumberLinePainter extends CustomPainter {
       final label = TextPainter(
         text: TextSpan(
           text: '$value',
-          style: const TextStyle(
-            color: Colors.black87,
+          style: TextStyle(
+            color: accentColor,
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
@@ -1325,5 +1331,7 @@ class _NumberLinePainter extends CustomPainter {
   bool shouldRepaint(covariant _NumberLinePainter oldDelegate) =>
       start != oldDelegate.start ||
       bridge != oldDelegate.bridge ||
-      end != oldDelegate.end;
+      end != oldDelegate.end ||
+      lineColor != oldDelegate.lineColor ||
+      accentColor != oldDelegate.accentColor;
 }

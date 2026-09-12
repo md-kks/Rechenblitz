@@ -8,6 +8,7 @@ import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/models/training.dart';
+import 'package:rechenblitz/theme/app_theme.dart';
 import 'package:rechenblitz/widgets/learning_visual_aid.dart';
 
 void main() {
@@ -109,6 +110,61 @@ void main() {
     expect(find.text('+3'), findsOneWidget);
     expect(find.text('+2'), findsOneWidget);
     expect(find.textContaining('12 − 7 = 5'), findsOneWidget);
+  });
+
+  testWidgets('high contrast help visuals use theme contrast colors', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(highContrast: true),
+        home: const Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.placeValue,
+            taskKey: 'place:47',
+            expected: 47,
+          ),
+        ),
+      ),
+    );
+
+    final decorated = tester
+        .widgetList<Container>(find.byType(Container))
+        .where((container) {
+          final decoration = container.decoration;
+          return decoration is BoxDecoration && decoration.border != null;
+        });
+    expect(
+      decorated.any((container) {
+        final border =
+            (container.decoration! as BoxDecoration).border! as Border;
+        return border.top.color == Colors.black87;
+      }),
+      isTrue,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(highContrast: true),
+        home: const Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.tenBridge,
+            taskKey: 'plus:+:7:5',
+            expected: 12,
+          ),
+        ),
+      ),
+    );
+
+    final customPaint = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .firstWhere(
+          (paint) =>
+              paint.painter?.runtimeType.toString() == '_NumberLinePainter',
+        );
+    final dynamic painter = customPaint.painter;
+    expect(painter.lineColor, Colors.black87);
+    expect(painter.accentColor, Colors.black);
   });
 
   test('generated structured and upper-primary tasks have specific help', () {
