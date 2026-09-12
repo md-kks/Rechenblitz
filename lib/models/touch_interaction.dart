@@ -8,6 +8,9 @@ enum TouchInteractionKind {
   placeValueBuilder,
   moneyComposer,
   clockSetter,
+  fractionBuilder,
+  pathWalker,
+  symmetryAxes,
 }
 
 class TouchInteractionPlan {
@@ -26,6 +29,15 @@ class TouchInteractionPlan {
     this.clockMinute,
     this.denominations = const <int>[],
     this.unitLabel,
+    this.fractionNumerator,
+    this.fractionDenominator,
+    this.fractionWhole,
+    this.pathRight,
+    this.pathUp,
+    this.symmetryShape,
+    this.selectionLabels = const <String>[],
+    this.correctSelectionIndexes = const <int>[],
+    this.expectedAnswer,
   });
 
   final String taskKey;
@@ -42,6 +54,15 @@ class TouchInteractionPlan {
   final int? clockMinute;
   final List<int> denominations;
   final String? unitLabel;
+  final int? fractionNumerator;
+  final int? fractionDenominator;
+  final int? fractionWhole;
+  final int? pathRight;
+  final int? pathUp;
+  final String? symmetryShape;
+  final List<String> selectionLabels;
+  final List<int> correctSelectionIndexes;
+  final int? expectedAnswer;
 
   bool get hasInteractiveWall => wallValues != null && hiddenWallIndex != null;
 
@@ -119,6 +140,77 @@ class TouchInteractionPlan {
         clockHour: clockHour,
         clockMinute: clockMinute,
       );
+    }
+
+    if (mode == TrainingMode.fractions && taskKey.startsWith('fraction:')) {
+      final parts = taskKey.split(':');
+      int? numerator;
+      int? denominator;
+      int? whole;
+      if (parts.length == 3 && parts[1] == 'half') {
+        numerator = 1;
+        denominator = 2;
+        whole = int.tryParse(parts[2]);
+      } else if (parts.length == 3 && parts[1] == 'quarter') {
+        numerator = 1;
+        denominator = 4;
+        whole = int.tryParse(parts[2]);
+      } else if (parts.length == 5 && parts[1] == 'parts') {
+        numerator = int.tryParse(parts[2]);
+        denominator = int.tryParse(parts[3]);
+        whole = int.tryParse(parts[4]);
+      }
+      if (numerator != null &&
+          denominator != null &&
+          whole != null &&
+          numerator > 0 &&
+          denominator > 0 &&
+          whole > 0 &&
+          whole <= 200) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.fractionBuilder,
+          instruction:
+              'Baue gleich große Teile. Erst wenn alle Teile zusammen das Ganze ergeben, passt der Bruchteil.',
+          fractionNumerator: numerator,
+          fractionDenominator: denominator,
+          fractionWhole: whole,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.plansAndOrientation &&
+        taskKey.startsWith('plan:path:')) {
+      final parts = taskKey.split(':');
+      final right = parts.length >= 4 ? int.tryParse(parts[2]) : null;
+      final up = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (right != null && up != null) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.pathWalker,
+          instruction: 'Gehe den beschriebenen Weg Feld für Feld ab.',
+          pathRight: right,
+          pathUp: up,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.symmetry && taskKey.startsWith('symmetry:')) {
+      final symmetry = _symmetrySpec(taskKey);
+      if (symmetry != null) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.symmetryAxes,
+          instruction:
+              'Tippe alle Linien an, an denen die Figur gespiegelt werden kann.',
+          symmetryShape: symmetry.$1,
+          selectionLabels: symmetry.$2,
+          correctSelectionIndexes: symmetry.$3,
+          expectedAnswer: answer,
+        );
+      }
     }
 
     if (mode == TrainingMode.largeNumbers &&
@@ -209,6 +301,59 @@ class TouchInteractionPlan {
     }
 
     return null;
+  }
+
+  static (String, List<String>, List<int>)? _symmetrySpec(String taskKey) {
+    const names = <String>[
+      'Quadrat',
+      'Rechteck',
+      'gleichseitiges Dreieck',
+      'gleichschenkliges Dreieck',
+    ];
+    String? shape;
+    final parts = taskKey.split(':');
+    if (parts.length >= 3 && parts[1] == 'target') {
+      final index = int.tryParse(parts[2]);
+      if (index != null && index >= 0 && index < names.length) {
+        shape = names[index];
+      }
+    } else if (parts.length >= 2) {
+      shape = parts.sublist(1).join(':');
+    }
+    if (shape == null) return null;
+    return switch (shape) {
+      'Quadrat' => (
+          shape,
+          const <String>['Senkrecht', 'Waagerecht', 'Diagonal ↘', 'Diagonal ↙'],
+          const <int>[0, 1, 2, 3],
+        ),
+      'Rechteck' => (
+          shape,
+          const <String>['Senkrecht', 'Waagerecht', 'Diagonal ↘', 'Diagonal ↙'],
+          const <int>[0, 1],
+        ),
+      'gleichseitiges Dreieck' => (
+          shape,
+          const <String>[
+            'Spitze → unten',
+            'Links unten → Mitte',
+            'Rechts unten → Mitte',
+            'Waagerecht',
+          ],
+          const <int>[0, 1, 2],
+        ),
+      'gleichschenkliges Dreieck' => (
+          shape,
+          const <String>[
+            'Spitze → unten',
+            'Links unten → Mitte',
+            'Rechts unten → Mitte',
+            'Waagerecht',
+          ],
+          const <int>[0],
+        ),
+      _ => null,
+    };
   }
 
   static int _missingNumberStart(List<String> parts, int answer) {

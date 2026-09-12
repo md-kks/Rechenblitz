@@ -3485,7 +3485,10 @@ void main() {
       steps.single.taskKey,
       'independent:equalPartSize:fraction:parts:3:4:20',
     );
-    expect(find.text('Antwort eingeben'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('touch-fraction-part-slider')),
+      findsOneWidget,
+    );
   });
 
   test('Zeitspanne beobachtet den ersten Sprung bis zur vollen Stunde', () {
