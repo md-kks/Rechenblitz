@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
+import '../models/help_preferences.dart';
 import '../models/micro_competency.dart';
 import '../models/structured_exercise.dart';
 import '../models/training.dart';
@@ -41,6 +42,10 @@ class StructuredTrainingScreen extends StatefulWidget {
 }
 
 class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
+  HelpPreferences get _helpPreferences => widget.controller.helpPreferences;
+  HelpLevel? get _manualHelpLevel => _helpPreferences.manualStartLevel;
+  bool get _helpAvailable => _helpPreferences.enabled;
+
   MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
       ? MicroEvidenceSource.transfer
       : widget.reviewEmphasis
@@ -99,9 +104,13 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       completed,
       enabled: widget.scaffoldFading,
     );
-    showHint = fadingLevel != null;
-    helpLevel = fadingLevel?.value ?? HelpLevel.none.value;
-    activeMethodKey = fadingLevel == null ? null : _guide.methodKey;
+    final allowedFadingLevel =
+        fadingLevel == null
+            ? null
+            : _helpPreferences.automaticStartLevel(fadingLevel);
+    showHint = allowedFadingLevel != null;
+    helpLevel = allowedFadingLevel?.value ?? HelpLevel.none.value;
+    activeMethodKey = allowedFadingLevel == null ? null : _guide.methodKey;
   }
 
   StructuredExercise _next() => generator.generate(
@@ -191,14 +200,15 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       hadCheckpointError = true;
       final attempts = (checkpointWrongAttempts[index] ?? 0) + 1;
       checkpointWrongAttempts[index] = attempts;
+      final retryHelp = _manualHelpLevel;
       setState(() {
-        checkpointFeedback = attempts >= 2
+        checkpointFeedback = attempts >= 2 && retryHelp != null
             ? 'Schau dir die Hilfe an und probier den Schritt noch einmal.'
             : 'Noch nicht. Probier den Schritt noch einmal.';
-        if (attempts >= 2) {
+        if (attempts >= 2 && retryHelp != null) {
           showHint = true;
-          if (helpLevel < HelpLevel.nudge.value) {
-            helpLevel = HelpLevel.nudge.value;
+          if (helpLevel < retryHelp.value) {
+            helpLevel = retryHelp.value;
             activeMethodKey = _guide.methodKey;
           }
         }
@@ -269,15 +279,17 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     if (answer != current.answer) {
       incorrectAttempts += 1;
       wrongOnCurrent += 1;
+      final retryHelp = _manualHelpLevel;
       setState(() {
         currentErrorPattern ??= diagnosedPattern;
-        feedback = wrongOnCurrent >= 2
+        feedback = wrongOnCurrent >= 2 && retryHelp != null
             ? 'Schau dir die Hilfe an und probier noch einmal.'
-            : diagnosedPattern?.firstResponseHint ??
-                'Probier es noch einmal.';
-        showHint = wrongOnCurrent >= 2;
-        if (showHint && helpLevel < HelpLevel.nudge.value) {
-          helpLevel = HelpLevel.nudge.value;
+            : _helpAvailable
+                ? diagnosedPattern?.firstResponseHint ?? 'Probier es noch einmal.'
+                : 'Probier es noch einmal.';
+        showHint = wrongOnCurrent >= 2 && retryHelp != null;
+        if (showHint && helpLevel < retryHelp!.value) {
+          helpLevel = retryHelp.value;
           activeMethodKey = _guide.methodKey;
         }
       });
@@ -497,6 +509,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                   alternativeGuides: _guideAlternatives,
                   pattern: _helpPattern,
                   initialLevel: HelpLevel.values[helpLevel],
+                  maxLevel: _helpPreferences.maxLevel ?? HelpLevel.nudge,
                   taskKey: current.key,
                   expected: current.answer,
                   onStepAttempt: (step, correct) =>
@@ -524,14 +537,18 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                   },
                   onSpeak: widget.controller.speakOnDemand,
                 ),
-              ] else ...[
+              ] else if (_helpAvailable) ...[
                 const SizedBox(height: 8),
                 TextButton.icon(
-                  onPressed: () => setState(() {
-                  showHint = true;
-                  helpLevel = HelpLevel.nudge.value;
-                  activeMethodKey = _guide.methodKey;
-                }),
+                  onPressed: () {
+                    final starter = _manualHelpLevel;
+                    if (starter == null) return;
+                    setState(() {
+                      showHint = true;
+                      helpLevel = starter.value;
+                      activeMethodKey = _guide.methodKey;
+                    });
+                  },
                   icon: const Icon(Icons.lightbulb_outline_rounded),
                   label: const Text('Ich brauche Hilfe'),
                 ),

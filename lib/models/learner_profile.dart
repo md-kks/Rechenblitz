@@ -1,3 +1,4 @@
+import 'help_preferences.dart';
 import 'training.dart';
 
 enum GermanState {
@@ -49,6 +50,7 @@ class LearnerProfile {
     this.state = GermanState.thuringia,
     this.onboardingComplete = true,
     this.assessmentCompletedAt,
+    this.helpPreferences = const HelpPreferences(),
   });
 
   final String id;
@@ -58,6 +60,7 @@ class LearnerProfile {
   final GermanState state;
   final bool onboardingComplete;
   final DateTime? assessmentCompletedAt;
+  final HelpPreferences helpPreferences;
 
   LearnerProfile copyWith({
     String? name,
@@ -66,6 +69,7 @@ class LearnerProfile {
     bool? onboardingComplete,
     DateTime? assessmentCompletedAt,
     bool clearAssessment = false,
+    HelpPreferences? helpPreferences,
   }) =>
       LearnerProfile(
         id: id,
@@ -77,6 +81,7 @@ class LearnerProfile {
         assessmentCompletedAt: clearAssessment
             ? null
             : assessmentCompletedAt ?? this.assessmentCompletedAt,
+        helpPreferences: helpPreferences ?? this.helpPreferences,
       );
 
   Map<String, dynamic> toJson() => {
@@ -87,6 +92,7 @@ class LearnerProfile {
         'state': state.name,
         'onboardingComplete': onboardingComplete,
         'assessmentCompletedAt': assessmentCompletedAt?.toIso8601String(),
+        'helpPreferences': helpPreferences.toJson(),
       };
 
   factory LearnerProfile.fromJson(Map<String, dynamic> json) {
@@ -122,6 +128,11 @@ class LearnerProfile {
       onboardingComplete: json['onboardingComplete'] as bool? ?? true,
       assessmentCompletedAt:
           DateTime.tryParse(json['assessmentCompletedAt'] as String? ?? ''),
+      helpPreferences: HelpPreferences.fromJson(
+        json['helpPreferences'] is Map<String, dynamic>
+            ? json['helpPreferences'] as Map<String, dynamic>
+            : null,
+      ),
     );
   }
 }
