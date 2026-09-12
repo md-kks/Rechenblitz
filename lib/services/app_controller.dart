@@ -7,6 +7,7 @@ import '../models/assessment.dart';
 import '../models/beta_feedback.dart';
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
+import '../models/help_preferences.dart';
 import '../models/learner_profile.dart';
 import '../models/learning_methods.dart';
 import '../models/learning_path.dart';
@@ -163,6 +164,8 @@ class AppController extends ChangeNotifier {
   }
 
   String get activeProfileName => activeProfile.name;
+
+  HelpPreferences get helpPreferences => activeProfile.helpPreferences;
 
   bool get needsOnboarding => !activeProfile.onboardingComplete;
 
@@ -2597,6 +2600,19 @@ class AppController extends ChangeNotifier {
               : profile,
         )
         .toList();
+  }
+
+  Future<void> setHelpPreferences(HelpPreferences value) async {
+    if (profiles.isEmpty) return;
+    profiles = profiles
+        .map(
+          (profile) => profile.id == activeProfileId
+              ? profile.copyWith(helpPreferences: value)
+              : profile,
+        )
+        .toList();
+    notifyListeners();
+    await storage.saveProfiles(profiles);
   }
 
   Future<void> setProfileState(GermanState value) async {

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
+import '../models/help_preferences.dart';
 import '../models/math_fact.dart';
 import '../models/micro_competency.dart';
 import '../models/training.dart';
@@ -41,6 +42,10 @@ class TrainingScreen extends StatefulWidget {
 }
 
 class _TrainingScreenState extends State<TrainingScreen> {
+  HelpPreferences get _helpPreferences => widget.controller.helpPreferences;
+  HelpLevel? get _manualHelpLevel => _helpPreferences.manualStartLevel;
+  bool get _helpAvailable => _helpPreferences.enabled;
+
   MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
       ? MicroEvidenceSource.transfer
       : widget.reviewEmphasis
@@ -140,17 +145,23 @@ class _TrainingScreenState extends State<TrainingScreen> {
       completed,
       enabled: widget.scaffoldFading,
     );
+    final allowedFadingLevel =
+        fadingLevel == null
+            ? null
+            : _helpPreferences.automaticStartLevel(fadingLevel);
     if (widget.scaffoldFading) {
-      usedHelp = fadingLevel != null;
-      showHelp = fadingLevel != null;
-      helpLevel = fadingLevel?.value ?? HelpLevel.none.value;
-      activeMethodKey = fadingLevel == null ? null : _guide.methodKey;
+      usedHelp = allowedFadingLevel != null;
+      showHelp = allowedFadingLevel != null;
+      helpLevel = allowedFadingLevel?.value ?? HelpLevel.none.value;
+      activeMethodKey = allowedFadingLevel == null ? null : _guide.methodKey;
       return;
     }
 
-    usedHelp = widget.mode == TrainingMode.minus && _minusStage == 1;
+    final starter = _helpPreferences.clamp(HelpLevel.nudge);
+    usedHelp =
+        widget.mode == TrainingMode.minus && _minusStage == 1 && starter != null;
     showHelp = usedHelp;
-    helpLevel = showHelp ? HelpLevel.nudge.value : HelpLevel.none.value;
+    helpLevel = showHelp ? starter!.value : HelpLevel.none.value;
     activeMethodKey = showHelp ? _guide.methodKey : null;
   }
 
@@ -263,15 +274,16 @@ class _TrainingScreenState extends State<TrainingScreen> {
       hadCheckpointError = true;
       final attempts = (checkpointWrongAttempts[index] ?? 0) + 1;
       checkpointWrongAttempts[index] = attempts;
+      final retryHelp = _manualHelpLevel;
       setState(() {
-        checkpointFeedback = attempts >= 2
+        checkpointFeedback = attempts >= 2 && retryHelp != null
             ? 'Schau dir die Hilfe an und probier den Schritt noch einmal.'
             : 'Noch nicht. Probier den Schritt noch einmal.';
-        if (attempts >= 2) {
+        if (attempts >= 2 && retryHelp != null) {
           showHelp = true;
           usedHelp = true;
-          if (helpLevel < HelpLevel.nudge.value) {
-            helpLevel = HelpLevel.nudge.value;
+          if (helpLevel < retryHelp.value) {
+            helpLevel = retryHelp.value;
           }
           activeMethodKey ??= _guide.methodKey;
         }
@@ -361,17 +373,19 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (!correct) {
       incorrectAttempts += 1;
       wrongOnCurrent += 1;
+      final retryHelp = _manualHelpLevel;
       setState(() {
         currentErrorPattern ??= diagnosedPattern;
-        feedback = wrongOnCurrent >= 2
+        feedback = wrongOnCurrent >= 2 && retryHelp != null
             ? 'Schau dir die Hilfe an und probier noch einmal.'
-            : diagnosedPattern?.firstResponseHint ??
-                'Probier es noch einmal.';
-        if (wrongOnCurrent >= 2) {
+            : _helpAvailable
+                ? diagnosedPattern?.firstResponseHint ?? 'Probier es noch einmal.'
+                : 'Probier es noch einmal.';
+        if (wrongOnCurrent >= 2 && retryHelp != null) {
           showHelp = true;
           usedHelp = true;
-          if (helpLevel < HelpLevel.nudge.value) {
-            helpLevel = HelpLevel.nudge.value;
+          if (helpLevel < retryHelp.value) {
+            helpLevel = retryHelp.value;
           }
           activeMethodKey ??= _guide.methodKey;
         }
@@ -616,6 +630,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                       alternativeGuides: _guideAlternatives,
                       pattern: _helpPattern,
                       initialLevel: HelpLevel.values[helpLevel],
+                      maxLevel: _helpPreferences.maxLevel ?? HelpLevel.nudge,
                       taskKey: current.key,
                       expected: _expectedAnswer,
                       onStepAttempt: (step, correct) =>
@@ -646,18 +661,23 @@ class _TrainingScreenState extends State<TrainingScreen> {
                       onSpeak: widget.controller.speakOnDemand,
                     ),
                   if (!showHelp &&
+                      _helpAvailable &&
                       widget.mode != TrainingMode.tempo &&
                       (_independentArithmeticSteps.isNotEmpty ||
                           current.isMinus ||
                           current.isMultiply ||
                           current.isDivide))
                     TextButton.icon(
-                      onPressed: () => setState(() {
-                        usedHelp = true;
-                        showHelp = true;
-                        helpLevel = HelpLevel.nudge.value;
-                        activeMethodKey = _guide.methodKey;
-                      }),
+                      onPressed: () {
+                        final starter = _manualHelpLevel;
+                        if (starter == null) return;
+                        setState(() {
+                          usedHelp = true;
+                          showHelp = true;
+                          helpLevel = starter.value;
+                          activeMethodKey = _guide.methodKey;
+                        });
+                      },
                       icon: const Icon(Icons.lightbulb_outline_rounded),
                       label: const Text('Ich brauche Hilfe'),
                     ),

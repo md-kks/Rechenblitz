@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/error_diagnosis.dart';
+import '../models/help_preferences.dart';
 import '../models/learning_methods.dart';
 import '../models/math_fact.dart';
 import '../models/remediation_path.dart';
@@ -138,6 +139,68 @@ class _ParentScreenState extends State<ParentScreen> {
                   ),
                 ),
                 Text('${c.stars} ★ · ${c.badges.length} Abzeichen'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Hilfen',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Welche Rechenhilfen ${c.activeProfileName} öffnen darf.',
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<HelpAccess>(
+                  key: const ValueKey('parent-help-access'),
+                  initialValue: c.helpPreferences.access,
+                  decoration: const InputDecoration(
+                    labelText: 'Verfügbare Hilfen',
+                  ),
+                  items: HelpAccess.values
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(value.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    c.setHelpPreferences(
+                      c.helpPreferences.copyWith(access: value),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<HelpPresentation>(
+                  key: const ValueKey('parent-help-presentation'),
+                  initialValue: c.helpPreferences.presentation,
+                  decoration: const InputDecoration(
+                    labelText: 'Hilfe öffnen',
+                  ),
+                  items: HelpPresentation.values
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(value.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: c.helpPreferences.enabled
+                      ? (value) {
+                          if (value == null) return;
+                          c.setHelpPreferences(
+                            c.helpPreferences.copyWith(presentation: value),
+                          );
+                        }
+                      : null,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Standard ist „Alle Hilfen“ und „Stufenweise“. Genutzte Hilfen werden weiterhin bei der Lernbewertung berücksichtigt.',
+                ),
               ],
             ),
           ),

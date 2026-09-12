@@ -15,6 +15,7 @@ class GuidedMethodPanel extends StatefulWidget {
     required this.expected,
     required this.onHelpLevelChanged,
     this.initialLevel = HelpLevel.nudge,
+    this.maxLevel = HelpLevel.guided,
     this.onStepAttempt,
     this.onSpeak,
     this.alternativeGuides = const <GuidedMethodGuide>[],
@@ -27,6 +28,7 @@ class GuidedMethodPanel extends StatefulWidget {
   final int expected;
   final ValueChanged<HelpLevel> onHelpLevelChanged;
   final HelpLevel initialLevel;
+  final HelpLevel maxLevel;
   final Future<void> Function(GuidedMethodStep step, bool correct)?
       onStepAttempt;
   final Future<void> Function(String text)? onSpeak;
@@ -49,7 +51,9 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
   @override
   void initState() {
     super.initState();
-    level = widget.initialLevel;
+    level = widget.initialLevel.index <= widget.maxLevel.index
+        ? widget.initialLevel
+        : widget.maxLevel;
     activeGuide = widget.guide;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onHelpLevelChanged(level);
@@ -99,7 +103,7 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
   }
 
   void _setLevel(HelpLevel value) {
-    if (value.index < level.index) return;
+    if (value.index < level.index || value.index > widget.maxLevel.index) return;
     setState(() {
       level = value;
       feedback = '';
@@ -308,14 +312,17 @@ class _GuidedMethodPanelState extends State<GuidedMethodPanel> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    if (hasVisual && level == HelpLevel.nudge)
+                    if (hasVisual &&
+                        level == HelpLevel.nudge &&
+                        widget.maxLevel.index >= HelpLevel.visual.index)
                       OutlinedButton.icon(
                         key: const ValueKey('help-show-visual'),
                         onPressed: () => _setLevel(HelpLevel.visual),
                         icon: const Icon(Icons.visibility_outlined),
                         label: const Text('Bild zeigen'),
                       ),
-                    if (guide.steps.isNotEmpty)
+                    if (guide.steps.isNotEmpty &&
+                        widget.maxLevel.index >= HelpLevel.guided.index)
                       OutlinedButton.icon(
                         key: const ValueKey('help-show-guided'),
                         onPressed: () => _setLevel(HelpLevel.guided),
