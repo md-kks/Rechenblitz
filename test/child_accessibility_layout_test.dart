@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 void _compactLargeText(WidgetTester tester) {
   tester.view.physicalSize = const Size(320, 640);
   tester.view.devicePixelRatio = 1;
-  tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+  tester.platformDispatcher.textScaleFactorTestValue = 2.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
