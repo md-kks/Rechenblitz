@@ -331,6 +331,22 @@ class GuidedMethodFactory {
       return _inverseRelationshipGuide(taskKey);
     }
 
+    if (mode == TrainingMode.missingNumber || taskKey.startsWith('gap:')) {
+      return _missingNumberGuide(taskKey, expected);
+    }
+
+    if (mode == TrainingMode.neighbors || taskKey.startsWith('neighbor:')) {
+      return _neighborGuide(taskKey, expected);
+    }
+
+    if (mode == TrainingMode.placeValue || taskKey.startsWith('place:')) {
+      return _placeValueGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.geometry || taskKey.startsWith('geometry:')) {
+      return _basicGeometryGuide(taskKey);
+    }
+
     if (mode == TrainingMode.numberWall ||
         targetCompetency == MicroCompetencyId.numberRelations ||
         taskKey.startsWith('wall:')) {
@@ -358,8 +374,7 @@ class GuidedMethodFactory {
       return _estimationGuide(taskKey);
     }
 
-    if (mode == TrainingMode.romanNumerals &&
-        taskKey.startsWith('roman:read:')) {
+    if (mode == TrainingMode.romanNumerals && taskKey.startsWith('roman:')) {
       return _romanNumeralGuide(taskKey);
     }
 
@@ -420,15 +435,28 @@ class GuidedMethodFactory {
       return _figureClassificationGuide(taskKey);
     }
 
+    if (mode == TrainingMode.geometryRelations &&
+        taskKey.startsWith('geomrel:')) {
+      return _geometryRelationsGuide(taskKey);
+    }
+
     if (mode == TrainingMode.symmetry &&
         taskKey.startsWith('symmetry:target:')) {
       return _symmetryAxisGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.symmetry && taskKey.startsWith('symmetry:')) {
+      return _symmetryGuide(taskKey);
     }
 
     if (mode == TrainingMode.geometryBodies &&
         taskKey.startsWith('body:cube-net:fold:') &&
         taskKey.contains(':local:')) {
       return _cubeNetLocalFoldGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.geometryBodies && taskKey.startsWith('body:')) {
+      return _geometryBodyGuide(taskKey);
     }
 
     if (mode == TrainingMode.plansAndOrientation &&
@@ -439,6 +467,11 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.plansAndOrientation &&
         taskKey.startsWith('plan:scale:')) {
       return _scaleGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.plansAndOrientation &&
+        taskKey.startsWith('plan:')) {
+      return _planPathGuide(taskKey);
     }
 
     if (mode == TrainingMode.proportionality ||
@@ -468,6 +501,10 @@ class GuidedMethodFactory {
     if (mode == TrainingMode.probability &&
         taskKey.startsWith('prob:bag:')) {
       return _probabilityBagGuide(taskKey);
+    }
+
+    if (mode == TrainingMode.probability && taskKey.startsWith('prob:')) {
+      return _probabilityGuide(taskKey);
     }
 
     if (mode == TrainingMode.combinatorics &&
@@ -1954,6 +1991,243 @@ class GuidedMethodFactory {
           ],
         );
     }
+  }
+
+  static GuidedMethodGuide _missingNumberGuide(
+    String taskKey,
+    int expected,
+  ) {
+    final parts = taskKey.split(':');
+    if (parts.length < 5 || parts.first != 'gap') {
+      return const GuidedMethodGuide(
+        methodKey: 'missingNumber:inverse',
+        methodLabel: 'Lücke mit der Umkehraufgabe finden',
+        nudge: 'Lies die Lücke als Rückwärts- oder Ergänzaufgabe.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Bekannte Zahlen verbinden',
+            instruction: 'Suche die Rechnung, die von der bekannten Zahl zum Ergebnis führt.',
+          ),
+          GuidedMethodStep(
+            title: 'Umkehraufgabe prüfen',
+            instruction: 'Prüfe die gefundene Zahl mit der Gegenrechenart.',
+          ),
+        ],
+      );
+    }
+
+    final operation = parts[1];
+    final a = int.tryParse(parts[2]);
+    final b = int.tryParse(parts[3]);
+    final hidden = parts[4];
+    if (a == null || b == null || (operation != '+' && operation != '-')) {
+      return const GuidedMethodGuide(
+        methodKey: 'missingNumber:inverse',
+        methodLabel: 'Lücke mit der Umkehraufgabe finden',
+        nudge: 'Lies die Lücke als Rückwärts- oder Ergänzaufgabe.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Umkehraufgabe bilden',
+            instruction: 'Nutze die Gegenrechenart, um die fehlende Zahl freizulegen.',
+          ),
+        ],
+      );
+    }
+
+    if (operation == '+') {
+      final total = a + b;
+      final known = hidden == 'b' ? a : b;
+      final nextTen = ((known ~/ 10) + 1) * 10;
+      final bridge = nextTen > known && nextTen < total ? nextTen : null;
+      final bridgeText = bridge == null
+          ? '$known + $expected = $total.'
+          : '$known → $bridge sind +${bridge - known}; '
+              '$bridge → $total sind +${total - bridge}. '
+              'Zusammen fehlen $expected.';
+      return GuidedMethodGuide(
+        methodKey: 'missingNumber:add-complement',
+        methodLabel: 'Bis zur Summe ergänzen',
+        nudge: 'Starte bei $known. Wie viel fehlt noch bis $total?',
+        steps: [
+          GuidedMethodStep(
+            title: 'Von der bekannten Zahl starten',
+            instruction: 'Ergänze von $known bis zur Summe $total.',
+          ),
+          GuidedMethodStep(
+            title: 'Fehlenden Teil bestimmen',
+            instruction: bridgeText,
+          ),
+          GuidedMethodStep(
+            title: 'Mit Minus prüfen',
+            instruction: '$total − $known = $expected. Damit ist die Lücke $expected.',
+          ),
+        ],
+      );
+    }
+
+    final result = a - b;
+    if (hidden == 'b') {
+      final nextTen = ((result ~/ 10) + 1) * 10;
+      final bridge = nextTen > result && nextTen < a ? nextTen : null;
+      final bridgeText = bridge == null
+          ? '$result + $expected = $a.'
+          : '$result → $bridge sind +${bridge - result}; '
+              '$bridge → $a sind +${a - bridge}. '
+              'Zusammen ist der Abstand $expected.';
+      return GuidedMethodGuide(
+        methodKey: 'missingNumber:subtrahend-distance',
+        methodLabel: 'Den Abstand rückwärts bestimmen',
+        nudge: 'Gehe rückwärts: Von $result bis $a ist genau die Zahl, die abgezogen wurde.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Beim Ergebnis starten',
+            instruction: 'Ergänze von $result zurück bis $a.',
+          ),
+          GuidedMethodStep(
+            title: 'Abstand bestimmen',
+            instruction: bridgeText,
+          ),
+          GuidedMethodStep(
+            title: 'In der Minusaufgabe prüfen',
+            instruction: '$a − $expected = $result.',
+          ),
+        ],
+      );
+    }
+
+    return GuidedMethodGuide(
+      methodKey: 'missingNumber:minuend-inverse',
+      methodLabel: 'Die Startzahl rückwärts finden',
+      nudge: 'Mache das Wegnehmen rückgängig: Addiere $b wieder zum Ergebnis $result.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Minus rückgängig machen',
+          instruction: '$result + $b = $expected.',
+        ),
+        GuidedMethodStep(
+          title: 'Startzahl einsetzen',
+          instruction: 'Die fehlende Startzahl ist $expected.',
+        ),
+        GuidedMethodStep(
+          title: 'Probe',
+          instruction: '$expected − $b = $result.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _neighborGuide(String taskKey, int expected) {
+    final parts = taskKey.split(':');
+    final number = parts.length >= 2 ? int.tryParse(parts[1]) : null;
+    final before = parts.length >= 3 && parts[2] == 'before';
+    final after = parts.length >= 3 && parts[2] == 'after';
+    final direction = before ? 'zurück' : 'weiter';
+    final sign = before ? '−' : '+';
+    return GuidedMethodGuide(
+      methodKey: 'neighbors:one-step',
+      methodLabel: 'Genau einen Schritt gehen',
+      nudge: before
+          ? 'Der Vorgänger liegt genau einen Schritt vor der Zahl.'
+          : 'Der Nachfolger liegt genau einen Schritt hinter der Zahl.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Richtung erkennen',
+          instruction: before
+              ? 'Vorgänger bedeutet: auf dem Zahlenstrahl einen Schritt nach links.'
+              : after
+                  ? 'Nachfolger bedeutet: auf dem Zahlenstrahl einen Schritt nach rechts.'
+                  : 'Entscheide, ob du einen Schritt zurück oder weiter gehen musst.',
+        ),
+        GuidedMethodStep(
+          title: 'Einen Schritt rechnen',
+          instruction: number == null
+              ? 'Gehe genau einen Schritt $direction.'
+              : '$number $sign 1 = $expected.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _placeValueGuide(String taskKey) {
+    final numbers = _numbers(taskKey);
+    final number = numbers.isEmpty ? null : numbers.last;
+    if (number == null) {
+      return const GuidedMethodGuide(
+        methodKey: 'placeValue:tensOnes',
+        methodLabel: 'Zehner und Einer zusammensetzen',
+        nudge: 'Mache aus den Zehnern zuerst volle Zehnerzahlen und füge dann die Einer hinzu.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Zehnerwert bilden',
+            instruction: 'Jeder Zehner steht für 10 Einer.',
+          ),
+          GuidedMethodStep(
+            title: 'Einer ergänzen',
+            instruction: 'Addiere danach die einzelnen Einer.',
+          ),
+        ],
+      );
+    }
+    final tens = number ~/ 10;
+    final ones = number % 10;
+    final tensValue = tens * 10;
+    return GuidedMethodGuide(
+      methodKey: 'placeValue:tensOnes',
+      methodLabel: 'Zehner und Einer zusammensetzen',
+      nudge: '$tens Zehner sind $tensValue. Danach kommen noch $ones Einer dazu.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Zehner in eine Zahl verwandeln',
+          instruction: '$tens × 10 = $tensValue.',
+        ),
+        GuidedMethodStep(
+          title: 'Einer ergänzen',
+          instruction: '$tensValue + $ones = $number.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _basicGeometryGuide(String taskKey) {
+    final parts = taskKey.split(':');
+    final kind = parts.length >= 2 ? parts[1] : '';
+    final shape = parts.length >= 3 ? parts[2] : '';
+    final name = switch (shape) {
+      'triangle' => 'Dreieck',
+      'square' => 'Quadrat',
+      'rectangle' => 'Rechteck',
+      'circle' => 'Kreis',
+      _ => 'Form',
+    };
+    final corners = switch (shape) {
+      'triangle' => 3,
+      'square' || 'rectangle' => 4,
+      'circle' => 0,
+      _ => null,
+    };
+    return GuidedMethodGuide(
+      methodKey: 'geometry:shape-properties',
+      methodLabel: 'Form über ihre Eigenschaften erkennen',
+      nudge: 'Schau zuerst auf gerade Seiten, Ecken und die Begrenzung der Form.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Eigenschaften ansehen',
+          instruction: shape == 'circle'
+              ? 'Der Kreis hat keine geraden Seiten und keine Ecken.'
+              : corners == null
+                  ? 'Zähle Seiten und Ecken und achte darauf, wie sie angeordnet sind.'
+                  : '$name hat $corners Ecken. Nutze Seiten und Ecken als Erkennungsmerkmale.',
+        ),
+        GuidedMethodStep(
+          title: kind == 'corners' ? 'Ecken zählen' : 'Form benennen',
+          instruction: kind == 'corners' && corners != null
+              ? 'Zähle jede Ecke genau einmal: $name hat $corners.'
+              : kind == 'name'
+                  ? 'Vergleiche die Merkmale mit Dreieck, Quadrat, Rechteck und Kreis.'
+                  : 'Nutze die erkannten Eigenschaften für die Antwort.',
+        ),
+      ],
+    );
   }
 
   static GuidedMethodGuide _numberWallGuide(String taskKey) {
@@ -4056,6 +4330,255 @@ class GuidedMethodFactory {
     );
   }
 
+  static GuidedMethodGuide _geometryRelationsGuide(String key) {
+    if (key.startsWith('geomrel:lines:')) {
+      final parallel = key.contains(':parallel:');
+      return GuidedMethodGuide(
+        methodKey: 'geometry:line-relation',
+        methodLabel: 'Geraden über ihre Lage erkennen',
+        nudge: parallel
+            ? 'Prüfe, ob der Abstand zwischen den Geraden überall gleich bleibt.'
+            : 'Prüfe, ob beim Schnitt vier rechte Winkel entstehen.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Lage prüfen',
+            instruction: parallel
+                ? 'Geraden mit überall gleichem Abstand schneiden sich nicht.'
+                : 'Senkrechte Geraden schneiden sich in einem rechten Winkel.',
+          ),
+          GuidedMethodStep(
+            title: 'Begriff zuordnen',
+            instruction: parallel
+                ? 'Diese Eigenschaft bedeutet: Die Geraden sind parallel.'
+                : 'Diese Eigenschaft bedeutet: Die Geraden sind senkrecht.',
+          ),
+        ],
+      );
+    }
+
+    if (key.startsWith('geomrel:circle:')) {
+      final diameter = key.contains(':diameter:');
+      return GuidedMethodGuide(
+        methodKey: 'geometry:circle-parts',
+        methodLabel: 'Mittelpunkt und Rand als Orientierung nutzen',
+        nudge: diameter
+            ? 'Verfolge die Strecke: Rand → Mittelpunkt → gegenüberliegender Rand.'
+            : 'Verfolge die Strecke vom Mittelpunkt bis genau zum Rand.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Start und Ende der Strecke prüfen',
+            instruction: diameter
+                ? 'Die Strecke beginnt am Rand, geht durch den Mittelpunkt und endet am gegenüberliegenden Rand.'
+                : 'Die Strecke beginnt im Mittelpunkt und endet am Kreisrand.',
+          ),
+          GuidedMethodStep(
+            title: 'Kreisbegriff zuordnen',
+            instruction: diameter
+                ? 'Eine solche Strecke heißt Durchmesser.'
+                : 'Eine solche Strecke heißt Radius.',
+          ),
+        ],
+      );
+    }
+
+    return const GuidedMethodGuide(
+      methodKey: 'geometry:relations',
+      methodLabel: 'Geometrische Beziehung Schritt für Schritt prüfen',
+      nudge: 'Prüfe zuerst die beschriebene Eigenschaft und ordne danach den Fachbegriff zu.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Eigenschaft herauslesen',
+          instruction: 'Markiere, was über Lage, Winkel, Seiten oder Kreisstrecken gesagt wird.',
+        ),
+        GuidedMethodStep(
+          title: 'Passenden Begriff wählen',
+          instruction: 'Ordne erst danach den geometrischen Fachbegriff zu.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _geometryBodyGuide(String key) {
+    if (key.startsWith('body:cube-net:')) {
+      return const GuidedMethodGuide(
+        methodKey: 'geometryBodies:cube-net-basics',
+        methodLabel: 'Würfelnetz über die sechs Flächen prüfen',
+        nudge: 'Ein Würfel hat genau sechs quadratische Flächen. Diese müssen im Netz ohne Überlappung zusammenpassen.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Flächen zählen',
+            instruction: 'Prüfe zuerst, ob genau sechs Quadrate vorhanden sind.',
+          ),
+          GuidedMethodStep(
+            title: 'Faltbarkeit prüfen',
+            instruction: 'Stelle dir danach vor, wie die Quadrate an ihren Kanten hochgeklappt werden.',
+          ),
+        ],
+      );
+    }
+
+    final parts = key.split(':');
+    final body = parts.length >= 2 ? parts[1] : '';
+    final property = parts.length >= 3 ? parts[2] : '';
+    final counts = <String, Map<String, int>>{
+      'Würfel': const {'Ecken': 8, 'Kanten': 12, 'Flächen': 6},
+      'Quader': const {'Ecken': 8, 'Kanten': 12, 'Flächen': 6},
+      'Kugel': const {'Ecken': 0, 'Kanten': 0, 'Flächen': 1},
+      'Zylinder': const {'Ecken': 0, 'Kanten': 2, 'Flächen': 3},
+      'Kegel': const {'Ecken': 1, 'Kanten': 1, 'Flächen': 2},
+      'Pyramide': const {'Ecken': 5, 'Kanten': 8, 'Flächen': 5},
+    };
+    final count = counts[body]?[property];
+    return GuidedMethodGuide(
+      methodKey: 'geometryBodies:properties',
+      methodLabel: 'Körper systematisch untersuchen',
+      nudge: 'Betrachte nur die gesuchte Eigenschaft und zähle systematisch, statt alles gleichzeitig zu betrachten.',
+      steps: [
+        GuidedMethodStep(
+          title: '$property am Körper finden',
+          instruction: body.isEmpty
+              ? 'Stelle dir den Körper vor und markiere gedanklich nur die gesuchte Eigenschaft.'
+              : 'Stelle dir einen $body vor und betrachte nur seine $property.',
+        ),
+        GuidedMethodStep(
+          title: 'Systematisch zählen',
+          instruction: count == null
+              ? 'Zähle jede Stelle genau einmal und kontrolliere anschließend von einer anderen Seite.'
+              : 'Beim $body findest du $count $property.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _symmetryGuide(String key) {
+    final shape = key.split(':').skip(1).join(':');
+    final axes = switch (shape) {
+      'Quadrat' => 4,
+      'Rechteck' => 2,
+      'gleichseitiges Dreieck' => 3,
+      'gleichschenkliges Dreieck' => 1,
+      _ => null,
+    };
+    return GuidedMethodGuide(
+      methodKey: 'symmetry:systematic-axes',
+      methodLabel: 'Spiegelachsen systematisch suchen',
+      nudge: 'Stelle dir vor, du faltest die Figur an einer Linie. Beide Hälften müssen genau aufeinanderliegen.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Eine mögliche Faltlinie prüfen',
+          instruction: 'Prüfe nacheinander Mittellinien und – wenn passend – Diagonalen auf Spiegelgleichheit.',
+        ),
+        GuidedMethodStep(
+          title: 'Nur gültige Achsen zählen',
+          instruction: axes == null
+              ? 'Zähle nur Linien, an denen beide Hälften genau deckungsgleich wären.'
+              : 'Beim $shape findest du auf diese Weise $axes Symmetrieachsen.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _planPathGuide(String key) {
+    final numbers = _numbers(key);
+    final right = numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+    final up = numbers.isNotEmpty ? numbers.last : null;
+    final total = right == null || up == null ? null : right + up;
+    return GuidedMethodGuide(
+      methodKey: 'plan:path-total',
+      methodLabel: 'Wegabschnitte getrennt lesen und addieren',
+      nudge: 'Lies zuerst jeden Wegabschnitt für sich. Für die gesamte Weglänge werden alle gegangenen Felder zusammengezählt.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Ersten Wegabschnitt lesen',
+          instruction: right == null
+              ? 'Bestimme die Länge des ersten Wegabschnitts.'
+              : 'Der erste Abschnitt hat $right Felder.',
+        ),
+        GuidedMethodStep(
+          title: 'Zweiten Wegabschnitt lesen',
+          instruction: up == null
+              ? 'Bestimme die Länge des zweiten Wegabschnitts.'
+              : 'Der zweite Abschnitt hat $up Felder.',
+        ),
+        GuidedMethodStep(
+          title: 'Gesamtweg bilden',
+          instruction: total == null
+              ? 'Addiere beide Abschnittslängen.'
+              : '$right + $up = $total Felder.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _probabilityGuide(String key) {
+    if (key.startsWith('prob:experiment:relative:')) {
+      final numbers = _numbers(key);
+      final trials = numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+      final hits = numbers.isNotEmpty ? numbers.last : null;
+      final percent = trials == null || hits == null || trials == 0
+          ? null
+          : hits * 100 ~/ trials;
+      return GuidedMethodGuide(
+        methodKey: 'probability:relative-frequency',
+        methodLabel: 'Beobachtete Häufigkeit auf 100 beziehen',
+        nudge: 'Vergleiche die Treffer zuerst mit allen Versuchen. Übertrage diesen Anteil danach auf 100.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Anteil als Bruch lesen',
+            instruction: trials == null || hits == null
+                ? 'Setze Trefferzahl und Gesamtzahl der Versuche in Beziehung.'
+                : '$hits von $trials Versuchen bedeutet den Anteil $hits/$trials.',
+          ),
+          GuidedMethodStep(
+            title: 'Auf 100 übertragen',
+            instruction: percent == null
+                ? 'Rechne den Anteil auf 100 Versuche um.'
+                : 'Auf 100 bezogen sind das $percent von 100, also $percent %.',
+          ),
+        ],
+      );
+    }
+
+    final numbers = _numbers(key);
+    final value = numbers.isEmpty ? null : numbers.last;
+    final sure = key.startsWith('prob:sure:');
+    final possible = key.startsWith('prob:possible:');
+    final impossible = key.startsWith('prob:impossible:');
+    return GuidedMethodGuide(
+      methodKey: 'probability:sample-space',
+      methodLabel: 'Mögliche Würfelergebnisse zuerst prüfen',
+      nudge: 'Schreibe gedanklich zuerst alle möglichen Ergebnisse eines normalen Würfels auf: 1, 2, 3, 4, 5, 6.',
+      steps: [
+        const GuidedMethodStep(
+          title: 'Mögliche Ergebnisse festhalten',
+          instruction: 'Bei einem normalen Würfel können genau die Zahlen 1 bis 6 fallen.',
+        ),
+        GuidedMethodStep(
+          title: 'Ereignis vergleichen',
+          instruction: value == null
+              ? 'Prüfe, ob das beschriebene Ereignis immer, manchmal oder nie in dieser Menge liegt.'
+              : sure
+                  ? 'Alle Würfelergebnisse 1 bis 6 erfüllen „kleiner als $value“.'
+                  : possible
+                      ? '$value gehört zu 1 bis 6, kann also fallen, muss aber nicht.'
+                      : impossible
+                          ? '$value gehört nicht zu den möglichen Würfelergebnissen 1 bis 6.'
+                          : 'Vergleiche das Ereignis mit den möglichen Würfelergebnissen.',
+        ),
+        GuidedMethodStep(
+          title: 'Wahrscheinlichkeitswort wählen',
+          instruction: sure
+              ? 'Wenn jedes mögliche Ergebnis passt, ist das Ereignis sicher.'
+              : possible
+                  ? 'Wenn das Ergebnis vorkommen kann, aber nicht muss, ist es möglich.'
+                  : impossible
+                      ? 'Wenn kein mögliches Ergebnis passt, ist das Ereignis unmöglich.'
+                      : 'Ordne erst jetzt sicher, möglich oder unmöglich zu.',
+        ),
+      ],
+    );
+  }
+
   static GuidedMethodGuide _proportionalUnit(String key) {
     final numbers = _numbers(key);
     final unitValue = numbers.length >= 3 ? numbers[numbers.length - 3] : null;
@@ -4103,6 +4626,36 @@ class GuidedMethodFactory {
   static GuidedMethodGuide _romanNumeralGuide(String key) {
     final numbers = _numbers(key);
     final value = numbers.isEmpty ? null : numbers.last;
+    if (key.startsWith('roman:write:') && value != null) {
+      final tens = (value ~/ 10) * 10;
+      final ones = value % 10;
+      final roman = _romanText(value);
+      final tensRoman = tens == 0 ? '' : _romanText(tens);
+      final onesRoman = ones == 0 ? '' : _romanText(ones);
+      return GuidedMethodGuide(
+        methodKey: 'roman:compose',
+        methodLabel: 'Zahl zerlegen und römisch zusammensetzen',
+        nudge: 'Zerlege $value zuerst in Zehner und Einer. Schreibe beide Teile danach römisch.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Zehner schreiben',
+            instruction: tens == 0
+                ? 'Es gibt keinen Zehnerblock.'
+                : '$tens wird römisch als $tensRoman geschrieben.',
+          ),
+          GuidedMethodStep(
+            title: 'Einer schreiben',
+            instruction: ones == 0
+                ? 'Es bleibt kein Einerteil übrig.'
+                : '$ones wird römisch als $onesRoman geschrieben.',
+          ),
+          GuidedMethodStep(
+            title: 'Teile zusammensetzen',
+            instruction: '$value wird römisch als $roman geschrieben.',
+          ),
+        ],
+      );
+    }
     if (value == null ||
         value < 11 ||
         value > 99 ||
@@ -5329,18 +5882,20 @@ class GuidedMethodFactory {
     int correct, {
     required int maxValue,
   }) {
+    final upperBound = max(maxValue, correct);
+    final targetCount = min(4, upperBound + 1);
     final values = <int>{correct};
     for (final offset in [1, -1, 2, -2, 10, -10]) {
       final candidate = correct + offset;
-      if (candidate >= 0 && candidate <= maxValue) values.add(candidate);
-      if (values.length >= 4) break;
+      if (candidate >= 0 && candidate <= upperBound) values.add(candidate);
+      if (values.length >= targetCount) break;
     }
-    var next = 0;
-    while (values.length < 4) {
-      if (next <= maxValue) values.add(next);
-      next += 1;
+    for (var next = 0;
+        next <= upperBound && values.length < targetCount;
+        next += 1) {
+      values.add(next);
     }
-    final list = values.take(4).toList()..sort();
+    final list = values.take(targetCount).toList()..sort();
     return list.map((value) => '$value').toList();
   }
 }
