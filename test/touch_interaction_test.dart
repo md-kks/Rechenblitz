@@ -504,6 +504,23 @@ void main() {
           correctSelectionIndexes: <int>[0, 1],
           expectedAnswer: 2,
         ),
+        TouchInteractionPlan(
+          taskKey: 'geometry:corners:square',
+          kind: TouchInteractionKind.shapeCorners,
+          instruction: 'Tippe genau die Ecken an.',
+          geometryShape: 'square',
+          correctSelectionIndexes: <int>[0, 2, 4, 6],
+          expectedAnswer: 4,
+        ),
+        TouchInteractionPlan(
+          taskKey: 'rect:perimeter:beet:8:5',
+          kind: TouchInteractionKind.rectanglePerimeterEdges,
+          instruction: 'Tippe alle Kanten an.',
+          rectangleWidth: 8,
+          rectangleHeight: 5,
+          correctSelectionIndexes: <int>[0, 1, 2, 3],
+          expectedAnswer: 26,
+        ),
       ];
 
       for (final plan in plans) {
@@ -550,6 +567,24 @@ void main() {
       answer: 3,
       maxValue: 6,
     );
+    final corners = TouchInteractionPlan.forTask(
+      mode: TrainingMode.geometry,
+      taskKey: 'geometry:corners:triangle',
+      answer: 3,
+      maxValue: 20,
+    );
+    final perimeter = TouchInteractionPlan.forTask(
+      mode: TrainingMode.perimeterArea,
+      taskKey: 'rect:perimeter:beet:8:5',
+      answer: 26,
+      maxValue: 2000,
+    );
+    final area = TouchInteractionPlan.forTask(
+      mode: TrainingMode.perimeterArea,
+      taskKey: 'rect:area:beet:20:25',
+      answer: 500,
+      maxValue: 2000,
+    );
 
     expect(fraction?.kind, TouchInteractionKind.fractionBuilder);
     expect(fraction?.fractionNumerator, 3);
@@ -562,6 +597,14 @@ void main() {
     expect(symmetry?.correctSelectionIndexes, const <int>[0, 1]);
     expect(targetedSymmetry?.symmetryShape, 'gleichseitiges Dreieck');
     expect(targetedSymmetry?.correctSelectionIndexes, const <int>[0, 1, 2]);
+    expect(corners?.kind, TouchInteractionKind.shapeCorners);
+    expect(corners?.geometryShape, 'triangle');
+    expect(corners?.correctSelectionIndexes, const <int>[0, 2, 4]);
+    expect(perimeter?.kind, TouchInteractionKind.rectanglePerimeterEdges);
+    expect(perimeter?.rectangleWidth, 8);
+    expect(perimeter?.rectangleHeight, 5);
+    expect(perimeter?.expectedAnswer, 26);
+    expect(area, isNull);
   });
 
   testWidgets('fraction builder constructs equal parts and submits the result', (
@@ -684,6 +727,131 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('touch-symmetry-submit')));
     expect(answer, 2);
+  });
+
+  testWidgets('shape corners require exact vertices, not only the same count', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'geometry:corners:triangle',
+      kind: TouchInteractionKind.shapeCorners,
+      instruction: 'Tippe genau die Ecken an.',
+      geometryShape: 'triangle',
+      correctSelectionIndexes: <int>[0, 2, 4],
+      expectedAnswer: 3,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    for (final index in <int>[1, 3, 5]) {
+      await tester.tap(find.byKey(ValueKey('touch-shape-point-$index')));
+    }
+    await tester.tap(find.byKey(const ValueKey('touch-shape-corners-submit')));
+    expect(answer, isNot(3));
+
+    for (final index in <int>[1, 3, 5]) {
+      await tester.tap(find.byKey(ValueKey('touch-shape-point-$index')));
+    }
+    for (final index in <int>[0, 2, 4]) {
+      await tester.tap(find.byKey(ValueKey('touch-shape-point-$index')));
+    }
+    await tester.tap(find.byKey(const ValueKey('touch-shape-corners-submit')));
+    expect(answer, 3);
+  });
+
+  testWidgets('perimeter touch adds the four actual rectangle edges', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'rect:perimeter:beet:8:5',
+      kind: TouchInteractionKind.rectanglePerimeterEdges,
+      instruction: 'Tippe alle Kanten an.',
+      rectangleWidth: 8,
+      rectangleHeight: 5,
+      correctSelectionIndexes: <int>[0, 1, 2, 3],
+      expectedAnswer: 26,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    for (final index in <int>[0, 1, 2]) {
+      await tester.tap(find.byKey(ValueKey('touch-perimeter-edge-$index')));
+    }
+    await tester.pump();
+    expect(find.text('Markierte Kanten zusammen: 21 cm'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-perimeter-submit')));
+    expect(answer, 21);
+
+    await tester.tap(find.byKey(const ValueKey('touch-perimeter-edge-3')));
+    await tester.pump();
+    expect(find.text('Markierte Kanten zusammen: 26 cm'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-perimeter-submit')));
+    expect(answer, 26);
+  });
+
+  testWidgets('perimeter curriculum defaults to touch and keeps keypad fallback', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.hundred;
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.perimeterArea,
+      prompt: 'Beet: 8 cm lang und 5 cm breit. Wie groß ist der Umfang?',
+      answer: 26,
+      hint: 'Addiere alle vier Seiten.',
+      key: 'rect:perimeter:beet:8:5',
+      answerSuffix: 'cm',
+      maxAnswerValue: 2000,
+      method: 'Umfang',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.perimeterArea,
+          targetTasks: 2,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(TouchAnswerInteraction), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-perimeter-preview')), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      fallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
   });
 
   testWidgets('fraction curriculum task defaults to touch and keeps keypad fallback', (

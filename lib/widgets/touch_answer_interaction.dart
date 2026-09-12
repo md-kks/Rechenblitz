@@ -32,6 +32,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int pathX = 0;
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
+  final Set<int> selectedShapePoints = <int>{};
+  final Set<int> selectedPerimeterEdges = <int>{};
 
   @override
   void initState() {
@@ -58,6 +60,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     pathX = 0;
     pathY = 0;
     selectedAxes.clear();
+    selectedShapePoints.clear();
+    selectedPerimeterEdges.clear();
   }
 
   @override
@@ -92,9 +96,14 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             TouchInteractionKind.placeValueBuilder => _buildPlaceValue(context),
             TouchInteractionKind.moneyComposer => _buildMoneyComposer(context),
             TouchInteractionKind.clockSetter => _buildClockSetter(context),
-            TouchInteractionKind.fractionBuilder => _buildFractionBuilder(context),
+            TouchInteractionKind.fractionBuilder => _buildFractionBuilder(
+              context,
+            ),
             TouchInteractionKind.pathWalker => _buildPathWalker(context),
             TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
+            TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
+            TouchInteractionKind.rectanglePerimeterEdges =>
+              _buildRectanglePerimeter(context),
           },
         ],
       ),
@@ -651,6 +660,214 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     }
   }
 
+  Widget _buildShapeCorners(BuildContext context) {
+    const canvasSize = Size(250, 190);
+    final shape = widget.plan.geometryShape ?? 'rectangle';
+    final candidates = _shapeCandidatePoints(shape, canvasSize);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: SizedBox(
+            width: canvasSize.width,
+            height: canvasSize.height,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    key: const ValueKey('touch-shape-corners-preview'),
+                    painter: _TouchShapeCornersPainter(
+                      shape: shape,
+                      selectedPoints: selectedShapePoints,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      accent: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+                for (var index = 0; index < candidates.length; index++)
+                  Positioned(
+                    left: candidates[index].dx - 22,
+                    top: candidates[index].dy - 22,
+                    width: 44,
+                    height: 44,
+                    child: Semantics(
+                      button: true,
+                      selected: selectedShapePoints.contains(index),
+                      label: 'Markierpunkt ${index + 1}',
+                      child: IconButton(
+                        key: ValueKey('touch-shape-point-$index'),
+                        tooltip: 'Punkt ${index + 1} markieren',
+                        onPressed: widget.locked
+                            ? null
+                            : () => setState(() {
+                                if (!selectedShapePoints.add(index)) {
+                                  selectedShapePoints.remove(index);
+                                }
+                              }),
+                        icon: Icon(
+                          selectedShapePoints.contains(index)
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          color: selectedShapePoints.contains(index)
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${selectedShapePoints.length} Punkte markiert',
+          key: const ValueKey('touch-shape-corners-count'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-shape-corners-submit'),
+          onPressed: widget.locked ? null : _submitShapeCorners,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Ecken prüfen'),
+        ),
+      ],
+    );
+  }
+
+  void _submitShapeCorners() {
+    final expectedSet = widget.plan.correctSelectionIndexes.toSet();
+    final expected = widget.plan.expectedAnswer ?? expectedSet.length;
+    if (setEquals(selectedShapePoints, expectedSet)) {
+      widget.onAnswer(expected);
+    } else if (selectedShapePoints.length != expected) {
+      widget.onAnswer(selectedShapePoints.length);
+    } else {
+      widget.onAnswer(math.max(0, expected - 1));
+    }
+  }
+
+  Widget _buildRectanglePerimeter(BuildContext context) {
+    final width = widget.plan.rectangleWidth ?? 1;
+    final height = widget.plan.rectangleHeight ?? 1;
+    final selectedLength = selectedPerimeterEdges.fold<int>(0, (sum, edge) {
+      return sum + ((edge == 0 || edge == 2) ? width : height);
+    });
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: SizedBox(
+            width: 250,
+            height: 190,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    key: const ValueKey('touch-perimeter-preview'),
+                    painter: _TouchPerimeterPainter(
+                      selectedEdges: selectedPerimeterEdges,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      accent: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+                _perimeterTapTarget(
+                  index: 0,
+                  label: 'obere Kante, $width cm',
+                  left: 35,
+                  top: 12,
+                  width: 180,
+                  height: 42,
+                ),
+                _perimeterTapTarget(
+                  index: 1,
+                  label: 'rechte Kante, $height cm',
+                  left: 196,
+                  top: 34,
+                  width: 42,
+                  height: 122,
+                ),
+                _perimeterTapTarget(
+                  index: 2,
+                  label: 'untere Kante, $width cm',
+                  left: 35,
+                  top: 136,
+                  width: 180,
+                  height: 42,
+                ),
+                _perimeterTapTarget(
+                  index: 3,
+                  label: 'linke Kante, $height cm',
+                  left: 12,
+                  top: 34,
+                  width: 42,
+                  height: 122,
+                ),
+              ],
+            ),
+          ),
+        ),
+        Text(
+          'Oben/unten: $width cm · Links/rechts: $height cm',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Markierte Kanten zusammen: $selectedLength cm',
+          key: const ValueKey('touch-perimeter-length'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-perimeter-submit'),
+          onPressed: widget.locked
+              ? null
+              : () => widget.onAnswer(selectedLength),
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Umfang prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _perimeterTapTarget({
+    required int index,
+    required String label,
+    required double left,
+    required double top,
+    required double width,
+    required double height,
+  }) {
+    final selected = selectedPerimeterEdges.contains(index);
+    return Positioned(
+      left: left,
+      top: top,
+      width: width,
+      height: height,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        child: GestureDetector(
+          key: ValueKey('touch-perimeter-edge-$index'),
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.locked
+              ? null
+              : () => setState(() {
+                  if (!selectedPerimeterEdges.add(index)) {
+                    selectedPerimeterEdges.remove(index);
+                  }
+                }),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+  }
+
   void _submitClock() {
     final label =
         '$selectedHour:${selectedMinute.toString().padLeft(2, '0')} Uhr';
@@ -695,10 +912,8 @@ class _TouchPathPainter extends CustomPainter {
     for (var y = 0; y <= rows; y++) {
       canvas.drawLine(Offset(0, y * dy), Offset(size.width, y * dy), grid);
     }
-    Offset point(int right, int up) => Offset(
-          (right + 0.5) * dx,
-          size.height - (up + 0.5) * dy,
-        );
+    Offset point(int right, int up) =>
+        Offset((right + 0.5) * dx, size.height - (up + 0.5) * dy);
     final start = point(0, 0);
     final turn = point(currentRight, 0);
     final current = point(currentRight, currentUp);
@@ -758,7 +973,11 @@ class _TouchSymmetryPainter extends CustomPainter {
     if (shape == 'Quadrat' || shape == 'Rechteck') {
       final width = shape == 'Quadrat' ? 125.0 : 175.0;
       const height = 125.0;
-      final rect = Rect.fromCenter(center: center, width: width, height: height);
+      final rect = Rect.fromCenter(
+        center: center,
+        width: width,
+        height: height,
+      );
       canvas.drawRect(rect, shapePaint);
       for (final axis in selectedAxes) {
         switch (axis) {
@@ -816,6 +1035,147 @@ class _TouchSymmetryPainter extends CustomPainter {
   bool shouldRepaint(covariant _TouchSymmetryPainter oldDelegate) =>
       shape != oldDelegate.shape ||
       !setEquals(selectedAxes, oldDelegate.selectedAxes) ||
+      color != oldDelegate.color ||
+      accent != oldDelegate.accent;
+}
+
+List<Offset> _shapeCandidatePoints(String shape, Size size) {
+  if (shape == 'circle') {
+    final center = Offset(size.width / 2, size.height / 2);
+    return <Offset>[
+      Offset(center.dx, 28),
+      Offset(size.width - 32, center.dy),
+      Offset(center.dx, size.height - 28),
+      Offset(32, center.dy),
+    ];
+  }
+  if (shape == 'triangle') {
+    final top = Offset(size.width / 2, 24);
+    final right = Offset(size.width - 30, size.height - 28);
+    final left = Offset(30, size.height - 28);
+    return <Offset>[
+      top,
+      Offset((top.dx + right.dx) / 2, (top.dy + right.dy) / 2),
+      right,
+      Offset((right.dx + left.dx) / 2, right.dy),
+      left,
+      Offset((left.dx + top.dx) / 2, (left.dy + top.dy) / 2),
+    ];
+  }
+  final rect = shape == 'square'
+      ? Rect.fromCenter(
+          center: Offset(size.width / 2, size.height / 2),
+          width: 130,
+          height: 130,
+        )
+      : Rect.fromLTWH(30, 34, size.width - 60, size.height - 68);
+  return <Offset>[
+    rect.topLeft,
+    Offset(rect.center.dx, rect.top),
+    rect.topRight,
+    Offset(rect.right, rect.center.dy),
+    rect.bottomRight,
+    Offset(rect.center.dx, rect.bottom),
+    rect.bottomLeft,
+    Offset(rect.left, rect.center.dy),
+  ];
+}
+
+class _TouchShapeCornersPainter extends CustomPainter {
+  const _TouchShapeCornersPainter({
+    required this.shape,
+    required this.selectedPoints,
+    required this.color,
+    required this.accent,
+  });
+
+  final String shape;
+  final Set<int> selectedPoints;
+  final Color color;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeJoin = StrokeJoin.round;
+    final points = _shapeCandidatePoints(shape, size);
+    if (shape == 'circle') {
+      canvas.drawOval(
+        Rect.fromLTWH(32, 28, size.width - 64, size.height - 56),
+        paint,
+      );
+    } else if (shape == 'triangle') {
+      final path = Path()
+        ..moveTo(points[0].dx, points[0].dy)
+        ..lineTo(points[2].dx, points[2].dy)
+        ..lineTo(points[4].dx, points[4].dy)
+        ..close();
+      canvas.drawPath(path, paint);
+    } else {
+      canvas.drawRect(Rect.fromPoints(points[0], points[4]), paint);
+    }
+    for (final index in selectedPoints) {
+      if (index >= 0 && index < points.length) {
+        canvas.drawCircle(
+          points[index],
+          11,
+          Paint()..color = accent.withValues(alpha: 0.22),
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TouchShapeCornersPainter oldDelegate) =>
+      shape != oldDelegate.shape ||
+      !setEquals(selectedPoints, oldDelegate.selectedPoints) ||
+      color != oldDelegate.color ||
+      accent != oldDelegate.accent;
+}
+
+class _TouchPerimeterPainter extends CustomPainter {
+  const _TouchPerimeterPainter({
+    required this.selectedEdges,
+    required this.color,
+    required this.accent,
+  });
+
+  final Set<int> selectedEdges;
+  final Color color;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(34, 34, size.width - 68, size.height - 68);
+    final base = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawRect(rect, base);
+    final selected = Paint()
+      ..color = accent
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round;
+    if (selectedEdges.contains(0)) {
+      canvas.drawLine(rect.topLeft, rect.topRight, selected);
+    }
+    if (selectedEdges.contains(1)) {
+      canvas.drawLine(rect.topRight, rect.bottomRight, selected);
+    }
+    if (selectedEdges.contains(2)) {
+      canvas.drawLine(rect.bottomLeft, rect.bottomRight, selected);
+    }
+    if (selectedEdges.contains(3)) {
+      canvas.drawLine(rect.topLeft, rect.bottomLeft, selected);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TouchPerimeterPainter oldDelegate) =>
+      !setEquals(selectedEdges, oldDelegate.selectedEdges) ||
       color != oldDelegate.color ||
       accent != oldDelegate.accent;
 }
