@@ -24,6 +24,8 @@ class LearningVisualAid extends StatelessWidget {
     String? methodKey,
   }) {
     if (methodKey == 'addition:toFullTen' ||
+        taskKey.startsWith('gap:') ||
+        taskKey.startsWith('neighbor:') ||
         taskKey.startsWith('minus:') ||
         taskKey.startsWith('process:strategy:') ||
         taskKey.startsWith('process:error:') ||
@@ -60,9 +62,13 @@ class LearningVisualAid extends StatelessWidget {
   Widget build(BuildContext context) {
     final processChild = methodKey == 'addition:toFullTen'
         ? _additionToFullTenAid()
-        : taskKey.startsWith('minus:')
-            ? _subtractionProcessAid()
-            : taskKey.startsWith('large:compare:')
+        : taskKey.startsWith('gap:')
+            ? _missingNumberAid()
+            : taskKey.startsWith('neighbor:')
+                ? _neighborAid()
+                : taskKey.startsWith('minus:')
+                    ? _subtractionProcessAid()
+                    : taskKey.startsWith('large:compare:')
                 ? _largeNumberCompareAid()
                 : taskKey.startsWith('process:strategy:')
                     ? _strategyProcessAid()
@@ -205,6 +211,90 @@ class LearningVisualAid extends StatelessWidget {
       nodeLabels: const ['Start', 'Ergebnis'],
       operations: ['−$b'],
       footer: '$a − $b = $result',
+    );
+  }
+
+  Widget _missingNumberAid() {
+    final parts = taskKey.split(':');
+    if (parts.length < 5) {
+      return const _AidLabel(
+        title: 'Lückenweg',
+        text: 'Gehe von einer bekannten Zahl zur anderen und bestimme den fehlenden Abstand.',
+      );
+    }
+    final operation = parts[1];
+    final a = int.tryParse(parts[2]);
+    final b = int.tryParse(parts[3]);
+    final hidden = parts[4];
+    if (a == null || b == null) {
+      return const _AidLabel(
+        title: 'Lückenweg',
+        text: 'Nutze die Umkehraufgabe, um die fehlende Zahl zu finden.',
+      );
+    }
+
+    int start;
+    int end;
+    String footer;
+    if (operation == '+') {
+      final total = a + b;
+      start = hidden == 'b' ? a : b;
+      end = total;
+      footer = '$end − $start = $expected';
+    } else if (hidden == 'b') {
+      start = a - b;
+      end = a;
+      footer = '$a − $expected = $start';
+    } else {
+      start = a - b;
+      end = expected;
+      footer = '$start + $b = $expected';
+    }
+
+    final jump = end - start;
+    final nextTen = ((start ~/ 10) + 1) * 10;
+    if (nextTen > start && nextTen < end) {
+      return _ProcessAid(
+        title: 'Lückenweg',
+        text: 'Ergänze von links nach rechts. Ein voller Zehner kann als Zwischenstopp helfen.',
+        nodes: [start, nextTen, end],
+        nodeLabels: const ['Start', 'voller Zehner', 'Ziel'],
+        operations: ['+${nextTen - start}', '+${end - nextTen}'],
+        footer: '$footer. Die beiden Sprünge zusammen sind $jump.',
+      );
+    }
+
+    return _ProcessAid(
+      title: 'Lückenweg',
+      text: 'Ergänze von der bekannten Zahl bis zum Ziel.',
+      nodes: [start, end],
+      nodeLabels: const ['Start', 'Ziel'],
+      operations: ['+${end - start}'],
+      footer: footer,
+    );
+  }
+
+  Widget _neighborAid() {
+    final parts = taskKey.split(':');
+    final number = parts.length >= 2 ? int.tryParse(parts[1]) : null;
+    final before = parts.length >= 3 && parts[2] == 'before';
+    if (number == null) {
+      return const _AidLabel(
+        title: 'Ein Schritt auf dem Zahlenstrahl',
+        text: 'Vorgänger: einen Schritt nach links. Nachfolger: einen Schritt nach rechts.',
+      );
+    }
+    return _ProcessAid(
+      title: 'Ein Schritt auf dem Zahlenstrahl',
+      text: before
+          ? 'Für den Vorgänger gehst du genau einen Schritt zurück.'
+          : 'Für den Nachfolger gehst du genau einen Schritt weiter.',
+      nodes: [number, expected],
+      nodeLabels: const ['Ausgangszahl', 'Nachbarzahl'],
+      operations: [before ? '−1' : '+1'],
+      footer: before
+          ? '$number − 1 = $expected'
+          : '$number + 1 = $expected',
     );
   }
 
