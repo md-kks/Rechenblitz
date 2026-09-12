@@ -54,6 +54,10 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         maxValue: current.maxAnswerValue ?? widget.controller.effectiveMaxValue,
         wallValues: current.wallValues,
         hiddenWallIndex: current.hiddenWallIndex,
+        choices: current.choices,
+        clockHour: current.clockHour,
+        clockMinute: current.clockMinute,
+        answerSuffix: current.answerSuffix,
       );
 
   MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
@@ -571,18 +575,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
               const SizedBox(height: 18),
               if (!_checkpointsComplete)
                 const SizedBox.shrink()
-              else if (current.usesChoices)
-                ...List.generate(
-                  current.choices!.length,
-                  (index) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: FilledButton.tonal(
-                      onPressed: locked ? null : () => _answer(index),
-                      child: Text(current.choices![index]),
-                    ),
-                  ),
-                )
-              else ...[
+              else if (useTouchInput && _touchInteraction != null) ...[
                 if (current.answerSuffix != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -592,39 +585,72 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                if (useTouchInput && _touchInteraction != null) ...[
-                  TouchAnswerInteraction(
-                    key: ValueKey('touch:${current.key}:$completed'),
-                    plan: _touchInteraction!,
-                    locked: locked,
-                    onAnswer: _answer,
+                TouchAnswerInteraction(
+                  key: ValueKey('touch:${current.key}:$completed'),
+                  plan: _touchInteraction!,
+                  locked: locked,
+                  onAnswer: _answer,
+                ),
+                const SizedBox(height: 6),
+                TextButton.icon(
+                  key: const ValueKey('touch-switch-keypad'),
+                  onPressed: locked
+                      ? null
+                      : () => setState(() => useTouchInput = false),
+                  icon: Icon(
+                    current.usesChoices
+                        ? Icons.checklist_rounded
+                        : Icons.dialpad_rounded,
                   ),
-                  const SizedBox(height: 6),
+                  label: Text(
+                    current.usesChoices ? 'Lieber auswählen' : 'Lieber eintippen',
+                  ),
+                ),
+              ] else if (current.usesChoices) ...[
+                ...List.generate(
+                  current.choices!.length,
+                  (index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: FilledButton.tonal(
+                      onPressed: locked ? null : () => _answer(index),
+                      child: Text(current.choices![index]),
+                    ),
+                  ),
+                ),
+                if (_touchInteraction != null)
                   TextButton.icon(
-                    key: const ValueKey('touch-switch-keypad'),
+                    key: const ValueKey('touch-switch-interaction'),
                     onPressed: locked
                         ? null
-                        : () => setState(() => useTouchInput = false),
-                    icon: const Icon(Icons.dialpad_rounded),
-                    label: const Text('Lieber eintippen'),
+                        : () => setState(() => useTouchInput = true),
+                    icon: const Icon(Icons.touch_app_rounded),
+                    label: const Text('Mit Finger lösen'),
                   ),
-                ] else ...[
-                  NumberAnswerPad(
-                    key: ValueKey('${current.key}:$completed'),
-                    maxValue: current.maxAnswerValue ??
-                        widget.controller.effectiveMaxValue,
-                    onAnswer: _answer,
-                  ),
-                  if (_touchInteraction != null)
-                    TextButton.icon(
-                      key: const ValueKey('touch-switch-interaction'),
-                      onPressed: locked
-                          ? null
-                          : () => setState(() => useTouchInput = true),
-                      icon: const Icon(Icons.touch_app_rounded),
-                      label: const Text('Mit Finger lösen'),
+              ] else ...[
+                if (current.answerSuffix != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Antwort in ${current.answerSuffix}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
-                ],
+                  ),
+                NumberAnswerPad(
+                  key: ValueKey('${current.key}:$completed'),
+                  maxValue: current.maxAnswerValue ??
+                      widget.controller.effectiveMaxValue,
+                  onAnswer: _answer,
+                ),
+                if (_touchInteraction != null)
+                  TextButton.icon(
+                    key: const ValueKey('touch-switch-interaction'),
+                    onPressed: locked
+                        ? null
+                        : () => setState(() => useTouchInput = true),
+                    icon: const Icon(Icons.touch_app_rounded),
+                    label: const Text('Mit Finger lösen'),
+                  ),
               ],
             ],
           ),

@@ -55,6 +55,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         taskKey: current.key,
         answer: current.answer,
         maxValue: current.maxAnswerValue ?? widget.controller.effectiveMaxValue,
+        choices: current.choices,
+        answerSuffix: current.answerSuffix,
       );
 
   MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
