@@ -11,6 +11,8 @@ enum TouchInteractionKind {
   fractionBuilder,
   pathWalker,
   symmetryAxes,
+  shapeCorners,
+  rectanglePerimeterEdges,
 }
 
 class TouchInteractionPlan {
@@ -35,6 +37,9 @@ class TouchInteractionPlan {
     this.pathRight,
     this.pathUp,
     this.symmetryShape,
+    this.geometryShape,
+    this.rectangleWidth,
+    this.rectangleHeight,
     this.selectionLabels = const <String>[],
     this.correctSelectionIndexes = const <int>[],
     this.expectedAnswer,
@@ -60,6 +65,9 @@ class TouchInteractionPlan {
   final int? pathRight;
   final int? pathUp;
   final String? symmetryShape;
+  final String? geometryShape;
+  final int? rectangleWidth;
+  final int? rectangleHeight;
   final List<String> selectionLabels;
   final List<int> correctSelectionIndexes;
   final int? expectedAnswer;
@@ -208,6 +216,45 @@ class TouchInteractionPlan {
           symmetryShape: symmetry.$1,
           selectionLabels: symmetry.$2,
           correctSelectionIndexes: symmetry.$3,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.geometry &&
+        taskKey.startsWith('geometry:corners:')) {
+      final shape = taskKey.split(':').last;
+      final correct = switch (shape) {
+        'triangle' => const <int>[0, 2, 4],
+        'square' || 'rectangle' => const <int>[0, 2, 4, 6],
+        'circle' => const <int>[],
+        _ => null,
+      };
+      if (correct != null) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.shapeCorners,
+          instruction: 'Tippe genau die Ecken der Figur an.',
+          geometryShape: shape,
+          correctSelectionIndexes: correct,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.perimeterArea &&
+        taskKey.startsWith('rect:perimeter:')) {
+      final parts = taskKey.split(':');
+      final width = parts.length >= 5 ? int.tryParse(parts[3]) : null;
+      final height = parts.length >= 5 ? int.tryParse(parts[4]) : null;
+      if (width != null && height != null && width > 0 && height > 0) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.rectanglePerimeterEdges,
+          instruction: 'Tippe alle Kanten an, die zum Umfang gehören.',
+          rectangleWidth: width,
+          rectangleHeight: height,
+          correctSelectionIndexes: const <int>[0, 1, 2, 3],
           expectedAnswer: answer,
         );
       }
