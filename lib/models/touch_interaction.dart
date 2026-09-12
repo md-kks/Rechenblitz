@@ -143,7 +143,7 @@ class TouchInteractionPlan {
         taskKey: taskKey,
         kind: TouchInteractionKind.clockSetter,
         instruction:
-            'Stelle die Uhr mit den Reglern genauso ein wie die Uhr oben.',
+            'Stelle die Zeiger genauso ein wie bei der Uhr oben.',
         answerChoices: choices,
         clockHour: clockHour,
         clockMinute: clockMinute,
