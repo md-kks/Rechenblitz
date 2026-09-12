@@ -473,6 +473,37 @@ void main() {
           clockHour: 3,
           clockMinute: 30,
         ),
+        TouchInteractionPlan(
+          taskKey: 'fraction:parts:3:4:20',
+          kind: TouchInteractionKind.fractionBuilder,
+          instruction: 'Baue gleich große Teile.',
+          fractionNumerator: 3,
+          fractionDenominator: 4,
+          fractionWhole: 20,
+          expectedAnswer: 15,
+        ),
+        TouchInteractionPlan(
+          taskKey: 'plan:path:4:3',
+          kind: TouchInteractionKind.pathWalker,
+          instruction: 'Gehe den Weg.',
+          pathRight: 4,
+          pathUp: 3,
+          expectedAnswer: 7,
+        ),
+        TouchInteractionPlan(
+          taskKey: 'symmetry:Rechteck',
+          kind: TouchInteractionKind.symmetryAxes,
+          instruction: 'Wähle die Achsen.',
+          symmetryShape: 'Rechteck',
+          selectionLabels: <String>[
+            'Senkrecht',
+            'Waagerecht',
+            'Diagonal ↘',
+            'Diagonal ↙',
+          ],
+          correctSelectionIndexes: <int>[0, 1],
+          expectedAnswer: 2,
+        ),
       ];
 
       for (final plan in plans) {
@@ -493,6 +524,209 @@ void main() {
       }
     },
   );
+
+  test('touch planner covers fractions, paths, and symmetry', () {
+    final fraction = TouchInteractionPlan.forTask(
+      mode: TrainingMode.fractions,
+      taskKey: 'fraction:parts:3:4:20',
+      answer: 15,
+      maxValue: 20,
+    );
+    final path = TouchInteractionPlan.forTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: 'plan:path:4:3',
+      answer: 7,
+      maxValue: 40,
+    );
+    final symmetry = TouchInteractionPlan.forTask(
+      mode: TrainingMode.symmetry,
+      taskKey: 'symmetry:Rechteck',
+      answer: 2,
+      maxValue: 6,
+    );
+    final targetedSymmetry = TouchInteractionPlan.forTask(
+      mode: TrainingMode.symmetry,
+      taskKey: 'symmetry:target:2:1',
+      answer: 3,
+      maxValue: 6,
+    );
+
+    expect(fraction?.kind, TouchInteractionKind.fractionBuilder);
+    expect(fraction?.fractionNumerator, 3);
+    expect(fraction?.fractionDenominator, 4);
+    expect(fraction?.fractionWhole, 20);
+    expect(path?.kind, TouchInteractionKind.pathWalker);
+    expect(path?.pathRight, 4);
+    expect(path?.pathUp, 3);
+    expect(symmetry?.kind, TouchInteractionKind.symmetryAxes);
+    expect(symmetry?.correctSelectionIndexes, const <int>[0, 1]);
+    expect(targetedSymmetry?.symmetryShape, 'gleichseitiges Dreieck');
+    expect(targetedSymmetry?.correctSelectionIndexes, const <int>[0, 1, 2]);
+  });
+
+  testWidgets('fraction builder constructs equal parts and submits the result', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'fraction:parts:3:4:20',
+      kind: TouchInteractionKind.fractionBuilder,
+      instruction: 'Baue gleich große Teile.',
+      fractionNumerator: 3,
+      fractionDenominator: 4,
+      fractionWhole: 20,
+      expectedAnswer: 15,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TouchAnswerInteraction(
+            plan: plan,
+            onAnswer: (value) => answer = value,
+          ),
+        ),
+      ),
+    );
+
+    final slider = tester.widget<Slider>(
+      find.byKey(const ValueKey('touch-fraction-part-slider')),
+    );
+    slider.onChanged!(5);
+    await tester.pump();
+    expect(find.text('4 × 5 = 20 von 20'), findsOneWidget);
+    expect(find.text('3/4 von 20 = 15'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-fraction-submit')));
+    expect(answer, 15);
+  });
+
+  testWidgets('path walker requires the described route, not only the same sum', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'plan:path:2:1',
+      kind: TouchInteractionKind.pathWalker,
+      instruction: 'Gehe den Weg.',
+      pathRight: 2,
+      pathUp: 1,
+      expectedAnswer: 3,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-path-right')));
+    await tester.tap(find.byKey(const ValueKey('touch-path-right')));
+    await tester.tap(find.byKey(const ValueKey('touch-path-up')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-path-submit')));
+    expect(answer, 3);
+
+    await tester.tap(find.byKey(const ValueKey('touch-path-reset')));
+    await tester.tap(find.byKey(const ValueKey('touch-path-right')));
+    await tester.tap(find.byKey(const ValueKey('touch-path-up')));
+    await tester.tap(find.byKey(const ValueKey('touch-path-up')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-path-submit')));
+    expect(answer, isNot(3));
+  });
+
+  testWidgets('symmetry touch validates the selected axes, not only their count', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'symmetry:Rechteck',
+      kind: TouchInteractionKind.symmetryAxes,
+      instruction: 'Wähle die Achsen.',
+      symmetryShape: 'Rechteck',
+      selectionLabels: <String>[
+        'Senkrecht',
+        'Waagerecht',
+        'Diagonal ↘',
+        'Diagonal ↙',
+      ],
+      correctSelectionIndexes: <int>[0, 1],
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-symmetry-axis-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-symmetry-axis-3')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-symmetry-submit')));
+    expect(answer, isNot(2));
+
+    await tester.tap(find.byKey(const ValueKey('touch-symmetry-axis-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-symmetry-axis-3')));
+    await tester.tap(find.byKey(const ValueKey('touch-symmetry-axis-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-symmetry-axis-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-symmetry-submit')));
+    expect(answer, 2);
+  });
+
+  testWidgets('fraction curriculum task defaults to touch and keeps keypad fallback', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.fourth;
+    controller.numberRange = NumberRangeLevel.hundred;
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.fractions,
+      prompt: 'Wie viel sind 3/4 von 20?',
+      answer: 15,
+      hint: 'Teile zuerst in vier gleich große Teile.',
+      key: 'fraction:parts:3:4:20',
+      maxAnswerValue: 20,
+      method: 'Bruchteile als gleich große Teile',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.fractions,
+          targetTasks: 2,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(TouchAnswerInteraction), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-fraction-part-slider')), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      fallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+  });
 
   testWidgets('touch answer stays stable at 200 percent text scale', (
     tester,

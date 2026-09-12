@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 
 import '../models/touch_interaction.dart';
@@ -27,6 +28,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final List<int> moneyPieces = <int>[];
   int selectedHour = 12;
   int selectedMinute = 0;
+  int fractionPartSize = 0;
+  int pathX = 0;
+  int pathY = 0;
+  final Set<int> selectedAxes = <int>{};
 
   @override
   void initState() {
@@ -49,6 +54,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     moneyPieces.clear();
     selectedHour = widget.plan.clockHour == 12 ? 1 : 12;
     selectedMinute = 0;
+    fractionPartSize = 0;
+    pathX = 0;
+    pathY = 0;
+    selectedAxes.clear();
   }
 
   @override
@@ -83,6 +92,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             TouchInteractionKind.placeValueBuilder => _buildPlaceValue(context),
             TouchInteractionKind.moneyComposer => _buildMoneyComposer(context),
             TouchInteractionKind.clockSetter => _buildClockSetter(context),
+            TouchInteractionKind.fractionBuilder => _buildFractionBuilder(context),
+            TouchInteractionKind.pathWalker => _buildPathWalker(context),
+            TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
           },
         ],
       ),
@@ -398,6 +410,247 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     );
   }
 
+  Widget _buildFractionBuilder(BuildContext context) {
+    final numerator = widget.plan.fractionNumerator ?? 1;
+    final denominator = widget.plan.fractionDenominator ?? 1;
+    final whole = widget.plan.fractionWhole ?? 1;
+    final total = fractionPartSize * denominator;
+    final result = fractionPartSize * numerator;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '1 Teil = $fractionPartSize',
+          key: const ValueKey('touch-fraction-part-size'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        Slider(
+          key: const ValueKey('touch-fraction-part-slider'),
+          value: fractionPartSize.toDouble(),
+          min: 0,
+          max: whole.toDouble(),
+          divisions: whole,
+          label: '$fractionPartSize',
+          onChanged: widget.locked
+              ? null
+              : (value) => setState(() => fractionPartSize = value.round()),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (var index = 0; index < denominator; index++)
+              Container(
+                key: ValueKey('touch-fraction-part-$index'),
+                width: 62,
+                height: 54,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: index < numerator
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+                child: Text(
+                  '$fractionPartSize',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '$denominator × $fractionPartSize = $total von $whole',
+          key: const ValueKey('touch-fraction-total'),
+          textAlign: TextAlign.center,
+        ),
+        Text(
+          '$numerator/$denominator von $whole = $result',
+          key: const ValueKey('touch-fraction-result'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-fraction-submit'),
+          onPressed: widget.locked ? null : () => widget.onAnswer(result),
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Bruchteil prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPathWalker(BuildContext context) {
+    final goalRight = widget.plan.pathRight ?? 0;
+    final goalUp = widget.plan.pathUp ?? 0;
+    final total = pathX + pathY;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: SizedBox(
+            width: 230,
+            height: 210,
+            child: CustomPaint(
+              key: const ValueKey('touch-path-grid'),
+              painter: _TouchPathPainter(
+                goalRight: goalRight,
+                goalUp: goalUp,
+                currentRight: pathX,
+                currentUp: pathY,
+                color: Theme.of(context).colorScheme.onSurface,
+                accent: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '$pathX nach rechts + $pathY nach oben = $total Felder',
+          key: const ValueKey('touch-path-value'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            FilledButton.tonalIcon(
+              key: const ValueKey('touch-path-right'),
+              onPressed: widget.locked || pathX >= goalRight + 2
+                  ? null
+                  : () => setState(() => pathX += 1),
+              icon: const Icon(Icons.arrow_forward_rounded),
+              label: const Text('1 rechts'),
+            ),
+            FilledButton.tonalIcon(
+              key: const ValueKey('touch-path-up'),
+              onPressed: widget.locked || pathY >= goalUp + 2
+                  ? null
+                  : () => setState(() => pathY += 1),
+              icon: const Icon(Icons.arrow_upward_rounded),
+              label: const Text('1 hoch'),
+            ),
+            TextButton.icon(
+              key: const ValueKey('touch-path-reset'),
+              onPressed: widget.locked || (pathX == 0 && pathY == 0)
+                  ? null
+                  : () => setState(() {
+                      pathX = 0;
+                      pathY = 0;
+                    }),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Neu starten'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-path-submit'),
+          onPressed: widget.locked ? null : _submitPath,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Weg prüfen'),
+        ),
+      ],
+    );
+  }
+
+  void _submitPath() {
+    final goalRight = widget.plan.pathRight ?? 0;
+    final goalUp = widget.plan.pathUp ?? 0;
+    final expected = widget.plan.expectedAnswer ?? goalRight + goalUp;
+    final total = pathX + pathY;
+    if (pathX == goalRight && pathY == goalUp) {
+      widget.onAnswer(expected);
+    } else if (total != expected) {
+      widget.onAnswer(total);
+    } else {
+      widget.onAnswer(math.max(0, expected - 1));
+    }
+  }
+
+  Widget _buildSymmetryAxes(BuildContext context) {
+    final labels = widget.plan.selectionLabels;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: SizedBox(
+            width: 230,
+            height: 180,
+            child: CustomPaint(
+              key: const ValueKey('touch-symmetry-preview'),
+              painter: _TouchSymmetryPainter(
+                shape: widget.plan.symmetryShape ?? '',
+                selectedAxes: selectedAxes,
+                color: Theme.of(context).colorScheme.onSurface,
+                accent: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (var index = 0; index < labels.length; index++)
+              FilterChip(
+                key: ValueKey('touch-symmetry-axis-$index'),
+                label: Text(labels[index]),
+                selected: selectedAxes.contains(index),
+                onSelected: widget.locked
+                    ? null
+                    : (selected) => setState(() {
+                        if (selected) {
+                          selectedAxes.add(index);
+                        } else {
+                          selectedAxes.remove(index);
+                        }
+                      }),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${selectedAxes.length} Achsen ausgewählt',
+          key: const ValueKey('touch-symmetry-count'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-symmetry-submit'),
+          onPressed: widget.locked ? null : _submitSymmetry,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Achsen prüfen'),
+        ),
+      ],
+    );
+  }
+
+  void _submitSymmetry() {
+    final expectedSet = widget.plan.correctSelectionIndexes.toSet();
+    final expected = widget.plan.expectedAnswer ?? expectedSet.length;
+    if (selectedAxes.length == expectedSet.length &&
+        selectedAxes.containsAll(expectedSet)) {
+      widget.onAnswer(expected);
+    } else if (selectedAxes.length != expected) {
+      widget.onAnswer(selectedAxes.length);
+    } else {
+      widget.onAnswer(math.max(0, expected - 1));
+    }
+  }
+
   void _submitClock() {
     final label =
         '$selectedHour:${selectedMinute.toString().padLeft(2, '0')} Uhr';
@@ -408,6 +661,163 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     }
     widget.onAnswer(-1);
   }
+}
+
+class _TouchPathPainter extends CustomPainter {
+  const _TouchPathPainter({
+    required this.goalRight,
+    required this.goalUp,
+    required this.currentRight,
+    required this.currentUp,
+    required this.color,
+    required this.accent,
+  });
+
+  final int goalRight;
+  final int goalUp;
+  final int currentRight;
+  final int currentUp;
+  final Color color;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final columns = math.max(3, math.max(goalRight, currentRight) + 2);
+    final rows = math.max(3, math.max(goalUp, currentUp) + 2);
+    final dx = size.width / columns;
+    final dy = size.height / rows;
+    final grid = Paint()
+      ..color = color.withValues(alpha: 0.25)
+      ..strokeWidth = 1;
+    for (var x = 0; x <= columns; x++) {
+      canvas.drawLine(Offset(x * dx, 0), Offset(x * dx, size.height), grid);
+    }
+    for (var y = 0; y <= rows; y++) {
+      canvas.drawLine(Offset(0, y * dy), Offset(size.width, y * dy), grid);
+    }
+    Offset point(int right, int up) => Offset(
+          (right + 0.5) * dx,
+          size.height - (up + 0.5) * dy,
+        );
+    final start = point(0, 0);
+    final turn = point(currentRight, 0);
+    final current = point(currentRight, currentUp);
+    final target = point(goalRight, goalUp);
+    final pathPaint = Paint()
+      ..color = accent
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(start, turn, pathPaint);
+    canvas.drawLine(turn, current, pathPaint);
+    canvas.drawCircle(start, 6, Paint()..color = color);
+    canvas.drawCircle(current, 8, Paint()..color = accent);
+    canvas.drawCircle(
+      target,
+      11,
+      Paint()
+        ..color = accent
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TouchPathPainter oldDelegate) =>
+      goalRight != oldDelegate.goalRight ||
+      goalUp != oldDelegate.goalUp ||
+      currentRight != oldDelegate.currentRight ||
+      currentUp != oldDelegate.currentUp ||
+      color != oldDelegate.color ||
+      accent != oldDelegate.accent;
+}
+
+class _TouchSymmetryPainter extends CustomPainter {
+  const _TouchSymmetryPainter({
+    required this.shape,
+    required this.selectedAxes,
+    required this.color,
+    required this.accent,
+  });
+
+  final String shape;
+  final Set<int> selectedAxes;
+  final Color color;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final shapePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    final axisPaint = Paint()
+      ..color = accent
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    final center = Offset(size.width / 2, size.height / 2);
+    if (shape == 'Quadrat' || shape == 'Rechteck') {
+      final width = shape == 'Quadrat' ? 125.0 : 175.0;
+      const height = 125.0;
+      final rect = Rect.fromCenter(center: center, width: width, height: height);
+      canvas.drawRect(rect, shapePaint);
+      for (final axis in selectedAxes) {
+        switch (axis) {
+          case 0:
+            canvas.drawLine(
+              Offset(center.dx, rect.top - 12),
+              Offset(center.dx, rect.bottom + 12),
+              axisPaint,
+            );
+          case 1:
+            canvas.drawLine(
+              Offset(rect.left - 12, center.dy),
+              Offset(rect.right + 12, center.dy),
+              axisPaint,
+            );
+          case 2:
+            canvas.drawLine(rect.topLeft, rect.bottomRight, axisPaint);
+          case 3:
+            canvas.drawLine(rect.topRight, rect.bottomLeft, axisPaint);
+        }
+      }
+      return;
+    }
+    final top = Offset(center.dx, 18);
+    final left = Offset(34, size.height - 20);
+    final right = Offset(size.width - 34, size.height - 20);
+    final triangle = Path()
+      ..moveTo(top.dx, top.dy)
+      ..lineTo(right.dx, right.dy)
+      ..lineTo(left.dx, left.dy)
+      ..close();
+    canvas.drawPath(triangle, shapePaint);
+    final baseMid = Offset((left.dx + right.dx) / 2, left.dy);
+    final rightMid = Offset((top.dx + right.dx) / 2, (top.dy + right.dy) / 2);
+    final leftMid = Offset((top.dx + left.dx) / 2, (top.dy + left.dy) / 2);
+    for (final axis in selectedAxes) {
+      switch (axis) {
+        case 0:
+          canvas.drawLine(top, baseMid, axisPaint);
+        case 1:
+          canvas.drawLine(left, rightMid, axisPaint);
+        case 2:
+          canvas.drawLine(right, leftMid, axisPaint);
+        case 3:
+          canvas.drawLine(
+            Offset(left.dx - 8, center.dy),
+            Offset(right.dx + 8, center.dy),
+            axisPaint,
+          );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TouchSymmetryPainter oldDelegate) =>
+      shape != oldDelegate.shape ||
+      !setEquals(selectedAxes, oldDelegate.selectedAxes) ||
+      color != oldDelegate.color ||
+      accent != oldDelegate.accent;
 }
 
 class _PlaceCounter extends StatelessWidget {
