@@ -2,7 +2,13 @@ import 'dart:math';
 
 import 'training.dart';
 
-enum TouchInteractionKind { numberLine, dragNumberToTarget }
+enum TouchInteractionKind {
+  numberLine,
+  dragNumberToTarget,
+  placeValueBuilder,
+  moneyComposer,
+  clockSetter,
+}
 
 class TouchInteractionPlan {
   const TouchInteractionPlan({
@@ -15,6 +21,11 @@ class TouchInteractionPlan {
     this.targetLabel = 'Hier ablegen',
     this.wallValues,
     this.hiddenWallIndex,
+    this.answerChoices = const <String>[],
+    this.clockHour,
+    this.clockMinute,
+    this.denominations = const <int>[],
+    this.unitLabel,
   });
 
   final String taskKey;
@@ -26,6 +37,11 @@ class TouchInteractionPlan {
   final String targetLabel;
   final List<int>? wallValues;
   final int? hiddenWallIndex;
+  final List<String> answerChoices;
+  final int? clockHour;
+  final int? clockMinute;
+  final List<int> denominations;
+  final String? unitLabel;
 
   bool get hasInteractiveWall => wallValues != null && hiddenWallIndex != null;
 
@@ -36,7 +52,75 @@ class TouchInteractionPlan {
     required int maxValue,
     List<int>? wallValues,
     int? hiddenWallIndex,
+    List<String>? choices,
+    int? clockHour,
+    int? clockMinute,
+    String? answerSuffix,
   }) {
+    if (mode == TrainingMode.placeValue &&
+        taskKey.startsWith('place:') &&
+        answer <= 100) {
+      return TouchInteractionPlan(
+        taskKey: taskKey,
+        kind: TouchInteractionKind.placeValueBuilder,
+        instruction: 'Baue die Zahl aus Zehnern und Einern zusammen.',
+        minValue: 0,
+        maxValue: min(100, max(1, maxValue)),
+      );
+    }
+
+    if (mode == TrainingMode.money && taskKey.startsWith('money:')) {
+      final centTask =
+          answerSuffix == 'ct' || taskKey.startsWith('money:convert:');
+      if ((!centTask && answer > 100) || (centTask && answer > 1000)) {
+        return null;
+      }
+      final upper = centTask
+          ? max(100, min(1000, answer + 100))
+          : max(20, min(100, answer + 20));
+      final oneEuroCoins = taskKey.startsWith('money:coins:one:');
+      final denominations = centTask
+          ? <int>[100]
+          : oneEuroCoins
+          ? <int>[1]
+          : <int>[
+              1,
+              2,
+              5,
+              10,
+              20,
+              50,
+            ].where((value) => value <= upper).toList();
+      return TouchInteractionPlan(
+        taskKey: taskKey,
+        kind: TouchInteractionKind.moneyComposer,
+        instruction: centTask
+            ? 'Lege 100-Cent-Blöcke, bis der passende Cent-Betrag entsteht.'
+            : 'Stelle den gesuchten Geldbetrag mit Münzen und Scheinen zusammen.',
+        minValue: 0,
+        maxValue: upper,
+        denominations: denominations.isEmpty ? <int>[1] : denominations,
+        unitLabel: centTask ? 'ct' : '€',
+      );
+    }
+
+    if (mode == TrainingMode.clock &&
+        taskKey.startsWith('clock:') &&
+        clockHour != null &&
+        clockMinute != null &&
+        choices != null &&
+        choices.isNotEmpty) {
+      return TouchInteractionPlan(
+        taskKey: taskKey,
+        kind: TouchInteractionKind.clockSetter,
+        instruction:
+            'Stelle die Uhr mit den Reglern genauso ein wie die Uhr oben.',
+        answerChoices: choices,
+        clockHour: clockHour,
+        clockMinute: clockMinute,
+      );
+    }
+
     if (mode == TrainingMode.largeNumbers &&
         taskKey.startsWith('large:neighbor:')) {
       final parts = taskKey.split(':');
