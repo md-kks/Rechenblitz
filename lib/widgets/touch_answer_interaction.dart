@@ -28,6 +28,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final List<int> moneyPieces = <int>[];
   int selectedHour = 12;
   int selectedMinute = 0;
+  bool clockMinuteHandActive = false;
   int fractionPartSize = 0;
   int pathX = 0;
   int pathY = 0;
@@ -56,6 +57,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     moneyPieces.clear();
     selectedHour = widget.plan.clockHour == 12 ? 1 : 12;
     selectedMinute = 0;
+    clockMinuteHandActive = false;
     fractionPartSize = 0;
     pathX = 0;
     pathY = 0;
@@ -348,23 +350,87 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         ? const <int>[0, 30]
         : const <int>[0, 15, 30, 45];
     if (!minuteValues.contains(selectedMinute)) selectedMinute = 0;
-    final minuteIndex = minuteValues
-        .indexOf(selectedMinute)
-        .clamp(0, minuteValues.length - 1);
+    const clockSize = Size(220, 220);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Text(
+          'Welchen Zeiger möchtest du bewegen?',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              key: const ValueKey('touch-clock-hour-hand'),
+              label: const Text('Kurzer Zeiger'),
+              avatar: const Icon(Icons.schedule_rounded),
+              selected: !clockMinuteHandActive,
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() => clockMinuteHandActive = false),
+            ),
+            ChoiceChip(
+              key: const ValueKey('touch-clock-minute-hand'),
+              label: const Text('Langer Zeiger'),
+              avatar: const Icon(Icons.more_time_rounded),
+              selected: clockMinuteHandActive,
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() => clockMinuteHandActive = true),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
         Center(
-          child: SizedBox(
-            width: 170,
-            height: 170,
-            child: CustomPaint(
-              key: const ValueKey('touch-clock-preview'),
-              painter: _TouchClockPainter(
-                hour: selectedHour,
-                minute: selectedMinute,
-                color: Theme.of(context).colorScheme.onSurface,
-                accent: Theme.of(context).colorScheme.primary,
+          child: Semantics(
+            label: 'Einstellbare Uhr',
+            value:
+                '$selectedHour:${selectedMinute.toString().padLeft(2, '0')} Uhr',
+            hint: clockMinuteHandActive
+                ? 'Ziehe den langen Minutenzeiger.'
+                : 'Ziehe den kurzen Stundenzeiger.',
+            child: GestureDetector(
+              key: const ValueKey('touch-clock-drag-surface'),
+              behavior: HitTestBehavior.opaque,
+              onPanStart: widget.locked
+                  ? null
+                  : (details) => _updateClockFromPosition(
+                      details.localPosition,
+                      clockSize,
+                      minuteValues,
+                    ),
+              onPanUpdate: widget.locked
+                  ? null
+                  : (details) => _updateClockFromPosition(
+                      details.localPosition,
+                      clockSize,
+                      minuteValues,
+                    ),
+              onTapDown: widget.locked
+                  ? null
+                  : (details) => _updateClockFromPosition(
+                      details.localPosition,
+                      clockSize,
+                      minuteValues,
+                    ),
+              child: SizedBox(
+                width: clockSize.width,
+                height: clockSize.height,
+                child: CustomPaint(
+                  key: const ValueKey('touch-clock-preview'),
+                  painter: _TouchClockPainter(
+                    hour: selectedHour,
+                    minute: selectedMinute,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    accent: Theme.of(context).colorScheme.primary,
+                    minuteHandActive: clockMinuteHandActive,
+                  ),
+                ),
               ),
             ),
           ),
@@ -376,39 +442,15 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleLarge,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Text(
-          'Stunde: $selectedHour',
-          style: Theme.of(context).textTheme.bodyLarge,
+          clockMinuteHandActive
+              ? 'Zieh den langen Zeiger direkt auf die passenden Minuten.'
+              : 'Zieh den kurzen Zeiger direkt auf die passende Stunde.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall,
         ),
-        Slider(
-          key: const ValueKey('touch-clock-hour-slider'),
-          value: selectedHour.toDouble(),
-          min: 1,
-          max: 12,
-          divisions: 11,
-          label: '$selectedHour',
-          onChanged: widget.locked
-              ? null
-              : (value) => setState(() => selectedHour = value.round()),
-        ),
-        Text(
-          'Minuten: $selectedMinute',
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        Slider(
-          key: const ValueKey('touch-clock-minute-slider'),
-          value: minuteIndex.toDouble(),
-          min: 0,
-          max: (minuteValues.length - 1).toDouble(),
-          divisions: math.max(1, minuteValues.length - 1),
-          label: '$selectedMinute',
-          onChanged: widget.locked
-              ? null
-              : (value) => setState(
-                  () => selectedMinute = minuteValues[value.round()],
-                ),
-        ),
+        const SizedBox(height: 10),
         FilledButton.tonalIcon(
           key: const ValueKey('touch-clock-submit'),
           onPressed: widget.locked ? null : _submitClock,
@@ -417,6 +459,39 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         ),
       ],
     );
+  }
+
+  void _updateClockFromPosition(
+    Offset position,
+    Size size,
+    List<int> minuteValues,
+  ) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final delta = position - center;
+    if (delta.distance < 12) return;
+    var angle = math.atan2(delta.dy, delta.dx) + math.pi / 2;
+    if (angle < 0) angle += 2 * math.pi;
+    if (clockMinuteHandActive) {
+      final rawMinute = ((angle / (2 * math.pi)) * 60).round() % 60;
+      final nearest = minuteValues.reduce((best, candidate) {
+        int distance(int value) {
+          final direct = (value - rawMinute).abs();
+          return math.min(direct, 60 - direct);
+        }
+
+        return distance(candidate) < distance(best) ? candidate : best;
+      });
+      if (nearest != selectedMinute) {
+        setState(() => selectedMinute = nearest);
+      }
+      return;
+    }
+    final rawHour = (angle / (2 * math.pi)) * 12 - selectedMinute / 60;
+    var snappedHour = rawHour.round() % 12;
+    if (snappedHour <= 0) snappedHour += 12;
+    if (snappedHour != selectedHour) {
+      setState(() => selectedHour = snappedHour);
+    }
   }
 
   Widget _buildFractionBuilder(BuildContext context) {
@@ -1242,12 +1317,14 @@ class _TouchClockPainter extends CustomPainter {
     required this.minute,
     required this.color,
     required this.accent,
+    required this.minuteHandActive,
   });
 
   final int hour;
   final int minute;
   final Color color;
   final Color accent;
+  final bool minuteHandActive;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1274,29 +1351,28 @@ class _TouchClockPainter extends CustomPainter {
     final hourAngle =
         ((hour % 12) + minute / 60) / 12 * 2 * math.pi - math.pi / 2;
     final minutePaint = Paint()
-      ..color = accent
+      ..color = minuteHandActive ? accent : color
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round;
     final hourPaint = Paint()
-      ..color = color
+      ..color = minuteHandActive ? color : accent
       ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      center,
-      Offset(
-        center.dx + math.cos(hourAngle) * radius * 0.52,
-        center.dy + math.sin(hourAngle) * radius * 0.52,
-      ),
-      hourPaint,
+    final hourEnd = Offset(
+      center.dx + math.cos(hourAngle) * radius * 0.52,
+      center.dy + math.sin(hourAngle) * radius * 0.52,
     );
-    canvas.drawLine(
-      center,
-      Offset(
-        center.dx + math.cos(minuteAngle) * radius * 0.76,
-        center.dy + math.sin(minuteAngle) * radius * 0.76,
-      ),
-      minutePaint,
+    final minuteEnd = Offset(
+      center.dx + math.cos(minuteAngle) * radius * 0.76,
+      center.dy + math.sin(minuteAngle) * radius * 0.76,
     );
+    canvas.drawLine(center, hourEnd, hourPaint);
+    canvas.drawLine(center, minuteEnd, minutePaint);
+    final handlePaint = Paint()
+      ..color = accent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawCircle(minuteHandActive ? minuteEnd : hourEnd, 9, handlePaint);
     canvas.drawCircle(center, 5, Paint()..color = color);
   }
 
@@ -1305,7 +1381,8 @@ class _TouchClockPainter extends CustomPainter {
       hour != oldDelegate.hour ||
       minute != oldDelegate.minute ||
       color != oldDelegate.color ||
-      accent != oldDelegate.accent;
+      accent != oldDelegate.accent ||
+      minuteHandActive != oldDelegate.minuteHandActive;
 }
 
 class _DraggableNumberCard extends StatelessWidget {

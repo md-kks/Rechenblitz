@@ -387,19 +387,51 @@ void main() {
       ),
     );
 
-    final hourSlider = tester.widget<Slider>(
-      find.byKey(const ValueKey('touch-clock-hour-slider')),
-    );
-    hourSlider.onChanged!(3);
+    final clock = find.byKey(const ValueKey('touch-clock-drag-surface'));
+    final center = tester.getCenter(clock);
+    await tester.dragFrom(center, const Offset(70, 0));
     await tester.pump();
-    final minuteSlider = tester.widget<Slider>(
-      find.byKey(const ValueKey('touch-clock-minute-slider')),
-    );
-    minuteSlider.onChanged!(1);
+    expect(find.text('3:00 Uhr'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('touch-clock-minute-hand')));
+    await tester.pump();
+    await tester.dragFrom(center, const Offset(0, 70));
     await tester.pump();
     expect(find.text('3:30 Uhr'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-clock-hour-slider')), findsNothing);
+    expect(find.byKey(const ValueKey('touch-clock-minute-slider')), findsNothing);
     await tester.tap(find.byKey(const ValueKey('touch-clock-submit')));
     expect(answer, 0);
+  });
+
+  testWidgets('clock hand drag snaps upper-primary minutes to quarter hours', (
+    tester,
+  ) async {
+    const plan = TouchInteractionPlan(
+      taskKey: 'clock:7:45',
+      kind: TouchInteractionKind.clockSetter,
+      instruction: 'Stelle die Uhr.',
+      answerChoices: <String>['7:45 Uhr', '7:30 Uhr', '8:00 Uhr', '6:45 Uhr'],
+      clockHour: 7,
+      clockMinute: 45,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+
+    final clock = find.byKey(const ValueKey('touch-clock-drag-surface'));
+    final center = tester.getCenter(clock);
+    await tester.tap(find.byKey(const ValueKey('touch-clock-minute-hand')));
+    await tester.pump();
+    await tester.dragFrom(center, const Offset(-70, 0));
+    await tester.pump();
+    expect(find.text('12:45 Uhr'), findsOneWidget);
   });
 
   testWidgets(
@@ -421,9 +453,12 @@ void main() {
       final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
       await tester.scrollUntilVisible(
         fallback,
-        240,
+        320,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(fallback);
+      await tester.pumpAndSettle();
       expect(find.text('Lieber auswählen'), findsOneWidget);
       await tester.tap(fallback);
       await tester.pump();
