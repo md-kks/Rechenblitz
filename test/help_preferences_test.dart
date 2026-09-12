@@ -180,4 +180,29 @@ void main() {
     expect(find.textContaining('Hilfe ·'), findsOneWidget);
     expect(find.textContaining('Schritt 1 von'), findsOneWidget);
   });
+
+  testWidgets('Meine Runde zeigt bei Lückenaufgaben den konkreten Rechenweg', (
+    tester,
+  ) async {
+    final controller = await _controller();
+    await controller.setHelpPreferences(
+      const HelpPreferences(presentation: HelpPresentation.direct),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.missingNumber,
+          targetTasks: 2,
+          scaffoldFading: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('Hilfe ·'), findsOneWidget);
+    expect(find.text('Lückenweg'), findsOneWidget);
+    expect(find.textContaining('Schritt 1 von'), findsOneWidget);
+  });
 }
