@@ -24,6 +24,9 @@ enum TouchInteractionKind {
   probabilityOutcomes,
   probabilityBagComparison,
   combinatoricsGrid,
+  roundingNumberLine,
+  estimationRounding,
+  volumeLayerBuilder,
 }
 
 class TouchInteractionPlan {
@@ -112,6 +115,80 @@ class TouchInteractionPlan {
     String? answerSuffix,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.rounding && taskKey.startsWith('round:')) {
+      final parts = taskKey.split(':');
+      if (parts.length == 3) {
+        final number = int.tryParse(parts[1]);
+        final place = int.tryParse(parts[2]);
+        if (number != null && place != null && place > 0) {
+          final lower = (number ~/ place) * place;
+          final upper = lower + place;
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.roundingNumberLine,
+            instruction:
+                'Finde die beiden Nachbarwerte und entscheide auf der Zahlengeraden, welcher näher liegt.',
+            minValue: lower,
+            maxValue: upper,
+            startValue: number,
+            dataValues: <int>[place],
+            expectedAnswer: answer,
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.estimation &&
+        taskKey.startsWith('estimate:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      if (parts.length == 4) {
+        final a = int.tryParse(parts[1]);
+        final b = int.tryParse(parts[2]);
+        final place = int.tryParse(parts[3]);
+        if (a != null && b != null && place != null && place > 0) {
+          int rounded(int value) => ((value + place ~/ 2) ~/ place) * place;
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.estimationRounding,
+            instruction:
+                'Runde beide Summanden passend. Wähle danach selbst den passenden Überschlag.',
+            dataValues: <int>[a, b, place, rounded(a), rounded(b)],
+            answerChoices: choices,
+            expectedAnswer: answer,
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.volumeCubes && taskKey.startsWith('volume:')) {
+      final parts = taskKey.split(':');
+      if (parts.length == 4) {
+        final length = int.tryParse(parts[1]);
+        final width = int.tryParse(parts[2]);
+        final height = int.tryParse(parts[3]);
+        if (length != null &&
+            width != null &&
+            height != null &&
+            length > 0 &&
+            width > 0 &&
+            height > 0 &&
+            length * width <= 48 &&
+            height <= 6) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.volumeLayerBuilder,
+            instruction:
+                'Baue die richtige Zahl gleich großer Würfelschichten. Berechne danach selbst die Gesamtzahl der Würfel.',
+            dataValues: <int>[length, width, height],
+            expectedAnswer: answer,
+            maxValue: max(300, answer),
+          );
+        }
+      }
+    }
+
     if (mode == TrainingMode.dataCharts &&
         taskKey.startsWith('data:representation:') &&
         choices != null &&

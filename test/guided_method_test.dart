@@ -2998,7 +2998,10 @@ void main() {
       steps.single.taskKey,
       'independent:roundingDecisionDigit:round:467:100',
     );
-    expect(find.text('Antwort eingeben'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('touch-rounding-position')),
+      findsOneWidget,
+    );
   });
 
 

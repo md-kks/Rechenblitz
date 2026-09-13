@@ -47,6 +47,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   bool probabilityNoOutcome = false;
   final Set<int> selectedDataBars = <int>{};
   final Set<int> selectedTallyUnits = <int>{};
+  int? selectedEstimateA;
+  int? selectedEstimateB;
+  int volumeLayers = 1;
 
   @override
   void initState() {
@@ -89,6 +92,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     probabilityNoOutcome = false;
     selectedDataBars.clear();
     selectedTallyUnits.clear();
+    selectedEstimateA = null;
+    selectedEstimateB = null;
+    volumeLayers = 1;
   }
 
   @override
@@ -150,11 +156,243 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildProbabilityBagComparison(context),
             TouchInteractionKind.combinatoricsGrid =>
               _buildCombinatoricsGrid(context),
+            TouchInteractionKind.roundingNumberLine =>
+              _buildRoundingNumberLine(context),
+            TouchInteractionKind.estimationRounding =>
+              _buildEstimationRounding(context),
+            TouchInteractionKind.volumeLayerBuilder =>
+              _buildVolumeLayerBuilder(context),
           },
         ],
       ),
     ),
   );
+
+  Widget _buildRoundingNumberLine(BuildContext context) {
+    final lower = widget.plan.minValue;
+    final upper = widget.plan.maxValue;
+    final number = widget.plan.startValue;
+    final midpoint = lower + (upper - lower) ~/ 2;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '$number liegt zwischen $lower und $upper.',
+          key: const ValueKey('touch-rounding-range'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Slider(
+          key: const ValueKey('touch-rounding-position'),
+          value: number.clamp(lower, upper).toDouble(),
+          min: lower.toDouble(),
+          max: upper.toDouble(),
+          onChanged: null,
+        ),
+        Row(
+          children: [
+            Expanded(child: Text('$lower', textAlign: TextAlign.start)),
+            Expanded(child: Text('Mitte $midpoint', textAlign: TextAlign.center)),
+            Expanded(child: Text('$upper', textAlign: TextAlign.end)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.tonal(
+                key: const ValueKey('touch-rounding-lower'),
+                onPressed: widget.locked ? null : () => widget.onAnswer(lower),
+                child: Text('Zu $lower'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.tonal(
+                key: const ValueKey('touch-rounding-upper'),
+                onPressed: widget.locked ? null : () => widget.onAnswer(upper),
+                child: Text('Zu $upper'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEstimationRounding(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final a = values[0];
+    final b = values[1];
+    final place = values[2];
+    final roundedA = values[3];
+    final roundedB = values[4];
+
+    List<int> candidates(int value) {
+      final lower = (value ~/ place) * place;
+      final upper = lower + place;
+      return <int>{lower, upper}.toList()..sort();
+    }
+
+    Widget rowFor({required String label, required int value, required bool first}) {
+      final selected = first ? selectedEstimateA : selectedEstimateB;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('$label: $value', style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final candidate in candidates(value))
+                ChoiceChip(
+                  key: ValueKey('touch-estimate-${first ? 'a' : 'b'}-$candidate'),
+                  label: Text('$candidate'),
+                  selected: selected == candidate,
+                  onSelected: widget.locked
+                      ? null
+                      : (_) => setState(() {
+                            if (first) {
+                              selectedEstimateA = candidate;
+                            } else {
+                              selectedEstimateB = candidate;
+                            }
+                          }),
+                ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    final ready = selectedEstimateA != null && selectedEstimateB != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        rowFor(label: 'Erster Summand', value: a, first: true),
+        const SizedBox(height: 12),
+        rowFor(label: 'Zweiter Summand', value: b, first: false),
+        const SizedBox(height: 12),
+        Text(
+          ready
+              ? '${selectedEstimateA!} + ${selectedEstimateB!} – welcher Überschlag passt?'
+              : 'Runde zuerst beide Summanden.',
+          key: const ValueKey('touch-estimate-status'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        for (var index = 0; index < widget.plan.answerChoices.length; index++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: FilledButton.tonal(
+              key: ValueKey('touch-estimate-result-$index'),
+              onPressed: widget.locked || !ready
+                  ? null
+                  : () {
+                      final expected = widget.plan.expectedAnswer ?? 0;
+                      final structureCorrect =
+                          selectedEstimateA == roundedA && selectedEstimateB == roundedB;
+                      widget.onAnswer(
+                        structureCorrect && index == expected
+                            ? expected
+                            : _wrongAnswer(index, expected),
+                      );
+                    },
+              child: Text(widget.plan.answerChoices[index]),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildVolumeLayerBuilder(BuildContext context) {
+    final length = widget.plan.dataValues[0];
+    final width = widget.plan.dataValues[1];
+    final targetLayers = widget.plan.dataValues[2];
+    final baseCount = length * width;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Eine Schicht: $length lang × $width breit',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 300),
+            child: GridView.builder(
+              key: const ValueKey('touch-volume-base-grid'),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: length,
+                mainAxisSpacing: 2,
+                crossAxisSpacing: 2,
+              ),
+              itemCount: baseCount,
+              itemBuilder: (context, index) => DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  border: Border.all(color: Theme.of(context).colorScheme.primary),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            IconButton.filledTonal(
+              key: const ValueKey('touch-volume-layer-minus'),
+              onPressed: widget.locked || volumeLayers <= 1
+                  ? null
+                  : () => setState(() => volumeLayers--),
+              icon: const Icon(Icons.remove_rounded),
+            ),
+            Text(
+              '$volumeLayers Schicht${volumeLayers == 1 ? '' : 'en'}',
+              key: const ValueKey('touch-volume-layer-count'),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            IconButton.filledTonal(
+              key: const ValueKey('touch-volume-layer-plus'),
+              onPressed: widget.locked || volumeLayers >= 6
+                  ? null
+                  : () => setState(() => volumeLayers++),
+              icon: const Icon(Icons.add_rounded),
+            ),
+          ],
+        ),
+        Text(
+          'Baue $targetLayers Schicht${targetLayers == 1 ? '' : 'en'} und gib dann die Gesamtzahl ein.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        NumberAnswerPad(
+          key: const ValueKey('touch-volume-number-pad'),
+          maxValue: widget.plan.maxValue,
+          onAnswer: _submitVolumeAnswer,
+        ),
+      ],
+    );
+  }
+
+  void _submitVolumeAnswer(int candidate) {
+    final targetLayers = widget.plan.dataValues[2];
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final correct = volumeLayers == targetLayers && candidate == expected;
+    widget.onAnswer(correct ? expected : _wrongAnswer(candidate, expected));
+  }
 
   Widget _buildRepresentationSorter(BuildContext context) {
     final choices = widget.plan.answerChoices;

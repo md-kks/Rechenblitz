@@ -1939,6 +1939,273 @@ void main() {
     expect(find.byKey(const ValueKey('touch-combo-grid')), findsOneWidget);
   });
 
+  test('touch planner covers rounding estimation and volume structure', () {
+    final rounding = TouchInteractionPlan.forTask(
+      mode: TrainingMode.rounding,
+      taskKey: 'round:347:100',
+      answer: 300,
+      maxValue: 1000,
+    );
+    final estimation = TouchInteractionPlan.forTask(
+      mode: TrainingMode.estimation,
+      taskKey: 'estimate:147:262:100',
+      answer: 1,
+      maxValue: 1000,
+      choices: const <String>['300', '400', '500', '600'],
+    );
+    final volume = TouchInteractionPlan.forTask(
+      mode: TrainingMode.volumeCubes,
+      taskKey: 'volume:3:2:4',
+      answer: 24,
+      maxValue: 300,
+    );
+
+    expect(rounding?.kind, TouchInteractionKind.roundingNumberLine);
+    expect((rounding?.minValue, rounding?.startValue, rounding?.maxValue), (300, 347, 400));
+    expect(estimation?.kind, TouchInteractionKind.estimationRounding);
+    expect(estimation?.dataValues, const <int>[147, 262, 100, 100, 300]);
+    expect(volume?.kind, TouchInteractionKind.volumeLayerBuilder);
+    expect(volume?.dataValues, const <int>[3, 2, 4]);
+  });
+
+  testWidgets('rounding touch chooses a neighboring place-value endpoint', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'round:347:100',
+      kind: TouchInteractionKind.roundingNumberLine,
+      instruction: 'Runde auf Hunderter.',
+      minValue: 300,
+      maxValue: 400,
+      startValue: 347,
+      expectedAnswer: 300,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Mitte 350'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-rounding-upper')));
+    expect(answer, 400);
+    await tester.tap(find.byKey(const ValueKey('touch-rounding-lower')));
+    expect(answer, 300);
+  });
+
+  testWidgets('estimation requires both rounded summands before the result counts', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'estimate:147:262:100',
+      kind: TouchInteractionKind.estimationRounding,
+      instruction: 'Runde beide Summanden.',
+      dataValues: <int>[147, 262, 100, 100, 300],
+      answerChoices: <String>['300', '400', '500', '600'],
+      expectedAnswer: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-estimate-a-100')));
+    await tester.tap(find.byKey(const ValueKey('touch-estimate-b-200')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-estimate-result-1')));
+    expect(answer, isNot(1), reason: 'Ein geratenes Endergebnis darf falsches Runden nicht verdecken.');
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-estimate-b-300')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-estimate-result-1')));
+    expect(answer, 1);
+  });
+
+  testWidgets('volume touch requires the physical layer count and total', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'volume:3:2:4',
+      kind: TouchInteractionKind.volumeLayerBuilder,
+      instruction: 'Baue vier Schichten.',
+      dataValues: <int>[3, 2, 4],
+      expectedAnswer: 24,
+      maxValue: 300,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    tester.widget<NumberAnswerPad>(
+      find.byKey(const ValueKey('touch-volume-number-pad')),
+    ).onAnswer(24);
+    expect(answer, isNot(24));
+
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const ValueKey('touch-volume-layer-plus')));
+      await tester.pump();
+    }
+    expect(find.text('4 Schichten'), findsOneWidget);
+    tester.widget<NumberAnswerPad>(
+      find.byKey(const ValueKey('touch-volume-number-pad')),
+    ).onAnswer(24);
+    expect(answer, 24);
+  });
+
+  testWidgets('rounding estimation and volume curriculum default to touch with fallback', (tester) async {
+    final controller = await _controller();
+    const rounding = CurriculumExercise(
+      mode: TrainingMode.rounding,
+      prompt: 'Runde 347 auf Hunderter.',
+      answer: 300,
+      hint: 'Schau auf die Zehnerstelle.',
+      key: 'round:347:100',
+      maxAnswerValue: 1000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.rounding,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(rounding),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-rounding-position')), findsOneWidget);
+    final keypadSwitch = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(keypadSwitch, 240, scrollable: find.byType(Scrollable).first);
+    await tester.tap(keypadSwitch);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    const estimation = CurriculumExercise(
+      mode: TrainingMode.estimation,
+      prompt: 'Welcher Überschlag passt zu 147 + 262?',
+      answer: 1,
+      hint: 'Runde beide Zahlen.',
+      key: 'estimate:147:262:100',
+      choices: <String>['300', '400', '500', '600'],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.estimation,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(estimation),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-estimate-status')), findsOneWidget);
+    final choiceSwitch = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(choiceSwitch, 240, scrollable: find.byType(Scrollable).first);
+    await tester.tap(choiceSwitch);
+    await tester.pump();
+    expect(find.text('400'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    const volume = CurriculumExercise(
+      mode: TrainingMode.volumeCubes,
+      prompt: 'Quader: 3 lang, 2 breit, 4 hoch.',
+      answer: 24,
+      hint: 'Denke in Schichten.',
+      key: 'volume:3:2:4',
+      maxAnswerValue: 300,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.volumeCubes,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(volume),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-volume-base-grid')), findsOneWidget);
+  });
+
+  testWidgets('rounding and volume touch stay stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    const rounding = TouchInteractionPlan(
+      taskKey: 'round:347:100',
+      kind: TouchInteractionKind.roundingNumberLine,
+      instruction: 'Runde auf Hunderter.',
+      minValue: 300,
+      maxValue: 400,
+      startValue: 347,
+      expectedAnswer: 300,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: rounding, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    const volume = TouchInteractionPlan(
+      taskKey: 'volume:3:2:4',
+      kind: TouchInteractionKind.volumeLayerBuilder,
+      instruction: 'Baue vier Schichten.',
+      dataValues: <int>[3, 2, 4],
+      expectedAnswer: 24,
+      maxValue: 300,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: volume, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   test('touch groups stay scoped to understanding competencies', () {
     final multiplication = TouchInteractionPlan.forTask(
       mode: TrainingMode.multiply,
