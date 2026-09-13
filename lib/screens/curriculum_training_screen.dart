@@ -484,7 +484,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               SizedBox(height: visualGap),
               GeometryRelationVisual(taskKey: current.key),
             ],
-            if (current.hasBars) ...[
+            if (current.hasBars &&
+                !(useTouchInput &&
+                    _touchInteraction?.kind ==
+                        TouchInteractionKind.dataChartSelection)) ...[
               SizedBox(height: visualGap),
               _BarChart(bars: current.bars!),
             ],
