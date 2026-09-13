@@ -40,6 +40,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int durationElapsed = 0;
   int calendarDay = 1;
   int calendarSteps = 0;
+  int? selectedGeometryCandidate;
   int pathX = 0;
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
@@ -96,6 +97,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         ? widget.plan.dataValues.first
         : 1;
     calendarSteps = 0;
+    selectedGeometryCandidate = null;
     pathX = 0;
     pathY = 0;
     selectedAxes.clear();
@@ -163,6 +165,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildDurationTimeline(context),
             TouchInteractionKind.calendarStepper =>
               _buildCalendarStepper(context),
+            TouchInteractionKind.geometryRelationChoice =>
+              _buildGeometryRelationChoice(context),
             TouchInteractionKind.pathWalker => _buildPathWalker(context),
             TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
@@ -202,6 +206,84 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildGeometryRelationChoice(BuildContext context) {
+    final operation = widget.plan.dataOperation ?? 'lines';
+    final optionCount = switch (operation) {
+      'lines' => 3,
+      'angle' => 3,
+      'figure' => 4,
+      'circle' => 3,
+      _ => widget.plan.answerChoices.length,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          key: const ValueKey('touch-geometry-options'),
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 10,
+          children: List<Widget>.generate(optionCount, (index) {
+            final selected = selectedGeometryCandidate == index;
+            return Semantics(
+              button: true,
+              selected: selected,
+              label: 'Geometrisches Bild ${index + 1}',
+              child: InkWell(
+                key: ValueKey('touch-geometry-option-$index'),
+                onTap: widget.locked
+                    ? null
+                    : () => setState(() => selectedGeometryCandidate = index),
+                borderRadius: BorderRadius.circular(14),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  width: operation == 'figure' ? 132 : 150,
+                  height: 118,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      width: selected ? 3 : 1.5,
+                      color: selected
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  ),
+                  child: CustomPaint(
+                    painter: _GeometryChoicePainter(
+                      operation: operation,
+                      index: index,
+                      lineColor: Theme.of(context).colorScheme.onSurface,
+                      accentColor: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          selectedGeometryCandidate == null
+              ? 'Noch kein Bild ausgewählt.'
+              : 'Bild ${selectedGeometryCandidate! + 1} ausgewählt.',
+          key: const ValueKey('touch-geometry-selection-status'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          key: const ValueKey('touch-geometry-submit'),
+          onPressed: widget.locked || selectedGeometryCandidate == null
+              ? null
+              : () => widget.onAnswer(selectedGeometryCandidate!),
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Prüfen'),
+        ),
+      ],
+    );
+  }
 
   Widget _buildUnitConversionMachine(BuildContext context) {
     final values = widget.plan.dataValues;
@@ -4223,4 +4305,126 @@ class _InteractiveNumberWall extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _GeometryChoicePainter extends CustomPainter {
+  const _GeometryChoicePainter({
+    required this.operation,
+    required this.index,
+    required this.lineColor,
+    required this.accentColor,
+  });
+
+  final String operation;
+  final int index;
+  final Color lineColor;
+  final Color accentColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final line = Paint()
+      ..color = lineColor
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final accent = Paint()
+      ..color = accentColor
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+    switch (operation) {
+      case 'lines':
+        _lines(canvas, size, line, accent);
+      case 'angle':
+        _angle(canvas, size, line);
+      case 'figure':
+        _figure(canvas, size, line, accent);
+      case 'circle':
+        _circle(canvas, size, line, accent);
+    }
+  }
+
+  void _lines(Canvas canvas, Size size, Paint line, Paint accent) {
+    if (index == 0) {
+      for (final y in [size.height * .38, size.height * .67]) {
+        canvas.drawLine(Offset(size.width * .12, y), Offset(size.width * .88, y), line);
+      }
+      return;
+    }
+    if (index == 1) {
+      final c = Offset(size.width / 2, size.height / 2);
+      canvas.drawLine(Offset(size.width * .12, c.dy), Offset(size.width * .88, c.dy), line);
+      canvas.drawLine(Offset(c.dx, size.height * .14), Offset(c.dx, size.height * .86), line);
+      canvas.drawRect(Rect.fromLTWH(c.dx + 4, c.dy - 20, 16, 16), accent);
+      return;
+    }
+    canvas.drawLine(Offset(size.width * .12, size.height * .72), Offset(size.width * .88, size.height * .30), line);
+    canvas.drawLine(Offset(size.width * .12, size.height * .28), Offset(size.width * .88, size.height * .58), line);
+  }
+
+  void _angle(Canvas canvas, Size size, Paint line) {
+    final o = Offset(size.width * .28, size.height * .76);
+    canvas.drawLine(o, Offset(size.width * .86, o.dy), line);
+    final safeIndex = index < 0 ? 0 : (index > 2 ? 2 : index);
+    final degrees = [90.0, 45.0, 125.0][safeIndex];
+    final rad = degrees * math.pi / 180;
+    final length = size.shortestSide * .62;
+    canvas.drawLine(o, Offset(o.dx + math.cos(rad) * length, o.dy - math.sin(rad) * length), line);
+  }
+
+  void _figure(Canvas canvas, Size size, Paint line, Paint accent) {
+    final center = Offset(size.width / 2, size.height / 2);
+    if (index == 0 || index == 1) {
+      final rect = Rect.fromCenter(
+        center: center,
+        width: index == 0 ? 72 : 94,
+        height: 72,
+      );
+      canvas.drawRect(rect, line);
+      return;
+    }
+    final top = Offset(center.dx, size.height * .18);
+    final left = Offset(index == 2 ? center.dx - 43 : center.dx - 50, size.height * .80);
+    final right = Offset(index == 2 ? center.dx + 43 : center.dx + 32, size.height * .80);
+    final path = Path()..moveTo(top.dx, top.dy)..lineTo(left.dx, left.dy)..lineTo(right.dx, right.dy)..close();
+    canvas.drawPath(path, line);
+    if (index == 2) {
+      _tick(canvas, _mid(top, left), accent);
+      _tick(canvas, _mid(top, right), accent);
+      _tick(canvas, _mid(left, right), accent);
+    } else {
+      _tick(canvas, _mid(top, left), accent);
+      _tick(canvas, _mid(top, right), accent);
+    }
+  }
+
+  void _circle(Canvas canvas, Size size, Paint line, Paint accent) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide * .34;
+    canvas.drawCircle(center, radius, line);
+    canvas.drawCircle(center, 4, Paint()..color = accentColor..style = PaintingStyle.fill);
+    if (index == 0) {
+      canvas.drawLine(center, Offset(center.dx + radius, center.dy), accent);
+    } else if (index == 1) {
+      canvas.drawLine(Offset(center.dx - radius, center.dy), Offset(center.dx + radius, center.dy), accent);
+    } else {
+      canvas.drawCircle(
+        center,
+        8,
+        Paint()
+          ..color = accentColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5,
+      );
+    }
+  }
+
+  Offset _mid(Offset a, Offset b) => Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+
+  void _tick(Canvas canvas, Offset point, Paint paint) {
+    canvas.drawLine(point.translate(-4, -4), point.translate(4, 4), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GeometryChoicePainter oldDelegate) =>
+      operation != oldDelegate.operation || index != oldDelegate.index || lineColor != oldDelegate.lineColor || accentColor != oldDelegate.accentColor;
 }

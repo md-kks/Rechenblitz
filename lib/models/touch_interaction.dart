@@ -15,6 +15,7 @@ enum TouchInteractionKind {
   unitConversionMachine,
   durationTimeline,
   calendarStepper,
+  geometryRelationChoice,
   pathWalker,
   symmetryAxes,
   shapeCorners,
@@ -709,6 +710,37 @@ class TouchInteractionPlan {
             maxValue: max(maxValue, answer),
           );
         }
+      }
+    }
+
+    if (mode == TrainingMode.geometryRelations &&
+        taskKey.startsWith('geomrel:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final operation = taskKey.startsWith('geomrel:lines:')
+          ? 'lines'
+          : taskKey.startsWith('geomrel:angle:')
+              ? 'angle'
+              : taskKey.startsWith('geomrel:figure:')
+                  ? 'figure'
+                  : taskKey.startsWith('geomrel:circle:')
+                      ? 'circle'
+                      : null;
+      if (operation != null && answer >= 0 && answer < choices.length) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.geometryRelationChoice,
+          instruction: switch (operation) {
+            'lines' => 'Tippe das Geradenbild an, das zur beschriebenen Lage passt.',
+            'angle' => 'Vergleiche die gezeichneten Winkel mit einer Rechteck-Ecke und tippe das passende Bild an.',
+            'figure' => 'Prüfe Seitenlängen und rechte Winkel. Tippe die passende Figur an.',
+            _ => 'Tippe die Kreiszeichnung an, die zur beschriebenen Strecke passt.',
+          },
+          answerChoices: choices,
+          correctSelectionIndexes: <int>[answer],
+          dataOperation: operation,
+          expectedAnswer: answer,
+        );
       }
     }
 

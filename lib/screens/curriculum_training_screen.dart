@@ -480,7 +480,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                 ),
               ],
             ),
-            if (current.key.startsWith('geomrel:')) ...[
+            if (current.key.startsWith('geomrel:') &&
+                !(useTouchInput &&
+                    _touchInteraction?.kind ==
+                        TouchInteractionKind.geometryRelationChoice)) ...[
               SizedBox(height: visualGap),
               GeometryRelationVisual(taskKey: current.key),
             ],
