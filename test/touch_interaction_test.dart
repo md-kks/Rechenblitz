@@ -2946,6 +2946,321 @@ void main() {
     expect(find.byType(NumberAnswerPad), findsOneWidget);
   });
 
+  test('touch planner covers unit conversion duration and calendar structure', () {
+    final metres = TouchInteractionPlan.forTask(
+      mode: TrainingMode.advancedMeasures,
+      taskKey: 'length:m:3',
+      answer: 300,
+      maxValue: 5000,
+      answerSuffix: 'cm',
+    );
+    final seconds = TouchInteractionPlan.forTask(
+      mode: TrainingMode.advancedMeasures,
+      taskKey: 'time:seconds:sec-to-min:180',
+      answer: 3,
+      maxValue: 20,
+      answerSuffix: 'min',
+    );
+    final weeks = TouchInteractionPlan.forTask(
+      mode: TrainingMode.timeDurations,
+      taskKey: 'duration:weeks:4',
+      answer: 28,
+      maxValue: 50,
+      answerSuffix: 'Tage',
+    );
+    final duration = TouchInteractionPlan.forTask(
+      mode: TrainingMode.timeDurations,
+      taskKey: 'duration:465:90',
+      answer: 90,
+      maxValue: 240,
+      answerSuffix: 'min',
+    );
+    final calendar = TouchInteractionPlan.forTask(
+      mode: TrainingMode.timeDurations,
+      taskKey: 'calendar:add:April:10:7',
+      answer: 0,
+      maxValue: 100,
+      choices: const <String>['17. April', '16. April', '18. April', '10. April'],
+    );
+
+    expect(metres?.kind, TouchInteractionKind.unitConversionMachine);
+    expect(metres?.dataValues, const <int>[3, 100]);
+    expect(metres?.dataLabels, const <String>['m', 'cm']);
+    expect(metres?.correctSelectionIndexes, const <int>[2]);
+    expect(seconds?.kind, TouchInteractionKind.unitConversionMachine);
+    expect(seconds?.dataOperation, 'divide');
+    expect(seconds?.correctSelectionIndexes, const <int>[0]);
+    expect(weeks?.kind, TouchInteractionKind.unitConversionMachine);
+    expect(weeks?.correctSelectionIndexes, const <int>[2]);
+    expect(duration?.kind, TouchInteractionKind.durationTimeline);
+    expect(duration?.dataValues, const <int>[465, 555]);
+    expect(calendar?.kind, TouchInteractionKind.calendarStepper);
+    expect(calendar?.dataValues, const <int>[10, 7, 30]);
+  });
+
+  testWidgets('unit conversion needs the correct relation before the result counts', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'length:m:3',
+      kind: TouchInteractionKind.unitConversionMachine,
+      instruction: 'Wähle die Umrechnung.',
+      dataValues: <int>[3, 100],
+      dataLabels: <String>['m', 'cm'],
+      dataOperation: 'multiply',
+      answerChoices: <String>['÷ 100', '× 10', '× 100'],
+      correctSelectionIndexes: <int>[2],
+      expectedAnswer: 300,
+      maxValue: 5000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-conversion-choice-0')));
+    await tester.pump();
+    tester.widget<NumberAnswerPad>(
+      find.byKey(const ValueKey('touch-conversion-pad')),
+    ).onAnswer(300);
+    expect(answer, isNot(300));
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-conversion-choice-2')));
+    await tester.pump();
+    tester.widget<NumberAnswerPad>(
+      find.byKey(const ValueKey('touch-conversion-pad')),
+    ).onAnswer(300);
+    expect(answer, 300);
+  });
+
+  testWidgets('duration timeline must reach the end with the counted minutes', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'duration:465:90',
+      kind: TouchInteractionKind.durationTimeline,
+      instruction: 'Gehe vom Start zum Ende.',
+      dataValues: <int>[465, 555],
+      expectedAnswer: 90,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-duration-step-60')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-duration-submit')));
+    expect(answer, isNot(90));
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-duration-reset')));
+    await tester.tap(find.byKey(const ValueKey('touch-duration-step-60')));
+    await tester.tap(find.byKey(const ValueKey('touch-duration-step-30')));
+    await tester.pump();
+    expect(find.text('Gezählte Dauer: 90 min'), findsOneWidget);
+    expect(find.textContaining('09:15'), findsWidgets);
+    await tester.tap(find.byKey(const ValueKey('touch-duration-submit')));
+    expect(answer, 90);
+  });
+
+  testWidgets('calendar stepper checks the actual number of advanced days', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'calendar:add:April:10:10',
+      kind: TouchInteractionKind.calendarStepper,
+      instruction: 'Gehe zehn Tage weiter.',
+      dataValues: <int>[10, 10, 30],
+      dataLabels: <String>['April'],
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-calendar-step-7')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-calendar-submit')));
+    expect(answer, isNot(2));
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-calendar-reset')));
+    await tester.tap(find.byKey(const ValueKey('touch-calendar-step-7')));
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const ValueKey('touch-calendar-step-1')));
+    }
+    await tester.pump();
+    expect(find.text('20. April'), findsOneWidget);
+    expect(find.text('10 von 10 Tagen weitergegangen'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-calendar-submit')));
+    expect(answer, 2);
+  });
+
+  testWidgets('measure time and calendar curriculum default to touch', (
+    tester,
+  ) async {
+    final controller = await _controller();
+    const conversion = CurriculumExercise(
+      mode: TrainingMode.advancedMeasures,
+      prompt: '3 m sind wie viele cm?',
+      answer: 300,
+      hint: '1 m = 100 cm.',
+      key: 'length:m:3',
+      answerSuffix: 'cm',
+      maxAnswerValue: 5000,
+      method: 'Größen umwandeln',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.advancedMeasures,
+          targetTasks: 1,
+          reviewEmphasis: true,
+          exerciseGenerator: _FixedCurriculumGenerator(conversion),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-conversion-relation')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    const duration = CurriculumExercise(
+      mode: TrainingMode.timeDurations,
+      prompt: 'Beginn: 07:45 Uhr\nEnde: 09:15 Uhr\nWie viele Minuten dauert es?',
+      answer: 90,
+      hint: 'Rechne in Etappen.',
+      key: 'duration:465:90',
+      answerSuffix: 'min',
+      maxAnswerValue: 240,
+      method: 'Zeitdauer berechnen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.timeDurations,
+          targetTasks: 1,
+          reviewEmphasis: true,
+          exerciseGenerator: _FixedCurriculumGenerator(duration),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-duration-current')), findsOneWidget);
+    expect(find.byType(TouchAnswerInteraction), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    const calendar = CurriculumExercise(
+      mode: TrainingMode.timeDurations,
+      prompt: 'Heute ist der 10. April. Welches Datum ist 7 Tage später?',
+      answer: 0,
+      hint: 'Gehe 7 Tage weiter.',
+      key: 'calendar:add:April:10:7',
+      choices: <String>['17. April', '16. April', '18. April', '10. April'],
+      method: 'Mit Datum und Kalender rechnen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.timeDurations,
+          targetTasks: 1,
+          reviewEmphasis: true,
+          exerciseGenerator: _FixedCurriculumGenerator(calendar),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-calendar-current')), findsOneWidget);
+    expect(find.byType(TouchAnswerInteraction), findsOneWidget);
+  });
+
+  testWidgets('measure and time touch stay stable at 200 percent text scale', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    const duration = TouchInteractionPlan(
+      taskKey: 'duration:465:90',
+      kind: TouchInteractionKind.durationTimeline,
+      instruction: 'Gehe auf der Zeitlinie bis zum Ende.',
+      dataValues: <int>[465, 555],
+      expectedAnswer: 90,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: duration, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-duration-submit')), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    const calendar = TouchInteractionPlan(
+      taskKey: 'calendar:add:April:10:10',
+      kind: TouchInteractionKind.calendarStepper,
+      instruction: 'Gehe zehn Tage weiter.',
+      dataValues: <int>[10, 10, 30],
+      dataLabels: <String>['April'],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: calendar, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-calendar-submit')), findsOneWidget);
+  });
+
   testWidgets('touch answer stays stable at 200 percent text scale', (
     tester,
   ) async {
