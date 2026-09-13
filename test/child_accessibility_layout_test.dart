@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/main.dart';
+import 'package:rechenblitz/models/curriculum_exercise.dart';
+import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/math_fact.dart';
+import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/screens/structured_training_screen.dart';
 import 'package:rechenblitz/screens/curriculum_training_screen.dart';
 import 'package:rechenblitz/models/training.dart';
@@ -186,4 +189,135 @@ void main() {
     },
   );
 
+  testWidgets(
+    'strukturierte einfache Aufgabe braucht auf kleinem Handy keinen Scroll',
+    (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+
+      final controller = await _controllerWithFacts();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.twenty;
+      const exercise = StructuredExercise(
+        mode: TrainingMode.missingNumber,
+        prompt: '12 + ? = 20',
+        answer: 8,
+        hint: 'Ergänze bis 20.',
+        key: 'layout:structured',
+        maxAnswerValue: 20,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StructuredTrainingScreen(
+            controller: controller,
+            mode: TrainingMode.missingNumber,
+            targetTasks: 1,
+            exerciseGenerator: _LayoutStructuredGenerator(exercise),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('structured-compact-help')),
+        findsOneWidget,
+      );
+      final submit = find.byKey(const ValueKey('number-pad-submit'));
+      expect(submit, findsOneWidget);
+      expect(tester.getRect(submit).bottom, lessThanOrEqualTo(568));
+      final scrollable = tester.state<ScrollableState>(
+        find.descendant(
+          of: find.byKey(const ValueKey('structured-training-scroll')),
+          matching: find.byType(Scrollable),
+        ).first,
+      );
+      expect(scrollable.position.maxScrollExtent, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Lehrplan-Aufgabe mit Tastenfeld braucht auf kleinem Handy keinen Scroll',
+    (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+
+      final controller = await _controllerWithFacts();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      const exercise = CurriculumExercise(
+        mode: TrainingMode.largeNumbers,
+        prompt: 'Wie viel ist 120 + 30?',
+        answer: 150,
+        hint: 'Addiere drei Zehner.',
+        key: 'layout:plain',
+        maxAnswerValue: 1000,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CurriculumTrainingScreen(
+            controller: controller,
+            mode: TrainingMode.largeNumbers,
+            targetTasks: 1,
+            exerciseGenerator: _LayoutCurriculumGenerator(exercise),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('curriculum-compact-help')),
+        findsOneWidget,
+      );
+      final submit = find.byKey(const ValueKey('number-pad-submit'));
+      expect(submit, findsOneWidget);
+      expect(tester.getRect(submit).bottom, lessThanOrEqualTo(568));
+      final scrollable = tester.state<ScrollableState>(
+        find.descendant(
+          of: find.byKey(const ValueKey('curriculum-training-scroll')),
+          matching: find.byType(Scrollable),
+        ).first,
+      );
+      expect(scrollable.position.maxScrollExtent, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+}
+
+
+class _LayoutCurriculumGenerator extends CurriculumExerciseGenerator {
+  _LayoutCurriculumGenerator(this.exercise);
+
+  final CurriculumExercise exercise;
+
+  @override
+  CurriculumExercise generate({
+    required TrainingMode mode,
+    required GradeLevel gradeLevel,
+    required int maxValue,
+    Iterable<String> recentKeys = const <String>[],
+    MicroCompetencyId? targetCompetency,
+  }) => exercise;
+}
+
+
+class _LayoutStructuredGenerator extends StructuredExerciseGenerator {
+  _LayoutStructuredGenerator(this.exercise);
+
+  final StructuredExercise exercise;
+
+  @override
+  StructuredExercise generate({
+    required TrainingMode mode,
+    required int maxValue,
+    Iterable<String> recentKeys = const <String>[],
+    MicroCompetencyId? targetCompetency,
+    GradeLevel gradeLevel = GradeLevel.second,
+    bool transferEmphasis = false,
+  }) => exercise;
 }

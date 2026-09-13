@@ -28,6 +28,7 @@ class StructuredTrainingScreen extends StatefulWidget {
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
     this.scaffoldFading = false,
+    this.exerciseGenerator,
   });
 
   final AppController controller;
@@ -37,6 +38,7 @@ class StructuredTrainingScreen extends StatefulWidget {
   final bool reviewEmphasis;
   final bool transferEmphasis;
   final bool scaffoldFading;
+  final StructuredExerciseGenerator? exerciseGenerator;
 
   @override
   State<StructuredTrainingScreen> createState() =>
@@ -67,7 +69,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
           ? MicroEvidenceSource.review
           : MicroEvidenceSource.practice;
 
-  final StructuredExerciseGenerator generator = StructuredExerciseGenerator();
+  late final StructuredExerciseGenerator generator;
   late StructuredExercise current;
   late DateTime startedAt;
   late DateTime shownAt;
@@ -98,6 +100,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   @override
   void initState() {
     super.initState();
+    generator = widget.exerciseGenerator ?? StructuredExerciseGenerator();
     startedAt = DateTime.now();
     current = _next();
     _prepareHelpForCurrent();
@@ -105,6 +108,16 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => widget.controller.speak(current.prompt),
     );
+  }
+
+  void _showManualHelp() {
+    final starter = _manualHelpLevel;
+    if (starter == null) return;
+    setState(() {
+      showHint = true;
+      helpLevel = starter.value;
+      activeMethodKey = _guide.methodKey;
+    });
   }
 
   void _prepareHelpForCurrent() {
@@ -397,13 +410,40 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(widget.mode.title),
-        ),
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(20),
+  Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final compactHeight = screenSize.height < 720 && screenSize.width < 600;
+    final pagePadding = EdgeInsets.symmetric(
+      horizontal: compactHeight ? 16 : 20,
+      vertical: compactHeight ? 10 : 20,
+    );
+    final topGap = compactHeight ? 10.0 : 20.0;
+    final visualGap = compactHeight ? 12.0 : 22.0;
+    final sectionGap = compactHeight ? 10.0 : 18.0;
+    final promptFontSize = widget.mode == TrainingMode.wordProblems
+        ? (compactHeight ? 22.0 : 25.0)
+        : (compactHeight ? 30.0 : 34.0);
+    final clockSize = compactHeight ? 150.0 : 190.0;
+    final shapeWidth = compactHeight ? 150.0 : 180.0;
+    final shapeHeight = compactHeight ? 120.0 : 145.0;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.mode.title),
+        actions: [
+          if (compactHeight && _helpAvailable && !showHint)
+            IconButton(
+              key: const ValueKey('structured-compact-help'),
+              tooltip: 'Ich brauche Hilfe',
+              onPressed: _showManualHelp,
+              icon: const Icon(Icons.lightbulb_outline_rounded),
+            ),
+        ],
+      ),
+      body: SafeArea(
+        child: ListView(
+          key: const ValueKey('structured-training-scroll'),
+          padding: pagePadding,
             children: [
               LinearProgressIndicator(
                 value: widget.targetTasks == 0
@@ -418,7 +458,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: topGap),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -427,8 +467,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                       current.prompt,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize:
-                            widget.mode == TrainingMode.wordProblems ? 25 : 34,
+                        fontSize: promptFontSize,
                         height: 1.25,
                         fontWeight: FontWeight.w800,
                       ),
@@ -443,22 +482,22 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 ],
               ),
               if (current.hasRepresentationVisual) ...[
-                const SizedBox(height: 22),
+                SizedBox(height: visualGap),
                 _RepresentationVisual(exercise: current),
               ],
               if (current.isNumberWall &&
                   (!_checkpointsComplete ||
                       !useTouchInput ||
                       _touchInteraction == null)) ...[
-                const SizedBox(height: 22),
+                SizedBox(height: visualGap),
                 _NumberWall(exercise: current),
               ],
               if (current.hasClock) ...[
-                const SizedBox(height: 22),
+                SizedBox(height: visualGap),
                 Center(
                   child: SizedBox(
-                    width: 190,
-                    height: 190,
+                    width: clockSize,
+                    height: clockSize,
                     child: CustomPaint(
                       painter: _ClockPainter(
                         hour: current.clockHour!,
@@ -471,11 +510,11 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 ),
               ],
               if (current.shape != null) ...[
-                const SizedBox(height: 22),
+                SizedBox(height: visualGap),
                 Center(
                   child: SizedBox(
-                    width: 180,
-                    height: 145,
+                    width: shapeWidth,
+                    height: shapeHeight,
                     child: CustomPaint(
                       painter: _ShapePainter(
                         shape: current.shape!,
@@ -486,7 +525,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 ),
               ],
               if (current.hasMoneyVisual) ...[
-                const SizedBox(height: 18),
+                SizedBox(height: sectionGap),
                 Wrap(
                   alignment: WrapAlignment.center,
                   spacing: 8,
@@ -497,7 +536,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 ),
               ],
               if (current.hasCheckpoints && !_checkpointsComplete) ...[
-                const SizedBox(height: 18),
+                SizedBox(height: sectionGap),
                 IndependentStepCard(
                   question: current.checkpoints[checkpointIndex].question,
                   choices: current.checkpoints[checkpointIndex].choices,
@@ -508,7 +547,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                   onChoice: _answerCheckpoint,
                 ),
               ],
-              const SizedBox(height: 18),
+              SizedBox(height: sectionGap),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: Text(
@@ -522,7 +561,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                 ),
               ),
               if (showHint) ...[
-                const SizedBox(height: 12),
+                SizedBox(height: compactHeight ? 8 : 12),
                 GuidedMethodPanel(
                   key: ValueKey('guide:${current.key}:$completed'),
                   guide: _guide,
@@ -557,23 +596,15 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
                   },
                   onSpeak: widget.controller.speakOnDemand,
                 ),
-              ] else if (_helpAvailable) ...[
+              ] else if (_helpAvailable && !compactHeight) ...[
                 const SizedBox(height: 8),
                 TextButton.icon(
-                  onPressed: () {
-                    final starter = _manualHelpLevel;
-                    if (starter == null) return;
-                    setState(() {
-                      showHint = true;
-                      helpLevel = starter.value;
-                      activeMethodKey = _guide.methodKey;
-                    });
-                  },
+                  onPressed: _showManualHelp,
                   icon: const Icon(Icons.lightbulb_outline_rounded),
                   label: const Text('Ich brauche Hilfe'),
                 ),
               ],
-              const SizedBox(height: 18),
+              SizedBox(height: sectionGap),
               if (!_checkpointsComplete)
                 const SizedBox.shrink()
               else if (useTouchInput && _touchInteraction != null) ...[
@@ -657,6 +688,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
           ),
         ),
       );
+  }
 }
 
 class _RepresentationVisual extends StatelessWidget {
