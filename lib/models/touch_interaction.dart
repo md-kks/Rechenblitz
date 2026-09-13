@@ -12,6 +12,9 @@ enum TouchInteractionKind {
   fractionBuilder,
   fractionMeasure,
   proportionalUnitBuilder,
+  unitConversionMachine,
+  durationTimeline,
+  calendarStepper,
   pathWalker,
   symmetryAxes,
   shapeCorners,
@@ -491,6 +494,135 @@ class TouchInteractionPlan {
         clockHour: clockHour,
         clockMinute: clockMinute,
       );
+    }
+
+    if (mode == TrainingMode.advancedMeasures) {
+      final parts = taskKey.split(':');
+      final source = int.tryParse(parts.isEmpty ? '' : parts.last);
+      String? startUnit;
+      String? targetUnit;
+      String? operation;
+      int? factor;
+      if (taskKey.startsWith('length:m:')) {
+        startUnit = 'm'; targetUnit = 'cm'; operation = 'multiply'; factor = 100;
+      } else if (taskKey.startsWith('length:km:')) {
+        startUnit = 'km'; targetUnit = 'm'; operation = 'multiply'; factor = 1000;
+      } else if (taskKey.startsWith('length:cm-mm:')) {
+        startUnit = 'cm'; targetUnit = 'mm'; operation = 'multiply'; factor = 10;
+      } else if (taskKey.startsWith('mass:kg:')) {
+        startUnit = 'kg'; targetUnit = 'g'; operation = 'multiply'; factor = 1000;
+      } else if (taskKey.startsWith('mass:t-kg:')) {
+        startUnit = 't'; targetUnit = 'kg'; operation = 'multiply'; factor = 1000;
+      } else if (taskKey.startsWith('volume:l:')) {
+        startUnit = 'l'; targetUnit = 'ml'; operation = 'multiply'; factor = 1000;
+      } else if (taskKey.startsWith('money:euro:')) {
+        startUnit = '€'; targetUnit = 'ct'; operation = 'multiply'; factor = 100;
+      } else if (taskKey.startsWith('time:min:')) {
+        startUnit = 'min'; targetUnit = 'h'; operation = 'divide'; factor = 60;
+      } else if (taskKey.startsWith('time:seconds:min-to-sec:')) {
+        startUnit = 'min'; targetUnit = 's'; operation = 'multiply'; factor = 60;
+      } else if (taskKey.startsWith('time:seconds:sec-to-min:')) {
+        startUnit = 's'; targetUnit = 'min'; operation = 'divide'; factor = 60;
+      }
+      if (source != null && startUnit != null && targetUnit != null && operation != null && factor != null) {
+        final symbol = operation == 'multiply' ? '×' : '÷';
+        final opposite = operation == 'multiply' ? '÷' : '×';
+        final altFactor = factor == 1000 ? 100 : factor == 100 ? 10 : factor == 60 ? 10 : 100;
+        final correctLabel = '$symbol $factor';
+        final oppositeLabel = '$opposite $factor';
+        final alternativeLabel = '$symbol $altFactor';
+        final (relationOptions, correctIndex) = switch ((factor, operation)) {
+          (10, _) => (<String>[correctLabel, oppositeLabel, alternativeLabel], 0),
+          (100, _) => (<String>[oppositeLabel, alternativeLabel, correctLabel], 2),
+          (1000, _) => (<String>[alternativeLabel, correctLabel, oppositeLabel], 1),
+          (60, 'divide') => (<String>[correctLabel, alternativeLabel, oppositeLabel], 0),
+          _ => (<String>[alternativeLabel, oppositeLabel, correctLabel], 2),
+        };
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.unitConversionMachine,
+          instruction: 'Wähle zuerst die richtige Umrechnung. Berechne danach den Zahlenwert in der Zieleinheit.',
+          dataValues: <int>[source, factor],
+          dataLabels: <String>[startUnit, targetUnit],
+          dataOperation: operation,
+          answerChoices: relationOptions,
+          correctSelectionIndexes: <int>[correctIndex],
+          expectedAnswer: answer,
+          maxValue: maxValue,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.timeDurations &&
+        (taskKey.startsWith('duration:weeks:') || taskKey.startsWith('duration:days:'))) {
+      final source = int.tryParse(taskKey.split(':').last);
+      final weeks = taskKey.startsWith('duration:weeks:');
+      if (source != null) {
+        final factor = weeks ? 7 : 24;
+        final correctLabel = '× $factor';
+        final oppositeLabel = '÷ $factor';
+        final alternativeLabel = '× ${weeks ? 24 : 7}';
+        final relationOptions = weeks
+            ? <String>[alternativeLabel, oppositeLabel, correctLabel]
+            : <String>[correctLabel, oppositeLabel, alternativeLabel];
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.unitConversionMachine,
+          instruction: 'Wähle die passende Zeitbeziehung und berechne anschließend den neuen Zahlenwert.',
+          dataValues: <int>[source, factor],
+          dataLabels: <String>[weeks ? 'Wochen' : 'Tage', weeks ? 'Tage' : 'h'],
+          dataOperation: 'multiply',
+          answerChoices: relationOptions,
+          correctSelectionIndexes: <int>[weeks ? 2 : 0],
+          expectedAnswer: answer,
+          maxValue: maxValue,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.timeDurations && taskKey.startsWith('calendar:add:') && choices != null) {
+      final parts = taskKey.split(':');
+      if (parts.length == 5) {
+        final month = parts[2];
+        final start = int.tryParse(parts[3]);
+        final addDays = int.tryParse(parts[4]);
+        final monthDays = switch (month) {
+          'März' || 'Mai' || 'Oktober' => 31,
+          'April' || 'Juni' || 'September' => 30,
+          _ => 31,
+        };
+        if (start != null && addDays != null) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.calendarStepper,
+            instruction: 'Gehe im Kalender wirklich um die geforderte Zahl Tage weiter. Nutze ganze Wochen, wenn sie passen.',
+            dataValues: <int>[start, addDays, monthDays],
+            dataLabels: <String>[month],
+            answerChoices: choices,
+            expectedAnswer: answer,
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.timeDurations &&
+        taskKey.startsWith('duration:') &&
+        !taskKey.startsWith('duration:weeks:') &&
+        !taskKey.startsWith('duration:days:')) {
+      final parts = taskKey.split(':');
+      if (parts.length == 3) {
+        final start = int.tryParse(parts[1]);
+        final duration = int.tryParse(parts[2]);
+        if (start != null && duration != null) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.durationTimeline,
+            instruction: 'Gehe auf der Zeitlinie in passenden Etappen vom Beginn bis zum Ende.',
+            dataValues: <int>[start, start + duration],
+            expectedAnswer: answer,
+          );
+        }
+      }
     }
 
     if (mode == TrainingMode.fractions &&

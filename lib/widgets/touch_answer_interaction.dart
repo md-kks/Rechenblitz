@@ -35,6 +35,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final Set<int> selectedMeasureParts = <int>{};
   int? selectedMeasureChoice;
   int proportionalUnitValue = 0;
+  int? selectedConversionChoice;
+  int durationCurrent = 0;
+  int durationElapsed = 0;
+  int calendarDay = 1;
+  int calendarSteps = 0;
   int pathX = 0;
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
@@ -82,6 +87,15 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedMeasureParts.clear();
     selectedMeasureChoice = null;
     proportionalUnitValue = 0;
+    selectedConversionChoice = null;
+    durationCurrent = widget.plan.kind == TouchInteractionKind.durationTimeline && widget.plan.dataValues.isNotEmpty
+        ? widget.plan.dataValues.first
+        : 0;
+    durationElapsed = 0;
+    calendarDay = widget.plan.kind == TouchInteractionKind.calendarStepper && widget.plan.dataValues.isNotEmpty
+        ? widget.plan.dataValues.first
+        : 1;
+    calendarSteps = 0;
     pathX = 0;
     pathY = 0;
     selectedAxes.clear();
@@ -143,6 +157,12 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             TouchInteractionKind.fractionMeasure => _buildFractionMeasure(context),
             TouchInteractionKind.proportionalUnitBuilder =>
               _buildProportionalUnitBuilder(context),
+            TouchInteractionKind.unitConversionMachine =>
+              _buildUnitConversionMachine(context),
+            TouchInteractionKind.durationTimeline =>
+              _buildDurationTimeline(context),
+            TouchInteractionKind.calendarStepper =>
+              _buildCalendarStepper(context),
             TouchInteractionKind.pathWalker => _buildPathWalker(context),
             TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
@@ -182,6 +202,269 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildUnitConversionMachine(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final source = values.isNotEmpty ? values[0] : 0;
+    final labels = widget.plan.dataLabels;
+    final from = labels.isNotEmpty ? labels[0] : '';
+    final to = labels.length > 1 ? labels[1] : '';
+    final correctChoice = widget.plan.correctSelectionIndexes.isNotEmpty
+        ? widget.plan.correctSelectionIndexes.first
+        : 0;
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final relationCorrect = selectedConversionChoice == correctChoice;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          key: const ValueKey('touch-conversion-relation'),
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              '$source $from → ? $to',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (var index = 0; index < widget.plan.answerChoices.length; index++)
+              ChoiceChip(
+                key: ValueKey('touch-conversion-choice-$index'),
+                selected: selectedConversionChoice == index,
+                label: Text(widget.plan.answerChoices[index]),
+                onSelected: widget.locked
+                    ? null
+                    : (_) => setState(() => selectedConversionChoice = index),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          selectedConversionChoice == null
+              ? 'Wähle zuerst, wie sich der Zahlenwert verändert.'
+              : '$source $from ${widget.plan.answerChoices[selectedConversionChoice!]} = ? $to',
+          key: const ValueKey('touch-conversion-status'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        NumberAnswerPad(
+          key: const ValueKey('touch-conversion-pad'),
+          maxValue: math.max(1, widget.plan.maxValue),
+          onAnswer: widget.locked
+              ? (_) {}
+              : (value) => widget.onAnswer(
+                    relationCorrect ? value : _wrongAnswer(value, expected),
+                  ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDurationTimeline(BuildContext context) {
+    final start = widget.plan.dataValues.isNotEmpty ? widget.plan.dataValues[0] : 0;
+    final end = widget.plan.dataValues.length > 1 ? widget.plan.dataValues[1] : start;
+    final expected = widget.plan.expectedAnswer ?? math.max(0, end - start);
+
+    String clock(int total) {
+      final hour = (total ~/ 60) % 24;
+      final minute = total % 60;
+      return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+    }
+
+    void addStep(int minutes) {
+      if (widget.locked) return;
+      setState(() {
+        durationCurrent += minutes;
+        durationElapsed += minutes;
+      });
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text('Start\n${clock(start)}', textAlign: TextAlign.center)),
+            const Icon(Icons.arrow_forward_rounded),
+            Expanded(
+              child: Text(
+                'Jetzt\n${clock(durationCurrent)}',
+                key: const ValueKey('touch-duration-current'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_rounded),
+            Expanded(child: Text('Ende\n${clock(end)}', textAlign: TextAlign.center)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        LinearProgressIndicator(
+          value: expected <= 0 ? 0 : math.min(1.0, durationElapsed / expected),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final step in const [5, 15, 30, 60])
+              FilledButton.tonal(
+                key: ValueKey('touch-duration-step-$step'),
+                onPressed: widget.locked ? null : () => addStep(step),
+                child: Text('+$step min'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Gezählte Dauer: $durationElapsed min',
+          key: const ValueKey('touch-duration-elapsed'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                key: const ValueKey('touch-duration-reset'),
+                onPressed: widget.locked
+                    ? null
+                    : () => setState(() {
+                          durationCurrent = start;
+                          durationElapsed = 0;
+                        }),
+                icon: const Icon(Icons.restart_alt_rounded),
+                label: const Text('Neu starten'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton.icon(
+                key: const ValueKey('touch-duration-submit'),
+                onPressed: widget.locked
+                    ? null
+                    : () {
+                        final correct = durationCurrent == end && durationElapsed == expected;
+                        widget.onAnswer(correct
+                            ? expected
+                            : _wrongAnswer(durationElapsed, expected));
+                      },
+                icon: const Icon(Icons.check_rounded),
+                label: const Text('Dauer prüfen'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCalendarStepper(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final start = values.isNotEmpty ? values[0] : 1;
+    final addDays = values.length > 1 ? values[1] : 0;
+    final monthDays = values.length > 2 ? values[2] : 31;
+    final month = widget.plan.dataLabels.isNotEmpty ? widget.plan.dataLabels.first : '';
+    final expected = widget.plan.expectedAnswer ?? 0;
+
+    void addStep(int days) {
+      if (widget.locked || calendarDay + days > monthDays) return;
+      setState(() {
+        calendarDay += days;
+        calendarSteps += days;
+      });
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          key: const ValueKey('touch-calendar-current'),
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              '$calendarDay. $month',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.tonalIcon(
+              key: const ValueKey('touch-calendar-step-1'),
+              onPressed: widget.locked ? null : () => addStep(1),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('1 Tag'),
+            ),
+            FilledButton.tonalIcon(
+              key: const ValueKey('touch-calendar-step-7'),
+              onPressed: widget.locked ? null : () => addStep(7),
+              icon: const Icon(Icons.calendar_view_week_rounded),
+              label: const Text('1 Woche'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '$calendarSteps von $addDays Tagen weitergegangen',
+          key: const ValueKey('touch-calendar-steps'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                key: const ValueKey('touch-calendar-reset'),
+                onPressed: widget.locked
+                    ? null
+                    : () => setState(() {
+                          calendarDay = start;
+                          calendarSteps = 0;
+                        }),
+                icon: const Icon(Icons.restart_alt_rounded),
+                label: const Text('Neu starten'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton.icon(
+                key: const ValueKey('touch-calendar-submit'),
+                onPressed: widget.locked
+                    ? null
+                    : () {
+                        final targetDay = start + addDays;
+                        final structureCorrect =
+                            calendarSteps == addDays && calendarDay == targetDay;
+                        widget.onAnswer(structureCorrect
+                            ? expected
+                            : _wrongAnswer(calendarSteps, expected));
+                      },
+                icon: const Icon(Icons.check_rounded),
+                label: const Text('Datum prüfen'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   Widget _buildFractionMeasure(BuildContext context) {
     final values = widget.plan.dataValues;

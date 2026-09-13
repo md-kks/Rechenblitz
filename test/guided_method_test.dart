@@ -3689,7 +3689,7 @@ void main() {
       steps.single.taskKey,
       'independent:minutesToNextHour:duration:875:45',
     );
-    expect(find.text('Antwort eingeben'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-duration-current')), findsOneWidget);
   });
 
   test('Proportionalität beobachtet den Wert für eine Einheit getrennt', () {
