@@ -10,6 +10,8 @@ enum TouchInteractionKind {
   moneyComposer,
   clockSetter,
   fractionBuilder,
+  fractionMeasure,
+  proportionalUnitBuilder,
   pathWalker,
   symmetryAxes,
   shapeCorners,
@@ -491,6 +493,26 @@ class TouchInteractionPlan {
       );
     }
 
+    if (mode == TrainingMode.fractions &&
+        (taskKey == 'fraction:time' || taskKey == 'fraction:volume') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final timeTask = taskKey == 'fraction:time';
+      return TouchInteractionPlan(
+        taskKey: taskKey,
+        kind: TouchInteractionKind.fractionMeasure,
+        instruction: timeTask
+            ? 'Teile eine Stunde in vier gleiche Viertel. Markiere 3 Viertel und bestimme ihre Minuten.'
+            : 'Teile einen Liter in vier gleiche Viertel. Markiere 1 Viertel und bestimme seine Milliliter.',
+        answerChoices: choices,
+        dataValues: timeTask
+            ? const <int>[3, 4, 60, 15]
+            : const <int>[1, 4, 1000, 250],
+        dataOperation: timeTask ? 'time' : 'volume',
+        expectedAnswer: answer,
+      );
+    }
+
     if (mode == TrainingMode.fractions && taskKey.startsWith('fraction:')) {
       final parts = taskKey.split(':');
       int? numerator;
@@ -526,6 +548,35 @@ class TouchInteractionPlan {
           fractionWhole: whole,
           expectedAnswer: answer,
         );
+      }
+    }
+
+    if (mode == TrainingMode.proportionality &&
+        taskKey.startsWith('proportion:')) {
+      final parts = taskKey.split(':');
+      if (parts.length == 5) {
+        final unit = int.tryParse(parts[2]);
+        final first = int.tryParse(parts[3]);
+        final second = int.tryParse(parts[4]);
+        if (unit != null &&
+            first != null &&
+            second != null &&
+            unit > 0 &&
+            first > 0 &&
+            second > 0 &&
+            first <= 8 &&
+            second <= 12) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.proportionalUnitBuilder,
+            instruction:
+                'Bestimme zuerst den Wert für genau 1 Einheit. Übertrage ihn danach auf die gesuchte Anzahl.',
+            dataValues: <int>[unit, first, second, unit * first],
+            dataLabels: <String>[parts[1]],
+            expectedAnswer: answer,
+            maxValue: max(maxValue, answer),
+          );
+        }
       }
     }
 

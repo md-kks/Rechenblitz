@@ -32,6 +32,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   bool clockMinuteHandActive = false;
   int fractionPartSize = 0;
   final Set<int> selectedFractionParts = <int>{};
+  final Set<int> selectedMeasureParts = <int>{};
+  int? selectedMeasureChoice;
+  int proportionalUnitValue = 0;
   int pathX = 0;
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
@@ -76,6 +79,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     clockMinuteHandActive = false;
     fractionPartSize = 0;
     selectedFractionParts.clear();
+    selectedMeasureParts.clear();
+    selectedMeasureChoice = null;
+    proportionalUnitValue = 0;
     pathX = 0;
     pathY = 0;
     selectedAxes.clear();
@@ -134,6 +140,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             TouchInteractionKind.fractionBuilder => _buildFractionBuilder(
               context,
             ),
+            TouchInteractionKind.fractionMeasure => _buildFractionMeasure(context),
+            TouchInteractionKind.proportionalUnitBuilder =>
+              _buildProportionalUnitBuilder(context),
             TouchInteractionKind.pathWalker => _buildPathWalker(context),
             TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
@@ -173,6 +182,180 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildFractionMeasure(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final numerator = values.isNotEmpty ? values[0] : 0;
+    final denominator = values.length > 1 ? values[1] : 4;
+    final wholeValue = values.length > 2 ? values[2] : 0;
+    final timeTask = widget.plan.dataOperation == 'time';
+    final choices = widget.plan.answerChoices;
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final wholeLabel = timeTask ? '1 Stunde = $wholeValue min' : '1 Liter = $wholeValue ml';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          wholeLabel,
+          key: const ValueKey('touch-fraction-measure-whole'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (var index = 0; index < denominator; index++)
+              ChoiceChip(
+                key: ValueKey('touch-fraction-measure-part-$index'),
+                selected: selectedMeasureParts.contains(index),
+                avatar: Icon(
+                  timeTask ? Icons.schedule_rounded : Icons.water_drop_outlined,
+                  size: 18,
+                ),
+                label: Text('1/$denominator'),
+                onSelected: widget.locked
+                    ? null
+                    : (selected) => setState(() {
+                          if (selected) {
+                            selectedMeasureParts.add(index);
+                          } else {
+                            selectedMeasureParts.remove(index);
+                          }
+                        }),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${selectedMeasureParts.length} von $denominator Teilen markiert',
+          key: const ValueKey('touch-fraction-measure-status'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          timeTask ? 'Wie viele Minuten sind diese $numerator Viertel?' : 'Wie viele Milliliter ist dieses Viertel?',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (var index = 0; index < choices.length; index++)
+              ChoiceChip(
+                key: ValueKey('touch-fraction-measure-choice-$index'),
+                selected: selectedMeasureChoice == index,
+                label: Text(choices[index]),
+                onSelected: widget.locked
+                    ? null
+                    : (_) => setState(() => selectedMeasureChoice = index),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-fraction-measure-submit'),
+          onPressed: widget.locked || selectedMeasureChoice == null
+              ? null
+              : () {
+                  final structureCorrect = selectedMeasureParts.length == numerator;
+                  final answerCorrect = selectedMeasureChoice == expected;
+                  final candidate = selectedMeasureChoice!;
+                  widget.onAnswer(
+                    structureCorrect && answerCorrect
+                        ? expected
+                        : _wrongAnswer(candidate, expected),
+                  );
+                },
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Bruchteil prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProportionalUnitBuilder(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final unit = values.isNotEmpty ? values[0] : 1;
+    final first = values.length > 1 ? values[1] : 1;
+    final second = values.length > 2 ? values[2] : 1;
+    final knownTotal = values.length > 3 ? values[3] : unit * first;
+    final family = widget.plan.dataLabels.isNotEmpty ? widget.plan.dataLabels.first : 'unit';
+    final maxUnit = math.max(12, unit + 3);
+    final icon = switch (family) {
+      'notebooks' => Icons.menu_book_outlined,
+      'tickets' => Icons.confirmation_number_outlined,
+      'packs' => Icons.inventory_2_outlined,
+      'ribbon' => Icons.straighten_rounded,
+      _ => Icons.circle_outlined,
+    };
+
+    Widget unitGroup(int count) => Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 5,
+      runSpacing: 5,
+      children: [
+        for (var index = 0; index < count; index++)
+          Icon(icon, size: 24),
+      ],
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '$first Einheiten = $knownTotal €',
+          key: const ValueKey('touch-proportion-known'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        unitGroup(first),
+        const SizedBox(height: 14),
+        Text(
+          'Wert für 1 Einheit: $proportionalUnitValue €',
+          key: const ValueKey('touch-proportion-unit-value'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        Slider(
+          key: const ValueKey('touch-proportion-unit-slider'),
+          value: proportionalUnitValue.toDouble(),
+          min: 0,
+          max: maxUnit.toDouble(),
+          divisions: maxUnit,
+          label: '$proportionalUnitValue €',
+          onChanged: widget.locked
+              ? null
+              : (value) => setState(() => proportionalUnitValue = value.round()),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Gesucht: $second Einheiten',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 6),
+        unitGroup(second),
+        const SizedBox(height: 12),
+        NumberAnswerPad(
+          key: const ValueKey('touch-proportion-number-pad'),
+          maxValue: widget.plan.maxValue,
+          onAnswer: (candidate) {
+            final expected = widget.plan.expectedAnswer ?? 0;
+            final correct = proportionalUnitValue == unit && candidate == expected;
+            widget.onAnswer(correct ? expected : _wrongAnswer(candidate, expected));
+          },
+        ),
+      ],
+    );
+  }
 
   Widget _buildRoundingNumberLine(BuildContext context) {
     final lower = widget.plan.minValue;

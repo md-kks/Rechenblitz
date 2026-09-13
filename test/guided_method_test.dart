@@ -3378,6 +3378,28 @@ void main() {
     expect(find.text('Antwort eingeben'), findsOneWidget);
   });
 
+  test('Bruchteile bei Zeit und Volumen nutzen konkrete Größenbeziehungen', () {
+    final time = GuidedMethodFactory.forTask(
+      mode: TrainingMode.fractions,
+      taskKey: 'fraction:time',
+      expected: 2,
+      preferences: const MethodPreferences(),
+    );
+    final volume = GuidedMethodFactory.forTask(
+      mode: TrainingMode.fractions,
+      taskKey: 'fraction:volume',
+      expected: 0,
+      preferences: const MethodPreferences(),
+    );
+
+    expect(time.methodKey, 'fraction:time-quarter');
+    expect(time.nudge, contains('60 Minuten'));
+    expect(time.steps.last.instruction, contains('45 Minuten'));
+    expect(volume.methodKey, 'fraction:liter-quarter');
+    expect(volume.nudge, contains('1000 ml'));
+    expect(volume.steps.last.instruction, contains('250 ml'));
+  });
+
   test('Bruchteile beobachten zuerst die Größe eines gleichen Teils', () {
     final guide = GuidedMethodFactory.forTask(
       mode: TrainingMode.fractions,

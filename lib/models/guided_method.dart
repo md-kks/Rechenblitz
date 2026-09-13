@@ -3754,6 +3754,40 @@ class GuidedMethodFactory {
 
   static GuidedMethodGuide _fraction(String key, int expected) {
     final parts = key.split(':');
+    if (key == 'fraction:time') {
+      return const GuidedMethodGuide(
+        methodKey: 'fraction:time-quarter',
+        methodLabel: 'Eine Stunde in Viertel teilen',
+        nudge: 'Eine Stunde hat 60 Minuten. Teile diese 60 Minuten zuerst in 4 gleich große Viertel.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Wert eines Viertels',
+            instruction: '60 Minuten ÷ 4 = 15 Minuten. Ein Viertel der Stunde sind 15 Minuten.',
+          ),
+          GuidedMethodStep(
+            title: 'Drei Viertel zusammensetzen',
+            instruction: '3 × 15 Minuten = 45 Minuten.',
+          ),
+        ],
+      );
+    }
+    if (key == 'fraction:volume') {
+      return const GuidedMethodGuide(
+        methodKey: 'fraction:liter-quarter',
+        methodLabel: 'Einen Liter in Viertel teilen',
+        nudge: 'Ein Liter sind 1000 ml. Teile 1000 ml zuerst in 4 gleich große Viertel.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Liter in vier gleiche Teile',
+            instruction: '1000 ml ÷ 4 = 250 ml.',
+          ),
+          GuidedMethodStep(
+            title: 'Ein Viertel ablesen',
+            instruction: '1/4 Liter entspricht deshalb 250 ml.',
+          ),
+        ],
+      );
+    }
     if (key.startsWith('fraction:parts:') && parts.length >= 5) {
       final numerator = int.tryParse(parts[2]);
       final denominator = int.tryParse(parts[3]);
