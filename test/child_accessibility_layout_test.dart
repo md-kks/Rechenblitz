@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/main.dart';
+import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/screens/structured_training_screen.dart';
 import 'package:rechenblitz/screens/curriculum_training_screen.dart';
 import 'package:rechenblitz/models/training.dart';
@@ -129,4 +130,60 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'normale Rechenaufgabe zeigt komplettes Tastenfeld ohne Scrollen',
+    (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final controller = AppController();
+      controller.loaded = true;
+      controller.numberRange = NumberRangeLevel.twenty;
+      controller.facts = [
+        MathFact(a: 7, b: 5, operation: MathOperation.plus),
+      ];
+
+      for (final size in const <Size>[
+        Size(320, 568),
+        Size(360, 640),
+        Size(412, 915),
+        Size(800, 1280),
+      ]) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: TrainingScreen(
+              controller: controller,
+              mode: TrainingMode.practice,
+              targetTasks: 1,
+              reviewEmphasis: true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final submit = find.byKey(const ValueKey('number-pad-submit'));
+        expect(submit, findsOneWidget, reason: 'Display $size');
+        final submitRect = tester.getRect(submit);
+        expect(
+          submitRect.bottom,
+          lessThanOrEqualTo(size.height),
+          reason: 'OK muss auf $size sichtbar sein',
+        );
+        final scrollable = tester.state<ScrollableState>(
+          find.descendant(
+            of: find.byKey(const ValueKey('training-scroll')),
+            matching: find.byType(Scrollable),
+          ).first,
+        );
+        expect(
+          scrollable.position.maxScrollExtent,
+          0,
+          reason: 'Normale Aufgabe darf auf $size nicht scrollen',
+        );
+      }
+
+    },
+  );
+
 }
