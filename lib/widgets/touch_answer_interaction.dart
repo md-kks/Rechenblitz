@@ -42,6 +42,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int calendarSteps = 0;
   int? selectedGeometryCandidate;
   int? selectedCubeNetChoice;
+  int? selectedLargePlace;
+  int? selectedLargeRelation;
+  int? selectedLargeDigitPlace;
+  final List<int> selectedLargeOrder = <int>[];
+  final List<int> largePlaceDigits = <int>[];
   int pathX = 0;
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
@@ -100,6 +105,17 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     calendarSteps = 0;
     selectedGeometryCandidate = null;
     selectedCubeNetChoice = null;
+    selectedLargePlace = null;
+    selectedLargeRelation = null;
+    selectedLargeDigitPlace = null;
+    selectedLargeOrder.clear();
+    largePlaceDigits.clear();
+    if (widget.plan.kind == TouchInteractionKind.largeNumberDecompose &&
+        widget.plan.dataValues.isNotEmpty) {
+      largePlaceDigits.addAll(
+        List<int>.filled(_largePlaces(widget.plan.dataValues.first).length, 0),
+      );
+    }
     pathX = 0;
     pathY = 0;
     selectedAxes.clear();
@@ -171,6 +187,14 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildGeometryRelationChoice(context),
             TouchInteractionKind.cubeNetFoldChoice =>
               _buildCubeNetFoldChoice(context),
+            TouchInteractionKind.largeNumberCompare =>
+              _buildLargeNumberCompare(context),
+            TouchInteractionKind.largeNumberOrder =>
+              _buildLargeNumberOrder(context),
+            TouchInteractionKind.largeNumberDecompose =>
+              _buildLargeNumberDecompose(context),
+            TouchInteractionKind.largeNumberPlaceDigit =>
+              _buildLargeNumberPlaceDigit(context),
             TouchInteractionKind.pathWalker => _buildPathWalker(context),
             TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
@@ -210,6 +234,285 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildLargeNumberCompare(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final a = values[0];
+    final b = values[1];
+    final decidingPlace = values[2];
+    final places = _largePlaces(math.max(a.abs(), b.abs()));
+    final relationOnly = widget.plan.dataOperation == 'relation-only';
+    final expected = widget.plan.expectedAnswer ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            key: const ValueKey('touch-large-compare-table'),
+            children: places.map((place) {
+              final selected = selectedLargePlace == place;
+              final aDigit = (a ~/ place) % 10;
+              final bDigit = (b ~/ place) % 10;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: InkWell(
+                  key: ValueKey('touch-large-compare-place-$place'),
+                  onTap: widget.locked || relationOnly
+                      ? null
+                      : () => setState(() => selectedLargePlace = place),
+                  borderRadius: BorderRadius.circular(12),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    width: 58,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        width: selected ? 3 : 1.5,
+                        color: selected
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(_largePlaceLabel(place),
+                            style: const TextStyle(fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 6),
+                        Text('$aDigit', style: Theme.of(context).textTheme.titleLarge),
+                        const Divider(height: 10),
+                        Text('$bDigit', style: Theme.of(context).textTheme.titleLarge),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(growable: false),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          children: List<Widget>.generate(widget.plan.answerChoices.length, (index) {
+            return ChoiceChip(
+              key: ValueKey('touch-large-compare-relation-$index'),
+              selected: selectedLargeRelation == index,
+              label: Text(widget.plan.answerChoices[index]),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() => selectedLargeRelation = index),
+            );
+          }),
+        ),
+        const SizedBox(height: 10),
+        FilledButton(
+          key: const ValueKey('touch-large-compare-submit'),
+          onPressed: widget.locked ||
+                  (!relationOnly && selectedLargePlace == null) ||
+                  selectedLargeRelation == null
+              ? null
+              : () {
+                  final relation = selectedLargeRelation!;
+                  final structureCorrect =
+                      relationOnly || selectedLargePlace == decidingPlace;
+                  widget.onAnswer(
+                    structureCorrect ? relation : _wrongAnswer(relation, expected),
+                  );
+                },
+          child: const Text('Prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLargeNumberOrder(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final correct = widget.plan.correctSelectionIndexes;
+    final expected = widget.plan.expectedAnswer ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          key: const ValueKey('touch-large-order-cards'),
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 10,
+          children: List<Widget>.generate(values.length, (index) {
+            final position = selectedLargeOrder.indexOf(index);
+            return ActionChip(
+              key: ValueKey('touch-large-order-card-$index'),
+              avatar: position >= 0 ? CircleAvatar(child: Text('${position + 1}')) : null,
+              label: Text('${values[index]}'),
+              onPressed: widget.locked || position >= 0
+                  ? null
+                  : () => setState(() => selectedLargeOrder.add(index)),
+            );
+          }),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          selectedLargeOrder.isEmpty
+              ? 'Noch keine Zahl eingeordnet.'
+              : selectedLargeOrder.map((index) => values[index]).join(' < '),
+          key: const ValueKey('touch-large-order-status'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        TextButton.icon(
+          key: const ValueKey('touch-large-order-reset'),
+          onPressed: widget.locked || selectedLargeOrder.isEmpty
+              ? null
+              : () => setState(selectedLargeOrder.clear),
+          icon: const Icon(Icons.replay_rounded),
+          label: const Text('Neu ordnen'),
+        ),
+        FilledButton(
+          key: const ValueKey('touch-large-order-submit'),
+          onPressed: widget.locked || selectedLargeOrder.length != values.length
+              ? null
+              : () {
+                  final exact = _listEqualsInt(selectedLargeOrder, correct);
+                  widget.onAnswer(exact ? expected : _wrongAnswer(expected, expected));
+                },
+          child: const Text('Prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLargeNumberDecompose(BuildContext context) {
+    final number = widget.plan.dataValues.first;
+    final places = _largePlaces(number);
+    if (largePlaceDigits.length != places.length) {
+      largePlaceDigits
+        ..clear()
+        ..addAll(List<int>.filled(places.length, 0));
+    }
+    var built = 0;
+    for (var index = 0; index < places.length; index++) {
+      built += largePlaceDigits[index] * places[index];
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            key: const ValueKey('touch-large-decompose-table'),
+            children: List<Widget>.generate(places.length, (index) {
+              final place = places[index];
+              final digit = largePlaceDigits[index];
+              return SizedBox(
+                width: 72,
+                child: Column(
+                  children: [
+                    Text(_largePlaceLabel(place),
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                    IconButton(
+                      key: ValueKey('touch-large-digit-plus-$place'),
+                      onPressed: widget.locked || digit >= 9
+                          ? null
+                          : () => setState(() => largePlaceDigits[index]++),
+                      icon: const Icon(Icons.add_circle_outline),
+                    ),
+                    Text('$digit', style: Theme.of(context).textTheme.headlineSmall),
+                    IconButton(
+                      key: ValueKey('touch-large-digit-minus-$place'),
+                      onPressed: widget.locked || digit <= 0
+                          ? null
+                          : () => setState(() => largePlaceDigits[index]--),
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ),
+        Text(
+          'Gebaut: $built',
+          key: const ValueKey('touch-large-decompose-value'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        FilledButton(
+          key: const ValueKey('touch-large-decompose-submit'),
+          onPressed: widget.locked ? null : () => widget.onAnswer(built),
+          child: const Text('Prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLargeNumberPlaceDigit(BuildContext context) {
+    final number = widget.plan.dataValues[0];
+    final targetPlace = widget.plan.dataValues[1];
+    final places = _largePlaces(number);
+    final expected = widget.plan.expectedAnswer ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            key: const ValueKey('touch-large-place-table'),
+            children: places.map((place) {
+              final digit = (number ~/ place) % 10;
+              final selected = selectedLargeDigitPlace == place;
+              return InkWell(
+                key: ValueKey('touch-large-place-$place'),
+                onTap: widget.locked
+                    ? null
+                    : () => setState(() => selectedLargeDigitPlace = place),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  width: 64,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      width: selected ? 3 : 1.5,
+                      color: selected
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(_largePlaceLabel(place),
+                          style: const TextStyle(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 6),
+                      Text('$digit', style: Theme.of(context).textTheme.headlineSmall),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(growable: false),
+          ),
+        ),
+        const SizedBox(height: 10),
+        FilledButton(
+          key: const ValueKey('touch-large-place-submit'),
+          onPressed: widget.locked || selectedLargeDigitPlace == null
+              ? null
+              : () {
+                  final place = selectedLargeDigitPlace!;
+                  final candidate = (number ~/ place) % 10;
+                  widget.onAnswer(
+                    place == targetPlace
+                        ? candidate
+                        : _wrongAnswer(candidate, expected),
+                  );
+                },
+          child: const Text('Prüfen'),
+        ),
+      ],
+    );
+  }
 
   Widget _buildCubeNetFoldChoice(BuildContext context) {
     final cells = widget.plan.dataLabels
@@ -3239,6 +3542,39 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     );
     final allMarked = selectedTallyUnits.length == units.length;
     widget.onAnswer(allMarked ? expected : _wrongAnswer(counted, expected));
+  }
+
+  List<int> _largePlaces(int number) {
+    var place = 1;
+    final value = number.abs();
+    while (place * 10 <= math.max(1, value)) {
+      place *= 10;
+    }
+    final result = <int>[];
+    while (place >= 1) {
+      result.add(place);
+      if (place == 1) break;
+      place ~/= 10;
+    }
+    return result;
+  }
+
+  String _largePlaceLabel(int place) => switch (place) {
+        1000000 => 'M',
+        100000 => 'HT',
+        10000 => 'ZT',
+        1000 => 'T',
+        100 => 'H',
+        10 => 'Z',
+        _ => 'E',
+      };
+
+  bool _listEqualsInt(List<int> first, List<int> second) {
+    if (first.length != second.length) return false;
+    for (var index = 0; index < first.length; index++) {
+      if (first[index] != second[index]) return false;
+    }
+    return true;
   }
 
   int _wrongAnswer(int candidate, int expected) {

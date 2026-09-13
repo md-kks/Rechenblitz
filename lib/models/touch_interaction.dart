@@ -17,6 +17,10 @@ enum TouchInteractionKind {
   calendarStepper,
   geometryRelationChoice,
   cubeNetFoldChoice,
+  largeNumberCompare,
+  largeNumberOrder,
+  largeNumberDecompose,
+  largeNumberPlaceDigit,
   pathWalker,
   symmetryAxes,
   shapeCorners,
@@ -878,6 +882,100 @@ class TouchInteractionPlan {
               'Baue das Rechteck aus Länge und Breite. Die Fläche entsteht aus Reihen und Spalten.',
           rectangleWidth: width,
           rectangleHeight: height,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.largeNumbers &&
+        taskKey.startsWith('large:compare:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      final a = parts.length >= 4 ? int.tryParse(parts[2]) : null;
+      final b = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (a != null && b != null && a != b) {
+        var place = 1;
+        final largest = max(a.abs(), b.abs());
+        while (place * 10 <= largest) {
+          place *= 10;
+        }
+        while (place > 1 && (a ~/ place) % 10 == (b ~/ place) % 10) {
+          place ~/= 10;
+        }
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.largeNumberCompare,
+          instruction:
+              'Markiere zuerst die erste unterschiedliche Stelle von links. Wähle danach das passende Vergleichszeichen.',
+          dataValues: <int>[a, b, place],
+          answerChoices: choices,
+          dataOperation: targetCompetency == MicroCompetencyId.largeNumberCompare
+              ? 'relation-only'
+              : 'mark-place',
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.largeNumbers &&
+        taskKey.startsWith('large:order:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final raw = taskKey.substring('large:order:'.length);
+      final ordered = raw
+          .split('-')
+          .map(int.tryParse)
+          .whereType<int>()
+          .toList(growable: false);
+      if (ordered.length == 3 && ordered.toSet().length == 3) {
+        final display = (ordered.reduce((a, b) => a + b)).isEven
+            ? <int>[ordered[1], ordered[2], ordered[0]]
+            : <int>[ordered[2], ordered[0], ordered[1]];
+        final correctOrder = ordered
+            .map((value) => display.indexOf(value))
+            .toList(growable: false);
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.largeNumberOrder,
+          instruction:
+              'Tippe die drei Zahlen nacheinander von klein nach groß an.',
+          dataValues: display,
+          correctSelectionIndexes: correctOrder,
+          answerChoices: choices,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.largeNumbers &&
+        taskKey.startsWith('large:decompose:')) {
+      final parts = taskKey.split(':');
+      final number = parts.length >= 3 ? int.tryParse(parts[2]) : null;
+      if (number != null && number >= 0) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.largeNumberDecompose,
+          instruction:
+              'Baue die Zahl in der Stellenwerttafel aus den angegebenen Stellenwerten zusammen.',
+          dataValues: <int>[number],
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.largeNumbers &&
+        taskKey.startsWith('large:place:')) {
+      final parts = taskKey.split(':');
+      final number = parts.length >= 4 ? int.tryParse(parts[2]) : null;
+      final place = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (number != null && place != null && place > 0) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.largeNumberPlaceDigit,
+          instruction:
+              'Tippe in der Stellenwerttafel genau die gefragte Stelle an.',
+          dataValues: <int>[number, place],
           expectedAnswer: answer,
         );
       }
