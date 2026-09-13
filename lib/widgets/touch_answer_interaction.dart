@@ -35,6 +35,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final Set<int> selectedAxes = <int>{};
   final Set<int> selectedShapePoints = <int>{};
   final Set<int> selectedPerimeterEdges = <int>{};
+  int areaColumns = 1;
+  int areaRows = 1;
   final List<int> groupCounters = <int>[];
   int builtDivisionGroups = 0;
 
@@ -66,6 +68,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedAxes.clear();
     selectedShapePoints.clear();
     selectedPerimeterEdges.clear();
+    areaColumns = 1;
+    areaRows = 1;
     groupCounters
       ..clear()
       ..addAll(List<int>.filled(widget.plan.groupCount ?? 0, 0));
@@ -112,6 +116,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
             TouchInteractionKind.rectanglePerimeterEdges =>
               _buildRectanglePerimeter(context),
+            TouchInteractionKind.rectangleAreaBuilder =>
+              _buildRectangleArea(context),
             TouchInteractionKind.equalGroupsBuilder => _buildEqualGroups(
               context,
             ),
@@ -1061,6 +1067,140 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     );
   }
 
+  Widget _buildRectangleArea(BuildContext context) {
+    final targetWidth = widget.plan.rectangleWidth ?? 1;
+    final targetHeight = widget.plan.rectangleHeight ?? 1;
+    final maxDimension = math.max(targetWidth, targetHeight);
+    final builtArea = areaColumns * areaRows;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Gegeben: $targetWidth cm lang · $targetHeight cm breit',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: SizedBox(
+            width: 270,
+            height: 175,
+            child: CustomPaint(
+              key: const ValueKey('touch-area-preview'),
+              painter: _TouchAreaPainter(
+                columns: areaColumns,
+                rows: areaRows,
+                color: Theme.of(context).colorScheme.onSurface,
+                accent: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+        ),
+        Text(
+          '$areaColumns Spalten × $areaRows Reihen = $builtArea cm²',
+          key: const ValueKey('touch-area-structure'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        _areaDimensionControl(
+          context: context,
+          label: 'Länge / Spalten',
+          value: areaColumns,
+          maxValue: maxDimension,
+          sliderKey: const ValueKey('touch-area-columns-slider'),
+          removeKey: const ValueKey('touch-area-columns-remove'),
+          addKey: const ValueKey('touch-area-columns-add'),
+          onChanged: (value) => setState(() => areaColumns = value),
+        ),
+        const SizedBox(height: 6),
+        _areaDimensionControl(
+          context: context,
+          label: 'Breite / Reihen',
+          value: areaRows,
+          maxValue: maxDimension,
+          sliderKey: const ValueKey('touch-area-rows-slider'),
+          removeKey: const ValueKey('touch-area-rows-remove'),
+          addKey: const ValueKey('touch-area-rows-add'),
+          onChanged: (value) => setState(() => areaRows = value),
+        ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-area-submit'),
+          onPressed: widget.locked ? null : _submitRectangleArea,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Fläche prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _areaDimensionControl({
+    required BuildContext context,
+    required String label,
+    required int value,
+    required int maxValue,
+    required Key sliderKey,
+    required Key removeKey,
+    required Key addKey,
+    required ValueChanged<int> onChanged,
+  }) {
+    final upper = math.max(1, maxValue);
+    return Row(
+      children: [
+        SizedBox(
+          width: 112,
+          child: Text(
+            '$label: $value',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+        IconButton(
+          key: removeKey,
+          tooltip: '$label verkleinern',
+          onPressed: widget.locked || value <= 1
+              ? null
+              : () => onChanged(value - 1),
+          icon: const Icon(Icons.remove_rounded),
+        ),
+        Expanded(
+          child: Slider(
+            key: sliderKey,
+            value: value.toDouble(),
+            min: 1,
+            max: upper.toDouble(),
+            divisions: upper > 1 ? upper - 1 : null,
+            label: '$value',
+            onChanged: widget.locked || upper == 1
+                ? null
+                : (next) => onChanged(next.round()),
+          ),
+        ),
+        IconButton(
+          key: addKey,
+          tooltip: '$label vergrößern',
+          onPressed: widget.locked || value >= upper
+              ? null
+              : () => onChanged(value + 1),
+          icon: const Icon(Icons.add_rounded),
+        ),
+      ],
+    );
+  }
+
+  void _submitRectangleArea() {
+    final targetWidth = widget.plan.rectangleWidth ?? 1;
+    final targetHeight = widget.plan.rectangleHeight ?? 1;
+    final expected = widget.plan.expectedAnswer ?? targetWidth * targetHeight;
+    final exactStructure =
+        (areaColumns == targetWidth && areaRows == targetHeight) ||
+        (areaColumns == targetHeight && areaRows == targetWidth);
+    final candidate = areaColumns * areaRows;
+    widget.onAnswer(
+      exactStructure ? expected : _wrongAnswer(candidate, expected),
+    );
+  }
+
   Widget _buildEqualGroups(BuildContext context) {
     final groups = widget.plan.groupCount ?? 0;
     final targetEach = widget.plan.itemsPerGroup ?? 0;
@@ -1653,6 +1793,86 @@ class _TouchShapeCornersPainter extends CustomPainter {
   bool shouldRepaint(covariant _TouchShapeCornersPainter oldDelegate) =>
       shape != oldDelegate.shape ||
       !setEquals(selectedPoints, oldDelegate.selectedPoints) ||
+      color != oldDelegate.color ||
+      accent != oldDelegate.accent;
+}
+
+class _TouchAreaPainter extends CustomPainter {
+  const _TouchAreaPainter({
+    required this.columns,
+    required this.rows,
+    required this.color,
+    required this.accent,
+  });
+
+  final int columns;
+  final int rows;
+  final Color color;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const padding = 18.0;
+    final availableWidth = size.width - padding * 2;
+    final availableHeight = size.height - padding * 2;
+    final ratio = columns / math.max(1, rows);
+    final canvasRatio = availableWidth / availableHeight;
+    late double width;
+    late double height;
+    if (ratio >= canvasRatio) {
+      width = availableWidth;
+      height = math.max(42, width / ratio);
+    } else {
+      height = availableHeight;
+      width = math.max(42, height * ratio);
+    }
+    width = math.min(width, availableWidth);
+    height = math.min(height, availableHeight);
+    final rect = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: width,
+      height: height,
+    );
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = accent.withValues(alpha: 0.16)
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+
+    final grid = Paint()
+      ..color = accent.withValues(alpha: 0.45)
+      ..strokeWidth = 1;
+    if (columns <= 12 && rows <= 12) {
+      for (var column = 1; column < columns; column++) {
+        final x = rect.left + rect.width * column / columns;
+        canvas.drawLine(Offset(x, rect.top), Offset(x, rect.bottom), grid);
+      }
+      for (var row = 1; row < rows; row++) {
+        final y = rect.top + rect.height * row / rows;
+        canvas.drawLine(Offset(rect.left, y), Offset(rect.right, y), grid);
+      }
+    } else {
+      for (var marker = 1; marker < 4; marker++) {
+        final x = rect.left + rect.width * marker / 4;
+        final y = rect.top + rect.height * marker / 4;
+        canvas.drawLine(Offset(x, rect.top), Offset(x, rect.bottom), grid);
+        canvas.drawLine(Offset(rect.left, y), Offset(rect.right, y), grid);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TouchAreaPainter oldDelegate) =>
+      columns != oldDelegate.columns ||
+      rows != oldDelegate.rows ||
       color != oldDelegate.color ||
       accent != oldDelegate.accent;
 }
