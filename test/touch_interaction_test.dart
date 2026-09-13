@@ -1307,6 +1307,249 @@ void main() {
     expect(find.byType(NumberAnswerPad), findsOneWidget);
   });
 
+  test('touch planner covers fraction measures and proportional unit value', () {
+    final time = TouchInteractionPlan.forTask(
+      mode: TrainingMode.fractions,
+      taskKey: 'fraction:time',
+      answer: 2,
+      maxValue: 100,
+      choices: const <String>['15 min', '30 min', '45 min', '60 min'],
+    );
+    final volume = TouchInteractionPlan.forTask(
+      mode: TrainingMode.fractions,
+      taskKey: 'fraction:volume',
+      answer: 0,
+      maxValue: 1000,
+      choices: const <String>['250 ml', '500 ml', '750 ml', '1000 ml'],
+    );
+    final proportion = TouchInteractionPlan.forTask(
+      mode: TrainingMode.proportionality,
+      taskKey: 'proportion:notebooks:3:4:6',
+      answer: 18,
+      maxValue: 100,
+      targetCompetency: MicroCompetencyId.proportionalUnit,
+    );
+
+    expect(time?.kind, TouchInteractionKind.fractionMeasure);
+    expect(time?.dataValues, const <int>[3, 4, 60, 15]);
+    expect(time?.dataOperation, 'time');
+    expect(volume?.kind, TouchInteractionKind.fractionMeasure);
+    expect(volume?.dataValues, const <int>[1, 4, 1000, 250]);
+    expect(volume?.dataOperation, 'volume');
+    expect(proportion?.kind, TouchInteractionKind.proportionalUnitBuilder);
+    expect(proportion?.dataValues, const <int>[3, 4, 6, 12]);
+  });
+
+  testWidgets('fraction measure needs the requested quarters and matching value', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'fraction:time',
+      kind: TouchInteractionKind.fractionMeasure,
+      instruction: 'Markiere drei Viertel und bestimme die Minuten.',
+      answerChoices: <String>['15 min', '30 min', '45 min', '60 min'],
+      dataValues: <int>[3, 4, 60, 15],
+      dataOperation: 'time',
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-fraction-measure-choice-2')));
+    final submit = find.byKey(const ValueKey('touch-fraction-measure-submit'));
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    expect(answer, isNot(2), reason: 'Nur die richtige Antwortoption darf ohne drei Viertel nicht genügen.');
+
+    answer = -1;
+    for (var index = 0; index < 3; index++) {
+      final part = find.byKey(ValueKey('touch-fraction-measure-part-$index'));
+      await tester.ensureVisible(part);
+      await tester.tap(part);
+    }
+    await tester.pump();
+    expect(find.text('3 von 4 Teilen markiert'), findsOneWidget);
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    expect(answer, 2);
+  });
+
+  testWidgets('proportional touch requires correct unit value before total counts', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'proportion:notebooks:3:4:5',
+      kind: TouchInteractionKind.proportionalUnitBuilder,
+      instruction: 'Bestimme zuerst eine Einheit.',
+      dataValues: <int>[3, 4, 5, 12],
+      dataLabels: <String>['notebooks'],
+      expectedAnswer: 15,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    tester.widget<Slider>(find.byKey(const ValueKey('touch-proportion-unit-slider'))).onChanged!(2);
+    await tester.pump();
+    tester.widget<NumberAnswerPad>(find.byKey(const ValueKey('touch-proportion-number-pad'))).onAnswer(15);
+    expect(answer, isNot(15));
+
+    answer = -1;
+    tester.widget<Slider>(find.byKey(const ValueKey('touch-proportion-unit-slider'))).onChanged!(3);
+    await tester.pump();
+    expect(find.text('Wert für 1 Einheit: 3 €'), findsOneWidget);
+    tester.widget<NumberAnswerPad>(find.byKey(const ValueKey('touch-proportion-number-pad'))).onAnswer(15);
+    expect(answer, 15);
+  });
+
+  testWidgets('fraction measure and proportionality default to touch with fallback', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.fourth;
+    controller.numberRange = NumberRangeLevel.hundred;
+    const fraction = CurriculumExercise(
+      mode: TrainingMode.fractions,
+      prompt: 'Wie lange sind 3/4 Stunde?',
+      answer: 2,
+      hint: 'Eine Stunde hat 60 Minuten.',
+      key: 'fraction:time',
+      choices: <String>['15 min', '30 min', '45 min', '60 min'],
+      method: 'Bruchteile bei Größen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.fractions,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(fraction),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-fraction-measure-part-0')), findsOneWidget);
+    final choicesFallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(
+      choicesFallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(choicesFallback);
+    await tester.pump();
+    expect(find.text('45 min'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    const proportion = CurriculumExercise(
+      mode: TrainingMode.proportionality,
+      prompt: '4 Hefte kosten 12 €. Was kosten 5 Hefte?',
+      answer: 15,
+      hint: 'Bestimme zuerst den Wert für 1 Einheit.',
+      key: 'proportion:notebooks:3:4:5',
+      answerSuffix: '€',
+      maxAnswerValue: 100,
+      method: 'Einfache Zuordnung',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.proportionality,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(proportion),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-proportion-unit-slider')), findsOneWidget);
+    final keypadFallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      keypadFallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(keypadFallback);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+  });
+
+  testWidgets('fraction measure and proportional touch stay stable at 200 percent text scale', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const fraction = TouchInteractionPlan(
+      taskKey: 'fraction:volume',
+      kind: TouchInteractionKind.fractionMeasure,
+      instruction: 'Teile einen Liter in vier gleiche Viertel.',
+      answerChoices: <String>['250 ml', '500 ml', '750 ml', '1000 ml'],
+      dataValues: <int>[1, 4, 1000, 250],
+      dataOperation: 'volume',
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: fraction, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    const proportion = TouchInteractionPlan(
+      taskKey: 'proportion:tickets:4:5:8',
+      kind: TouchInteractionKind.proportionalUnitBuilder,
+      instruction: 'Bestimme zuerst den Wert einer Karte.',
+      dataValues: <int>[4, 5, 8, 20],
+      dataLabels: <String>['tickets'],
+      expectedAnswer: 32,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: proportion, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   test('data touch planner covers targeted chart reading and tally blocks', () {
     final chart = TouchInteractionPlan.forTask(
       mode: TrainingMode.dataCharts,
