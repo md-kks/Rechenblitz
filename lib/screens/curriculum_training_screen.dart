@@ -572,7 +572,25 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
             ],
             SizedBox(height: sectionGap),
             if (_checkpointsComplete)
-              if (current.usesChoices)
+              if (current.usesChoices &&
+                  useTouchInput &&
+                  _touchInteraction != null) ...[
+                TouchAnswerInteraction(
+                  key: ValueKey('touch:${current.key}:$completed'),
+                  plan: _touchInteraction!,
+                  locked: locked,
+                  onAnswer: _answer,
+                ),
+                const SizedBox(height: 6),
+                TextButton.icon(
+                  key: const ValueKey('touch-switch-choices'),
+                  onPressed: locked
+                      ? null
+                      : () => setState(() => useTouchInput = false),
+                  icon: const Icon(Icons.list_alt_rounded),
+                  label: const Text('Lieber auswählen'),
+                ),
+              ] else if (current.usesChoices) ...[
                 ...List.generate(
                   current.choices!.length,
                   (index) => Padding(
@@ -585,8 +603,17 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                       ),
                     ),
                   ),
-                )
-              else ...[
+                ),
+                if (_touchInteraction != null)
+                  TextButton.icon(
+                    key: const ValueKey('touch-switch-interaction'),
+                    onPressed: locked
+                        ? null
+                        : () => setState(() => useTouchInput = true),
+                    icon: const Icon(Icons.touch_app_rounded),
+                    label: const Text('Mit Finger lösen'),
+                  ),
+              ] else ...[
                 if (current.answerSuffix != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),

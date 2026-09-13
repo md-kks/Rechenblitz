@@ -1537,6 +1537,202 @@ void main() {
     expect(find.byType(NumberAnswerPad), findsOneWidget);
   });
 
+  test('touch planner covers representation sorting and probability outcomes', () {
+    final representation = TouchInteractionPlan.forTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: 'data:representation:2',
+      answer: 2,
+      maxValue: 100,
+      choices: const <String>['Strichliste', 'Tabelle', 'Balkendiagramm'],
+    );
+    final sure = TouchInteractionPlan.forTask(
+      mode: TrainingMode.probability,
+      taskKey: 'prob:sure:below:9',
+      answer: 0,
+      maxValue: 100,
+      choices: const <String>['sicher', 'möglich', 'unmöglich'],
+    );
+    final possible = TouchInteractionPlan.forTask(
+      mode: TrainingMode.probability,
+      taskKey: 'prob:possible:face:4',
+      answer: 1,
+      maxValue: 100,
+      choices: const <String>['sicher', 'möglich', 'unmöglich'],
+    );
+    final impossible = TouchInteractionPlan.forTask(
+      mode: TrainingMode.probability,
+      taskKey: 'prob:impossible:face:9',
+      answer: 2,
+      maxValue: 100,
+      choices: const <String>['sicher', 'möglich', 'unmöglich'],
+    );
+
+    expect(representation?.kind, TouchInteractionKind.representationSorter);
+    expect(representation?.expectedAnswer, 2);
+    expect(sure?.kind, TouchInteractionKind.probabilityOutcomes);
+    expect(sure?.correctSelectionIndexes, const <int>[0, 1, 2, 3, 4, 5]);
+    expect(possible?.correctSelectionIndexes, const <int>[3]);
+    expect(impossible?.correctSelectionIndexes, isEmpty);
+  });
+
+  testWidgets('representation situation can be dragged to the matching visual tool', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'data:representation:2',
+      kind: TouchInteractionKind.representationSorter,
+      instruction: 'Ordne die Situation zu.',
+      answerChoices: <String>['Strichliste', 'Tabelle', 'Balkendiagramm'],
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final source = find.byKey(const ValueKey('touch-representation-source'));
+    final target = find.byKey(const ValueKey('touch-representation-target-2'));
+    final delta = tester.getCenter(target) - tester.getCenter(source);
+    await tester.drag(source, delta);
+    await tester.pumpAndSettle();
+    expect(answer, 2);
+  });
+
+  testWidgets('probability touch validates the dice sample space', (tester) async {
+    var answer = -1;
+    const possible = TouchInteractionPlan(
+      taskKey: 'prob:possible:face:4',
+      kind: TouchInteractionKind.probabilityOutcomes,
+      instruction: 'Markiere passende Würfelergebnisse.',
+      selectionLabels: <String>['1', '2', '3', '4', '5', '6'],
+      correctSelectionIndexes: <int>[3],
+      expectedAnswer: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: possible,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('touch-probability-face-3')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-probability-submit')));
+    expect(answer, 1);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    answer = -1;
+    const impossible = TouchInteractionPlan(
+      taskKey: 'prob:impossible:face:9',
+      kind: TouchInteractionKind.probabilityOutcomes,
+      instruction: 'Markiere passende Würfelergebnisse.',
+      selectionLabels: <String>['1', '2', '3', '4', '5', '6'],
+      correctSelectionIndexes: <int>[],
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: impossible,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('touch-probability-none')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-probability-submit')));
+    expect(answer, 2);
+  });
+
+  testWidgets('choice curriculum defaults to touch and keeps button fallback', (
+    tester,
+  ) async {
+    final controller = await _controller();
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.dataCharts,
+      prompt: 'Welche Darstellung eignet sich zum schnellen Vergleichen?',
+      answer: 2,
+      hint: 'Vergleiche den Zweck.',
+      key: 'data:representation:2',
+      choices: <String>['Strichliste', 'Tabelle', 'Balkendiagramm'],
+      method: 'Passende Datendarstellung wählen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.dataCharts,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(TouchAnswerInteraction), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(
+      fallback,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('Strichliste'), findsOneWidget);
+    expect(find.text('Tabelle'), findsOneWidget);
+    expect(find.text('Balkendiagramm'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-switch-interaction')), findsOneWidget);
+  });
+
+  testWidgets('probability touch stays stable at 200 percent text scale', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'prob:sure:below:9',
+      kind: TouchInteractionKind.probabilityOutcomes,
+      instruction: 'Markiere alle passenden Würfelergebnisse.',
+      selectionLabels: <String>['1', '2', '3', '4', '5', '6'],
+      correctSelectionIndexes: <int>[0, 1, 2, 3, 4, 5],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-probability-submit')), findsOneWidget);
+  });
+
   test('touch groups stay scoped to understanding competencies', () {
     final multiplication = TouchInteractionPlan.forTask(
       mode: TrainingMode.multiply,
