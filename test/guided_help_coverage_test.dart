@@ -52,6 +52,7 @@ void main() {
       (TrainingMode.placeValue, 'place:47', 47),
       (TrainingMode.geometry, 'geometry:name:square', 0),
       (TrainingMode.geometry, 'geometry:corners:triangle', 3),
+      (TrainingMode.geometry, 'geometry:sides:rectangle', 4),
       (TrainingMode.romanNumerals, 'roman:write:45', 0),
       (TrainingMode.probability, 'prob:sure:below:9', 0),
       (TrainingMode.probability, 'prob:possible:face:3', 1),

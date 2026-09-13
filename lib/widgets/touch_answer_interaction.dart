@@ -34,6 +34,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
   final Set<int> selectedShapePoints = <int>{};
+  final Set<int> selectedShapeSides = <int>{};
   final Set<int> selectedPerimeterEdges = <int>{};
   int areaColumns = 1;
   int areaRows = 1;
@@ -67,6 +68,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     pathY = 0;
     selectedAxes.clear();
     selectedShapePoints.clear();
+    selectedShapeSides.clear();
     selectedPerimeterEdges.clear();
     areaColumns = 1;
     areaRows = 1;
@@ -114,6 +116,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             TouchInteractionKind.pathWalker => _buildPathWalker(context),
             TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
+            TouchInteractionKind.shapeSides => _buildShapeSides(context),
             TouchInteractionKind.rectanglePerimeterEdges =>
               _buildRectanglePerimeter(context),
             TouchInteractionKind.rectangleAreaBuilder =>
@@ -948,6 +951,112 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     }
   }
 
+  Widget _buildShapeSides(BuildContext context) {
+    const canvasSize = Size(250, 190);
+    final shape = widget.plan.geometryShape ?? 'rectangle';
+    final segments = _shapeSideSegments(shape, canvasSize);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: SizedBox(
+            width: canvasSize.width,
+            height: canvasSize.height,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    key: const ValueKey('touch-shape-sides-preview'),
+                    painter: _TouchShapeSidesPainter(
+                      shape: shape,
+                      selectedSides: selectedShapeSides,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      accent: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+                for (var index = 0; index < segments.length; index++)
+                  _shapeSideTapTarget(
+                    index: index,
+                    segment: segments[index],
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          shape == 'circle'
+              ? 'Keine gerade Seite zum Markieren'
+              : '${selectedShapeSides.length} Seiten markiert',
+          key: const ValueKey('touch-shape-sides-count'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-shape-sides-submit'),
+          onPressed: widget.locked ? null : _submitShapeSides,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Seiten prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _shapeSideTapTarget({
+    required int index,
+    required (Offset, Offset) segment,
+  }) {
+    final start = segment.$1;
+    final end = segment.$2;
+    final midpoint = Offset((start.dx + end.dx) / 2, (start.dy + end.dy) / 2);
+    final angle = math.atan2(end.dy - start.dy, end.dx - start.dx);
+    final selected = selectedShapeSides.contains(index);
+    return Positioned(
+      left: midpoint.dx - 24,
+      top: midpoint.dy - 24,
+      width: 48,
+      height: 48,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: 'Seite ${index + 1}',
+        child: Transform.rotate(
+          angle: angle,
+          child: IconButton(
+            key: ValueKey('touch-shape-side-$index'),
+            tooltip: 'Seite ${index + 1} markieren',
+            onPressed: widget.locked
+                ? null
+                : () => setState(() {
+                    if (!selectedShapeSides.add(index)) {
+                      selectedShapeSides.remove(index);
+                    }
+                  }),
+            icon: Icon(
+              Icons.horizontal_rule_rounded,
+              size: 42,
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submitShapeSides() {
+    final expectedSet = widget.plan.correctSelectionIndexes.toSet();
+    final expected = widget.plan.expectedAnswer ?? expectedSet.length;
+    if (setEquals(selectedShapeSides, expectedSet)) {
+      widget.onAnswer(expected);
+    } else {
+      widget.onAnswer(_wrongAnswer(selectedShapeSides.length, expected));
+    }
+  }
+
   Widget _buildRectanglePerimeter(BuildContext context) {
     final width = widget.plan.rectangleWidth ?? 1;
     final height = widget.plan.rectangleHeight ?? 1;
@@ -1740,6 +1849,74 @@ List<Offset> _shapeCandidatePoints(String shape, Size size) {
     rect.bottomLeft,
     Offset(rect.left, rect.center.dy),
   ];
+}
+
+List<(Offset, Offset)> _shapeSideSegments(String shape, Size size) {
+  if (shape == 'circle') return const <(Offset, Offset)>[];
+  final points = _shapeCandidatePoints(shape, size);
+  if (shape == 'triangle') {
+    return <(Offset, Offset)>[
+      (points[0], points[2]),
+      (points[2], points[4]),
+      (points[4], points[0]),
+    ];
+  }
+  return <(Offset, Offset)>[
+    (points[0], points[2]),
+    (points[2], points[4]),
+    (points[4], points[6]),
+    (points[6], points[0]),
+  ];
+}
+
+class _TouchShapeSidesPainter extends CustomPainter {
+  const _TouchShapeSidesPainter({
+    required this.shape,
+    required this.selectedSides,
+    required this.color,
+    required this.accent,
+  });
+
+  final String shape;
+  final Set<int> selectedSides;
+  final Color color;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final base = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeJoin = StrokeJoin.round;
+    if (shape == 'circle') {
+      canvas.drawOval(
+        Rect.fromLTWH(32, 28, size.width - 64, size.height - 56),
+        base,
+      );
+      return;
+    }
+    final segments = _shapeSideSegments(shape, size);
+    for (final segment in segments) {
+      canvas.drawLine(segment.$1, segment.$2, base);
+    }
+    final selected = Paint()
+      ..color = accent
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round;
+    for (final index in selectedSides) {
+      if (index >= 0 && index < segments.length) {
+        canvas.drawLine(segments[index].$1, segments[index].$2, selected);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TouchShapeSidesPainter oldDelegate) =>
+      shape != oldDelegate.shape ||
+      !setEquals(selectedSides, oldDelegate.selectedSides) ||
+      color != oldDelegate.color ||
+      accent != oldDelegate.accent;
 }
 
 class _TouchShapeCornersPainter extends CustomPainter {

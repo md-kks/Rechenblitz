@@ -2034,7 +2034,8 @@ class StructuredExerciseGenerator {
   StructuredExercise _geometry(int maxValue) {
     final shapes = ExerciseShape.values;
     final shape = shapes[_random.nextInt(shapes.length)];
-    if (_random.nextBool()) {
+    final variant = _random.nextInt(3);
+    if (variant == 0) {
       final names = <ExerciseShape, String>{
         ExerciseShape.triangle: 'Dreieck',
         ExerciseShape.square: 'Quadrat',
@@ -2054,19 +2055,38 @@ class StructuredExerciseGenerator {
       );
     }
 
-    final corners = switch (shape) {
+    if (variant == 1) {
+      final corners = switch (shape) {
+        ExerciseShape.triangle => 3,
+        ExerciseShape.square || ExerciseShape.rectangle => 4,
+        ExerciseShape.circle => 0,
+      };
+      return StructuredExercise(
+        mode: TrainingMode.geometry,
+        prompt: 'Wie viele Ecken hat diese Form?',
+        answer: corners,
+        hint: shape == ExerciseShape.circle
+            ? 'Ein Kreis hat keine Ecken.'
+            : 'Zähle die Stellen, an denen zwei Seiten zusammentreffen.',
+        key: 'geometry:corners:${shape.name}',
+        shape: shape,
+        maxAnswerValue: max(10, maxValue),
+      );
+    }
+
+    final sides = switch (shape) {
       ExerciseShape.triangle => 3,
       ExerciseShape.square || ExerciseShape.rectangle => 4,
       ExerciseShape.circle => 0,
     };
     return StructuredExercise(
       mode: TrainingMode.geometry,
-      prompt: 'Wie viele Ecken hat diese Form?',
-      answer: corners,
+      prompt: 'Wie viele gerade Seiten hat diese Form?',
+      answer: sides,
       hint: shape == ExerciseShape.circle
-          ? 'Ein Kreis hat keine Ecken.'
-          : 'Zähle die Stellen, an denen zwei Seiten zusammentreffen.',
-      key: 'geometry:corners:${shape.name}',
+          ? 'Ein Kreis hat keine geraden Seiten.'
+          : 'Fahre am Rand entlang und zähle jede gerade Seite genau einmal.',
+      key: 'geometry:sides:${shape.name}',
       shape: shape,
       maxAnswerValue: max(10, maxValue),
     );

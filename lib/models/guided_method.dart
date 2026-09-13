@@ -2219,12 +2219,20 @@ class GuidedMethodFactory {
                   : '$name hat $corners Ecken. Nutze Seiten und Ecken als Erkennungsmerkmale.',
         ),
         GuidedMethodStep(
-          title: kind == 'corners' ? 'Ecken zählen' : 'Form benennen',
+          title: kind == 'corners'
+              ? 'Ecken zählen'
+              : kind == 'sides'
+                  ? 'Seiten zählen'
+                  : 'Form benennen',
           instruction: kind == 'corners' && corners != null
               ? 'Zähle jede Ecke genau einmal: $name hat $corners.'
-              : kind == 'name'
-                  ? 'Vergleiche die Merkmale mit Dreieck, Quadrat, Rechteck und Kreis.'
-                  : 'Nutze die erkannten Eigenschaften für die Antwort.',
+              : kind == 'sides'
+                  ? shape == 'circle'
+                      ? 'Ein Kreis hat keine geraden Seiten.'
+                      : 'Fahre am Rand entlang und zähle jede gerade Seite genau einmal.'
+                  : kind == 'name'
+                      ? 'Vergleiche die Merkmale mit Dreieck, Quadrat, Rechteck und Kreis.'
+                      : 'Nutze die erkannten Eigenschaften für die Antwort.',
         ),
       ],
     );

@@ -652,6 +652,14 @@ void main() {
           expectedAnswer: 4,
         ),
         TouchInteractionPlan(
+          taskKey: 'geometry:sides:rectangle',
+          kind: TouchInteractionKind.shapeSides,
+          instruction: 'Tippe jede gerade Seite an.',
+          geometryShape: 'rectangle',
+          correctSelectionIndexes: <int>[0, 1, 2, 3],
+          expectedAnswer: 4,
+        ),
+        TouchInteractionPlan(
           taskKey: 'rect:perimeter:beet:8:5',
           kind: TouchInteractionKind.rectanglePerimeterEdges,
           instruction: 'Tippe alle Kanten an.',
@@ -720,6 +728,18 @@ void main() {
       answer: 3,
       maxValue: 20,
     );
+    final sides = TouchInteractionPlan.forTask(
+      mode: TrainingMode.geometry,
+      taskKey: 'geometry:sides:rectangle',
+      answer: 4,
+      maxValue: 20,
+    );
+    final circleSides = TouchInteractionPlan.forTask(
+      mode: TrainingMode.geometry,
+      taskKey: 'geometry:sides:circle',
+      answer: 0,
+      maxValue: 20,
+    );
     final perimeter = TouchInteractionPlan.forTask(
       mode: TrainingMode.perimeterArea,
       taskKey: 'rect:perimeter:beet:8:5',
@@ -747,6 +767,11 @@ void main() {
     expect(corners?.kind, TouchInteractionKind.shapeCorners);
     expect(corners?.geometryShape, 'triangle');
     expect(corners?.correctSelectionIndexes, const <int>[0, 2, 4]);
+    expect(sides?.kind, TouchInteractionKind.shapeSides);
+    expect(sides?.geometryShape, 'rectangle');
+    expect(sides?.correctSelectionIndexes, const <int>[0, 1, 2, 3]);
+    expect(circleSides?.kind, TouchInteractionKind.shapeSides);
+    expect(circleSides?.correctSelectionIndexes, isEmpty);
     expect(perimeter?.kind, TouchInteractionKind.rectanglePerimeterEdges);
     expect(perimeter?.rectangleWidth, 8);
     expect(perimeter?.rectangleHeight, 5);
@@ -918,6 +943,72 @@ void main() {
     }
     await tester.tap(find.byKey(const ValueKey('touch-shape-corners-submit')));
     expect(answer, 3);
+  });
+
+  testWidgets('shape sides are marked directly on the figure', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'geometry:sides:triangle',
+      kind: TouchInteractionKind.shapeSides,
+      instruction: 'Tippe jede gerade Seite an.',
+      geometryShape: 'triangle',
+      correctSelectionIndexes: <int>[0, 1, 2],
+      expectedAnswer: 3,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-shape-side-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-shape-side-1')));
+    await tester.pump();
+    expect(find.text('2 Seiten markiert'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-shape-sides-submit')));
+    expect(answer, isNot(3));
+
+    await tester.tap(find.byKey(const ValueKey('touch-shape-side-2')));
+    await tester.pump();
+    expect(find.text('3 Seiten markiert'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-shape-sides-submit')));
+    expect(answer, 3);
+  });
+
+  testWidgets('circle side task submits zero without fake straight edges', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'geometry:sides:circle',
+      kind: TouchInteractionKind.shapeSides,
+      instruction: 'Prüfe, ob der Kreis gerade Seiten hat.',
+      geometryShape: 'circle',
+      correctSelectionIndexes: <int>[],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TouchAnswerInteraction(
+            plan: plan,
+            onAnswer: (value) => answer = value,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('touch-shape-side-0')), findsNothing);
+    expect(find.text('Keine gerade Seite zum Markieren'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-shape-sides-submit')));
+    expect(answer, 0);
   });
 
   testWidgets('perimeter touch adds the four actual rectangle edges', (
