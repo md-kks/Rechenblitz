@@ -660,6 +660,14 @@ void main() {
           correctSelectionIndexes: <int>[0, 1, 2, 3],
           expectedAnswer: 26,
         ),
+        TouchInteractionPlan(
+          taskKey: 'rect:area:beet:20:25',
+          kind: TouchInteractionKind.rectangleAreaBuilder,
+          instruction: 'Baue die Fläche aus Länge und Breite.',
+          rectangleWidth: 20,
+          rectangleHeight: 25,
+          expectedAnswer: 500,
+        ),
       ];
 
       for (final plan in plans) {
@@ -743,7 +751,10 @@ void main() {
     expect(perimeter?.rectangleWidth, 8);
     expect(perimeter?.rectangleHeight, 5);
     expect(perimeter?.expectedAnswer, 26);
-    expect(area, isNull);
+    expect(area?.kind, TouchInteractionKind.rectangleAreaBuilder);
+    expect(area?.rectangleWidth, 20);
+    expect(area?.rectangleHeight, 25);
+    expect(area?.expectedAnswer, 500);
   });
 
   testWidgets('fraction builder constructs equal parts and submits the result', (
@@ -950,6 +961,56 @@ void main() {
     expect(answer, 26);
   });
 
+  testWidgets('area builder validates both rectangle factors, not only product', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'rect:area:beet:8:3',
+      kind: TouchInteractionKind.rectangleAreaBuilder,
+      instruction: 'Baue das Rechteck.',
+      rectangleWidth: 8,
+      rectangleHeight: 3,
+      expectedAnswer: 24,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    tester.widget<Slider>(
+      find.byKey(const ValueKey('touch-area-columns-slider')),
+    ).onChanged!(6);
+    await tester.pump();
+    tester.widget<Slider>(
+      find.byKey(const ValueKey('touch-area-rows-slider')),
+    ).onChanged!(4);
+    await tester.pump();
+    expect(find.text('6 Spalten × 4 Reihen = 24 cm²'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-area-submit')));
+    expect(answer, isNot(24));
+
+    tester.widget<Slider>(
+      find.byKey(const ValueKey('touch-area-columns-slider')),
+    ).onChanged!(8);
+    await tester.pump();
+    tester.widget<Slider>(
+      find.byKey(const ValueKey('touch-area-rows-slider')),
+    ).onChanged!(3);
+    await tester.pump();
+    expect(find.text('8 Spalten × 3 Reihen = 24 cm²'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-area-submit')));
+    expect(answer, 24);
+  });
+
   testWidgets('perimeter curriculum defaults to touch and keeps keypad fallback', (
     tester,
   ) async {
@@ -982,6 +1043,51 @@ void main() {
 
     expect(find.byType(TouchAnswerInteraction), findsOneWidget);
     expect(find.byKey(const ValueKey('touch-perimeter-preview')), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      fallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+  });
+
+  testWidgets('area curriculum defaults to factor builder and keeps keypad fallback', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.fourth;
+    controller.numberRange = NumberRangeLevel.hundred;
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.perimeterArea,
+      prompt: 'Beet: 20 cm lang und 25 cm breit. Wie groß ist die Fläche?',
+      answer: 500,
+      hint: 'Länge mal Breite.',
+      key: 'rect:area:beet:20:25',
+      answerSuffix: 'cm²',
+      maxAnswerValue: 2000,
+      method: 'Flächeninhalt',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.perimeterArea,
+          targetTasks: 2,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(TouchAnswerInteraction), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-area-preview')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-area-columns-slider')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-area-rows-slider')), findsOneWidget);
     final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
     await tester.scrollUntilVisible(
       fallback,
