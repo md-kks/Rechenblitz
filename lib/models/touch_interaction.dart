@@ -22,6 +22,8 @@ enum TouchInteractionKind {
   tallySelection,
   representationSorter,
   probabilityOutcomes,
+  probabilityBagComparison,
+  combinatoricsGrid,
 }
 
 class TouchInteractionPlan {
@@ -157,6 +159,50 @@ class TouchInteractionPlan {
           correctSelectionIndexes: matching,
           expectedAnswer: answer,
         );
+      }
+    }
+
+    if (mode == TrainingMode.probability && taskKey.startsWith('prob:bag:')) {
+      final parts = taskKey.split(':');
+      if (parts.length == 5) {
+        final red = int.tryParse(parts[3]);
+        final blue = int.tryParse(parts[4]);
+        if (red != null && blue != null && red > 0 && blue > 0 &&
+            red <= 12 && blue <= 12) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.probabilityBagComparison,
+            instruction:
+                'Vergleiche die beiden Mengen und ziehe den Chance-Marker zur größeren Menge oder in die Mitte bei Gleichstand.',
+            dataValues: <int>[red, blue],
+            dataLabels: const <String>['Rot', 'Blau'],
+            expectedAnswer: answer,
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.combinatorics && taskKey.startsWith('combo:')) {
+      final parts = taskKey.split(':');
+      if (parts.length == 5) {
+        final first = int.tryParse(parts[2]);
+        final second = int.tryParse(parts[3]);
+        final third = int.tryParse(parts[4]);
+        if (first != null && second != null && third != null &&
+            first > 0 && second > 0 && third > 0) {
+          final total = first * second * third;
+          if (total <= 24) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.combinatoricsGrid,
+              instruction:
+                  'Markiere jede mögliche Kombination genau einmal. Arbeite systematisch Zeile für Zeile.',
+              dataValues: <int>[first, second, third],
+              dataLabels: <String>[parts[1]],
+              expectedAnswer: answer,
+            );
+          }
+        }
       }
     }
 
