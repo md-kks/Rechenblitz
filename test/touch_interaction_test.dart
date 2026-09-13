@@ -330,6 +330,57 @@ void main() {
     expect(answer, 47);
   });
 
+  testWidgets('place-value manipulatives drag only into the matching place', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'place:11',
+      kind: TouchInteractionKind.placeValueBuilder,
+      instruction: 'Baue die Zahl.',
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tenSource = find.byKey(const ValueKey('touch-place-source-10'));
+    final oneSource = find.byKey(const ValueKey('touch-place-source-1'));
+    final tensTarget = find.byKey(const ValueKey('touch-place-tens-target'));
+    final onesTarget = find.byKey(const ValueKey('touch-place-ones-target'));
+
+    await tester.drag(
+      tenSource,
+      tester.getCenter(tensTarget) - tester.getCenter(tenSource),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(
+      oneSource,
+      tester.getCenter(onesTarget) - tester.getCenter(oneSource),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('1 Zehner + 1 Einer = 11'), findsOneWidget);
+
+    await tester.drag(
+      oneSource,
+      tester.getCenter(tensTarget) - tester.getCenter(oneSource),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('1 Zehner + 1 Einer = 11'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('touch-place-submit')));
+    expect(answer, 11);
+  });
+
   testWidgets('money touch composer builds and submits an amount', (
     tester,
   ) async {
@@ -362,6 +413,57 @@ void main() {
     expect(find.text('7 €'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('touch-money-submit')));
     expect(answer, 7);
+  });
+
+  testWidgets('money pieces can be dragged in and dragged back out', (
+    tester,
+  ) async {
+    const plan = TouchInteractionPlan(
+      taskKey: 'money:add:school:5:2',
+      kind: TouchInteractionKind.moneyComposer,
+      instruction: 'Stelle den Betrag zusammen.',
+      maxValue: 20,
+      denominations: <int>[1, 2, 5, 10],
+      unitLabel: '€',
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+
+    final workspace = find.byKey(const ValueKey('touch-money-workspace'));
+    final five = find.byKey(const ValueKey('touch-money-add-5'));
+    final two = find.byKey(const ValueKey('touch-money-add-2'));
+    await tester.drag(
+      five,
+      tester.getCenter(workspace) - tester.getCenter(five),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(
+      two,
+      tester.getCenter(workspace) - tester.getCenter(two),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('7 €'), findsOneWidget);
+
+    final placedFive = find.byKey(const ValueKey('touch-money-piece-0'));
+    final returnTarget = find.byKey(const ValueKey('touch-money-return'));
+    await tester.drag(
+      placedFive,
+      tester.getCenter(returnTarget) - tester.getCenter(placedFive),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('touch-money-total'))).data,
+      '2 €',
+    );
+    expect(find.byKey(const ValueKey('touch-money-piece-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-money-piece-1')), findsNothing);
   });
 
   testWidgets('clock touch setter maps the hand setting to the answer choice', (
