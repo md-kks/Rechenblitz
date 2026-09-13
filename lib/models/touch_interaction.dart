@@ -18,6 +18,8 @@ enum TouchInteractionKind {
   rectangleAreaBuilder,
   equalGroupsBuilder,
   divisionGroupsBuilder,
+  dataChartSelection,
+  tallySelection,
 }
 
 class TouchInteractionPlan {
@@ -52,6 +54,9 @@ class TouchInteractionPlan {
     this.itemsPerGroup,
     this.totalItems,
     this.divisionGrouping = false,
+    this.dataValues = const <int>[],
+    this.dataLabels = const <String>[],
+    this.dataOperation,
   });
 
   final String taskKey;
@@ -84,6 +89,9 @@ class TouchInteractionPlan {
   final int? itemsPerGroup;
   final int? totalItems;
   final bool divisionGrouping;
+  final List<int> dataValues;
+  final List<String> dataLabels;
+  final String? dataOperation;
 
   bool get hasInteractiveWall => wallValues != null && hiddenWallIndex != null;
 
@@ -100,6 +108,56 @@ class TouchInteractionPlan {
     String? answerSuffix,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.dataCharts && taskKey.startsWith('data:tally:')) {
+      final count = int.tryParse(taskKey.split(':').last);
+      if (count != null && count > 0 && count <= 50) {
+        final groups = count ~/ 5;
+        final rest = count % 5;
+        final units = <int>[
+          ...List<int>.filled(groups, 5),
+          ...List<int>.filled(rest, 1),
+        ];
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.tallySelection,
+          instruction: 'Tippe jeden sichtbaren Fünferblock und jeden Reststrich genau einmal an.',
+          dataValues: units,
+          dataOperation: 'tally',
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.dataCharts &&
+        (taskKey.startsWith('data:max:') ||
+            taskKey.startsWith('data:sum:') ||
+            taskKey.startsWith('data:diff:'))) {
+      final parts = taskKey.split(':');
+      if (parts.length == 3) {
+        final values = parts[2]
+            .split('-')
+            .map(int.tryParse)
+            .whereType<int>()
+            .toList(growable: false);
+        if (values.length == 4 && values.every((value) => value > 0 && value <= 12)) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.dataChartSelection,
+            instruction: switch (parts[1]) {
+              'max' => 'Markiere den höchsten Balken.',
+              'sum' => 'Markiere alle Balken, deren Werte du für die Summe brauchst.',
+              _ => 'Markiere Rot und Blau für den Vergleich.',
+            },
+            dataValues: values,
+            dataLabels: const <String>['Rot', 'Blau', 'Grün', 'Gelb'],
+            dataOperation: parts[1],
+            expectedAnswer: answer,
+            maxValue: maxValue,
+          );
+        }
+      }
+    }
+
     if (targetCompetency == MicroCompetencyId.multiplicationGroups) {
       final multiplication = _multiplicationGroupsSpec(mode, taskKey);
       if (multiplication != null) {
@@ -478,17 +536,42 @@ class TouchInteractionPlan {
     int answer,
   ) {
     final parts = taskKey.split(':');
-    if (parts.length != 5 || parts.first != 'story') return null;
-    final total = int.tryParse(parts[3]);
-    final known = int.tryParse(parts[4]);
-    if (total == null || known == null || total <= 0 || known <= 0) {
+    if (parts.isEmpty || parts.first != 'story') return null;
+
+    if (parts.length == 5) {
+      final total = int.tryParse(parts[3]);
+      final known = int.tryParse(parts[4]);
+      if (total == null || known == null || total <= 0 || known <= 0) {
+        return null;
+      }
+      if (parts[1] == 'sharing') {
+        return (total, known, answer, false);
+      }
+      if (parts[1] == 'grouping') {
+        return (total, answer, known, true);
+      }
       return null;
     }
-    if (parts[1] == 'sharing') {
-      return (total, known, answer, false);
-    }
-    if (parts[1] == 'grouping') {
-      return (total, answer, known, true);
+
+    if (parts.length == 8 &&
+        parts[1] == 'transfer' &&
+        parts[2] == 'skill' &&
+        parts[3] == MicroCompetencyId.divisionSharing.name &&
+        parts[4] == 'divide') {
+      final context = parts[5];
+      final total = int.tryParse(parts[6]);
+      final known = int.tryParse(parts[7]);
+      if (total == null || known == null || total <= 0 || known <= 0) {
+        return null;
+      }
+      const groupingContexts = <String>{'groups', 'packs', 'rows'};
+      const sharingContexts = <String>{'teams', 'bags', 'plates'};
+      if (groupingContexts.contains(context)) {
+        return (total, answer, known, true);
+      }
+      if (sharingContexts.contains(context)) {
+        return (total, known, answer, false);
+      }
     }
     return null;
   }

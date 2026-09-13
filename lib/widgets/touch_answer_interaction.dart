@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 
 import '../models/touch_interaction.dart';
+import 'number_answer_pad.dart';
 
 class TouchAnswerInteraction extends StatefulWidget {
   const TouchAnswerInteraction({
@@ -41,6 +42,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int areaRows = 1;
   final List<int> groupCounters = <int>[];
   int builtDivisionGroups = 0;
+  final Set<int> selectedDataBars = <int>{};
+  final Set<int> selectedTallyUnits = <int>{};
 
   @override
   void initState() {
@@ -78,6 +81,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ..clear()
       ..addAll(List<int>.filled(widget.plan.groupCount ?? 0, 0));
     builtDivisionGroups = 0;
+    selectedDataBars.clear();
+    selectedTallyUnits.clear();
   }
 
   @override
@@ -129,6 +134,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             TouchInteractionKind.divisionGroupsBuilder => _buildDivisionGroups(
               context,
             ),
+            TouchInteractionKind.dataChartSelection => _buildDataChart(context),
+            TouchInteractionKind.tallySelection => _buildTallySelection(context),
           },
         ],
       ),
@@ -1588,6 +1595,213 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           ? builtDivisionGroups
           : _wrongAnswer(builtDivisionGroups, expected),
     );
+  }
+
+  Widget _buildDataChart(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final labels = widget.plan.dataLabels;
+    const scaleMax = 12;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Ein Kästchen steht für 1. Tippe die Balken an, die du für die Aufgabe brauchst.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        for (var index = 0; index < values.length; index++) ...[
+          Semantics(
+            button: true,
+            selected: selectedDataBars.contains(index),
+            label: 'Balken ${index < labels.length ? labels[index] : index + 1}',
+            child: InkWell(
+              key: ValueKey('touch-data-bar-$index'),
+              borderRadius: BorderRadius.circular(10),
+              onTap: widget.locked
+                  ? null
+                  : () => setState(() {
+                      if (!selectedDataBars.add(index)) {
+                        selectedDataBars.remove(index);
+                      }
+                    }),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 52,
+                      child: Text(
+                        index < labels.length ? labels[index] : '${index + 1}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    Expanded(
+                      child: Row(
+                        children: List<Widget>.generate(scaleMax, (cell) {
+                          final filled = cell < values[index];
+                          return Expanded(
+                            child: Container(
+                              height: 24,
+                              margin: const EdgeInsets.symmetric(horizontal: 1),
+                              decoration: BoxDecoration(
+                                color: filled
+                                    ? Theme.of(context).colorScheme.primaryContainer
+                                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(3),
+                                border: Border.all(
+                                  color: selectedDataBars.contains(index)
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.outlineVariant,
+                                  width: selectedDataBars.contains(index) ? 2 : 1,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 28,
+                      child: Icon(
+                        selectedDataBars.contains(index)
+                            ? Icons.check_circle_rounded
+                            : Icons.radio_button_unchecked_rounded,
+                        size: 22,
+                        color: selectedDataBars.contains(index)
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (index != values.length - 1) const SizedBox(height: 2),
+        ],
+        const SizedBox(height: 10),
+        Text(
+          '${selectedDataBars.length} Balken markiert',
+          key: const ValueKey('touch-data-selected-count'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        if (widget.plan.dataOperation == 'max')
+          FilledButton.tonalIcon(
+            key: const ValueKey('touch-data-submit'),
+            onPressed: widget.locked ? null : _submitDataMaximum,
+            icon: const Icon(Icons.check_rounded),
+            label: const Text('Auswahl prüfen'),
+          )
+        else ...[
+          const Text(
+            'Rechne jetzt mit den markierten Balken.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          NumberAnswerPad(
+            key: const ValueKey('touch-data-number-pad'),
+            maxValue: math.max(1, widget.plan.maxValue),
+            onAnswer: _submitDataCalculation,
+          ),
+        ],
+      ],
+    );
+  }
+
+  bool _dataSelectionFits() {
+    final values = widget.plan.dataValues;
+    return switch (widget.plan.dataOperation) {
+      'max' when values.isNotEmpty =>
+        selectedDataBars.length == 1 &&
+            values[selectedDataBars.single] == values.reduce(math.max),
+      'sum' => selectedDataBars.length == values.length,
+      'diff' => setEquals(selectedDataBars, const <int>{0, 1}),
+      _ => false,
+    };
+  }
+
+  void _submitDataMaximum() {
+    final values = widget.plan.dataValues;
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final candidate = selectedDataBars.length == 1
+        ? values[selectedDataBars.single]
+        : selectedDataBars.length;
+    widget.onAnswer(
+      _dataSelectionFits() ? expected : _wrongAnswer(candidate, expected),
+    );
+  }
+
+  void _submitDataCalculation(int candidate) {
+    final expected = widget.plan.expectedAnswer ?? 0;
+    widget.onAnswer(
+      _dataSelectionFits() ? candidate : _wrongAnswer(candidate, expected),
+    );
+  }
+
+  Widget _buildTallySelection(BuildContext context) {
+    final units = widget.plan.dataValues;
+    final counted = selectedTallyUnits.fold<int>(
+      0,
+      (sum, index) => sum + units[index],
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          key: const ValueKey('touch-tally-units'),
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: List<Widget>.generate(units.length, (index) {
+            final selected = selectedTallyUnits.contains(index);
+            final value = units[index];
+            return FilterChip(
+              key: ValueKey('touch-tally-unit-$index'),
+              selected: selected,
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() {
+                      if (!selectedTallyUnits.add(index)) {
+                        selectedTallyUnits.remove(index);
+                      }
+                    }),
+              label: Text(
+                value == 5 ? '||||/' : '|',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              tooltip: value == 5 ? 'Fünferblock' : 'ein Strich',
+            );
+          }),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Gezählt: $counted',
+          key: const ValueKey('touch-tally-count'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-tally-submit'),
+          onPressed: widget.locked ? null : _submitTally,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Strichliste prüfen'),
+        ),
+      ],
+    );
+  }
+
+  void _submitTally() {
+    final units = widget.plan.dataValues;
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final counted = selectedTallyUnits.fold<int>(
+      0,
+      (sum, index) => sum + units[index],
+    );
+    final allMarked = selectedTallyUnits.length == units.length;
+    widget.onAnswer(allMarked ? expected : _wrongAnswer(counted, expected));
   }
 
   int _wrongAnswer(int candidate, int expected) {

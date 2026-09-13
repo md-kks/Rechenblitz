@@ -669,6 +669,24 @@ void main() {
           expectedAnswer: 26,
         ),
         TouchInteractionPlan(
+          taskKey: 'data:diff:7-3-5-2',
+          kind: TouchInteractionKind.dataChartSelection,
+          instruction: 'Markiere Rot und Blau.',
+          dataValues: <int>[7, 3, 5, 2],
+          dataLabels: <String>['Rot', 'Blau', 'Grün', 'Gelb'],
+          dataOperation: 'diff',
+          expectedAnswer: 4,
+          maxValue: 100,
+        ),
+        TouchInteractionPlan(
+          taskKey: 'data:tally:12',
+          kind: TouchInteractionKind.tallySelection,
+          instruction: 'Zähle die Strichliste.',
+          dataValues: <int>[5, 5, 1, 1],
+          dataOperation: 'tally',
+          expectedAnswer: 12,
+        ),
+        TouchInteractionPlan(
           taskKey: 'rect:area:beet:20:25',
           kind: TouchInteractionKind.rectangleAreaBuilder,
           instruction: 'Baue die Fläche aus Länge und Breite.',
@@ -1289,6 +1307,236 @@ void main() {
     expect(find.byType(NumberAnswerPad), findsOneWidget);
   });
 
+  test('data touch planner covers targeted chart reading and tally blocks', () {
+    final chart = TouchInteractionPlan.forTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: 'data:max:3-8-5-2',
+      answer: 8,
+      maxValue: 100,
+      targetCompetency: MicroCompetencyId.dataReading,
+    );
+    final untargetedChart = TouchInteractionPlan.forTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: 'data:max:3-8-5-2',
+      answer: 8,
+      maxValue: 100,
+    );
+    final tally = TouchInteractionPlan.forTask(
+      mode: TrainingMode.dataCharts,
+      taskKey: 'data:tally:12',
+      answer: 12,
+      maxValue: 50,
+      targetCompetency: MicroCompetencyId.tallyTableReading,
+    );
+
+    expect(chart?.kind, TouchInteractionKind.dataChartSelection);
+    expect(chart?.dataValues, const <int>[3, 8, 5, 2]);
+    expect(chart?.dataOperation, 'max');
+    expect(untargetedChart?.kind, TouchInteractionKind.dataChartSelection);
+    expect(tally?.kind, TouchInteractionKind.tallySelection);
+    expect(tally?.dataValues, const <int>[5, 5, 1, 1]);
+  });
+
+  testWidgets('targeted chart touch requires the relevant bars', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'data:diff:7-3-5-2',
+      kind: TouchInteractionKind.dataChartSelection,
+      instruction: 'Markiere Rot und Blau.',
+      dataValues: <int>[7, 3, 5, 2],
+      dataLabels: <String>['Rot', 'Blau', 'Grün', 'Gelb'],
+      dataOperation: 'diff',
+      expectedAnswer: 4,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-data-bar-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-data-bar-2')));
+    tester.widget<NumberAnswerPad>(
+      find.byKey(const ValueKey('touch-data-number-pad')),
+    ).onAnswer(4);
+    expect(answer, isNot(4));
+
+    await tester.tap(find.byKey(const ValueKey('touch-data-bar-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-data-bar-1')));
+    tester.widget<NumberAnswerPad>(
+      find.byKey(const ValueKey('touch-data-number-pad')),
+    ).onAnswer(4);
+    expect(answer, 4);
+  });
+
+  testWidgets('chart maximum accepts exactly one highest bar', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'data:max:3-8-5-2',
+      kind: TouchInteractionKind.dataChartSelection,
+      instruction: 'Markiere den höchsten Balken.',
+      dataValues: <int>[3, 8, 5, 2],
+      dataLabels: <String>['Rot', 'Blau', 'Grün', 'Gelb'],
+      dataOperation: 'max',
+      expectedAnswer: 8,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-data-bar-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-data-submit')));
+    expect(answer, isNot(8));
+
+    await tester.tap(find.byKey(const ValueKey('touch-data-bar-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-data-bar-1')));
+    await tester.tap(find.byKey(const ValueKey('touch-data-submit')));
+    expect(answer, 8);
+  });
+
+  testWidgets('chart sum needs all four bars before numeric answer counts', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'data:sum:3-8-5-2',
+      kind: TouchInteractionKind.dataChartSelection,
+      instruction: 'Markiere alle Balken.',
+      dataValues: <int>[3, 8, 5, 2],
+      dataLabels: <String>['Rot', 'Blau', 'Grün', 'Gelb'],
+      dataOperation: 'sum',
+      expectedAnswer: 18,
+      maxValue: 200,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    for (final index in <int>[0, 1, 2]) {
+      await tester.tap(find.byKey(ValueKey('touch-data-bar-$index')));
+    }
+    tester.widget<NumberAnswerPad>(
+      find.byKey(const ValueKey('touch-data-number-pad')),
+    ).onAnswer(18);
+    expect(answer, isNot(18));
+
+    await tester.tap(find.byKey(const ValueKey('touch-data-bar-3')));
+    tester.widget<NumberAnswerPad>(
+      find.byKey(const ValueKey('touch-data-number-pad')),
+    ).onAnswer(18);
+    expect(answer, 18);
+  });
+
+  testWidgets('tally touch counts five-blocks and remaining strokes', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'data:tally:12',
+      kind: TouchInteractionKind.tallySelection,
+      instruction: 'Zähle die Strichliste.',
+      dataValues: <int>[5, 5, 1, 1],
+      dataOperation: 'tally',
+      expectedAnswer: 12,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-tally-unit-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-tally-unit-1')));
+    await tester.pump();
+    expect(find.text('Gezählt: 10'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-tally-submit')));
+    expect(answer, isNot(12));
+
+    await tester.tap(find.byKey(const ValueKey('touch-tally-unit-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-tally-unit-3')));
+    await tester.pump();
+    expect(find.text('Gezählt: 12'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-tally-submit')));
+    expect(answer, 12);
+  });
+
+  testWidgets('targeted data curriculum defaults to interactive chart', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.dataCharts,
+      prompt: 'Um wie viele Stimmen unterscheiden sich Rot und Blau?',
+      answer: 4,
+      hint: 'Vergleiche die beiden Balken.',
+      key: 'data:diff:7-3-5-2',
+      maxAnswerValue: 100,
+      bars: <CurriculumBar>[
+        CurriculumBar('Rot', 7),
+        CurriculumBar('Blau', 3),
+        CurriculumBar('Grün', 5),
+        CurriculumBar('Gelb', 2),
+      ],
+      method: 'Diagramme vergleichen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.dataCharts,
+          targetTasks: 2,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(TouchAnswerInteraction), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-data-bar-0')), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      fallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+  });
+
   test('touch groups stay scoped to understanding competencies', () {
     final multiplication = TouchInteractionPlan.forTask(
       mode: TrainingMode.multiply,
@@ -1333,6 +1581,21 @@ void main() {
       targetCompetency: MicroCompetencyId.divisionSharing,
     );
 
+    final transferGrouping = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:transfer:skill:divisionSharing:divide:packs:12:4',
+      answer: 3,
+      maxValue: 20,
+      targetCompetency: MicroCompetencyId.divisionSharing,
+    );
+    final transferSharing = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:transfer:skill:divisionSharing:divide:teams:12:3',
+      answer: 4,
+      maxValue: 20,
+      targetCompetency: MicroCompetencyId.divisionSharing,
+    );
+
     expect(multiplication?.kind, TouchInteractionKind.equalGroupsBuilder);
     expect(
       (
@@ -1363,6 +1626,18 @@ void main() {
     expect(grouping?.kind, TouchInteractionKind.divisionGroupsBuilder);
     expect(grouping?.divisionGrouping, isTrue);
     expect((grouping?.groupCount, grouping?.itemsPerGroup), (3, 4));
+    expect(transferGrouping?.kind, TouchInteractionKind.divisionGroupsBuilder);
+    expect(transferGrouping?.divisionGrouping, isTrue);
+    expect(
+      (transferGrouping?.groupCount, transferGrouping?.itemsPerGroup),
+      (3, 4),
+    );
+    expect(transferSharing?.kind, TouchInteractionKind.divisionGroupsBuilder);
+    expect(transferSharing?.divisionGrouping, isFalse);
+    expect(
+      (transferSharing?.groupCount, transferSharing?.itemsPerGroup),
+      (3, 4),
+    );
   });
 
   testWidgets('equal-groups touch requires the actual group structure', (
