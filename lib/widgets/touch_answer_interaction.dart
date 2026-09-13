@@ -30,6 +30,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int selectedMinute = 0;
   bool clockMinuteHandActive = false;
   int fractionPartSize = 0;
+  final Set<int> selectedFractionParts = <int>{};
   int pathX = 0;
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
@@ -64,6 +65,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedMinute = 0;
     clockMinuteHandActive = false;
     fractionPartSize = 0;
+    selectedFractionParts.clear();
     pathX = 0;
     pathY = 0;
     selectedAxes.clear();
@@ -631,6 +633,82 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
+          'Markiere $numerator von $denominator gleich großen Teilen.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          key: const ValueKey('touch-fraction-pieces'),
+          children: [
+            for (var index = 0; index < denominator; index++)
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: index == denominator - 1 ? 0 : 4,
+                  ),
+                  child: Semantics(
+                    button: true,
+                    selected: selectedFractionParts.contains(index),
+                    label: 'Bruchteil ${index + 1} von $denominator',
+                    child: InkWell(
+                      key: ValueKey('touch-fraction-piece-$index'),
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: widget.locked
+                          ? null
+                          : () => setState(() {
+                              if (!selectedFractionParts.add(index)) {
+                                selectedFractionParts.remove(index);
+                              }
+                            }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        height: 68,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: selectedFractionParts.contains(index)
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: selectedFractionParts.contains(index)
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outline,
+                            width: selectedFractionParts.contains(index) ? 2 : 1,
+                          ),
+                        ),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${index + 1}/$denominator',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text('$fractionPartSize'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${selectedFractionParts.length} von $denominator Teilen markiert',
+          key: const ValueKey('touch-fraction-selected-count'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        Text(
           '1 Teil = $fractionPartSize',
           key: const ValueKey('touch-fraction-part-size'),
           textAlign: TextAlign.center,
@@ -647,35 +725,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               ? null
               : (value) => setState(() => fractionPartSize = value.round()),
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (var index = 0; index < denominator; index++)
-              Container(
-                key: ValueKey('touch-fraction-part-$index'),
-                width: 62,
-                height: 54,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: index < numerator
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                ),
-                child: Text(
-                  '$fractionPartSize',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         Text(
           '$denominator × $fractionPartSize = $total von $whole',
           key: const ValueKey('touch-fraction-total'),
@@ -690,12 +740,27 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         const SizedBox(height: 10),
         FilledButton.tonalIcon(
           key: const ValueKey('touch-fraction-submit'),
-          onPressed: widget.locked ? null : () => widget.onAnswer(result),
+          onPressed: widget.locked ? null : _submitFraction,
           icon: const Icon(Icons.check_rounded),
           label: const Text('Bruchteil prüfen'),
         ),
       ],
     );
+  }
+
+  void _submitFraction() {
+    final numerator = widget.plan.fractionNumerator ?? 1;
+    final denominator = widget.plan.fractionDenominator ?? 1;
+    final whole = widget.plan.fractionWhole ?? 1;
+    final expected = widget.plan.expectedAnswer ?? fractionPartSize * numerator;
+    final equalPartsFit = fractionPartSize * denominator == whole;
+    final markedPartsFit = selectedFractionParts.length == numerator;
+    if (equalPartsFit && markedPartsFit) {
+      widget.onAnswer(expected);
+      return;
+    }
+    final candidate = fractionPartSize * selectedFractionParts.length;
+    widget.onAnswer(_wrongAnswer(candidate, expected));
   }
 
   Widget _buildPathWalker(BuildContext context) {

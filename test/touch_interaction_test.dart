@@ -813,8 +813,65 @@ void main() {
     await tester.pump();
     expect(find.text('4 × 5 = 20 von 20'), findsOneWidget);
     expect(find.text('3/4 von 20 = 15'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('touch-fraction-piece-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-fraction-piece-1')));
+    await tester.pump();
+    expect(find.text('2 von 4 Teilen markiert'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-fraction-submit')));
+    expect(answer, isNot(15));
+
+    await tester.tap(find.byKey(const ValueKey('touch-fraction-piece-2')));
+    await tester.pump();
+    expect(find.text('3 von 4 Teilen markiert'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('touch-fraction-submit')));
     expect(answer, 15);
+  });
+
+  testWidgets('fraction builder rejects a numerically matching wrong marking', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'fraction:half:20',
+      kind: TouchInteractionKind.fractionBuilder,
+      instruction: 'Baue die Hälfte.',
+      fractionNumerator: 1,
+      fractionDenominator: 2,
+      fractionWhole: 20,
+      expectedAnswer: 10,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TouchAnswerInteraction(
+            plan: plan,
+            onAnswer: (value) => answer = value,
+          ),
+        ),
+      ),
+    );
+
+    final slider = tester.widget<Slider>(
+      find.byKey(const ValueKey('touch-fraction-part-slider')),
+    );
+    slider.onChanged!(5);
+    await tester.pump();
+    for (final index in <int>[0, 1]) {
+      await tester.tap(find.byKey(ValueKey('touch-fraction-piece-$index')));
+    }
+    await tester.pump();
+    expect(find.text('2 von 2 Teilen markiert'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-fraction-submit')));
+    expect(answer, isNot(10));
+
+    slider.onChanged!(10);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-fraction-piece-1')));
+    await tester.pump();
+    expect(find.text('1 von 2 Teilen markiert'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-fraction-submit')));
+    expect(answer, 10);
   });
 
   testWidgets('path walker requires the described route, not only the same sum', (
