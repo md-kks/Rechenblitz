@@ -529,6 +529,16 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final compactHeight = screenHeight < 720;
+    final pagePadding = EdgeInsets.symmetric(
+      horizontal: compactHeight ? 16 : 20,
+      vertical: compactHeight ? 10 : 20,
+    );
+    final largeGap = compactHeight ? 10.0 : 20.0;
+    final answerGap = compactHeight ? 10.0 : 24.0;
+    final taskFontSize = compactHeight ? 42.0 : 52.0;
+    final numberFriendFontSize = compactHeight ? 40.0 : 48.0;
     final visibleTimer =
         widget.mode == TrainingMode.tempo && widget.timeLimit != null;
     final remainingSeconds = widget.timeLimit == null
@@ -556,10 +566,13 @@ class _TrainingScreenState extends State<TrainingScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            key: const ValueKey('training-scroll'),
+            padding: pagePadding,
             child: ConstrainedBox(
               constraints:
-                  BoxConstraints(minHeight: constraints.maxHeight - 40),
+                  BoxConstraints(
+                    minHeight: constraints.maxHeight - pagePadding.vertical - 1,
+                  ),
               child: Column(
                 children: [
                   LinearProgressIndicator(
@@ -574,7 +587,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                     'Aufgabe ${completed < widget.targetTasks ? completed + 1 : widget.targetTasks} von ${widget.targetTasks}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: largeGap),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -583,16 +596,16 @@ class _TrainingScreenState extends State<TrainingScreen> {
                             ? Text(
                                 '${current.result} = ${current.a} + ?',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 48,
+                                style: TextStyle(
+                                  fontSize: numberFriendFontSize,
                                   fontWeight: FontWeight.w800,
                                 ),
                               )
                             : Text(
                                 '${current.a} ${current.symbol} ${current.b} = ?',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 52,
+                                style: TextStyle(
+                                  fontSize: taskFontSize,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -605,7 +618,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: largeGap),
                   if (!_checkpointsComplete) ...[
                     const SizedBox(height: 2),
                     IndependentStepCard(
@@ -633,7 +646,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: compactHeight ? 6 : 12),
                   if (showHelp)
                     GuidedMethodPanel(
                       key: ValueKey('guide:${current.key}:$completed'),
@@ -692,7 +705,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                       icon: const Icon(Icons.lightbulb_outline_rounded),
                       label: const Text('Ich brauche Hilfe'),
                     ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: answerGap),
                   if (_checkpointsComplete &&
                       useTouchInput &&
                       _touchInteraction != null) ...[
