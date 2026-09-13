@@ -228,34 +228,69 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   Widget _buildPlaceValue(BuildContext context) {
     final value = placeTens * 10 + placeOnes;
     final maxValue = widget.plan.maxValue;
+    final canAddTen = !widget.locked && value + 10 <= maxValue;
+    final canAddOne =
+        !widget.locked && placeOnes < 9 && value + 1 <= maxValue;
+    void addTen() => setState(() => placeTens += 1);
+    void addOne() => setState(() => placeOnes += 1);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Text(
+          'Zieh Zehnerstäbe und Einerwürfel in die passenden Felder. Antippen geht auch.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12,
+          runSpacing: 10,
+          children: [
+            _PlaceManipulativeSource(
+              sourceKey: const ValueKey('touch-place-source-10'),
+              value: 10,
+              label: 'Zehnerstab',
+              locked: !canAddTen,
+              onTap: addTen,
+            ),
+            _PlaceManipulativeSource(
+              sourceKey: const ValueKey('touch-place-source-1'),
+              value: 1,
+              label: 'Einerwürfel',
+              locked: !canAddOne,
+              onTap: addOne,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         Wrap(
           alignment: WrapAlignment.center,
           spacing: 12,
           runSpacing: 12,
           children: [
             _PlaceCounter(
+              dropKey: const ValueKey('touch-place-tens-target'),
               label: 'Zehner',
               value: placeTens,
+              acceptedValue: 10,
               addKey: const ValueKey('touch-place-tens-add'),
               removeKey: const ValueKey('touch-place-tens-remove'),
-              onAdd: widget.locked || value + 10 > maxValue
-                  ? null
-                  : () => setState(() => placeTens += 1),
+              onAccept: canAddTen ? addTen : null,
+              onAdd: canAddTen ? addTen : null,
               onRemove: widget.locked || placeTens == 0
                   ? null
                   : () => setState(() => placeTens -= 1),
             ),
             _PlaceCounter(
+              dropKey: const ValueKey('touch-place-ones-target'),
               label: 'Einer',
               value: placeOnes,
+              acceptedValue: 1,
               addKey: const ValueKey('touch-place-ones-add'),
               removeKey: const ValueKey('touch-place-ones-remove'),
-              onAdd: widget.locked || placeOnes >= 9 || value + 1 > maxValue
-                  ? null
-                  : () => setState(() => placeOnes += 1),
+              onAccept: canAddOne ? addOne : null,
+              onAdd: canAddOne ? addOne : null,
               onRemove: widget.locked || placeOnes == 0
                   ? null
                   : () => setState(() => placeOnes -= 1),
@@ -284,6 +319,14 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final total = moneyPieces.fold<int>(0, (sum, value) => sum + value);
     final unit = widget.plan.unitLabel ?? '€';
     String label(int value) => '$value $unit';
+    void addMoney(int value) {
+      if (widget.locked || total + value > widget.plan.maxValue) return;
+      setState(() => moneyPieces.add(value));
+    }
+    void removeMoney(int index) {
+      if (widget.locked || index < 0 || index >= moneyPieces.length) return;
+      setState(() => moneyPieces.removeAt(index));
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -293,6 +336,12 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.headlineMedium,
         ),
+        const SizedBox(height: 8),
+        Text(
+          'Zieh Geld in das Feld. Antippen fügt es ebenfalls hinzu.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         const SizedBox(height: 10),
         Wrap(
           alignment: WrapAlignment.center,
@@ -300,34 +349,91 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           runSpacing: 8,
           children: [
             for (final denomination in widget.plan.denominations)
-              FilledButton.tonal(
-                key: ValueKey('touch-money-add-$denomination'),
-                onPressed:
-                    widget.locked || total + denomination > widget.plan.maxValue
-                    ? null
-                    : () => setState(() => moneyPieces.add(denomination)),
-                child: Text('+ ${label(denomination)}'),
+              _MoneySourcePiece(
+                sourceKey: ValueKey('touch-money-add-$denomination'),
+                value: denomination,
+                unit: unit,
+                locked:
+                    widget.locked || total + denomination > widget.plan.maxValue,
+                onTap: () => addMoney(denomination),
               ),
           ],
         ),
-        if (moneyPieces.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (var index = 0; index < moneyPieces.length; index++)
-                InputChip(
-                  key: ValueKey('touch-money-piece-$index'),
-                  label: Text(label(moneyPieces[index])),
-                  onDeleted: widget.locked
-                      ? null
-                      : () => setState(() => moneyPieces.removeAt(index)),
-                ),
-            ],
+        const SizedBox(height: 12),
+        DragTarget<_MoneyDragData>(
+          key: const ValueKey('touch-money-workspace'),
+          onWillAcceptWithDetails: (details) =>
+              !widget.locked &&
+              !details.data.isPlaced &&
+              total + details.data.value <= widget.plan.maxValue,
+          onAcceptWithDetails: (details) => addMoney(details.data.value),
+          builder: (context, candidates, rejected) => AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            constraints: const BoxConstraints(minHeight: 100),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: candidates.isNotEmpty
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: candidates.isNotEmpty
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.outline,
+                width: candidates.isNotEmpty ? 2 : 1,
+              ),
+            ),
+            child: moneyPieces.isEmpty
+                ? const Center(child: Text('Geld hier ablegen'))
+                : Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 7,
+                    runSpacing: 7,
+                    children: [
+                      for (var index = 0; index < moneyPieces.length; index++)
+                        _PlacedMoneyPiece(
+                          pieceKey: ValueKey('touch-money-piece-$index'),
+                          value: moneyPieces[index],
+                          unit: unit,
+                          index: index,
+                          locked: widget.locked,
+                          onDelete: () => removeMoney(index),
+                        ),
+                    ],
+                  ),
           ),
-        ],
+        ),
+        const SizedBox(height: 8),
+        DragTarget<_MoneyDragData>(
+          key: const ValueKey('touch-money-return'),
+          onWillAcceptWithDetails: (details) =>
+              !widget.locked && details.data.isPlaced,
+          onAcceptWithDetails: (details) =>
+              removeMoney(details.data.placedIndex!),
+          builder: (context, candidates, rejected) => AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              color: candidates.isNotEmpty
+                  ? Theme.of(context).colorScheme.errorContainer
+                  : Theme.of(context).colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: candidates.isNotEmpty
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.keyboard_return_rounded),
+                SizedBox(width: 7),
+                Flexible(child: Text('Geldstück hierhin zurückziehen')),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -1595,60 +1701,312 @@ class _TouchPerimeterPainter extends CustomPainter {
       accent != oldDelegate.accent;
 }
 
+class _PlaceManipulativeSource extends StatelessWidget {
+  const _PlaceManipulativeSource({
+    required this.sourceKey,
+    required this.value,
+    required this.label,
+    required this.locked,
+    required this.onTap,
+  });
+
+  final Key sourceKey;
+  final int value;
+  final String label;
+  final bool locked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: !locked,
+    label: '$label. Antippen oder in das passende Feld ziehen.',
+    onTap: locked ? null : onTap,
+    child: GestureDetector(
+      key: sourceKey,
+      onTap: locked ? null : onTap,
+      child: Draggable<int>(
+        data: value,
+        maxSimultaneousDrags: locked ? 0 : 1,
+        feedback: Material(
+          color: Colors.transparent,
+          child: _BaseTenPiece(value: value, label: label),
+        ),
+        childWhenDragging: Opacity(
+          opacity: 0.35,
+          child: _BaseTenPiece(value: value, label: label),
+        ),
+        child: _BaseTenPiece(value: value, label: label),
+      ),
+    ),
+  );
+}
+
+class _BaseTenPiece extends StatelessWidget {
+  const _BaseTenPiece({required this.value, this.label});
+
+  final int value;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primaryContainer;
+    final outline = Theme.of(context).colorScheme.primary;
+    final piece = value == 10
+        ? SizedBox(
+            width: 112,
+            height: 30,
+            child: Row(
+              children: List.generate(
+                10,
+                (_) => Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: color,
+                      border: Border.all(color: outline, width: 0.7),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
+        : Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: color,
+              border: Border.all(color: outline),
+            ),
+          );
+    if (label == null) return piece;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        piece,
+        const SizedBox(height: 3),
+        Text(label!, style: Theme.of(context).textTheme.labelMedium),
+      ],
+    );
+  }
+}
+
 class _PlaceCounter extends StatelessWidget {
   const _PlaceCounter({
+    required this.dropKey,
     required this.label,
     required this.value,
+    required this.acceptedValue,
     required this.addKey,
     required this.removeKey,
+    required this.onAccept,
     required this.onAdd,
     required this.onRemove,
   });
 
+  final Key dropKey;
   final String label;
   final int value;
+  final int acceptedValue;
   final Key addKey;
   final Key removeKey;
+  final VoidCallback? onAccept;
   final VoidCallback? onAdd;
   final VoidCallback? onRemove;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: '$label: $value',
-    child: Container(
-      width: 132,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
-          Text('$value', style: Theme.of(context).textTheme.headlineMedium),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                key: removeKey,
-                tooltip: '$label wegnehmen',
-                onPressed: onRemove,
-                icon: const Icon(Icons.remove_rounded),
-              ),
-              IconButton(
-                key: addKey,
-                tooltip: '$label hinzufügen',
-                onPressed: onAdd,
-                icon: const Icon(Icons.add_rounded),
-              ),
-            ],
+  Widget build(BuildContext context) => DragTarget<int>(
+    key: dropKey,
+    onWillAcceptWithDetails: (details) =>
+        details.data == acceptedValue && onAccept != null,
+    onAcceptWithDetails: (_) => onAccept?.call(),
+    builder: (context, candidates, rejected) => Semantics(
+      label: '$label: $value',
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        width: 142,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: candidates.isNotEmpty
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: candidates.isNotEmpty
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outline,
+            width: candidates.isNotEmpty ? 2 : 1,
           ),
-        ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
+            Text('$value', style: Theme.of(context).textTheme.headlineMedium),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 30),
+              child: value == 0
+                  ? Text(
+                      'Hier ablegen',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    )
+                  : Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 3,
+                      runSpacing: 3,
+                      children: List.generate(
+                        value,
+                        (_) => Container(
+                          width: acceptedValue == 10 ? 32 : 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  key: removeKey,
+                  tooltip: '$label wegnehmen',
+                  onPressed: onRemove,
+                  icon: const Icon(Icons.remove_rounded),
+                ),
+                IconButton(
+                  key: addKey,
+                  tooltip: '$label hinzufügen',
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add_rounded),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     ),
   );
+}
+
+class _MoneyDragData {
+  const _MoneyDragData(this.value, {this.placedIndex});
+
+  final int value;
+  final int? placedIndex;
+  bool get isPlaced => placedIndex != null;
+}
+
+class _MoneySourcePiece extends StatelessWidget {
+  const _MoneySourcePiece({
+    required this.sourceKey,
+    required this.value,
+    required this.unit,
+    required this.locked,
+    required this.onTap,
+  });
+
+  final Key sourceKey;
+  final int value;
+  final String unit;
+  final bool locked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: !locked,
+    label: '$value $unit. Antippen oder in das Geldfeld ziehen.',
+    onTap: locked ? null : onTap,
+    child: GestureDetector(
+      key: sourceKey,
+      onTap: locked ? null : onTap,
+      child: Draggable<_MoneyDragData>(
+        data: _MoneyDragData(value),
+        maxSimultaneousDrags: locked ? 0 : 1,
+        feedback: Material(
+          color: Colors.transparent,
+          child: _MoneyPieceVisual(value: value, unit: unit),
+        ),
+        childWhenDragging: Opacity(
+          opacity: 0.35,
+          child: _MoneyPieceVisual(value: value, unit: unit),
+        ),
+        child: _MoneyPieceVisual(value: value, unit: unit),
+      ),
+    ),
+  );
+}
+
+class _PlacedMoneyPiece extends StatelessWidget {
+  const _PlacedMoneyPiece({
+    required this.pieceKey,
+    required this.value,
+    required this.unit,
+    required this.index,
+    required this.locked,
+    required this.onDelete,
+  });
+
+  final Key pieceKey;
+  final int value;
+  final String unit;
+  final int index;
+  final bool locked;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) => Draggable<_MoneyDragData>(
+    key: pieceKey,
+    data: _MoneyDragData(value, placedIndex: index),
+    maxSimultaneousDrags: locked ? 0 : 1,
+    feedback: Material(
+      color: Colors.transparent,
+      child: _MoneyPieceVisual(value: value, unit: unit),
+    ),
+    childWhenDragging: Opacity(
+      opacity: 0.3,
+      child: InputChip(label: Text('$value $unit')),
+    ),
+    child: InputChip(
+      label: Text('$value $unit'),
+      onDeleted: locked ? null : onDelete,
+    ),
+  );
+}
+
+class _MoneyPieceVisual extends StatelessWidget {
+  const _MoneyPieceVisual({required this.value, required this.unit});
+
+  final int value;
+  final String unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCoin = unit == '€' && value <= 2;
+    final child = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        '$value $unit',
+        style: const TextStyle(fontWeight: FontWeight.w900),
+      ),
+    );
+    return Container(
+      width: isCoin ? 54 : 76,
+      height: 48,
+      padding: const EdgeInsets.all(7),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.secondaryContainer,
+        shape: isCoin ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: isCoin ? null : BorderRadius.circular(10),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+      ),
+      child: child,
+    );
+  }
 }
 
 class _TouchClockPainter extends CustomPainter {
