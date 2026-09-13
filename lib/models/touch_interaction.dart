@@ -16,6 +16,7 @@ enum TouchInteractionKind {
   durationTimeline,
   calendarStepper,
   geometryRelationChoice,
+  cubeNetFoldChoice,
   pathWalker,
   symmetryAxes,
   shapeCorners,
@@ -625,6 +626,26 @@ class TouchInteractionPlan {
         }
       }
     }
+
+    if (mode == TrainingMode.geometryBodies &&
+        taskKey.startsWith('body:cube-net:fold:') &&
+        choices != null &&
+        choices.length == 2) {
+      final parts = taskKey.split(':');
+      if (parts.length >= 7) {
+        final pattern = parts.sublist(6).join(':');
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.cubeNetFoldChoice,
+          instruction:
+              'Prüfe das Netz selbst: Würden beim Falten sechs verschiedene Würfelflächen entstehen?',
+          dataLabels: pattern.split(';'),
+          answerChoices: choices,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
 
     if (mode == TrainingMode.fractions &&
         (taskKey == 'fraction:time' || taskKey == 'fraction:volume') &&
