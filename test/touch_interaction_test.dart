@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rechenblitz/models/cube_net.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
@@ -3415,6 +3416,122 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey('touch-geometry-option-3')), findsOneWidget);
+  });
+
+  test('cube-net foldability gets a direct touch plan from the encoded net', () {
+    final plan = TouchInteractionPlan.forTask(
+      mode: TrainingMode.geometryBodies,
+      taskKey: 'body:cube-net:fold:yes:local:opposite:1,0;0,1;1,1;2,1;3,1;1,2',
+      answer: 0,
+      maxValue: 20,
+      choices: const <String>['Ja, es lässt sich falten', 'Nein, es lässt sich nicht falten'],
+    );
+
+    expect(plan?.kind, TouchInteractionKind.cubeNetFoldChoice);
+    expect(plan?.dataLabels, hasLength(6));
+    expect(plan?.dataLabels, contains('3,1'));
+    expect(plan?.expectedAnswer, 0);
+  });
+
+  testWidgets('cube-net touch shows six squares and submits the fold decision', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'body:cube-net:fold:yes:local:opposite:1,0;0,1;1,1;2,1;3,1;1,2',
+      kind: TouchInteractionKind.cubeNetFoldChoice,
+      instruction: 'Prüfe das Netz.',
+      dataLabels: <String>['1,0', '0,1', '1,1', '2,1', '3,1', '1,2'],
+      answerChoices: <String>['Ja, es lässt sich falten', 'Nein, es lässt sich nicht falten'],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-cube-net-grid')), findsOneWidget);
+    expect(find.text('A'), findsNothing);
+    expect(find.text('B'), findsNothing);
+    expect(find.text('C'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('touch-cube-net-yes')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-cube-net-submit')));
+    expect(answer, 0);
+  });
+
+  testWidgets('cube-net curriculum defaults to direct net and keeps choice fallback', (tester) async {
+    final controller = await _controller();
+    const cells = <GridCell>[
+      GridCell(1, 0), GridCell(0, 1), GridCell(1, 1),
+      GridCell(2, 1), GridCell(3, 1), GridCell(1, 2),
+    ];
+    final exercise = CurriculumExercise(
+      mode: TrainingMode.geometryBodies,
+      prompt: 'Kann dieses Netz zu einem Würfel gefaltet werden?',
+      answer: 0,
+      hint: 'Prüfe die sechs Flächen.',
+      key: 'body:cube-net:fold:yes:local:opposite:1,0;0,1;1,1;2,1;3,1;1,2',
+      choices: <String>['Ja, es lässt sich falten', 'Nein, es lässt sich nicht falten'],
+      cubeNetCells: cells,
+      cubeNetLabels: <GridCell, String>{
+        GridCell(0, 1): 'A', GridCell(1, 1): 'B', GridCell(2, 1): 'C',
+      },
+      method: 'Würfelnetz gedanklich falten',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.geometryBodies,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-cube-net-grid')), findsOneWidget);
+    expect(find.text('A'), findsNothing);
+    final fallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(fallback, 240, scrollable: find.byType(Scrollable).first);
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('A'), findsOneWidget);
+    expect(find.text('Ja, es lässt sich falten'), findsOneWidget);
+  });
+
+  testWidgets('cube-net touch stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'body:cube-net:fold:no:local:adjacent:0,0;1,0;2,0;0,1;1,1;2,1',
+      kind: TouchInteractionKind.cubeNetFoldChoice,
+      instruction: 'Prüfe das Netz selbst.',
+      dataLabels: <String>['0,0', '1,0', '2,0', '0,1', '1,1', '2,1'],
+      answerChoices: <String>['Ja, es lässt sich falten', 'Nein, es lässt sich nicht falten'],
+      expectedAnswer: 1,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-cube-net-grid')), findsOneWidget);
   });
 }
 

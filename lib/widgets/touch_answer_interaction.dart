@@ -41,6 +41,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int calendarDay = 1;
   int calendarSteps = 0;
   int? selectedGeometryCandidate;
+  int? selectedCubeNetChoice;
   int pathX = 0;
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
@@ -98,6 +99,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         : 1;
     calendarSteps = 0;
     selectedGeometryCandidate = null;
+    selectedCubeNetChoice = null;
     pathX = 0;
     pathY = 0;
     selectedAxes.clear();
@@ -167,6 +169,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildCalendarStepper(context),
             TouchInteractionKind.geometryRelationChoice =>
               _buildGeometryRelationChoice(context),
+            TouchInteractionKind.cubeNetFoldChoice =>
+              _buildCubeNetFoldChoice(context),
             TouchInteractionKind.pathWalker => _buildPathWalker(context),
             TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
@@ -206,6 +210,76 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildCubeNetFoldChoice(BuildContext context) {
+    final cells = widget.plan.dataLabels
+        .map((raw) => raw.split(','))
+        .where((parts) => parts.length == 2)
+        .map((parts) => (int.tryParse(parts[0]) ?? 0, int.tryParse(parts[1]) ?? 0))
+        .toList(growable: false);
+    final maxX = cells.isEmpty ? 0 : cells.map((c) => c.$1).reduce(math.max);
+    final maxY = cells.isEmpty ? 0 : cells.map((c) => c.$2).reduce(math.max);
+    final occupied = cells.toSet();
+    return Column(
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 300),
+            child: AspectRatio(
+              aspectRatio: (maxX + 1) / math.max(1, maxY + 1),
+              child: GridView.builder(
+                key: const ValueKey('touch-cube-net-grid'),
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: (maxX + 1) * (maxY + 1),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: maxX + 1),
+                itemBuilder: (context, index) {
+                  final cell = (index % (maxX + 1), index ~/ (maxX + 1));
+                  return Container(
+                    margin: const EdgeInsets.all(1.5),
+                    decoration: occupied.contains(cell)
+                        ? BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
+                          )
+                        : null,
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12,
+          children: [
+            ChoiceChip(
+              key: const ValueKey('touch-cube-net-yes'),
+              selected: selectedCubeNetChoice == 0,
+              avatar: const Icon(Icons.check_circle_outline),
+              label: const Text('faltbar'),
+              onSelected: widget.locked ? null : (_) => setState(() => selectedCubeNetChoice = 0),
+            ),
+            ChoiceChip(
+              key: const ValueKey('touch-cube-net-no'),
+              selected: selectedCubeNetChoice == 1,
+              avatar: const Icon(Icons.block_outlined),
+              label: const Text('nicht faltbar'),
+              onSelected: widget.locked ? null : (_) => setState(() => selectedCubeNetChoice = 1),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        FilledButton(
+          key: const ValueKey('touch-cube-net-submit'),
+          onPressed: widget.locked || selectedCubeNetChoice == null
+              ? null
+              : () => widget.onAnswer(selectedCubeNetChoice!),
+          child: const Text('Prüfen'),
+        ),
+      ],
+    );
+  }
 
   Widget _buildGeometryRelationChoice(BuildContext context) {
     final operation = widget.plan.dataOperation ?? 'lines';

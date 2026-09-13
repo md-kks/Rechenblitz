@@ -494,7 +494,9 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               SizedBox(height: visualGap),
               _BarChart(bars: current.bars!),
             ],
-            if (current.hasCubeNet) ...[
+            if (current.hasCubeNet &&
+                !(useTouchInput &&
+                    _touchInteraction?.kind == TouchInteractionKind.cubeNetFoldChoice)) ...[
               SizedBox(height: visualGap),
               _CubeNetView(
                 cells: current.cubeNetCells!,
