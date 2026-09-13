@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'micro_competency.dart';
 import 'training.dart';
 
 enum TouchInteractionKind {
@@ -13,6 +14,8 @@ enum TouchInteractionKind {
   symmetryAxes,
   shapeCorners,
   rectanglePerimeterEdges,
+  equalGroupsBuilder,
+  divisionGroupsBuilder,
 }
 
 class TouchInteractionPlan {
@@ -43,6 +46,10 @@ class TouchInteractionPlan {
     this.selectionLabels = const <String>[],
     this.correctSelectionIndexes = const <int>[],
     this.expectedAnswer,
+    this.groupCount,
+    this.itemsPerGroup,
+    this.totalItems,
+    this.divisionGrouping = false,
   });
 
   final String taskKey;
@@ -71,6 +78,10 @@ class TouchInteractionPlan {
   final List<String> selectionLabels;
   final List<int> correctSelectionIndexes;
   final int? expectedAnswer;
+  final int? groupCount;
+  final int? itemsPerGroup;
+  final int? totalItems;
+  final bool divisionGrouping;
 
   bool get hasInteractiveWall => wallValues != null && hiddenWallIndex != null;
 
@@ -85,7 +96,48 @@ class TouchInteractionPlan {
     int? clockHour,
     int? clockMinute,
     String? answerSuffix,
+    MicroCompetencyId? targetCompetency,
   }) {
+    if (targetCompetency == MicroCompetencyId.multiplicationGroups) {
+      final multiplication = _multiplicationGroupsSpec(mode, taskKey);
+      if (multiplication != null) {
+        final groups = multiplication.$1;
+        final each = multiplication.$2;
+        final total = groups * each;
+        if (groups > 0 && each > 0 && groups <= 6 && total <= 48) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.equalGroupsBuilder,
+            instruction:
+                'Baue $groups gleich große Gruppen mit jeweils $each Punkten.',
+            groupCount: groups,
+            itemsPerGroup: each,
+            totalItems: total,
+            expectedAnswer: answer,
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.wordProblems &&
+        targetCompetency == MicroCompetencyId.divisionSharing) {
+      final division = _divisionGroupsSpec(taskKey, answer);
+      if (division != null && division.$1 <= 48) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.divisionGroupsBuilder,
+          instruction: division.$4
+              ? 'Bilde gleich große Gruppen mit jeweils ${division.$3} Dingen.'
+              : 'Verteile alle ${division.$1} Dinge gleichmäßig auf ${division.$2} Gruppen.',
+          totalItems: division.$1,
+          groupCount: division.$2,
+          itemsPerGroup: division.$3,
+          divisionGrouping: division.$4,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
     if (mode == TrainingMode.placeValue &&
         taskKey.startsWith('place:') &&
         answer <= 100) {
@@ -142,8 +194,7 @@ class TouchInteractionPlan {
       return TouchInteractionPlan(
         taskKey: taskKey,
         kind: TouchInteractionKind.clockSetter,
-        instruction:
-            'Stelle die Zeiger genauso ein wie bei der Uhr oben.',
+        instruction: 'Stelle die Zeiger genauso ein wie bei der Uhr oben.',
         answerChoices: choices,
         clockHour: clockHour,
         clockMinute: clockMinute,
@@ -347,6 +398,50 @@ class TouchInteractionPlan {
       );
     }
 
+    return null;
+  }
+
+  static (int, int)? _multiplicationGroupsSpec(
+    TrainingMode mode,
+    String taskKey,
+  ) {
+    if (mode == TrainingMode.multiply && taskKey.startsWith('multiply:')) {
+      final parts = taskKey.split(':');
+      if (parts.length != 3) return null;
+      final a = int.tryParse(parts[1]);
+      final b = int.tryParse(parts[2]);
+      if (a == null || b == null) return null;
+      return (a, b);
+    }
+    if (mode == TrainingMode.wordProblems &&
+        taskKey.startsWith('story:transfer:skill:multiplicationGroups:x:')) {
+      final parts = taskKey.split(':');
+      if (parts.length < 8) return null;
+      final groups = int.tryParse(parts[parts.length - 2]);
+      final each = int.tryParse(parts.last);
+      if (groups == null || each == null) return null;
+      return (groups, each);
+    }
+    return null;
+  }
+
+  static (int, int?, int?, bool)? _divisionGroupsSpec(
+    String taskKey,
+    int answer,
+  ) {
+    final parts = taskKey.split(':');
+    if (parts.length != 5 || parts.first != 'story') return null;
+    final total = int.tryParse(parts[3]);
+    final known = int.tryParse(parts[4]);
+    if (total == null || known == null || total <= 0 || known <= 0) {
+      return null;
+    }
+    if (parts[1] == 'sharing') {
+      return (total, known, answer, false);
+    }
+    if (parts[1] == 'grouping') {
+      return (total, answer, known, true);
+    }
     return null;
   }
 

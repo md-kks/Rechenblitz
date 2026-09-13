@@ -9,11 +9,13 @@ import '../models/help_preferences.dart';
 import '../models/math_fact.dart';
 import '../models/micro_competency.dart';
 import '../models/training.dart';
+import '../models/touch_interaction.dart';
 import '../services/app_controller.dart';
 import '../widgets/guided_method_panel.dart';
 import '../widgets/independent_step_card.dart';
 import '../widgets/number_answer_pad.dart';
 import '../widgets/round_completion_dialog.dart';
+import '../widgets/touch_answer_interaction.dart';
 
 class TrainingScreen extends StatefulWidget {
   const TrainingScreen({
@@ -45,6 +47,13 @@ class _TrainingScreenState extends State<TrainingScreen> {
   HelpPreferences get _helpPreferences => widget.controller.helpPreferences;
   HelpLevel? get _manualHelpLevel => _helpPreferences.manualStartLevel;
   bool get _helpAvailable => _helpPreferences.enabled;
+  TouchInteractionPlan? get _touchInteraction => TouchInteractionPlan.forTask(
+        mode: widget.mode,
+        taskKey: current.key,
+        answer: _expectedAnswer,
+        maxValue: widget.controller.effectiveMaxValue,
+        targetCompetency: widget.targetCompetency,
+      );
 
   MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
       ? MicroEvidenceSource.transfer
@@ -65,6 +74,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
   bool showHelp = false;
   bool locked = false;
   bool finishing = false;
+  bool useTouchInput = true;
   bool helpCountedForCurrent = false;
   int helpLevel = 0;
   String? activeMethodKey;
@@ -140,6 +150,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     hadCheckpointError = false;
     taskRememberFuture = null;
     checkpointFeedback = '';
+    useTouchInput = true;
 
     final fadingLevel = ScaffoldFadingPolicy.initialLevelForTask(
       completed,
@@ -682,12 +693,40 @@ class _TrainingScreenState extends State<TrainingScreen> {
                       label: const Text('Ich brauche Hilfe'),
                     ),
                   const SizedBox(height: 24),
-                  if (_checkpointsComplete)
+                  if (_checkpointsComplete &&
+                      useTouchInput &&
+                      _touchInteraction != null) ...[
+                    TouchAnswerInteraction(
+                      key: ValueKey('touch:${current.key}:$completed'),
+                      plan: _touchInteraction!,
+                      locked: locked,
+                      onAnswer: _answer,
+                    ),
+                    const SizedBox(height: 6),
+                    TextButton.icon(
+                      key: const ValueKey('touch-switch-keypad'),
+                      onPressed: locked
+                          ? null
+                          : () => setState(() => useTouchInput = false),
+                      icon: const Icon(Icons.dialpad_rounded),
+                      label: const Text('Lieber eintippen'),
+                    ),
+                  ] else if (_checkpointsComplete) ...[
                     NumberAnswerPad(
                       key: ValueKey('${current.key}:$completed'),
                       maxValue: widget.controller.effectiveMaxValue,
                       onAnswer: _answer,
                     ),
+                    if (_touchInteraction != null)
+                      TextButton.icon(
+                        key: const ValueKey('touch-switch-interaction'),
+                        onPressed: locked
+                            ? null
+                            : () => setState(() => useTouchInput = true),
+                        icon: const Icon(Icons.touch_app_rounded),
+                        label: const Text('Lieber mit Punkten'),
+                      ),
+                  ],
                 ],
               ),
             ),

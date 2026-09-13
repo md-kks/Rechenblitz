@@ -35,6 +35,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final Set<int> selectedAxes = <int>{};
   final Set<int> selectedShapePoints = <int>{};
   final Set<int> selectedPerimeterEdges = <int>{};
+  final List<int> groupCounters = <int>[];
+  int builtDivisionGroups = 0;
 
   @override
   void initState() {
@@ -64,6 +66,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedAxes.clear();
     selectedShapePoints.clear();
     selectedPerimeterEdges.clear();
+    groupCounters
+      ..clear()
+      ..addAll(List<int>.filled(widget.plan.groupCount ?? 0, 0));
+    builtDivisionGroups = 0;
   }
 
   @override
@@ -106,6 +112,12 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
             TouchInteractionKind.rectanglePerimeterEdges =>
               _buildRectanglePerimeter(context),
+            TouchInteractionKind.equalGroupsBuilder => _buildEqualGroups(
+              context,
+            ),
+            TouchInteractionKind.divisionGroupsBuilder => _buildDivisionGroups(
+              context,
+            ),
           },
         ],
       ),
@@ -943,6 +955,226 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     );
   }
 
+  Widget _buildEqualGroups(BuildContext context) {
+    final groups = widget.plan.groupCount ?? 0;
+    final targetEach = widget.plan.itemsPerGroup ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '$groups Gruppen · in jede gehören $targetEach Punkte',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 10,
+          children: List.generate(
+            groupCounters.length,
+            (index) => _CounterGroupCard(
+              key: ValueKey('touch-equal-group-$index'),
+              label: 'Gruppe ${index + 1}',
+              count: groupCounters[index],
+              onAdd: widget.locked || groupCounters[index] >= targetEach + 2
+                  ? null
+                  : () => setState(() => groupCounters[index] += 1),
+              onRemove: widget.locked || groupCounters[index] == 0
+                  ? null
+                  : () => setState(() => groupCounters[index] -= 1),
+              addKey: ValueKey('touch-equal-group-$index-add'),
+              removeKey: ValueKey('touch-equal-group-$index-remove'),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Sind wirklich alle Gruppen gleich groß?',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-equal-groups-submit'),
+          onPressed: widget.locked ? null : _submitEqualGroups,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Punktefeld prüfen'),
+        ),
+      ],
+    );
+  }
+
+  void _submitEqualGroups() {
+    final targetEach = widget.plan.itemsPerGroup ?? 0;
+    final expected =
+        widget.plan.expectedAnswer ??
+        (widget.plan.groupCount ?? 0) * targetEach;
+    final exact =
+        groupCounters.isNotEmpty &&
+        groupCounters.every((count) => count == targetEach);
+    if (exact) {
+      widget.onAnswer(expected);
+      return;
+    }
+    final total = groupCounters.fold<int>(0, (sum, count) => sum + count);
+    widget.onAnswer(_wrongAnswer(total, expected));
+  }
+
+  Widget _buildDivisionGroups(BuildContext context) {
+    final total = widget.plan.totalItems ?? 0;
+    return widget.plan.divisionGrouping
+        ? _buildDivisionGrouping(context, total)
+        : _buildDivisionSharing(context, total);
+  }
+
+  Widget _buildDivisionSharing(BuildContext context, int total) {
+    final distributed = groupCounters.fold<int>(0, (sum, count) => sum + count);
+    final remaining = math.max(0, total - distributed);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Noch zu verteilen: $remaining von $total',
+          key: const ValueKey('touch-sharing-remaining'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 10,
+          children: List.generate(
+            groupCounters.length,
+            (index) => _CounterGroupCard(
+              key: ValueKey('touch-sharing-group-$index'),
+              label: 'Gruppe ${index + 1}',
+              count: groupCounters[index],
+              onAdd: widget.locked || remaining == 0
+                  ? null
+                  : () => setState(() => groupCounters[index] += 1),
+              onRemove: widget.locked || groupCounters[index] == 0
+                  ? null
+                  : () => setState(() => groupCounters[index] -= 1),
+              addKey: ValueKey('touch-sharing-group-$index-add'),
+              removeKey: ValueKey('touch-sharing-group-$index-remove'),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Verteile alle Dinge so, dass jede Gruppe gleich viel bekommt.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-sharing-submit'),
+          onPressed: widget.locked ? null : _submitDivisionSharing,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Verteilung prüfen'),
+        ),
+      ],
+    );
+  }
+
+  void _submitDivisionSharing() {
+    final total = widget.plan.totalItems ?? 0;
+    final distributed = groupCounters.fold<int>(0, (sum, count) => sum + count);
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final equal =
+        groupCounters.isNotEmpty &&
+        groupCounters.every((count) => count == groupCounters.first);
+    if (distributed == total && equal) {
+      widget.onAnswer(groupCounters.first);
+      return;
+    }
+    final candidate = groupCounters.isEmpty ? 0 : groupCounters.first;
+    widget.onAnswer(_wrongAnswer(candidate, expected));
+  }
+
+  Widget _buildDivisionGrouping(BuildContext context, int total) {
+    final each = widget.plan.itemsPerGroup ?? 1;
+    final used = builtDivisionGroups * each;
+    final remaining = math.max(0, total - used);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Eine Gruppe enthält $each Dinge.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Gebildete Gruppen: $builtDivisionGroups · übrig: $remaining',
+          key: const ValueKey('touch-grouping-progress'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(
+            builtDivisionGroups,
+            (index) => _StaticCounterGroup(
+              key: ValueKey('touch-grouping-group-$index'),
+              label: 'Gruppe ${index + 1}',
+              count: each,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          children: [
+            OutlinedButton.icon(
+              key: const ValueKey('touch-grouping-remove'),
+              onPressed: widget.locked || builtDivisionGroups == 0
+                  ? null
+                  : () => setState(() => builtDivisionGroups -= 1),
+              icon: const Icon(Icons.remove_rounded),
+              label: const Text('Gruppe zurück'),
+            ),
+            FilledButton.tonalIcon(
+              key: const ValueKey('touch-grouping-add'),
+              onPressed: widget.locked || remaining < each
+                  ? null
+                  : () => setState(() => builtDivisionGroups += 1),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Gruppe bilden'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-grouping-submit'),
+          onPressed: widget.locked ? null : _submitDivisionGrouping,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Gruppen prüfen'),
+        ),
+      ],
+    );
+  }
+
+  void _submitDivisionGrouping() {
+    final total = widget.plan.totalItems ?? 0;
+    final each = widget.plan.itemsPerGroup ?? 1;
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final used = builtDivisionGroups * each;
+    widget.onAnswer(
+      used == total
+          ? builtDivisionGroups
+          : _wrongAnswer(builtDivisionGroups, expected),
+    );
+  }
+
+  int _wrongAnswer(int candidate, int expected) {
+    if (candidate != expected) return candidate;
+    return expected == 0 ? 1 : expected - 1;
+  }
+
   void _submitClock() {
     final label =
         '$selectedHour:${selectedMinute.toString().padLeft(2, '0')} Uhr';
@@ -953,6 +1185,114 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     }
     widget.onAnswer(-1);
   }
+}
+
+class _CounterGroupCard extends StatelessWidget {
+  const _CounterGroupCard({
+    super.key,
+    required this.label,
+    required this.count,
+    required this.onAdd,
+    required this.onRemove,
+    required this.addKey,
+    required this.removeKey,
+  });
+
+  final String label;
+  final int count;
+  final VoidCallback? onAdd;
+  final VoidCallback? onRemove;
+  final Key addKey;
+  final Key removeKey;
+
+  @override
+  Widget build(BuildContext context) => Card.outlined(
+    child: SizedBox(
+      width: 122,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label),
+            const SizedBox(height: 6),
+            _CounterDots(count: count),
+            Text('$count'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  key: removeKey,
+                  tooltip: 'Einen Punkt entfernen',
+                  onPressed: onRemove,
+                  icon: const Icon(Icons.remove_circle_outline_rounded),
+                ),
+                IconButton(
+                  key: addKey,
+                  tooltip: 'Einen Punkt hinzufügen',
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add_circle_outline_rounded),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _StaticCounterGroup extends StatelessWidget {
+  const _StaticCounterGroup({
+    super.key,
+    required this.label,
+    required this.count,
+  });
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Card.outlined(
+    child: SizedBox(
+      width: 110,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label),
+            const SizedBox(height: 4),
+            _CounterDots(count: count),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _CounterDots extends StatelessWidget {
+  const _CounterDots({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(minHeight: 28),
+    child: Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 3,
+      runSpacing: 3,
+      children: List.generate(
+        count,
+        (_) => Icon(
+          Icons.circle,
+          size: 10,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    ),
+  );
 }
 
 class _TouchPathPainter extends CustomPainter {

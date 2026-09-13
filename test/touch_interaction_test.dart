@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
+import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/touch_interaction.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/screens/curriculum_training_screen.dart';
 import 'package:rechenblitz/screens/structured_training_screen.dart';
+import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:rechenblitz/widgets/number_answer_pad.dart';
 import 'package:rechenblitz/widgets/touch_answer_interaction.dart';
@@ -928,6 +930,272 @@ void main() {
     );
     await tester.tap(fallback);
     await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+  });
+
+  test('touch groups stay scoped to understanding competencies', () {
+    final multiplication = TouchInteractionPlan.forTask(
+      mode: TrainingMode.multiply,
+      taskKey: 'multiply:3:4',
+      answer: 12,
+      maxValue: 20,
+      targetCompetency: MicroCompetencyId.multiplicationGroups,
+    );
+    final multiplicationFact = TouchInteractionPlan.forTask(
+      mode: TrainingMode.multiply,
+      taskKey: 'multiply:3:4',
+      answer: 12,
+      maxValue: 20,
+      targetCompetency: MicroCompetencyId.multiplicationFacts,
+    );
+    final orderedMultiplication = TouchInteractionPlan.forTask(
+      mode: TrainingMode.multiply,
+      taskKey: 'multiply:5:2',
+      answer: 10,
+      maxValue: 20,
+      targetCompetency: MicroCompetencyId.multiplicationGroups,
+    );
+    final transferMultiplication = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:transfer:skill:multiplicationGroups:x:rows:5:2',
+      answer: 10,
+      maxValue: 20,
+      targetCompetency: MicroCompetencyId.multiplicationGroups,
+    );
+    final sharing = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:sharing:children:12:3',
+      answer: 4,
+      maxValue: 20,
+      targetCompetency: MicroCompetencyId.divisionSharing,
+    );
+    final grouping = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:grouping:blocks:12:4',
+      answer: 3,
+      maxValue: 20,
+      targetCompetency: MicroCompetencyId.divisionSharing,
+    );
+
+    expect(multiplication?.kind, TouchInteractionKind.equalGroupsBuilder);
+    expect(
+      (
+        multiplication?.groupCount,
+        multiplication?.itemsPerGroup,
+        multiplication?.totalItems,
+      ),
+      (3, 4, 12),
+    );
+    expect(multiplicationFact, isNull);
+    expect(
+      (orderedMultiplication?.groupCount, orderedMultiplication?.itemsPerGroup),
+      (5, 2),
+      reason: 'Der erste Faktor bleibt die Anzahl der Gruppen.',
+    );
+    expect(
+      (
+        transferMultiplication?.groupCount,
+        transferMultiplication?.itemsPerGroup,
+      ),
+      (5, 2),
+      reason:
+          'Die Gruppenstruktur der Sachaufgabe darf nicht vertauscht werden.',
+    );
+    expect(sharing?.kind, TouchInteractionKind.divisionGroupsBuilder);
+    expect(sharing?.divisionGrouping, isFalse);
+    expect((sharing?.groupCount, sharing?.itemsPerGroup), (3, 4));
+    expect(grouping?.kind, TouchInteractionKind.divisionGroupsBuilder);
+    expect(grouping?.divisionGrouping, isTrue);
+    expect((grouping?.groupCount, grouping?.itemsPerGroup), (3, 4));
+  });
+
+  testWidgets('equal-groups touch requires the actual group structure', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'multiply:3:2',
+      kind: TouchInteractionKind.equalGroupsBuilder,
+      instruction: 'Baue drei Zweiergruppen.',
+      groupCount: 3,
+      itemsPerGroup: 2,
+      totalItems: 6,
+      expectedAnswer: 6,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    for (var index = 0; index < 3; index++) {
+      for (var point = 0; point < 2; point++) {
+        await tester.tap(find.byKey(ValueKey('touch-equal-group-$index-add')));
+        await tester.pump();
+      }
+    }
+    await tester.tap(find.byKey(const ValueKey('touch-equal-groups-submit')));
+    expect(answer, 6);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    answer = -1;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    for (var point = 0; point < 4; point++) {
+      await tester.tap(find.byKey(const ValueKey('touch-equal-group-0-add')));
+      await tester.pump();
+    }
+    await tester.tap(find.byKey(const ValueKey('touch-equal-group-1-add')));
+    await tester.tap(find.byKey(const ValueKey('touch-equal-group-2-add')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-equal-groups-submit')));
+    expect(answer, isNot(6), reason: 'Nur die Summe 6 darf nicht genügen.');
+  });
+
+  testWidgets('division sharing distributes every item equally', (
+    tester,
+  ) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:sharing:children:6:3',
+      kind: TouchInteractionKind.divisionGroupsBuilder,
+      instruction: 'Verteile sechs Dinge auf drei Gruppen.',
+      totalItems: 6,
+      groupCount: 3,
+      itemsPerGroup: 2,
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    for (var index = 0; index < 3; index++) {
+      for (var item = 0; item < 2; item++) {
+        await tester.tap(
+          find.byKey(ValueKey('touch-sharing-group-$index-add')),
+        );
+        await tester.pump();
+      }
+    }
+    expect(find.text('Noch zu verteilen: 0 von 6'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-sharing-submit')));
+    expect(answer, 2);
+  });
+
+  testWidgets('division grouping builds complete equal groups', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:grouping:blocks:6:2',
+      kind: TouchInteractionKind.divisionGroupsBuilder,
+      instruction: 'Bilde Zweiergruppen.',
+      totalItems: 6,
+      groupCount: 3,
+      itemsPerGroup: 2,
+      divisionGrouping: true,
+      expectedAnswer: 3,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    for (var group = 0; group < 3; group++) {
+      await tester.tap(find.byKey(const ValueKey('touch-grouping-add')));
+      await tester.pump();
+    }
+    expect(find.text('Gebildete Gruppen: 3 · übrig: 0'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-grouping-submit')));
+    expect(answer, 3);
+  });
+
+  testWidgets('multiplication understanding defaults to touch, facts do not', (
+    tester,
+  ) async {
+    final controller = await _controller();
+    controller.facts = [
+      MathFact(a: 3, b: 4, operation: MathOperation.multiply),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainingScreen(
+          controller: controller,
+          mode: TrainingMode.multiply,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.multiplicationGroups,
+          reviewEmphasis: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('touch-answer-interaction')),
+      findsOneWidget,
+    );
+    final keypadSwitch = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      keypadSwitch,
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(keypadSwitch);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainingScreen(
+          controller: controller,
+          mode: TrainingMode.multiply,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.multiplicationFacts,
+          reviewEmphasis: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('touch-answer-interaction')),
+      findsNothing,
+    );
     expect(find.byType(NumberAnswerPad), findsOneWidget);
   });
 
