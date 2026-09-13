@@ -105,6 +105,16 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     );
   }
 
+  void _showManualHelp() {
+    final starter = _manualHelpLevel;
+    if (starter == null) return;
+    setState(() {
+      showHint = true;
+      helpLevel = starter.value;
+      activeMethodKey = _guide.methodKey;
+    });
+  }
+
   void _prepareHelpForCurrent() {
     taskIndex = completed;
     checkpointIndex = 0;
@@ -405,13 +415,34 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final compactHeight = screenSize.height < 720 && screenSize.width < 600;
+    final pagePadding = EdgeInsets.symmetric(
+      horizontal: compactHeight ? 16 : 20,
+      vertical: compactHeight ? 10 : 20,
+    );
+    final topGap = compactHeight ? 10.0 : 20.0;
+    final visualGap = compactHeight ? 12.0 : 22.0;
+    final sectionGap = compactHeight ? 10.0 : 18.0;
+    final promptFontSize = compactHeight ? 27.0 : 31.0;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.mode.title),
+        actions: [
+          if (compactHeight && _helpAvailable && !showHint)
+            IconButton(
+              key: const ValueKey('curriculum-compact-help'),
+              tooltip: 'Ich brauche Hilfe',
+              onPressed: _showManualHelp,
+              icon: const Icon(Icons.lightbulb_outline_rounded),
+            ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          key: const ValueKey('curriculum-training-scroll'),
+          padding: pagePadding,
           children: [
             LinearProgressIndicator(
               value: widget.targetTasks == 0
@@ -426,7 +457,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: topGap),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -434,8 +465,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                   child: Text(
                     current.prompt,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 31,
+                    style: TextStyle(
+                      fontSize: promptFontSize,
                       height: 1.3,
                       fontWeight: FontWeight.w800,
                     ),
@@ -450,21 +481,21 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               ],
             ),
             if (current.key.startsWith('geomrel:')) ...[
-              const SizedBox(height: 22),
+              SizedBox(height: visualGap),
               GeometryRelationVisual(taskKey: current.key),
             ],
             if (current.hasBars) ...[
-              const SizedBox(height: 22),
+              SizedBox(height: visualGap),
               _BarChart(bars: current.bars!),
             ],
             if (current.hasCubeNet) ...[
-              const SizedBox(height: 22),
+              SizedBox(height: visualGap),
               _CubeNetView(
                 cells: current.cubeNetCells!,
                 labels: current.cubeNetLabels ?? const <GridCell, String>{},
               ),
             ],
-            const SizedBox(height: 18),
+            SizedBox(height: sectionGap),
             if (!_checkpointsComplete) ...[
               IndependentStepCard(
                 question:
@@ -492,7 +523,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
               ),
             ),
             if (showHint) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: compactHeight ? 8 : 12),
               GuidedMethodPanel(
                 key: ValueKey('guide:${current.key}:$completed'),
                 guide: _guide,
@@ -528,23 +559,15 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                 },
                 onSpeak: widget.controller.speakOnDemand,
               ),
-            ] else if (_helpAvailable) ...[
+            ] else if (_helpAvailable && !compactHeight) ...[
               const SizedBox(height: 8),
               TextButton.icon(
-                onPressed: () {
-                  final starter = _manualHelpLevel;
-                  if (starter == null) return;
-                  setState(() {
-                    showHint = true;
-                    helpLevel = starter.value;
-                    activeMethodKey = _guide.methodKey;
-                  });
-                },
+                onPressed: _showManualHelp,
                 icon: const Icon(Icons.lightbulb_outline_rounded),
                 label: const Text('Ich brauche Hilfe'),
               ),
             ],
-            const SizedBox(height: 18),
+            SizedBox(height: sectionGap),
             if (_checkpointsComplete)
               if (current.usesChoices)
                 ...List.generate(
