@@ -3533,6 +3533,248 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey('touch-cube-net-grid')), findsOneWidget);
   });
+
+  test('large-number touch planner covers compare order decompose and place', () {
+    final compare = TouchInteractionPlan.forTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:compare:54321:54299',
+      answer: 1,
+      maxValue: 100000,
+      choices: const <String>['<', '>', '='],
+    );
+    expect(compare?.kind, TouchInteractionKind.largeNumberCompare);
+    expect(compare?.dataValues, <int>[54321, 54299, 100]);
+
+    final order = TouchInteractionPlan.forTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:order:120-450-900',
+      answer: 2,
+      maxValue: 1000,
+      choices: const <String>[
+        '900 < 450 < 120',
+        '450 < 120 < 900',
+        '120 < 450 < 900',
+      ],
+    );
+    expect(order?.kind, TouchInteractionKind.largeNumberOrder);
+    expect(order?.dataValues, isNot(<int>[120, 450, 900]));
+    expect(
+      order!.correctSelectionIndexes.map((index) => order.dataValues[index]),
+      <int>[120, 450, 900],
+    );
+
+    final decompose = TouchInteractionPlan.forTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:decompose:3042:1000',
+      answer: 3042,
+      maxValue: 10000,
+    );
+    expect(decompose?.kind, TouchInteractionKind.largeNumberDecompose);
+
+    final place = TouchInteractionPlan.forTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:place:58341:1000',
+      answer: 8,
+      maxValue: 100000,
+    );
+    expect(place?.kind, TouchInteractionKind.largeNumberPlaceDigit);
+    expect(place?.dataValues, <int>[58341, 1000]);
+  });
+
+  testWidgets('large compare requires the first differing place and relation', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'large:compare:54321:54299',
+      kind: TouchInteractionKind.largeNumberCompare,
+      instruction: 'Vergleiche die Stellen.',
+      dataValues: <int>[54321, 54299, 100],
+      answerChoices: <String>['<', '>', '='],
+      expectedAnswer: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-large-compare-place-1000')));
+    await tester.tap(find.byKey(const ValueKey('touch-large-compare-relation-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-large-compare-submit')));
+    expect(answer, isNot(1));
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-large-compare-place-100')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-large-compare-submit')));
+    expect(answer, 1);
+  });
+
+  testWidgets('large order validates the complete tapped sequence', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'large:order:120-450-900',
+      kind: TouchInteractionKind.largeNumberOrder,
+      instruction: 'Ordne.',
+      dataValues: <int>[450, 900, 120],
+      correctSelectionIndexes: <int>[2, 0, 1],
+      answerChoices: <String>['a', 'b', 'c'],
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-large-order-card-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-large-order-card-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-large-order-card-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-large-order-submit')));
+    expect(answer, isNot(2));
+
+    await tester.tap(find.byKey(const ValueKey('touch-large-order-reset')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-large-order-card-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-large-order-card-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-large-order-card-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-large-order-submit')));
+    expect(answer, 2);
+  });
+
+  testWidgets('large decompose builds the number from place-value digits', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'large:decompose:3042:1000',
+      kind: TouchInteractionKind.largeNumberDecompose,
+      instruction: 'Baue die Zahl.',
+      dataValues: <int>[3042],
+      expectedAnswer: 3042,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const ValueKey('touch-large-digit-plus-1000')));
+    }
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.byKey(const ValueKey('touch-large-digit-plus-10')));
+    }
+    for (var i = 0; i < 2; i++) {
+      await tester.tap(find.byKey(const ValueKey('touch-large-digit-plus-1')));
+    }
+    await tester.pump();
+    expect(find.text('Gebaut: 3042'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-large-decompose-submit')));
+    expect(answer, 3042);
+  });
+
+  testWidgets('large place digit requires tapping the requested column', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'large:place:58341:1000',
+      kind: TouchInteractionKind.largeNumberPlaceDigit,
+      instruction: 'Finde die Stelle.',
+      dataValues: <int>[58341, 1000],
+      expectedAnswer: 8,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-large-place-100')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-large-place-submit')));
+    expect(answer, isNot(8));
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-large-place-1000')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-large-place-submit')));
+    expect(answer, 8);
+  });
+
+  testWidgets('large number curriculum defaults to touch and keeps classic fallback', (tester) async {
+    final controller = await _controller();
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.largeNumbers,
+      prompt: 'Welches Zeichen passt? 54321 ? 54299',
+      answer: 1,
+      hint: 'Vergleiche von links.',
+      key: 'large:compare:54321:54299',
+      choices: <String>['<', '>', '='],
+      method: 'Zahlen vergleichen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.largeNumbers,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-large-compare-table')), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(fallback, 240, scrollable: find.byType(Scrollable).first);
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('>'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-switch-interaction')), findsOneWidget);
+  });
+
+  testWidgets('large number place-value touch stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'large:decompose:583041:10000',
+      kind: TouchInteractionKind.largeNumberDecompose,
+      instruction: 'Baue die Zahl in der Stellenwerttafel.',
+      dataValues: <int>[583041],
+      expectedAnswer: 583041,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-large-decompose-table')), findsOneWidget);
+  });
 }
 
 void _noopAnswer(int value) {}
