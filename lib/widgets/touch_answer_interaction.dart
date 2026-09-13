@@ -47,6 +47,13 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int? selectedLargeDigitPlace;
   final List<int> selectedLargeOrder = <int>[];
   final List<int> largePlaceDigits = <int>[];
+  int writtenColumnIndex = 0;
+  int writtenIncomingCarry = 0;
+  int? selectedWrittenDigit;
+  int? selectedWrittenRegroup;
+  final List<int> writtenResultDigits = <int>[];
+  final List<int> writtenWorkingTopDigits = <int>[];
+  String writtenStepFeedback = '';
   int pathX = 0;
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
@@ -115,6 +122,24 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       largePlaceDigits.addAll(
         List<int>.filled(_largePlaces(widget.plan.dataValues.first).length, 0),
       );
+    }
+    writtenColumnIndex = 0;
+    writtenIncomingCarry = 0;
+    selectedWrittenDigit = null;
+    selectedWrittenRegroup = null;
+    writtenResultDigits.clear();
+    writtenWorkingTopDigits.clear();
+    writtenStepFeedback = '';
+    if (widget.plan.kind == TouchInteractionKind.writtenColumnProcedure &&
+        widget.plan.dataValues.length >= 2 &&
+        widget.plan.dataOperation == '-') {
+      writtenWorkingTopDigits.addAll(
+        _digitsLeastSignificantFirst(widget.plan.dataValues[0]),
+      );
+      final needed = _writtenColumnCount();
+      while (writtenWorkingTopDigits.length < needed) {
+        writtenWorkingTopDigits.add(0);
+      }
     }
     pathX = 0;
     pathY = 0;
@@ -195,6 +220,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildLargeNumberDecompose(context),
             TouchInteractionKind.largeNumberPlaceDigit =>
               _buildLargeNumberPlaceDigit(context),
+            TouchInteractionKind.writtenColumnProcedure =>
+              _buildWrittenColumnProcedure(context),
             TouchInteractionKind.pathWalker => _buildPathWalker(context),
             TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
@@ -234,6 +261,279 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildWrittenColumnProcedure(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final a = values[0];
+    final b = values[1];
+    final addition = widget.plan.dataOperation == '+';
+    final count = _writtenColumnCount();
+    final column = writtenColumnIndex.clamp(0, count - 1);
+    final place = _pow10(column);
+    final bottomDigit = (b ~/ place) % 10;
+    final rawTopDigit = addition
+        ? (a ~/ place) % 10
+        : writtenWorkingTopDigits[column];
+    final previewTopDigit = !addition && selectedWrittenRegroup == 1
+        ? rawTopDigit + 10
+        : rawTopDigit;
+    final regroupLabel = addition ? 'Übertrag' : 'Entbündeln';
+    final placeLabel = _largePlaceLabel(place);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            key: const ValueKey('touch-written-table'),
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List<Widget>.generate(count, (displayIndex) {
+              final actualColumn = count - 1 - displayIndex;
+              final displayPlace = _pow10(actualColumn);
+              final top = (a ~/ displayPlace) % 10;
+              final bottom = (b ~/ displayPlace) % 10;
+              final result = actualColumn < writtenResultDigits.length
+                  ? writtenResultDigits[actualColumn]
+                  : null;
+              final active = actualColumn == column;
+              return Container(
+                key: ValueKey('touch-written-column-$displayPlace'),
+                width: 62,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    width: active ? 3 : 1.2,
+                    color: active
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      _largePlaceLabel(displayPlace),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('$top', style: Theme.of(context).textTheme.titleLarge),
+                    Text(
+                      '${addition ? '+' : '−'} $bottom',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const Divider(height: 8),
+                    Text(
+                      result == null ? '·' : '$result',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Text(
+              addition
+                  ? '$placeLabel: $rawTopDigit + $bottomDigit${writtenIncomingCarry > 0 ? ' + Übertrag $writtenIncomingCarry' : ''}'
+                  : '$placeLabel: $previewTopDigit − $bottomDigit',
+              key: const ValueKey('touch-written-current-calculation'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text('Ergebnisziffer', textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 6),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: List<Widget>.generate(10, (digit) {
+            return ChoiceChip(
+              key: ValueKey('touch-written-digit-$digit'),
+              selected: selectedWrittenDigit == digit,
+              label: Text('$digit'),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() {
+                        selectedWrittenDigit = digit;
+                        writtenStepFeedback = '';
+                      }),
+            );
+          }),
+        ),
+        const SizedBox(height: 10),
+        Text(regroupLabel, textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 6),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          children: [
+            ChoiceChip(
+              key: const ValueKey('touch-written-regroup-0'),
+              selected: selectedWrittenRegroup == 0,
+              label: Text(addition ? 'kein Übertrag' : 'nicht entbündeln'),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() {
+                        selectedWrittenRegroup = 0;
+                        writtenStepFeedback = '';
+                      }),
+            ),
+            ChoiceChip(
+              key: const ValueKey('touch-written-regroup-1'),
+              selected: selectedWrittenRegroup == 1,
+              label: Text(addition ? 'Übertrag 1' : 'entbündeln'),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() {
+                        selectedWrittenRegroup = 1;
+                        writtenStepFeedback = '';
+                      }),
+            ),
+          ],
+        ),
+        if (writtenStepFeedback.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            writtenStepFeedback,
+            key: const ValueKey('touch-written-step-feedback'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ],
+        const SizedBox(height: 10),
+        FilledButton(
+          key: const ValueKey('touch-written-column-submit'),
+          onPressed: widget.locked ||
+                  selectedWrittenDigit == null ||
+                  selectedWrittenRegroup == null
+              ? null
+              : _submitWrittenColumn,
+          child: Text(column == count - 1 ? 'Ergebnis prüfen' : 'Spalte prüfen'),
+        ),
+      ],
+    );
+  }
+
+  void _submitWrittenColumn() {
+    final values = widget.plan.dataValues;
+    final a = values[0];
+    final b = values[1];
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final addition = widget.plan.dataOperation == '+';
+    final column = writtenColumnIndex;
+    final place = _pow10(column);
+    final bottom = (b ~/ place) % 10;
+    final top = addition
+        ? (a ~/ place) % 10
+        : writtenWorkingTopDigits[column];
+
+    final expectedRegroup = addition
+        ? (top + bottom + writtenIncomingCarry) ~/ 10
+        : (top < bottom ? 1 : 0);
+    final effectiveTop = !addition && expectedRegroup == 1 ? top + 10 : top;
+    final raw = addition
+        ? top + bottom + writtenIncomingCarry
+        : effectiveTop - bottom;
+    final expectedDigit = addition ? raw % 10 : raw;
+    final stepCorrect = selectedWrittenDigit == expectedDigit &&
+        selectedWrittenRegroup == expectedRegroup;
+
+    if (!stepCorrect) {
+      setState(() {
+        writtenStepFeedback = addition
+            ? 'Prüfe Ergebnisziffer und Übertrag in dieser Spalte.'
+            : 'Prüfe Ergebnisziffer und ob du hier entbündeln musst.';
+      });
+      widget.onAnswer(_wrongAnswer(expected, expected));
+      return;
+    }
+
+    if (!addition && expectedRegroup == 1) {
+      _applyWrittenBorrow(column);
+    }
+    while (writtenResultDigits.length <= column) {
+      writtenResultDigits.add(0);
+    }
+    writtenResultDigits[column] = expectedDigit;
+    if (addition) writtenIncomingCarry = expectedRegroup;
+
+    final count = _writtenColumnCount();
+    if (column == count - 1) {
+      var result = 0;
+      for (var index = 0; index < writtenResultDigits.length; index++) {
+        result += writtenResultDigits[index] * _pow10(index);
+      }
+      widget.onAnswer(result);
+      return;
+    }
+
+    setState(() {
+      writtenColumnIndex += 1;
+      selectedWrittenDigit = null;
+      selectedWrittenRegroup = null;
+      writtenStepFeedback = '';
+    });
+  }
+
+  void _applyWrittenBorrow(int column) {
+    var source = column + 1;
+    while (source < writtenWorkingTopDigits.length &&
+        writtenWorkingTopDigits[source] == 0) {
+      source += 1;
+    }
+    if (source >= writtenWorkingTopDigits.length) return;
+    writtenWorkingTopDigits[source] -= 1;
+    for (var index = source - 1; index > column; index--) {
+      writtenWorkingTopDigits[index] = 9;
+    }
+  }
+
+  int _writtenColumnCount() {
+    if (widget.plan.dataValues.length < 2) return 1;
+    final a = widget.plan.dataValues[0];
+    final b = widget.plan.dataValues[1];
+    final expected = widget.plan.expectedAnswer ?? 0;
+    return math.max(
+      _digitsLeastSignificantFirst(a).length,
+      math.max(
+        _digitsLeastSignificantFirst(b).length,
+        _digitsLeastSignificantFirst(expected).length,
+      ),
+    );
+  }
+
+  List<int> _digitsLeastSignificantFirst(int value) {
+    if (value == 0) return <int>[0];
+    final digits = <int>[];
+    var current = value.abs();
+    while (current > 0) {
+      digits.add(current % 10);
+      current ~/= 10;
+    }
+    return digits;
+  }
+
+  int _pow10(int exponent) {
+    var value = 1;
+    for (var index = 0; index < exponent; index++) {
+      value *= 10;
+    }
+    return value;
+  }
 
   Widget _buildLargeNumberCompare(BuildContext context) {
     final values = widget.plan.dataValues;
