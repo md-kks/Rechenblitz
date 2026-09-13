@@ -389,6 +389,32 @@ void main() {
     }
   });
 
+  test('Geometrie deckt Formnamen, Ecken und Seiten ab', () {
+    final generator = StructuredExerciseGenerator(random: Random(2309));
+    final kinds = <String>{};
+
+    for (var i = 0; i < 240; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.geometry,
+        maxValue: 20,
+      );
+      final parts = exercise.key.split(':');
+      if (parts.length >= 3) kinds.add(parts[1]);
+      if (parts.length >= 3 && parts[1] == 'sides') {
+        final expected = switch (parts[2]) {
+          'triangle' => 3,
+          'square' || 'rectangle' => 4,
+          'circle' => 0,
+          _ => -1,
+        };
+        expect(exercise.answer, expected);
+        expect(exercise.prompt, contains('Seiten'));
+      }
+    }
+
+    expect(kinds, containsAll(<String>{'name', 'corners', 'sides'}));
+  });
+
   test('Sachaufgaben liefern Ergebnisse innerhalb des Zahlenraums', () {
     final generator = StructuredExerciseGenerator(random: Random(31));
     for (final maxValue in [10, 20, 100]) {

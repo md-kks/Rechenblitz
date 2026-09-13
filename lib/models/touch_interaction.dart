@@ -13,6 +13,7 @@ enum TouchInteractionKind {
   pathWalker,
   symmetryAxes,
   shapeCorners,
+  shapeSides,
   rectanglePerimeterEdges,
   rectangleAreaBuilder,
   equalGroupsBuilder,
@@ -287,6 +288,29 @@ class TouchInteractionPlan {
           taskKey: taskKey,
           kind: TouchInteractionKind.shapeCorners,
           instruction: 'Tippe genau die Ecken der Figur an.',
+          geometryShape: shape,
+          correctSelectionIndexes: correct,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.geometry &&
+        taskKey.startsWith('geometry:sides:')) {
+      final shape = taskKey.split(':').last;
+      final correct = switch (shape) {
+        'triangle' => const <int>[0, 1, 2],
+        'square' || 'rectangle' => const <int>[0, 1, 2, 3],
+        'circle' => const <int>[],
+        _ => null,
+      };
+      if (correct != null) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.shapeSides,
+          instruction: shape == 'circle'
+              ? 'Prüfe, ob der Kreis gerade Seiten hat.'
+              : 'Tippe jede gerade Seite der Figur genau einmal an.',
           geometryShape: shape,
           correctSelectionIndexes: correct,
           expectedAnswer: answer,
