@@ -23,6 +23,8 @@ enum TouchInteractionKind {
   representationSorter,
   probabilityOutcomes,
   probabilityBagComparison,
+  probabilityExperimentComparison,
+  probabilityRelativeHundredGrid,
   combinatoricsGrid,
   roundingNumberLine,
   estimationRounding,
@@ -236,6 +238,59 @@ class TouchInteractionPlan {
           correctSelectionIndexes: matching,
           expectedAnswer: answer,
         );
+      }
+    }
+
+    if (mode == TrainingMode.probability &&
+        taskKey.startsWith('prob:experiment:compare:') &&
+        choices != null &&
+        choices.length == 3) {
+      final parts = taskKey.split(':');
+      if (parts.length == 6) {
+        final trials = int.tryParse(parts[3]);
+        final red = int.tryParse(parts[4]);
+        final blue = int.tryParse(parts[5]);
+        if (trials != null &&
+            red != null &&
+            blue != null &&
+            trials > 0 &&
+            red >= 0 &&
+            blue >= 0 &&
+            red + blue == trials &&
+            trials <= 40) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.probabilityExperimentComparison,
+            instruction:
+                'Lies die beobachteten Häufigkeiten und ordne die Beobachtung zu. Es geht um diese Versuchsreihe, nicht um eine Vorhersage.',
+            dataValues: <int>[trials, red, blue],
+            answerChoices: choices,
+            expectedAnswer: answer,
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.probability &&
+        taskKey.startsWith('prob:experiment:relative:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      if (parts.length == 5) {
+        final trials = int.tryParse(parts[3]);
+        final hits = int.tryParse(parts[4]);
+        if (trials != null && hits != null && trials > 0 && hits >= 0 && hits <= trials) {
+          final percent = (hits * 100 / trials).round();
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.probabilityRelativeHundredGrid,
+            instruction:
+                'Übertrage den beobachteten Anteil auf 100 Kästchen. Markiere ungefähr so viele Kästchen wie der Prozentanteil.',
+            dataValues: <int>[trials, hits, percent],
+            answerChoices: choices,
+            expectedAnswer: answer,
+          );
+        }
       }
     }
 

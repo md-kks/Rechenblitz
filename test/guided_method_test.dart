@@ -410,6 +410,20 @@ void main() {
     expect(relativeIndependent, isEmpty);
   });
 
+  test('relative Häufigkeit rundet den Anteil sinnvoll auf ganze Prozent', () {
+    final guide = GuidedMethodFactory.forTask(
+      mode: TrainingMode.probability,
+      taskKey: 'prob:experiment:relative:40:11',
+      expected: 0,
+      preferences: const MethodPreferences(),
+      targetCompetency: MicroCompetencyId.probabilityExperiment,
+    );
+
+    expect(guide.methodKey, 'probability:relative-frequency');
+    expect(guide.steps.last.instruction, contains('28 %'));
+    expect(guide.steps.last.instruction, isNot(contains('27 %')));
+  });
+
   test('Römische Zahlen beobachten zuerst den Zehnerblock', () {
     const key = 'roman:read:47';
     final guide = GuidedMethodFactory.forTask(

@@ -4525,7 +4525,7 @@ class GuidedMethodFactory {
       final hits = numbers.isNotEmpty ? numbers.last : null;
       final percent = trials == null || hits == null || trials == 0
           ? null
-          : hits * 100 ~/ trials;
+          : (hits * 100 / trials).round();
       return GuidedMethodGuide(
         methodKey: 'probability:relative-frequency',
         methodLabel: 'Beobachtete Häufigkeit auf 100 beziehen',

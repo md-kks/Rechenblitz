@@ -1771,7 +1771,7 @@ class CurriculumExerciseGenerator {
       );
     }
 
-    final percent = (red * 100 ~/ trials);
+    final percent = (red * 100 / trials).round();
     final options = <int>{percent};
     for (final delta in [5, 10, -5, -10, 20]) {
       final candidate = (percent + delta).clamp(0, 100);
