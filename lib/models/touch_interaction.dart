@@ -21,6 +21,7 @@ enum TouchInteractionKind {
   largeNumberOrder,
   largeNumberDecompose,
   largeNumberPlaceDigit,
+  writtenColumnProcedure,
   pathWalker,
   symmetryAxes,
   shapeCorners,
@@ -883,6 +884,27 @@ class TouchInteractionPlan {
           rectangleWidth: width,
           rectangleHeight: height,
           expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.writtenAddSub &&
+        (taskKey.startsWith('written:+:') ||
+            taskKey.startsWith('written:-:'))) {
+      final parts = taskKey.split(':');
+      final a = parts.length >= 4 ? int.tryParse(parts[2]) : null;
+      final b = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (a != null && b != null && a >= 0 && b >= 0 && a >= (parts[1] == '-' ? b : 0)) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.writtenColumnProcedure,
+          instruction: parts[1] == '+'
+              ? 'Rechne Spalte für Spalte von rechts nach links. Setze Ergebnisziffer und Übertrag bewusst.'
+              : 'Rechne Spalte für Spalte von rechts nach links. Entbündele nur, wenn die obere Ziffer nicht reicht.',
+          dataValues: <int>[a, b],
+          dataOperation: parts[1],
+          expectedAnswer: answer,
+          maxValue: max(maxValue, answer),
         );
       }
     }

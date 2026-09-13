@@ -3775,6 +3775,193 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey('touch-large-decompose-table')), findsOneWidget);
   });
+
+  test('written add/sub planner uses a column procedure', () {
+    final plus = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'written:+:47:38',
+      answer: 85,
+      maxValue: 100,
+    );
+    final minus = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'written:-:402:187',
+      answer: 215,
+      maxValue: 1000,
+    );
+
+    expect(plus?.kind, TouchInteractionKind.writtenColumnProcedure);
+    expect(plus?.dataValues, <int>[47, 38]);
+    expect(plus?.dataOperation, '+');
+    expect(minus?.kind, TouchInteractionKind.writtenColumnProcedure);
+    expect(minus?.dataValues, <int>[402, 187]);
+    expect(minus?.dataOperation, '-');
+  });
+
+  testWidgets('written addition requires result digit and carry in each column',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'written:+:47:38',
+      kind: TouchInteractionKind.writtenColumnProcedure,
+      instruction: 'Rechne spaltenweise.',
+      dataValues: <int>[47, 38],
+      dataOperation: '+',
+      expectedAnswer: 85,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-digit-5')));
+    await tester.tap(find.byKey(const ValueKey('touch-written-regroup-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
+    await tester.pump();
+    expect(answer, isNot(85));
+    expect(find.textContaining('Übertrag'), findsWidgets);
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-regroup-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
+    await tester.pump();
+    expect(find.textContaining('Z: 4 + 3 + Übertrag 1'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-digit-8')));
+    await tester.tap(find.byKey(const ValueKey('touch-written-regroup-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
+    expect(answer, 85);
+  });
+
+  testWidgets('written subtraction carries a borrow across zero columns',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'written:-:402:187',
+      kind: TouchInteractionKind.writtenColumnProcedure,
+      instruction: 'Rechne spaltenweise.',
+      dataValues: <int>[402, 187],
+      dataOperation: '-',
+      expectedAnswer: 215,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-digit-5')));
+    await tester.tap(find.byKey(const ValueKey('touch-written-regroup-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
+    await tester.pump();
+    expect(answer, isNot(215));
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-regroup-1')));
+    await tester.pump();
+    expect(find.text('E: 12 − 7'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
+    await tester.pump();
+    expect(find.text('Z: 9 − 8'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-digit-1')));
+    await tester.tap(find.byKey(const ValueKey('touch-written-regroup-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
+    await tester.pump();
+    expect(find.text('H: 3 − 1'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-digit-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-written-regroup-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
+    expect(answer, 215);
+  });
+
+  testWidgets('written curriculum defaults to columns and keeps keypad fallback',
+      (tester) async {
+    final controller = await _controller();
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.writtenAddSub,
+      prompt: 'Rechne schriftlich:\n42\n+ 13',
+      answer: 55,
+      hint: 'Rechne Stelle für Stelle.',
+      key: 'written:+:42:13',
+      maxAnswerValue: 100,
+      method: 'Schriftliche Addition',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.writtenAddSub,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-written-table')), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      fallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+  });
+
+  testWidgets('written column touch stays stable at 200 percent text scale',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'written:+:999:888',
+      kind: TouchInteractionKind.writtenColumnProcedure,
+      instruction: 'Rechne spaltenweise.',
+      dataValues: <int>[999, 888],
+      dataOperation: '+',
+      expectedAnswer: 1887,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-written-table')), findsOneWidget);
+  });
 }
 
 void _noopAnswer(int value) {}
