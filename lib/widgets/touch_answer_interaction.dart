@@ -42,6 +42,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int areaRows = 1;
   final List<int> groupCounters = <int>[];
   int builtDivisionGroups = 0;
+  final Set<int> selectedProbabilityOutcomes = <int>{};
+  bool probabilityNoOutcome = false;
   final Set<int> selectedDataBars = <int>{};
   final Set<int> selectedTallyUnits = <int>{};
 
@@ -81,6 +83,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ..clear()
       ..addAll(List<int>.filled(widget.plan.groupCount ?? 0, 0));
     builtDivisionGroups = 0;
+    selectedProbabilityOutcomes.clear();
+    probabilityNoOutcome = false;
     selectedDataBars.clear();
     selectedTallyUnits.clear();
   }
@@ -136,11 +140,161 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             ),
             TouchInteractionKind.dataChartSelection => _buildDataChart(context),
             TouchInteractionKind.tallySelection => _buildTallySelection(context),
+            TouchInteractionKind.representationSorter =>
+              _buildRepresentationSorter(context),
+            TouchInteractionKind.probabilityOutcomes =>
+              _buildProbabilityOutcomes(context),
           },
         ],
       ),
     ),
   );
+
+  Widget _buildRepresentationSorter(BuildContext context) {
+    final choices = widget.plan.answerChoices;
+    const icons = <IconData>[
+      Icons.format_list_numbered_rounded,
+      Icons.table_chart_rounded,
+      Icons.bar_chart_rounded,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Draggable<int>(
+          key: const ValueKey('touch-representation-source'),
+          data: 1,
+          feedback: Material(
+            color: Colors.transparent,
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.lightbulb_outline_rounded),
+                    SizedBox(width: 8),
+                    Text('Diese Situation zuordnen'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          childWhenDragging: const Opacity(
+            opacity: 0.35,
+            child: _RepresentationSourceCard(),
+          ),
+          child: const _RepresentationSourceCard(),
+        ),
+        const SizedBox(height: 12),
+        for (var index = 0; index < choices.length; index++) ...[
+          DragTarget<int>(
+            key: ValueKey('touch-representation-target-$index'),
+            onWillAcceptWithDetails: (_) => !widget.locked,
+            onAcceptWithDetails: (_) => widget.onAnswer(index),
+            builder: (context, candidate, rejected) => InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: widget.locked ? null : () => widget.onAnswer(index),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Icon(icons[index], size: 30),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          choices[index],
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (index != choices.length - 1) const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildProbabilityOutcomes(BuildContext context) {
+    final correct = widget.plan.correctSelectionIndexes.toSet();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (var index = 0; index < widget.plan.selectionLabels.length; index++)
+              FilterChip(
+                key: ValueKey('touch-probability-face-$index'),
+                selected: selectedProbabilityOutcomes.contains(index),
+                label: Text(widget.plan.selectionLabels[index]),
+                avatar: const Icon(Icons.casino_outlined, size: 18),
+                onSelected: widget.locked
+                    ? null
+                    : (selected) => setState(() {
+                        probabilityNoOutcome = false;
+                        if (selected) {
+                          selectedProbabilityOutcomes.add(index);
+                        } else {
+                          selectedProbabilityOutcomes.remove(index);
+                        }
+                      }),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          key: const ValueKey('touch-probability-none'),
+          onPressed: widget.locked
+              ? null
+              : () => setState(() {
+                    selectedProbabilityOutcomes.clear();
+                    probabilityNoOutcome = true;
+                  }),
+          icon: Icon(
+            probabilityNoOutcome
+                ? Icons.check_circle_rounded
+                : Icons.block_rounded,
+          ),
+          label: const Text('Keines der Ergebnisse passt'),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          probabilityNoOutcome
+              ? 'Kein Würfelergebnis markiert'
+              : '${selectedProbabilityOutcomes.length} Ergebnis(se) markiert',
+          key: const ValueKey('touch-probability-selection-status'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-probability-submit'),
+          onPressed: widget.locked
+              ? null
+              : () {
+                  final emptyIsExplicit = correct.isNotEmpty || probabilityNoOutcome;
+                  final structureCorrect = emptyIsExplicit &&
+                      setEquals(selectedProbabilityOutcomes, correct);
+                  final expected = widget.plan.expectedAnswer ?? 0;
+                  widget.onAnswer(
+                    structureCorrect
+                        ? expected
+                        : _wrongAnswer(selectedProbabilityOutcomes.length, expected),
+                  );
+                },
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Ergebnisraum prüfen'),
+        ),
+      ],
+    );
+  }
 
   Widget _buildNumberLine(BuildContext context) {
     final plan = widget.plan;
@@ -2683,6 +2837,32 @@ class _MoneyPieceVisual extends StatelessWidget {
       child: child,
     );
   }
+}
+
+
+class _RepresentationSourceCard extends StatelessWidget {
+  const _RepresentationSourceCard();
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.drag_indicator_rounded),
+              SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Situation greifen und zur passenden Darstellung ziehen',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 class _TouchClockPainter extends CustomPainter {

@@ -20,6 +20,8 @@ enum TouchInteractionKind {
   divisionGroupsBuilder,
   dataChartSelection,
   tallySelection,
+  representationSorter,
+  probabilityOutcomes,
 }
 
 class TouchInteractionPlan {
@@ -108,6 +110,56 @@ class TouchInteractionPlan {
     String? answerSuffix,
     MicroCompetencyId? targetCompetency,
   }) {
+    if (mode == TrainingMode.dataCharts &&
+        taskKey.startsWith('data:representation:') &&
+        choices != null &&
+        choices.length == 3) {
+      final kind = int.tryParse(taskKey.split(':').last);
+      if (kind != null && kind >= 0 && kind < choices.length) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.representationSorter,
+          instruction:
+              'Ziehe die Situation zu der Darstellung, die dafür am besten passt.',
+          answerChoices: choices,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.probability &&
+        (taskKey.startsWith('prob:sure:') ||
+            taskKey.startsWith('prob:possible:') ||
+            taskKey.startsWith('prob:impossible:'))) {
+      final parts = taskKey.split(':');
+      if (parts.length == 4) {
+        final matching = <int>[];
+        if (parts[1] == 'sure' && parts[2] == 'below') {
+          final boundary = int.tryParse(parts[3]);
+          if (boundary != null) {
+            for (var face = 1; face <= 6; face++) {
+              if (face < boundary) matching.add(face - 1);
+            }
+          }
+        } else if ((parts[1] == 'possible' || parts[1] == 'impossible') &&
+            parts[2] == 'face') {
+          final face = int.tryParse(parts[3]);
+          if (face != null && face >= 1 && face <= 6) {
+            matching.add(face - 1);
+          }
+        }
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.probabilityOutcomes,
+          instruction:
+              'Markiere alle Würfelergebnisse von 1 bis 6, bei denen die Aussage stimmt.',
+          selectionLabels: const <String>['1', '2', '3', '4', '5', '6'],
+          correctSelectionIndexes: matching,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
     if (mode == TrainingMode.dataCharts && taskKey.startsWith('data:tally:')) {
       final count = int.tryParse(taskKey.split(':').last);
       if (count != null && count > 0 && count <= 50) {
