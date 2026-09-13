@@ -58,6 +58,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         clockHour: current.clockHour,
         clockMinute: current.clockMinute,
         answerSuffix: current.answerSuffix,
+        targetCompetency: widget.targetCompetency,
       );
 
   MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
