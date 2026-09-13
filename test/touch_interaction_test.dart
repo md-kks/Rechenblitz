@@ -1733,6 +1733,210 @@ void main() {
     expect(find.byKey(const ValueKey('touch-probability-submit')), findsOneWidget);
   });
 
+  test('touch planner covers observed experiments and relative frequency', () {
+    final compare = TouchInteractionPlan.forTask(
+      mode: TrainingMode.probability,
+      taskKey: 'prob:experiment:compare:30:18:12',
+      answer: 0,
+      maxValue: 100,
+      choices: const <String>[
+        'Rot kam häufiger vor',
+        'Blau kam häufiger vor',
+        'beide gleich oft',
+      ],
+      targetCompetency: MicroCompetencyId.probabilityExperiment,
+    );
+    final relative = TouchInteractionPlan.forTask(
+      mode: TrainingMode.probability,
+      taskKey: 'prob:experiment:relative:40:11',
+      answer: 0,
+      maxValue: 100,
+      choices: const <String>['28 %', '33 %', '23 %', '48 %'],
+      targetCompetency: MicroCompetencyId.probabilityExperiment,
+    );
+
+    expect(compare?.kind, TouchInteractionKind.probabilityExperimentComparison);
+    expect(compare?.dataValues, const <int>[30, 18, 12]);
+    expect(relative?.kind, TouchInteractionKind.probabilityRelativeHundredGrid);
+    expect(relative?.dataValues, const <int>[40, 11, 28]);
+  });
+
+  testWidgets('observed experiment compares frequencies without predicting', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'prob:experiment:compare:30:18:12',
+      kind: TouchInteractionKind.probabilityExperimentComparison,
+      instruction: 'Vergleiche nur die beobachteten Häufigkeiten.',
+      dataValues: <int>[30, 18, 12],
+      answerChoices: <String>[
+        'Rot kam häufiger vor',
+        'Blau kam häufiger vor',
+        'beide gleich oft',
+      ],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('18 von 30'), findsOneWidget);
+    expect(find.text('12 von 30'), findsOneWidget);
+    final source = find.byKey(const ValueKey('touch-experiment-marker'));
+    final target = find.byKey(const ValueKey('touch-experiment-target-0'));
+    await tester.drag(source, tester.getCenter(target) - tester.getCenter(source));
+    await tester.pumpAndSettle();
+    expect(answer, 0);
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-experiment-target-1')));
+    await tester.pump();
+    expect(answer, 1);
+  });
+
+  testWidgets('relative frequency must match the hundred grid percentage', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'prob:experiment:relative:40:11',
+      kind: TouchInteractionKind.probabilityRelativeHundredGrid,
+      instruction: 'Übertrage den Anteil auf 100.',
+      dataValues: <int>[40, 11, 28],
+      answerChoices: <String>['28 %', '33 %', '23 %', '48 %'],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cell27 = find.byKey(const ValueKey('touch-relative-cell-26'));
+    final cell28 = find.byKey(const ValueKey('touch-relative-cell-27'));
+    final submit = find.byKey(const ValueKey('touch-relative-submit'));
+    await tester.ensureVisible(cell27);
+    await tester.tap(cell27);
+    await tester.pump();
+    expect(find.text('Auf 100 übertragen: 27 von 100'), findsOneWidget);
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    expect(answer, isNot(0), reason: '27,5 Prozent darf nicht auf 27 Prozent abgeschnitten werden.');
+
+    answer = -1;
+    await tester.ensureVisible(cell28);
+    await tester.tap(cell28);
+    await tester.pump();
+    expect(find.text('Auf 100 übertragen: 28 von 100'), findsOneWidget);
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    expect(answer, 0);
+  });
+
+  testWidgets('relative-frequency curriculum defaults to touch and keeps choices', (tester) async {
+    final controller = await _controller();
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.probability,
+      prompt: 'Bei 40 Versuchen trat Rot 11-mal auf. Welcher Prozentwert passt am besten?',
+      answer: 0,
+      hint: 'Übertrage den Anteil auf 100.',
+      key: 'prob:experiment:relative:40:11',
+      choices: <String>['28 %', '33 %', '23 %', '48 %'],
+      method: 'Relative Häufigkeit beobachten',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.probability,
+          targetTasks: 1,
+          reviewEmphasis: true,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-relative-grid')), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(
+      fallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('28 %'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-switch-interaction')), findsOneWidget);
+  });
+
+  testWidgets('experiment touch stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    const relative = TouchInteractionPlan(
+      taskKey: 'prob:experiment:relative:40:11',
+      kind: TouchInteractionKind.probabilityRelativeHundredGrid,
+      instruction: 'Übertrage den Anteil auf 100.',
+      dataValues: <int>[40, 11, 28],
+      answerChoices: <String>['28 %', '33 %', '23 %', '48 %'],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: relative, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    const compare = TouchInteractionPlan(
+      taskKey: 'prob:experiment:compare:30:18:12',
+      kind: TouchInteractionKind.probabilityExperimentComparison,
+      instruction: 'Vergleiche die beobachteten Häufigkeiten.',
+      dataValues: <int>[30, 18, 12],
+      answerChoices: <String>[
+        'Rot kam häufiger vor',
+        'Blau kam häufiger vor',
+        'beide gleich oft',
+      ],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: compare, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   test('touch planner covers bag comparison and bounded combination grids', () {
     final bag = TouchInteractionPlan.forTask(
       mode: TrainingMode.probability,

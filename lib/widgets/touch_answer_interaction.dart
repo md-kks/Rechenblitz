@@ -50,6 +50,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int? selectedEstimateA;
   int? selectedEstimateB;
   int volumeLayers = 1;
+  int selectedRelativePercent = 0;
 
   @override
   void initState() {
@@ -95,6 +96,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedEstimateA = null;
     selectedEstimateB = null;
     volumeLayers = 1;
+    selectedRelativePercent = 0;
   }
 
   @override
@@ -154,6 +156,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildProbabilityOutcomes(context),
             TouchInteractionKind.probabilityBagComparison =>
               _buildProbabilityBagComparison(context),
+            TouchInteractionKind.probabilityExperimentComparison =>
+              _buildProbabilityExperimentComparison(context),
+            TouchInteractionKind.probabilityRelativeHundredGrid =>
+              _buildProbabilityRelativeHundredGrid(context),
             TouchInteractionKind.combinatoricsGrid =>
               _buildCombinatoricsGrid(context),
             TouchInteractionKind.roundingNumberLine =>
@@ -535,6 +541,228 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                 },
           icon: const Icon(Icons.check_rounded),
           label: const Text('Ergebnisraum prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProbabilityExperimentComparison(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final trials = values.isNotEmpty ? values[0] : 0;
+    final red = values.length > 1 ? values[1] : 0;
+    final blue = values.length > 2 ? values[2] : 0;
+    final choices = widget.plan.answerChoices;
+
+    Widget countCard(String label, int count, Color color) => SizedBox(
+      width: 128,
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            children: [
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 3,
+                runSpacing: 3,
+                children: [
+                  for (var i = 0; i < count; i++)
+                    Icon(Icons.circle, size: 13, color: color),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text('$count von $trials'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Beobachtete Ergebnisse in $trials Versuchen',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            countCard('Rot', red, Theme.of(context).colorScheme.error),
+            countCard('Blau', blue, Theme.of(context).colorScheme.primary),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: Draggable<int>(
+            key: const ValueKey('touch-experiment-marker'),
+            data: 1,
+            feedback: const Material(
+              color: Colors.transparent,
+              child: Chip(
+                avatar: Icon(Icons.fact_check_outlined),
+                label: Text('Beobachtung'),
+              ),
+            ),
+            childWhenDragging: const Opacity(
+              opacity: 0.35,
+              child: Chip(
+                avatar: Icon(Icons.fact_check_outlined),
+                label: Text('Beobachtung'),
+              ),
+            ),
+            child: const Chip(
+              avatar: Icon(Icons.fact_check_outlined),
+              label: Text('Beobachtung zuordnen'),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 440;
+            final width = narrow
+                ? constraints.maxWidth
+                : (constraints.maxWidth - 16) / 3;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var index = 0; index < choices.length; index++)
+                  SizedBox(
+                    width: width,
+                    child: DragTarget<int>(
+                      key: ValueKey('touch-experiment-target-$index'),
+                      onWillAcceptWithDetails: (_) => !widget.locked,
+                      onAcceptWithDetails: (_) => widget.onAnswer(index),
+                      builder: (context, candidate, rejected) => InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: widget.locked ? null : () => widget.onAnswer(index),
+                        child: Card(
+                          margin: EdgeInsets.zero,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Text(
+                              choices[index],
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Nur die beobachteten Häufigkeiten vergleichen – daraus folgt noch keine sichere Vorhersage.',
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProbabilityRelativeHundredGrid(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final trials = values.isNotEmpty ? values[0] : 0;
+    final hits = values.length > 1 ? values[1] : 0;
+    final choices = widget.plan.answerChoices;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '$hits von $trials Versuchen waren Rot.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        LinearProgressIndicator(
+          key: const ValueKey('touch-relative-source-share'),
+          value: trials == 0 ? 0 : hits / trials,
+          minHeight: 12,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Auf 100 übertragen: $selectedRelativePercent von 100',
+          key: const ValueKey('touch-relative-value'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        AspectRatio(
+          aspectRatio: 1,
+          child: GridView.builder(
+            key: const ValueKey('touch-relative-grid'),
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 10,
+              mainAxisSpacing: 2,
+              crossAxisSpacing: 2,
+            ),
+            itemCount: 100,
+            itemBuilder: (context, index) {
+              final filled = index < selectedRelativePercent;
+              return InkWell(
+                key: ValueKey('touch-relative-cell-$index'),
+                onTap: widget.locked
+                    ? null
+                    : () => setState(() => selectedRelativePercent = index + 1),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: filled
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    border: Border.all(
+                      color: filled
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.outlineVariant,
+                      width: filled ? 1.5 : 0.7,
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        Slider(
+          key: const ValueKey('touch-relative-slider'),
+          value: selectedRelativePercent.toDouble(),
+          min: 0,
+          max: 100,
+          divisions: 100,
+          label: '$selectedRelativePercent %',
+          onChanged: widget.locked
+              ? null
+              : (value) => setState(() => selectedRelativePercent = value.round()),
+        ),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-relative-submit'),
+          onPressed: widget.locked
+              ? null
+              : () {
+                  final exact = choices.indexOf('$selectedRelativePercent %');
+                  if (exact >= 0) {
+                    widget.onAnswer(exact);
+                    return;
+                  }
+                  final expected = widget.plan.expectedAnswer ?? 0;
+                  final wrong = choices.length <= 1 ? -1 : (expected == 0 ? 1 : 0);
+                  widget.onAnswer(wrong);
+                },
+          icon: const Icon(Icons.grid_on_rounded),
+          label: const Text('100er-Feld prüfen'),
         ),
       ],
     );
