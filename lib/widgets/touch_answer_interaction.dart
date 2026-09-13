@@ -43,6 +43,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final List<int> groupCounters = <int>[];
   int builtDivisionGroups = 0;
   final Set<int> selectedProbabilityOutcomes = <int>{};
+  final Set<int> selectedCombinations = <int>{};
   bool probabilityNoOutcome = false;
   final Set<int> selectedDataBars = <int>{};
   final Set<int> selectedTallyUnits = <int>{};
@@ -84,6 +85,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ..addAll(List<int>.filled(widget.plan.groupCount ?? 0, 0));
     builtDivisionGroups = 0;
     selectedProbabilityOutcomes.clear();
+    selectedCombinations.clear();
     probabilityNoOutcome = false;
     selectedDataBars.clear();
     selectedTallyUnits.clear();
@@ -144,6 +146,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildRepresentationSorter(context),
             TouchInteractionKind.probabilityOutcomes =>
               _buildProbabilityOutcomes(context),
+            TouchInteractionKind.probabilityBagComparison =>
+              _buildProbabilityBagComparison(context),
+            TouchInteractionKind.combinatoricsGrid =>
+              _buildCombinatoricsGrid(context),
           },
         ],
       ),
@@ -291,6 +297,195 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                 },
           icon: const Icon(Icons.check_rounded),
           label: const Text('Ergebnisraum prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProbabilityBagComparison(BuildContext context) {
+    final red = widget.plan.dataValues.isNotEmpty ? widget.plan.dataValues[0] : 0;
+    final blue = widget.plan.dataValues.length > 1 ? widget.plan.dataValues[1] : 0;
+    final expected = widget.plan.expectedAnswer ?? 0;
+
+    Widget pile(String label, int count, int answerIndex) => Expanded(
+      child: DragTarget<int>(
+        key: ValueKey('touch-bag-target-$answerIndex'),
+        onWillAcceptWithDetails: (_) => !widget.locked,
+        onAcceptWithDetails: (_) => widget.onAnswer(answerIndex),
+        builder: (context, candidate, rejected) => InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: widget.locked ? null : () => widget.onAnswer(answerIndex),
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      for (var i = 0; i < count; i++)
+                        Icon(
+                          Icons.circle,
+                          size: 22,
+                          color: answerIndex == 0
+                              ? Theme.of(context).colorScheme.error
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text('$count Stück'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            pile('Rot', red, 0),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DragTarget<int>(
+                key: const ValueKey('touch-bag-target-2'),
+                onWillAcceptWithDetails: (_) => !widget.locked,
+                onAcceptWithDetails: (_) => widget.onAnswer(2),
+                builder: (context, candidate, rejected) => InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: widget.locked ? null : () => widget.onAnswer(2),
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    child: const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.drag_handle_rounded, size: 32),
+                          SizedBox(height: 6),
+                          Text('gleich', style: TextStyle(fontWeight: FontWeight.w800)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            pile('Blau', blue, 1),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: Draggable<int>(
+            key: const ValueKey('touch-bag-marker'),
+            data: expected,
+            feedback: const Material(
+              color: Colors.transparent,
+              child: Chip(
+                avatar: Icon(Icons.balance_rounded),
+                label: Text('Chance'),
+              ),
+            ),
+            childWhenDragging: const Opacity(
+              opacity: 0.35,
+              child: Chip(
+                avatar: Icon(Icons.balance_rounded),
+                label: Text('Chance'),
+              ),
+            ),
+            child: const Chip(
+              avatar: Icon(Icons.balance_rounded),
+              label: Text('Chance-Marker ziehen'),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCombinatoricsGrid(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final first = values.isNotEmpty ? values[0] : 0;
+    final second = values.length > 1 ? values[1] : 0;
+    final third = values.length > 2 ? values[2] : 1;
+    final total = first * second * third;
+    final family = widget.plan.dataLabels.isNotEmpty
+        ? widget.plan.dataLabels.first
+        : 'combo';
+    final labels = switch (family) {
+      'clothes' => ('T-Shirt', 'Hose', 'Mütze'),
+      'icecream' => ('Sorte', 'Soße', 'Streusel'),
+      _ => ('Symbol', 'Farbe', 'Rahmen'),
+    };
+
+    String combinationLabel(int index) {
+      final perLayer = first * second;
+      final layer = index ~/ perLayer;
+      final within = index % perLayer;
+      final a = within ~/ second;
+      final b = within % second;
+      final base = '${labels.$1} ${a + 1} + ${labels.$2} ${b + 1}';
+      return third > 1 ? '$base + ${labels.$3} ${layer + 1}' : base;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '${selectedCombinations.length} von $total Kombinationen markiert',
+          key: const ValueKey('touch-combo-count'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          key: const ValueKey('touch-combo-grid'),
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (var index = 0; index < total; index++)
+              FilterChip(
+                key: ValueKey('touch-combo-$index'),
+                selected: selectedCombinations.contains(index),
+                label: Text(combinationLabel(index)),
+                onSelected: widget.locked
+                    ? null
+                    : (selected) => setState(() {
+                          if (selected) {
+                            selectedCombinations.add(index);
+                          } else {
+                            selectedCombinations.remove(index);
+                          }
+                        }),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-combo-submit'),
+          onPressed: widget.locked
+              ? null
+              : () {
+                  final expected = widget.plan.expectedAnswer ?? total;
+                  widget.onAnswer(
+                    selectedCombinations.length == total
+                        ? expected
+                        : _wrongAnswer(selectedCombinations.length, expected),
+                  );
+                },
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Kombinationen prüfen'),
         ),
       ],
     );

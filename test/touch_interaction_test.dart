@@ -1733,6 +1733,212 @@ void main() {
     expect(find.byKey(const ValueKey('touch-probability-submit')), findsOneWidget);
   });
 
+  test('touch planner covers bag comparison and bounded combination grids', () {
+    final bag = TouchInteractionPlan.forTask(
+      mode: TrainingMode.probability,
+      taskKey: 'prob:bag:kugeln:7:4',
+      answer: 0,
+      maxValue: 100,
+      choices: const ['Rot wahrscheinlicher', 'Blau wahrscheinlicher', 'gleich wahrscheinlich'],
+      targetCompetency: MicroCompetencyId.probabilityReasoning,
+    );
+    final combo = TouchInteractionPlan.forTask(
+      mode: TrainingMode.combinatorics,
+      taskKey: 'combo:clothes:3:2:2',
+      answer: 12,
+      maxValue: 100,
+      targetCompetency: MicroCompetencyId.combinatoricsSystematic,
+    );
+    final tooLarge = TouchInteractionPlan.forTask(
+      mode: TrainingMode.combinatorics,
+      taskKey: 'combo:clothes:6:5:2',
+      answer: 60,
+      maxValue: 100,
+      targetCompetency: MicroCompetencyId.combinatoricsSystematic,
+    );
+
+    expect(bag?.kind, TouchInteractionKind.probabilityBagComparison);
+    expect(bag?.dataValues, const [7, 4]);
+    expect(combo?.kind, TouchInteractionKind.combinatoricsGrid);
+    expect(combo?.dataValues, const [3, 2, 2]);
+    expect(tooLarge, isNull, reason: 'Zu große Kombinationsräume bleiben beim Zahlenfeld.');
+  });
+
+  testWidgets('bag comparison submits the visually larger color', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'prob:bag:kugeln:6:3',
+      kind: TouchInteractionKind.probabilityBagComparison,
+      instruction: 'Vergleiche die Mengen.',
+      dataValues: [6, 3],
+      dataLabels: ['Rot', 'Blau'],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('6 Stück'), findsOneWidget);
+    expect(find.text('3 Stück'), findsOneWidget);
+    await tester.drag(
+      find.byKey(const ValueKey('touch-bag-marker')),
+      tester.getCenter(find.byKey(const ValueKey('touch-bag-target-0'))) -
+          tester.getCenter(find.byKey(const ValueKey('touch-bag-marker'))),
+    );
+    await tester.pump();
+    expect(answer, 0);
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-bag-target-1')));
+    await tester.pump();
+    expect(answer, 1, reason: 'Die visuell kleinere Menge darf nicht als korrekt gelten.');
+  });
+
+  testWidgets('combination grid requires every unique combination', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'combo:icecream:2:2:1',
+      kind: TouchInteractionKind.combinatoricsGrid,
+      instruction: 'Markiere alle Kombinationen.',
+      dataValues: [2, 2, 1],
+      dataLabels: ['icecream'],
+      expectedAnswer: 4,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-combo-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-combo-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-combo-submit')));
+    expect(answer, isNot(4));
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-combo-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-combo-3')));
+    await tester.pump();
+    expect(find.text('4 von 4 Kombinationen markiert'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-combo-submit')));
+    expect(answer, 4);
+  });
+
+  testWidgets('bag choices and combinations default to touch with fallback', (tester) async {
+    final controller = await _controller();
+    const bag = CurriculumExercise(
+      mode: TrainingMode.probability,
+      prompt: 'Im Beutel liegen 6 rote und 3 blaue Kugeln. Was stimmt?',
+      answer: 0,
+      hint: 'Vergleiche die Mengen.',
+      key: 'prob:bag:kugeln:6:3',
+      choices: ['Rot wahrscheinlicher', 'Blau wahrscheinlicher', 'gleich wahrscheinlich'],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.probability,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.probabilityReasoning,
+          reviewEmphasis: true,
+          exerciseGenerator: _FixedCurriculumGenerator(bag),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-bag-marker')), findsOneWidget);
+    final choicesSwitch = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(
+      choicesSwitch,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(choicesSwitch);
+    await tester.pump();
+    expect(find.text('Rot wahrscheinlicher'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    const combo = CurriculumExercise(
+      mode: TrainingMode.combinatorics,
+      prompt: '2 Sorten und 2 Soßen: Wie viele Kombinationen?',
+      answer: 4,
+      hint: 'Systematisch kombinieren.',
+      key: 'combo:icecream:2:2:1',
+      maxAnswerValue: 20,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.combinatorics,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.combinatoricsSystematic,
+          reviewEmphasis: true,
+          exerciseGenerator: _FixedCurriculumGenerator(combo),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-combo-grid')), findsOneWidget);
+    final keypadSwitch = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      keypadSwitch,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(keypadSwitch);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+  });
+
+  testWidgets('combination touch stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'combo:symbols:3:2:1',
+      kind: TouchInteractionKind.combinatoricsGrid,
+      instruction: 'Markiere alle Kombinationen.',
+      dataValues: [3, 2, 1],
+      dataLabels: ['symbols'],
+      expectedAnswer: 6,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-combo-grid')), findsOneWidget);
+  });
+
   test('touch groups stay scoped to understanding competencies', () {
     final multiplication = TouchInteractionPlan.forTask(
       mode: TrainingMode.multiply,
