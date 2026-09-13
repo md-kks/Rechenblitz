@@ -3296,6 +3296,126 @@ void main() {
       findsOneWidget,
     );
   });
+
+  test('touch planner covers all geometry relation families', () {
+    final cases = <(String, int, List<String>, String)>[
+      ('geomrel:lines:parallel:third', 0, const ['parallel', 'senkrecht', 'weder noch'], 'lines'),
+      ('geomrel:angle:smaller:reference:third', 1, const ['rechter Winkel', 'spitzer Winkel', 'stumpfer Winkel'], 'angle'),
+      ('geomrel:figure:2:third', 2, const ['Quadrat', 'Rechteck', 'gleichseitiges Dreieck', 'gleichschenkliges Dreieck'], 'figure'),
+      ('geomrel:circle:diameter:third', 1, const ['Radius', 'Durchmesser', 'Mittelpunkt'], 'circle'),
+    ];
+
+    for (final entry in cases) {
+      final plan = TouchInteractionPlan.forTask(
+        mode: TrainingMode.geometryRelations,
+        taskKey: entry.$1,
+        answer: entry.$2,
+        maxValue: 100,
+        choices: entry.$3,
+      );
+      expect(plan?.kind, TouchInteractionKind.geometryRelationChoice, reason: entry.$1);
+      expect(plan?.dataOperation, entry.$4, reason: entry.$1);
+      expect(plan?.correctSelectionIndexes, <int>[entry.$2], reason: entry.$1);
+    }
+  });
+
+  testWidgets('geometry relation submits the tapped diagram rather than a text label', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'geomrel:circle:diameter:third',
+      kind: TouchInteractionKind.geometryRelationChoice,
+      instruction: 'Tippe die passende Kreiszeichnung an.',
+      answerChoices: <String>['Radius', 'Durchmesser', 'Mittelpunkt'],
+      correctSelectionIndexes: <int>[1],
+      dataOperation: 'circle',
+      expectedAnswer: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Radius'), findsNothing);
+    expect(find.text('Durchmesser'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('touch-geometry-option-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-geometry-submit')));
+    expect(answer, 0);
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-geometry-option-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-geometry-submit')));
+    expect(answer, 1);
+  });
+
+  testWidgets('geometry relation curriculum defaults to diagrams and keeps choice fallback', (tester) async {
+    final controller = await _controller();
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.geometryRelations,
+      prompt: 'Zwei Geraden haben überall den gleichen Abstand. Wie liegen sie zueinander?',
+      answer: 0,
+      hint: 'Prüfe den Abstand.',
+      key: 'geomrel:lines:parallel:third',
+      choices: <String>['parallel', 'senkrecht', 'weder noch'],
+      method: 'Lagebeziehungen erkennen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.geometryRelations,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-geometry-options')), findsOneWidget);
+    expect(find.text('gleicher Abstand'), findsNothing);
+    final fallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(fallback, 240, scrollable: find.byType(Scrollable).first);
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('parallel'), findsOneWidget);
+    expect(find.text('senkrecht'), findsOneWidget);
+  });
+
+  testWidgets('geometry relation diagrams stay stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'geomrel:figure:3:fourth',
+      kind: TouchInteractionKind.geometryRelationChoice,
+      instruction: 'Prüfe die Eigenschaften und tippe die passende Figur an.',
+      answerChoices: <String>['Quadrat', 'Rechteck', 'gleichseitiges Dreieck', 'gleichschenkliges Dreieck'],
+      correctSelectionIndexes: <int>[3],
+      dataOperation: 'figure',
+      expectedAnswer: 3,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-geometry-option-3')), findsOneWidget);
+  });
 }
 
 void _noopAnswer(int value) {}
