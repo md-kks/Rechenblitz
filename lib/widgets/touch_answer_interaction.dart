@@ -268,6 +268,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildProportionalUnitBuilder(context),
             TouchInteractionKind.scaleDistanceBuilder =>
               _buildScaleDistanceBuilder(context),
+            TouchInteractionKind.lengthRulerOperation =>
+              _buildLengthRulerOperation(context),
             TouchInteractionKind.unitConversionMachine =>
               _buildUnitConversionMachine(context),
             TouchInteractionKind.durationTimeline =>
@@ -2283,6 +2285,86 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               : () => widget.onAnswer(selectedGeometryCandidate!),
           icon: const Icon(Icons.check_rounded),
           label: const Text('Prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLengthRulerOperation(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final first = values.isNotEmpty ? values[0] : 0;
+    final second = values.length > 1 ? values[1] : 0;
+    final subtraction = widget.plan.dataOperation == 'subtract';
+    final span = widget.plan.maxValue - widget.plan.minValue;
+    final expected = widget.plan.expectedAnswer ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card.outlined(
+          key: const ValueKey('touch-length-ruler-model'),
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Text(
+                  subtraction
+                      ? 'Ganzes Seil: $first cm · abgeschnitten: $second cm'
+                      : '1. Stück: $first cm · 2. Stück: $second cm',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  subtraction
+                      ? 'Wo endet der Rest auf dem Lineal?'
+                      : 'Wo endet das zweite Stück, wenn es direkt angelegt wird?',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '$selectedValue cm',
+          key: const ValueKey('touch-length-ruler-value'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        Slider(
+          key: const ValueKey('touch-length-ruler-slider'),
+          value: selectedValue.toDouble(),
+          min: widget.plan.minValue.toDouble(),
+          max: widget.plan.maxValue.toDouble(),
+          divisions: span > 0 ? span : null,
+          label: '$selectedValue cm',
+          onChanged: widget.locked
+              ? null
+              : (value) => setState(() => selectedValue = value.round()),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('${widget.plan.minValue} cm'),
+            Text('${widget.plan.maxValue} cm'),
+          ],
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-length-ruler-submit'),
+          onPressed: widget.locked
+              ? null
+              : () => widget.onAnswer(
+                    selectedValue == expected
+                        ? expected
+                        : _wrongAnswer(selectedValue, expected),
+                  ),
+          icon: const Icon(Icons.straighten_rounded),
+          label: const Text('Endpunkt prüfen'),
         ),
       ],
     );

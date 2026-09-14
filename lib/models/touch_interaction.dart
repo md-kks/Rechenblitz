@@ -13,6 +13,7 @@ enum TouchInteractionKind {
   fractionMeasure,
   proportionalUnitBuilder,
   scaleDistanceBuilder,
+  lengthRulerOperation,
   unitConversionMachine,
   durationTimeline,
   calendarStepper,
@@ -514,14 +515,51 @@ class TouchInteractionPlan {
       );
     }
 
-    if (mode == TrainingMode.advancedMeasures) {
+    if (mode == TrainingMode.measures &&
+        (taskKey.startsWith('measure:add:') ||
+            taskKey.startsWith('measure:subtract:'))) {
+      final parts = taskKey.split(':');
+      if (parts.length == 5) {
+        final first = int.tryParse(parts[3]);
+        final second = int.tryParse(parts[4]);
+        final subtraction = taskKey.startsWith('measure:subtract:');
+        if (first != null && second != null && first >= 0 && second >= 0) {
+          final rulerMax = subtraction ? first : first + second;
+          if (rulerMax > 0 && rulerMax <= 30) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.lengthRulerOperation,
+              instruction: subtraction
+                  ? 'Stelle auf dem Zentimeter-Lineal ein, wo das Seil nach dem Abschneiden endet.'
+                  : 'Lege die beiden Längen gedanklich aneinander und stelle den gemeinsamen Endpunkt auf dem Zentimeter-Lineal ein.',
+              minValue: 0,
+              maxValue: rulerMax,
+              startValue: subtraction ? first : first,
+              dataValues: <int>[first, second],
+              dataOperation: subtraction ? 'subtract' : 'add',
+              expectedAnswer: answer,
+            );
+          }
+        }
+      }
+    }
+
+    if (mode == TrainingMode.advancedMeasures || mode == TrainingMode.measures) {
       final parts = taskKey.split(':');
       final source = int.tryParse(parts.isEmpty ? '' : parts.last);
       String? startUnit;
       String? targetUnit;
       String? operation;
       int? factor;
-      if (taskKey.startsWith('length:m:')) {
+      if (taskKey.startsWith('measure:convert:dm-cm:')) {
+        startUnit = 'dm'; targetUnit = 'cm'; operation = 'multiply'; factor = 10;
+      } else if (taskKey.startsWith('measure:convert:m-cm:')) {
+        startUnit = 'm'; targetUnit = 'cm'; operation = 'multiply'; factor = 100;
+      } else if (taskKey.startsWith('measure:convert:cm-mm:')) {
+        startUnit = 'cm'; targetUnit = 'mm'; operation = 'multiply'; factor = 10;
+      } else if (taskKey.startsWith('measure:convert:cm-m:')) {
+        startUnit = 'cm'; targetUnit = 'm'; operation = 'divide'; factor = 100;
+      } else if (taskKey.startsWith('length:m:')) {
         startUnit = 'm'; targetUnit = 'cm'; operation = 'multiply'; factor = 100;
       } else if (taskKey.startsWith('length:km:')) {
         startUnit = 'km'; targetUnit = 'm'; operation = 'multiply'; factor = 1000;

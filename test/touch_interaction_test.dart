@@ -5468,6 +5468,178 @@ void main() {
     expect(find.byKey(const ValueKey('touch-number-bond-missing')), findsOneWidget);
   });
 
+
+  test('lower-primary measures use ruler and conversion touch where useful', () {
+    final add = TouchInteractionPlan.forTask(
+      mode: TrainingMode.measures,
+      taskKey: 'measure:add:ribbon:7:5',
+      answer: 12,
+      maxValue: 20,
+      answerSuffix: 'cm',
+    );
+    final subtract = TouchInteractionPlan.forTask(
+      mode: TrainingMode.measures,
+      taskKey: 'measure:subtract:rope:12:5',
+      answer: 7,
+      maxValue: 20,
+      answerSuffix: 'cm',
+    );
+    final dmToCm = TouchInteractionPlan.forTask(
+      mode: TrainingMode.measures,
+      taskKey: 'measure:convert:dm-cm:4',
+      answer: 40,
+      maxValue: 40,
+      answerSuffix: 'cm',
+    );
+    final cmToM = TouchInteractionPlan.forTask(
+      mode: TrainingMode.measures,
+      taskKey: 'measure:convert:cm-m:300',
+      answer: 3,
+      maxValue: 3,
+      answerSuffix: 'm',
+    );
+
+    expect(add?.kind, TouchInteractionKind.lengthRulerOperation);
+    expect(add?.dataValues, <int>[7, 5]);
+    expect(add?.startValue, 7);
+    expect(add?.maxValue, 12);
+    expect(subtract?.kind, TouchInteractionKind.lengthRulerOperation);
+    expect(subtract?.dataOperation, 'subtract');
+    expect(subtract?.startValue, 12);
+    expect(dmToCm?.kind, TouchInteractionKind.unitConversionMachine);
+    expect(dmToCm?.dataLabels, <String>['dm', 'cm']);
+    expect(dmToCm?.dataValues, <int>[4, 10]);
+    expect(cmToM?.kind, TouchInteractionKind.unitConversionMachine);
+    expect(cmToM?.dataOperation, 'divide');
+    expect(cmToM?.dataValues, <int>[300, 100]);
+
+    expect(
+      TouchInteractionPlan.forTask(
+        mode: TrainingMode.measures,
+        taskKey: 'measure:add:ribbon:20:20',
+        answer: 40,
+        maxValue: 100,
+        answerSuffix: 'cm',
+      ),
+      isNull,
+    );
+  });
+
+  testWidgets('length ruler requires the exact measured endpoint', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'measure:add:ribbon:7:5',
+      kind: TouchInteractionKind.lengthRulerOperation,
+      instruction: 'Lege beide Längen aneinander.',
+      minValue: 0,
+      maxValue: 12,
+      startValue: 7,
+      dataValues: <int>[7, 5],
+      dataOperation: 'add',
+      expectedAnswer: 12,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('touch-length-ruler-submit')));
+    await tester.pump();
+    expect(answer, isNot(12));
+
+    tester
+        .widget<Slider>(find.byKey(const ValueKey('touch-length-ruler-slider')))
+        .onChanged!(12);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-length-ruler-submit')));
+    await tester.pump();
+    expect(answer, 12);
+  });
+
+  testWidgets('targeted measurement shows ruler only after operation checkpoint',
+      (tester) async {
+    final controller = await _controller();
+    const exercise = StructuredExercise(
+      mode: TrainingMode.measures,
+      prompt: 'Ein Band ist 7 cm lang. Ein zweites Stück ist 5 cm lang. Wie lang sind beide zusammen?',
+      answer: 12,
+      hint: 'Beide Längen kommen zusammen.',
+      key: 'measure:add:ribbon:7:5',
+      answerSuffix: 'cm',
+      checkpoints: <ExerciseCheckpoint>[
+        ExerciseCheckpoint(
+          key: 'measureOperationChoice',
+          question: 'Welche Rechenart passt zu dieser Längensituation?',
+          choices: <String>['Plus (+)', 'Minus (−)'],
+          correctChoice: 0,
+          competencyId: MicroCompetencyId.measurementCalculation,
+          evidenceWeight: 0.40,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.measures,
+          targetCompetency: MicroCompetencyId.measurementCalculation,
+          targetTasks: 1,
+          exerciseGenerator: _FixedStructuredGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-length-ruler-model')), findsNothing);
+    final plus = find.widgetWithText(FilledButton, 'Plus (+)');
+    await tester.ensureVisible(plus);
+    await tester.tap(plus);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const ValueKey('touch-length-ruler-model')), findsOneWidget);
+  });
+
+  testWidgets('lower measure touch stays stable at 200 percent text scale',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'measure:subtract:rope:18:7',
+      kind: TouchInteractionKind.lengthRulerOperation,
+      instruction: 'Stelle den Rest auf dem Lineal ein.',
+      minValue: 0,
+      maxValue: 18,
+      startValue: 18,
+      dataValues: <int>[18, 7],
+      dataOperation: 'subtract',
+      expectedAnswer: 11,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-length-ruler-slider')), findsOneWidget);
+  });
+
 }
 
 void _noopAnswer(int value) {}
