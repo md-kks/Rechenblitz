@@ -368,6 +368,116 @@ void main() {
     expect(find.text('zusammen: ? cm'), findsOneWidget);
   });
 
+  test('visual help covers money clock and basic geometry', () {
+    const cases = <(ErrorPattern, String, String)>[
+      (ErrorPattern.moneyCalculation, 'money:change:kiosk:10:6', 'money:calculationPlan'),
+      (ErrorPattern.clockReading, 'clock:7:45', 'clock:readHands'),
+      (ErrorPattern.geometryProperty, 'geometry:corners:square', 'geometry:shape-properties'),
+    ];
+    for (final entry in cases) {
+      expect(
+        LearningVisualAid.canRender(
+          pattern: entry.$1,
+          taskKey: entry.$2,
+          methodKey: entry.$3,
+        ),
+        isTrue,
+        reason: entry.$2,
+      );
+    }
+  });
+
+  testWidgets('money visual keeps the requested amount unsolved', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.moneyCalculation,
+            taskKey: 'money:change:kiosk:10:6',
+            expected: 4,
+            methodKey: 'money:calculationPlan',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-money-model')), findsOneWidget);
+    expect(find.text('bezahlt'), findsOneWidget);
+    expect(find.text('Preis'), findsOneWidget);
+    expect(find.text('Rest: ? €'), findsOneWidget);
+    expect(find.text('Rest: 4 €'), findsNothing);
+  });
+
+  testWidgets('clock visual teaches hand roles without printing target time', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.clockReading,
+            taskKey: 'clock:7:45',
+            expected: 3,
+            methodKey: 'clock:readHands',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-clock-reference')), findsOneWidget);
+    expect(find.text('langer Zeiger → Minuten'), findsOneWidget);
+    expect(find.text('kurzer Zeiger → Stunden'), findsOneWidget);
+    expect(find.textContaining('7:45'), findsNothing);
+  });
+
+  testWidgets('geometry visual marks feature types without giving the count', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.geometryProperty,
+            taskKey: 'geometry:corners:square',
+            expected: 4,
+            methodKey: 'geometry:shape-properties',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-geometry-properties')), findsOneWidget);
+    expect(find.byKey(const ValueKey('help-geometry-shape')), findsOneWidget);
+    expect(find.text('Ecke = Treffpunkt'), findsOneWidget);
+    expect(find.text('Seite = gerader Rand'), findsOneWidget);
+    expect(find.textContaining('4 Ecken'), findsNothing);
+  });
+
+  testWidgets('money clock and geometry visuals stay stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const cases = <(ErrorPattern, String, int, String)>[
+      (ErrorPattern.moneyCalculation, 'money:add:shop:7:5', 12, 'money:calculationPlan'),
+      (ErrorPattern.clockReading, 'clock:3:30', 0, 'clock:readHands'),
+      (ErrorPattern.geometryProperty, 'geometry:sides:triangle', 3, 'geometry:shape-properties'),
+    ];
+    for (final entry in cases) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: LearningVisualAid(
+                pattern: entry.$1,
+                taskKey: entry.$2,
+                expected: entry.$3,
+                methodKey: entry.$4,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: entry.$2);
+    }
+  });
+
   test('generated structured and upper-primary tasks have specific help', () {
     final structured = StructuredExerciseGenerator(random: Random(17));
     final curriculum = CurriculumExerciseGenerator(random: Random(23));

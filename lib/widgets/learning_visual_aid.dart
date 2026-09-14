@@ -34,6 +34,9 @@ class LearningVisualAid extends StatelessWidget {
         taskKey.startsWith('sequence:') ||
         taskKey.startsWith('measure:add:') ||
         taskKey.startsWith('measure:subtract:') ||
+        taskKey.startsWith('money:') ||
+        taskKey.startsWith('clock:') ||
+        taskKey.startsWith('geometry:') ||
         (taskKey.startsWith('body:') && !taskKey.startsWith('body:cube-net:')) ||
         taskKey.startsWith('process:strategy:') ||
         taskKey.startsWith('process:error:') ||
@@ -61,7 +64,10 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.wordProblemRelevantInformation ||
       ErrorPattern.wordProblemModel ||
       ErrorPattern.wordProblemInterpretation ||
-      ErrorPattern.representationTranslation => true,
+      ErrorPattern.representationTranslation ||
+      ErrorPattern.moneyCalculation ||
+      ErrorPattern.clockReading ||
+      ErrorPattern.geometryProperty => true,
       _ => false,
     };
   }
@@ -81,10 +87,16 @@ class LearningVisualAid extends StatelessWidget {
                         : taskKey.startsWith('measure:add:') ||
                                 taskKey.startsWith('measure:subtract:')
                             ? _measurementLengthAid(context)
-                            : taskKey.startsWith('body:') &&
-                                    !taskKey.startsWith('body:cube-net:')
-                                ? _geometryBodyAid(context)
-                                : taskKey.startsWith('gap:')
+                            : taskKey.startsWith('money:')
+                                ? _moneyAid(context)
+                                : taskKey.startsWith('clock:')
+                                    ? _clockAid(context)
+                                    : taskKey.startsWith('geometry:')
+                                        ? _basicGeometryAid(context)
+                                        : taskKey.startsWith('body:') &&
+                                                !taskKey.startsWith('body:cube-net:')
+                                            ? _geometryBodyAid(context)
+                                            : taskKey.startsWith('gap:')
             ? _missingNumberAid()
             : taskKey.startsWith('neighbor:')
                 ? _neighborAid()
@@ -122,6 +134,9 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.wordProblemModel ||
       ErrorPattern.wordProblemInterpretation => const _OperationAid(),
       ErrorPattern.representationTranslation => _representationAid(context),
+      ErrorPattern.moneyCalculation => _moneyAid(context),
+      ErrorPattern.clockReading => _clockAid(context),
+      ErrorPattern.geometryProperty => _basicGeometryAid(context),
       _ => null,
     };
 
@@ -132,6 +147,175 @@ class LearningVisualAid extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: child,
       ),
+    );
+  }
+
+  Widget _moneyAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    final family = parts.length >= 2 ? parts[1] : '';
+    final numbers = RegExp(r'\d+')
+        .allMatches(taskKey)
+        .map((match) => int.parse(match.group(0)!))
+        .toList(growable: false);
+
+    if (family == 'convert') {
+      return const Column(
+        key: ValueKey('help-money-convert'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(
+            title: 'Euro und Cent verbinden',
+            text: 'Nutze zuerst nur die Grundbeziehung. Den gefragten Betrag rechnest du danach selbst aus.',
+          ),
+          SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _MoneyToken(label: '1 €'),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Icon(Icons.sync_alt_rounded),
+              ),
+              _MoneyToken(label: '100 ct'),
+            ],
+          ),
+        ],
+      );
+    }
+
+    if (family == 'coins') {
+      return const Column(
+        key: ValueKey('help-money-coins'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(
+            title: 'Betrag mit Münzen bauen',
+            text: 'Beginne mit einer großen passenden Münze und ergänze nur, was noch fehlt.',
+          ),
+          SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MoneyToken(label: '1 €'),
+              _MoneyToken(label: '2 €'),
+              _MoneyToken(label: '5 €'),
+              _MoneyToken(label: '10 €'),
+            ],
+          ),
+        ],
+      );
+    }
+
+    final first = numbers.length >= 2 ? numbers[numbers.length - 2] : null;
+    final second = numbers.isNotEmpty ? numbers.last : null;
+    final title = family == 'add'
+        ? 'Geldbeträge zusammenlegen'
+        : family == 'missing'
+            ? 'Fehlenden Geldbetrag finden'
+            : 'Bezahlen und Rest bestimmen';
+    final left = family == 'missing' ? 'Gesamt' : family == 'add' ? 'Betrag A' : 'bezahlt';
+    final right = family == 'missing' ? 'bekannt' : family == 'add' ? 'Betrag B' : 'Preis';
+    final relation = family == 'add'
+        ? 'zusammen: ? €'
+        : family == 'missing'
+            ? 'fehlender Teil: ? €'
+            : 'Rest: ? €';
+
+    return Column(
+      key: const ValueKey('help-money-model'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AidLabel(
+          title: title,
+          text: 'Stelle die gegebenen Beträge getrennt dar. Die gesuchte Geldmenge bleibt zunächst offen.',
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _MoneyAmountCard(label: left, value: first),
+            const Icon(Icons.arrow_forward_rounded),
+            _MoneyAmountCard(label: right, value: second),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: Text(
+            relation,
+            key: const ValueKey('help-money-unknown'),
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _clockAid(BuildContext context) => Column(
+        key: const ValueKey('help-clock-reference'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AidLabel(
+            title: 'Die Zeiger getrennt lesen',
+            text: 'Das Beispiel zeigt nur die Rollen der Zeiger – nicht die Lösung deiner Aufgabe.',
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: CustomPaint(
+              size: const Size.square(170),
+              painter: _ClockReferencePainter(
+                lineColor: Theme.of(context).colorScheme.onSurface,
+                accentColor: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('langer Zeiger → Minuten')),
+              Chip(label: Text('kurzer Zeiger → Stunden')),
+            ],
+          ),
+        ],
+      );
+
+  Widget _basicGeometryAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    final shape = parts.length >= 3 ? parts[2] : '';
+    return Column(
+      key: const ValueKey('help-geometry-properties'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(
+          title: 'Form am Rand untersuchen',
+          text: 'Fahre gedanklich einmal am Rand entlang. Achte auf Treffpunkte und darauf, ob der Rand gerade oder gekrümmt ist.',
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: CustomPaint(
+            key: const ValueKey('help-geometry-shape'),
+            size: const Size(190, 125),
+            painter: _GeometryPropertyPainter(
+              shape: shape,
+              lineColor: Theme.of(context).colorScheme.onSurface,
+              accentColor: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            Chip(label: Text('Ecke = Treffpunkt')),
+            Chip(label: Text('Seite = gerader Rand')),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1189,6 +1373,152 @@ class _NumberCompareCard extends StatelessWidget {
         ),
       );
 }
+class _MoneyToken extends StatelessWidget {
+  const _MoneyToken({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 58,
+        height: 58,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Theme.of(context).colorScheme.primary,
+            width: 2,
+          ),
+          color: Theme.of(context).colorScheme.primaryContainer,
+        ),
+        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w900)),
+      );
+}
+
+class _MoneyAmountCard extends StatelessWidget {
+  const _MoneyAmountCard({required this.label, required this.value});
+  final String label;
+  final int? value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(minWidth: 105),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 4),
+            Text(
+              value == null ? '? €' : '$value €',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
+      );
+}
+
+class _ClockReferencePainter extends CustomPainter {
+  const _ClockReferencePainter({required this.lineColor, required this.accentColor});
+  final Color lineColor;
+  final Color accentColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = math.min(size.width, size.height) * 0.43;
+    final outline = Paint()
+      ..color = lineColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawCircle(center, radius, outline);
+    for (var i = 0; i < 12; i++) {
+      final angle = -math.pi / 2 + i * math.pi / 6;
+      final outer = center + Offset(math.cos(angle), math.sin(angle)) * radius;
+      final inner = center + Offset(math.cos(angle), math.sin(angle)) * (radius - 8);
+      canvas.drawLine(inner, outer, outline);
+    }
+    final minutePaint = Paint()
+      ..color = accentColor
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
+    final hourPaint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(center, center + Offset(0, -radius * 0.72), minutePaint);
+    canvas.drawLine(center, center + Offset(radius * 0.48, 0), hourPaint);
+    canvas.drawCircle(center, 5, Paint()..color = lineColor);
+    final textStyle = TextStyle(color: lineColor, fontSize: 11, fontWeight: FontWeight.w800);
+    void label(String text, Offset at) {
+      final tp = TextPainter(text: TextSpan(text: text, style: textStyle), textDirection: TextDirection.ltr)..layout();
+      tp.paint(canvas, at - Offset(tp.width / 2, tp.height / 2));
+    }
+    label('00', center + Offset(0, -radius - 13));
+    label('15', center + Offset(radius + 14, 0));
+    label('30', center + Offset(0, radius + 13));
+    label('45', center + Offset(-radius - 14, 0));
+  }
+
+  @override
+  bool shouldRepaint(covariant _ClockReferencePainter oldDelegate) =>
+      oldDelegate.lineColor != lineColor || oldDelegate.accentColor != accentColor;
+}
+
+class _GeometryPropertyPainter extends CustomPainter {
+  const _GeometryPropertyPainter({required this.shape, required this.lineColor, required this.accentColor});
+  final String shape;
+  final Color lineColor;
+  final Color accentColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final normal = Paint()
+      ..color = lineColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    final accent = Paint()
+      ..color = accentColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round;
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    if (shape == 'circle') {
+      final radius = math.min(size.width, size.height) * 0.34;
+      canvas.drawCircle(Offset(cx, cy), radius, normal);
+      final rect = Rect.fromCircle(center: Offset(cx, cy), radius: radius);
+      canvas.drawArc(rect, -math.pi / 2, math.pi / 3, false, accent);
+      return;
+    }
+    final rect = shape == 'rectangle'
+        ? Rect.fromCenter(center: Offset(cx, cy), width: size.width * 0.68, height: size.height * 0.48)
+        : Rect.fromCenter(center: Offset(cx, cy), width: size.height * 0.58, height: size.height * 0.58);
+    Path path;
+    if (shape == 'triangle') {
+      final top = Offset(cx, size.height * 0.16);
+      final left = Offset(size.width * 0.23, size.height * 0.82);
+      final right = Offset(size.width * 0.77, size.height * 0.82);
+      path = Path()..moveTo(top.dx, top.dy)..lineTo(left.dx, left.dy)..lineTo(right.dx, right.dy)..close();
+      canvas.drawPath(path, normal);
+      canvas.drawLine(top, left, accent);
+      canvas.drawCircle(top, 6, Paint()..color = accentColor);
+      return;
+    }
+    path = Path()..addRect(rect);
+    canvas.drawPath(path, normal);
+    canvas.drawLine(rect.topLeft, rect.topRight, accent);
+    canvas.drawCircle(rect.topLeft, 6, Paint()..color = accentColor);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GeometryPropertyPainter oldDelegate) =>
+      oldDelegate.shape != shape || oldDelegate.lineColor != lineColor || oldDelegate.accentColor != accentColor;
+}
+
 class _AidLabel extends StatelessWidget {
   const _AidLabel({
     required this.title,
