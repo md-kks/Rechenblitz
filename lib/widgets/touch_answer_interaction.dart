@@ -47,6 +47,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int? selectedLargeDigitPlace;
   final List<int> selectedLargeOrder = <int>[];
   final List<int> largePlaceDigits = <int>[];
+  final List<int> mentalSelectedChunks = <int>[];
+  int? selectedStrategyJump;
+  final Set<int> selectedLawTerms = <int>{};
+  final List<int> selectedLawOrder = <int>[];
+  int? selectedLawGap;
   int writtenColumnIndex = 0;
   int writtenIncomingCarry = 0;
   int? selectedWrittenDigit;
@@ -131,6 +136,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedLargeDigitPlace = null;
     selectedLargeOrder.clear();
     largePlaceDigits.clear();
+    mentalSelectedChunks.clear();
+    selectedStrategyJump = null;
+    selectedLawTerms.clear();
+    selectedLawOrder.clear();
+    selectedLawGap = null;
     if (widget.plan.kind == TouchInteractionKind.largeNumberDecompose &&
         widget.plan.dataValues.isNotEmpty) {
       largePlaceDigits.addAll(
@@ -248,6 +258,12 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildLargeNumberDecompose(context),
             TouchInteractionKind.largeNumberPlaceDigit =>
               _buildLargeNumberPlaceDigit(context),
+            TouchInteractionKind.mentalChunkPath =>
+              _buildMentalChunkPath(context),
+            TouchInteractionKind.strategyAnchorJump =>
+              _buildStrategyAnchorJump(context),
+            TouchInteractionKind.arithmeticLawStructure =>
+              _buildArithmeticLawStructure(context),
             TouchInteractionKind.writtenColumnProcedure =>
               _buildWrittenColumnProcedure(context),
             TouchInteractionKind.writtenMultiplicationProcedure =>
@@ -293,6 +309,397 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildMentalChunkPath(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final start = values[0];
+    final wholeOperand = values[1];
+    final chunks = values.sublist(2);
+    final rawOperation = widget.plan.dataOperation ?? '+';
+    final operation = rawOperation.startsWith('-') ? '−' : '+';
+    final skipFirst = rawOperation.endsWith(':skip-first');
+    final requiredChunks = skipFirst && chunks.isNotEmpty
+        ? chunks.sublist(1)
+        : chunks;
+    final options = <int>{...requiredChunks, wholeOperand};
+    if (chunks.isNotEmpty) {
+      options.add(chunks.first);
+      final smaller = chunks.first ~/ 10;
+      if (smaller > 0) options.add(smaller);
+    }
+    final optionList = options.where((value) => value > 0).toList()
+      ..sort();
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final complete = mentalSelectedChunks.length == requiredChunks.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          key: const ValueKey('touch-mental-path'),
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(label: Text('$start')),
+                if (skipFirst && chunks.isNotEmpty) ...[
+                  Text(operation),
+                  Chip(
+                    avatar: const Icon(Icons.check_rounded, size: 18),
+                    label: Text('${chunks.first}'),
+                  ),
+                ],
+                for (final chunk in mentalSelectedChunks) ...[
+                  Text(operation),
+                  Chip(label: Text('$chunk')),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          skipFirst
+              ? 'Der erste Stellenwertblock wurde schon geprüft. Ordne jetzt die restlichen Blöcke.'
+              : 'Tippe die Stellenwertblöcke vom größten zum kleinsten an.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          key: const ValueKey('touch-mental-chunks'),
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final value in optionList)
+              ActionChip(
+                key: ValueKey('touch-mental-chunk-$value'),
+                avatar: mentalSelectedChunks.contains(value)
+                    ? CircleAvatar(
+                        child: Text('${mentalSelectedChunks.indexOf(value) + 1}'),
+                      )
+                    : null,
+                label: Text('$value'),
+                onPressed: widget.locked ||
+                        mentalSelectedChunks.contains(value) ||
+                        complete
+                    ? null
+                    : () => setState(() => mentalSelectedChunks.add(value)),
+              ),
+          ],
+        ),
+        TextButton.icon(
+          key: const ValueKey('touch-mental-reset'),
+          onPressed: widget.locked || mentalSelectedChunks.isEmpty
+              ? null
+              : () => setState(mentalSelectedChunks.clear),
+          icon: const Icon(Icons.replay_rounded),
+          label: const Text('Blöcke neu ordnen'),
+        ),
+        if (complete) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Rechne den aufgebauten Weg jetzt selbst zu Ende.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
+          NumberAnswerPad(
+            key: const ValueKey('touch-mental-result-pad'),
+            maxValue: math.max(1, widget.plan.maxValue),
+            onAnswer: widget.locked
+                ? (_) {}
+                : (value) {
+                    final structureCorrect =
+                        _listEqualsInt(mentalSelectedChunks, requiredChunks);
+                    widget.onAnswer(
+                      structureCorrect
+                          ? value
+                          : _wrongAnswer(value, expected),
+                    );
+                  },
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildStrategyAnchorJump(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final start = values[0];
+    final second = values[1];
+    final anchor = values[2];
+    final gap = values[3];
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final options = <int>{gap, second};
+    if (gap > 1) options.add(gap - 1);
+    if (gap + 1 <= second) options.add(gap + 1);
+    if (gap > 2) options.add(math.max(1, gap ~/ 2));
+    final candidates = options.where((value) => value > 0 && value <= second).toList()
+      ..sort();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          key: const ValueKey('touch-strategy-anchor'),
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Chip(label: Text('$start')),
+                const Expanded(child: Divider(thickness: 2)),
+                const Icon(Icons.arrow_forward_rounded),
+                const Expanded(child: Divider(thickness: 2)),
+                Chip(label: Text('$anchor')),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Wie groß soll der erste Sprung sein?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final candidate in candidates)
+              ChoiceChip(
+                key: ValueKey('touch-strategy-jump-$candidate'),
+                selected: selectedStrategyJump == candidate,
+                label: Text('+$candidate'),
+                onSelected: widget.locked
+                    ? null
+                    : (_) => setState(() => selectedStrategyJump = candidate),
+              ),
+          ],
+        ),
+        if (selectedStrategyJump != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            '$start + ${selectedStrategyJump!} = ${start + selectedStrategyJump!}; '
+            'vom zweiten Summanden bleiben ${second - selectedStrategyJump!}.',
+            key: const ValueKey('touch-strategy-status'),
+            textAlign: TextAlign.center,
+          ),
+        ],
+        const SizedBox(height: 10),
+        FilledButton(
+          key: const ValueKey('touch-strategy-submit'),
+          onPressed: widget.locked || selectedStrategyJump == null
+              ? null
+              : () => widget.onAnswer(
+                    selectedStrategyJump == gap
+                        ? expected
+                        : _wrongAnswer(expected, expected),
+                  ),
+          child: const Text('Rechenweg prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildArithmeticLawStructure(BuildContext context) {
+    return switch (widget.plan.dataOperation) {
+      'associate' => _buildAssociativeLaw(context),
+      'commute' => _buildCommutativeLaw(context),
+      'distribute' => _buildDistributiveLaw(context),
+      _ => const SizedBox.shrink(),
+    };
+  }
+
+  Widget _buildAssociativeLaw(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final correct = widget.plan.correctSelectionIndexes.toSet();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          key: const ValueKey('touch-law-associate-terms'),
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: List<Widget>.generate(values.length, (index) {
+            final selected = selectedLawTerms.contains(index);
+            return ChoiceChip(
+              key: ValueKey('touch-law-term-$index'),
+              selected: selected,
+              label: Text('${values[index]}'),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() {
+                        if (selected) {
+                          selectedLawTerms.remove(index);
+                        } else if (selectedLawTerms.length < 2) {
+                          selectedLawTerms.add(index);
+                        }
+                      }),
+            );
+          }),
+        ),
+        const SizedBox(height: 10),
+        FilledButton(
+          key: const ValueKey('touch-law-associate-submit'),
+          onPressed: widget.locked || selectedLawTerms.length != 2
+              ? null
+              : () => widget.onAnswer(
+                    setEquals(selectedLawTerms, correct)
+                        ? expected
+                        : _wrongAnswer(expected, expected),
+                  ),
+          child: const Text('Paar prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommutativeLaw(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final correct = widget.plan.correctSelectionIndexes;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          key: const ValueKey('touch-law-commute-factors'),
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: List<Widget>.generate(values.length, (index) {
+            final position = selectedLawOrder.indexOf(index);
+            return ActionChip(
+              key: ValueKey('touch-law-factor-$index'),
+              avatar: position >= 0
+                  ? CircleAvatar(child: Text('${position + 1}'))
+                  : null,
+              label: Text('${values[index]}'),
+              onPressed: widget.locked || position >= 0
+                  ? null
+                  : () => setState(() => selectedLawOrder.add(index)),
+            );
+          }),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          selectedLawOrder.isEmpty
+              ? 'Baue die vertauschte Reihenfolge.'
+              : selectedLawOrder.map((index) => values[index]).join(' × '),
+          key: const ValueKey('touch-law-commute-status'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        TextButton.icon(
+          key: const ValueKey('touch-law-commute-reset'),
+          onPressed: widget.locked || selectedLawOrder.isEmpty
+              ? null
+              : () => setState(selectedLawOrder.clear),
+          icon: const Icon(Icons.replay_rounded),
+          label: const Text('Neu anordnen'),
+        ),
+        FilledButton(
+          key: const ValueKey('touch-law-commute-submit'),
+          onPressed: widget.locked || selectedLawOrder.length != values.length
+              ? null
+              : () => widget.onAnswer(
+                    _listEqualsInt(selectedLawOrder, correct)
+                        ? expected
+                        : _wrongAnswer(expected, expected),
+                  ),
+          child: const Text('Reihenfolge prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDistributiveLaw(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final factor = values[0];
+    final value = values[1];
+    final rounded = values[2];
+    final gap = values[3];
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final options = <int>{gap};
+    if (gap > 1) options.add(gap - 1);
+    if (gap < 9) options.add(gap + 1);
+    options.add(math.max(1, 10 - gap));
+    final candidates = options.toList()..sort();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          key: const ValueKey('touch-law-distribute-structure'),
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              '$factor × $value = $factor × $rounded − ?',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Wie groß ist zuerst der Abstand zur glatten Zahl?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final candidate in candidates)
+              ChoiceChip(
+                key: ValueKey('touch-law-gap-$candidate'),
+                selected: selectedLawGap == candidate,
+                label: Text('$candidate'),
+                onSelected: widget.locked
+                    ? null
+                    : (_) => setState(() => selectedLawGap = candidate),
+              ),
+          ],
+        ),
+        if (selectedLawGap != null) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Korrektur berechnen: $factor × ${selectedLawGap!}',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
+          NumberAnswerPad(
+            key: const ValueKey('touch-law-correction-pad'),
+            maxValue: math.max(1, widget.plan.maxValue),
+            onAnswer: widget.locked
+                ? (_) {}
+                : (answer) => widget.onAnswer(
+                      selectedLawGap == gap
+                          ? answer
+                          : _wrongAnswer(answer, expected),
+                    ),
+          ),
+        ],
+      ],
+    );
+  }
 
   Widget _buildWrittenMultiplicationProcedure(BuildContext context) {
     final a = widget.plan.dataValues[0];

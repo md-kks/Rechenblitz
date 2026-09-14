@@ -4311,6 +4311,350 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey('touch-written-division-table')), findsOneWidget);
   });
+
+  test('mental strategy planner covers chunks anchor jumps and arithmetic laws', () {
+    final mental = TouchInteractionPlan.forTask(
+      mode: TrainingMode.mentalStrategies,
+      taskKey: 'mental:+:583:247',
+      answer: 830,
+      maxValue: 1000,
+    );
+    final targetedMental = TouchInteractionPlan.forTask(
+      mode: TrainingMode.mentalStrategies,
+      taskKey: 'mental:-:583:247',
+      answer: 336,
+      maxValue: 1000,
+      targetCompetency: MicroCompetencyId.mentalStrategy,
+    );
+    final strategy = TouchInteractionPlan.forTask(
+      mode: TrainingMode.mentalStrategies,
+      taskKey: 'process:strategy:Hunderter:196:9:200',
+      answer: 0,
+      maxValue: 1000,
+      choices: const <String>['196 + 4 + 5', '196 + 5 + 4'],
+    );
+    final associate = TouchInteractionPlan.forTask(
+      mode: TrainingMode.arithmeticLaws,
+      taskKey: 'law:associate:40:17:60',
+      answer: 0,
+      maxValue: 1000,
+      choices: const <String>[
+        'erste und dritte Zahl',
+        'erste und zweite Zahl',
+        'zweite und dritte Zahl',
+      ],
+    );
+    final commute = TouchInteractionPlan.forTask(
+      mode: TrainingMode.arithmeticLaws,
+      taskKey: 'law:commute:7:4',
+      answer: 7,
+      maxValue: 100,
+    );
+    final distribute = TouchInteractionPlan.forTask(
+      mode: TrainingMode.arithmeticLaws,
+      taskKey: 'law:distribute:6:47',
+      answer: 18,
+      maxValue: 1000,
+    );
+
+    expect(mental?.kind, TouchInteractionKind.mentalChunkPath);
+    expect(mental?.dataValues, <int>[583, 247, 200, 40, 7]);
+    expect(targetedMental?.dataOperation, '-:skip-first');
+    expect(strategy?.kind, TouchInteractionKind.strategyAnchorJump);
+    expect(strategy?.dataValues, <int>[196, 9, 200, 4, 5]);
+    expect(associate?.kind, TouchInteractionKind.arithmeticLawStructure);
+    expect(associate?.dataOperation, 'associate');
+    expect(commute?.dataOperation, 'commute');
+    expect(distribute?.dataValues, <int>[6, 47, 50, 3]);
+  });
+
+  testWidgets('mental chunks require the correct order before the final result counts',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'mental:+:583:247',
+      kind: TouchInteractionKind.mentalChunkPath,
+      instruction: 'Rechne in Stellenwertblöcken.',
+      dataValues: <int>[583, 247, 200, 40, 7],
+      dataOperation: '+',
+      expectedAnswer: 830,
+      maxValue: 1000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    for (final chunk in <int>[40, 200, 7]) {
+      await tester.tap(find.byKey(ValueKey('touch-mental-chunk-$chunk')));
+      await tester.pump();
+    }
+    for (final label in <String>['8', '3', '0', 'OK']) {
+      await tester.tap(find.widgetWithText(FilledButton, label));
+      await tester.pump();
+    }
+    expect(answer, isNot(830));
+
+    await tester.tap(find.byKey(const ValueKey('touch-mental-reset')));
+    await tester.pump();
+    for (final chunk in <int>[200, 40, 7]) {
+      await tester.tap(find.byKey(ValueKey('touch-mental-chunk-$chunk')));
+      await tester.pump();
+    }
+    for (final label in <String>['8', '3', '0', 'OK']) {
+      await tester.tap(find.widgetWithText(FilledButton, label));
+      await tester.pump();
+    }
+    expect(answer, 830);
+  });
+
+  testWidgets('anchor strategy requires the exact jump to the smooth target',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'process:strategy:Hunderter:196:9:200',
+      kind: TouchInteractionKind.strategyAnchorJump,
+      instruction: 'Finde den ersten Sprung.',
+      dataValues: <int>[196, 9, 200, 4, 5],
+      expectedAnswer: 2,
+      maxValue: 1000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TouchAnswerInteraction(
+            plan: plan,
+            onAnswer: (value) => answer = value,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('touch-strategy-jump-5')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-strategy-submit')));
+    expect(answer, isNot(2));
+
+    await tester.tap(find.byKey(const ValueKey('touch-strategy-jump-4')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-strategy-submit')));
+    expect(answer, 2);
+  });
+
+  testWidgets('associative law requires the advantageous pair', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'law:associate:40:17:60',
+      kind: TouchInteractionKind.arithmeticLawStructure,
+      instruction: 'Wähle das günstige Paar.',
+      dataValues: <int>[40, 17, 60],
+      dataOperation: 'associate',
+      correctSelectionIndexes: <int>[0, 2],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TouchAnswerInteraction(
+            plan: plan,
+            onAnswer: (value) => answer = value,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-law-term-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-law-term-2')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-law-associate-submit')));
+    expect(answer, 0);
+  });
+
+  testWidgets('commutative law validates the reversed factor order', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'law:commute:7:4',
+      kind: TouchInteractionKind.arithmeticLawStructure,
+      instruction: 'Vertausche die Faktoren.',
+      dataValues: <int>[7, 4],
+      dataOperation: 'commute',
+      correctSelectionIndexes: <int>[1, 0],
+      expectedAnswer: 7,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TouchAnswerInteraction(
+            plan: plan,
+            onAnswer: (value) => answer = value,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-law-factor-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-law-factor-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-law-commute-submit')));
+    expect(answer, isNot(7));
+
+    await tester.tap(find.byKey(const ValueKey('touch-law-commute-reset')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-law-factor-1')));
+    await tester.tap(find.byKey(const ValueKey('touch-law-factor-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-law-commute-submit')));
+    expect(answer, 7);
+  });
+
+  testWidgets('distributive law needs the correct gap and product correction',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'law:distribute:6:47',
+      kind: TouchInteractionKind.arithmeticLawStructure,
+      instruction: 'Nutze die glatte Zahl.',
+      dataValues: <int>[6, 47, 50, 3],
+      dataOperation: 'distribute',
+      expectedAnswer: 18,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('touch-law-gap-2')));
+    await tester.pump();
+    for (final label in <String>['1', '2', 'OK']) {
+      await tester.tap(find.widgetWithText(FilledButton, label));
+      await tester.pump();
+    }
+    expect(answer, isNot(18));
+
+    await tester.tap(find.byKey(const ValueKey('touch-law-gap-3')));
+    await tester.pump();
+    for (final label in <String>['1', '8', 'OK']) {
+      await tester.tap(find.widgetWithText(FilledButton, label));
+      await tester.pump();
+    }
+    expect(answer, 18);
+  });
+
+  testWidgets('mental strategies and laws default to touch and keep fallbacks',
+      (tester) async {
+    final controller = await _controller();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    const strategy = CurriculumExercise(
+      mode: TrainingMode.mentalStrategies,
+      prompt: '196 + 9',
+      answer: 0,
+      hint: 'Erst zur 200.',
+      key: 'process:strategy:Hunderter:196:9:200',
+      choices: <String>['196 + 4 + 5', '196 + 5 + 4'],
+      method: 'Rechenweg auswählen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.mentalStrategies,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(strategy),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-strategy-anchor')), findsOneWidget);
+    var fallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(fallback, 220, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(fallback);
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('196 + 4 + 5'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    const law = CurriculumExercise(
+      mode: TrainingMode.arithmeticLaws,
+      prompt: '6 × 47 = 6 × 50 − ?',
+      answer: 18,
+      hint: 'Nutze das Distributivgesetz.',
+      key: 'law:distribute:6:47',
+      maxAnswerValue: 1000,
+      method: 'Distributivgesetz',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.arithmeticLaws,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(law),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-law-distribute-structure')), findsOneWidget);
+    fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(fallback, 220, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(fallback);
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+  });
+
+  testWidgets('mental strategy touch stays stable at 200 percent text scale',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'mental:+:583:247',
+      kind: TouchInteractionKind.mentalChunkPath,
+      instruction: 'Rechne in Stellenwertblöcken.',
+      dataValues: <int>[583, 247, 200, 40, 7],
+      dataOperation: '+',
+      expectedAnswer: 830,
+      maxValue: 1000,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-mental-path')), findsOneWidget);
+  });
 }
 
 void _noopAnswer(int value) {}
