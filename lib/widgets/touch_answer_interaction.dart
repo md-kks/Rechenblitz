@@ -86,6 +86,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final Set<int> selectedAxes = <int>{};
   final Set<int> selectedShapePoints = <int>{};
   final Set<int> selectedShapeSides = <int>{};
+  final Set<int> selectedBodyFeatures = <int>{};
+  bool bodyNoFeatureClaim = false;
   final Set<int> selectedPerimeterEdges = <int>{};
   int areaColumns = 1;
   int areaRows = 1;
@@ -210,6 +212,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedAxes.clear();
     selectedShapePoints.clear();
     selectedShapeSides.clear();
+    selectedBodyFeatures.clear();
+    bodyNoFeatureClaim = false;
     selectedPerimeterEdges.clear();
     areaColumns = 1;
     areaRows = 1;
@@ -280,6 +284,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildGeometryRelationChoice(context),
             TouchInteractionKind.cubeNetFoldChoice =>
               _buildCubeNetFoldChoice(context),
+            TouchInteractionKind.bodyPropertySelector =>
+              _buildBodyPropertySelector(context),
             TouchInteractionKind.largeNumberCompare =>
               _buildLargeNumberCompare(context),
             TouchInteractionKind.largeNumberOrder =>
@@ -4729,6 +4735,135 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     }
   }
 
+  Widget _buildBodyPropertySelector(BuildContext context) {
+    const canvasSize = Size(250, 190);
+    final body = widget.plan.geometryShape ?? '';
+    final property = widget.plan.dataOperation ?? '';
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final featureTargets = property == 'Flächen'
+        ? _BodyTouchGeometry.faceCenters(body, canvasSize)
+        : property == 'Ecken'
+            ? _BodyTouchGeometry.cornerPoints(body, canvasSize)
+            : _BodyTouchGeometry.edgeTargets(body, canvasSize);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          property == 'Flächen'
+              ? '$body · Flächenmodell'
+              : '$body · $property am Körper',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: SizedBox(
+            width: canvasSize.width,
+            height: canvasSize.height,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    key: const ValueKey('touch-body-preview'),
+                    painter: property == 'Flächen'
+                        ? _TouchBodySurfacePainter(
+                            body: body,
+                            selectedFeatures: Set<int>.of(selectedBodyFeatures),
+                            lineColor: Theme.of(context).colorScheme.onSurface,
+                            accentColor: Theme.of(context).colorScheme.primary,
+                          )
+                        : _TouchBodyDiagramPainter(
+                            body: body,
+                            property: property,
+                            selectedFeatures: Set<int>.of(selectedBodyFeatures),
+                            lineColor: Theme.of(context).colorScheme.onSurface,
+                            accentColor: Theme.of(context).colorScheme.primary,
+                          ),
+                  ),
+                ),
+                for (var index = 0; index < featureTargets.length; index++)
+                  Positioned(
+                    left: featureTargets[index].dx - 20,
+                    top: featureTargets[index].dy - 20,
+                    width: 40,
+                    height: 40,
+                    child: Semantics(
+                      button: true,
+                      selected: selectedBodyFeatures.contains(index),
+                      label: '$property ${index + 1}',
+                      child: GestureDetector(
+                        key: ValueKey('touch-body-feature-$index'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: widget.locked
+                            ? null
+                            : () => setState(() {
+                                  bodyNoFeatureClaim = false;
+                                  if (!selectedBodyFeatures.add(index)) {
+                                    selectedBodyFeatures.remove(index);
+                                  }
+                                }),
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (property != 'Flächen') ...[
+          const SizedBox(height: 8),
+          Center(
+            child: ChoiceChip(
+              key: const ValueKey('touch-body-none'),
+              selected: bodyNoFeatureClaim,
+              label: Text('Keine $property'),
+              onSelected: widget.locked
+                  ? null
+                  : (selected) => setState(() {
+                        bodyNoFeatureClaim = selected;
+                        if (selected) selectedBodyFeatures.clear();
+                      }),
+            ),
+          ),
+        ],
+        const SizedBox(height: 8),
+        Text(
+          bodyNoFeatureClaim
+              ? 'Du meinst: keine $property.'
+              : '${selectedBodyFeatures.length} $property markiert',
+          key: const ValueKey('touch-body-selection-status'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-body-submit'),
+          onPressed: widget.locked
+              ? null
+              : () {
+                  final expectedSet = widget.plan.correctSelectionIndexes.toSet();
+                  final correct = expected == 0
+                      ? bodyNoFeatureClaim
+                      : !bodyNoFeatureClaim &&
+                          setEquals(selectedBodyFeatures, expectedSet);
+                  if (correct) {
+                    widget.onAnswer(expected);
+                  } else if (bodyNoFeatureClaim) {
+                    widget.onAnswer(_wrongAnswer(0, expected));
+                  } else {
+                    widget.onAnswer(
+                      _wrongAnswer(selectedBodyFeatures.length, expected),
+                    );
+                  }
+                },
+          icon: const Icon(Icons.check_rounded),
+          label: Text('$property prüfen'),
+        ),
+      ],
+    );
+  }
+
   Widget _buildShapeCorners(BuildContext context) {
     const canvasSize = Size(250, 190);
     final shape = widget.plan.geometryShape ?? 'rectangle';
@@ -5647,6 +5782,441 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     }
     widget.onAnswer(-1);
   }
+}
+
+class _BodyTouchGeometry {
+  static List<Offset> cornerPoints(String body, Size size) {
+    switch (body) {
+      case 'Würfel':
+        return _boxCorners(size, square: true);
+      case 'Quader':
+        return _boxCorners(size, square: false);
+      case 'Pyramide':
+        final base = _pyramidBase(size);
+        return <Offset>[_pyramidApex(size), ...base];
+      case 'Kegel':
+        return <Offset>[Offset(size.width * .50, size.height * .12)];
+      default:
+        return const <Offset>[];
+    }
+  }
+
+  static List<Offset> edgeTargets(String body, Size size) {
+    if (body == 'Würfel' || body == 'Quader') {
+      return _boxEdges(size, square: body == 'Würfel')
+          .map((edge) => _mid(edge.$1, edge.$2))
+          .toList(growable: false);
+    }
+    if (body == 'Pyramide') {
+      return _pyramidEdges(size)
+          .map((edge) => _mid(edge.$1, edge.$2))
+          .toList(growable: false);
+    }
+    if (body == 'Zylinder') {
+      final rings = _cylinderRings(size);
+      return rings
+          .map((ring) => Offset(ring.right - 3, ring.center.dy))
+          .toList(growable: false);
+    }
+    if (body == 'Kegel') {
+      final ring = _coneBase(size);
+      return <Offset>[Offset(ring.right - 3, ring.center.dy)];
+    }
+    return const <Offset>[];
+  }
+
+  static List<Offset> faceCenters(String body, Size size) =>
+      _BodyFaceGeometry.forBody(body, size)
+          .map((face) => face.center)
+          .toList(growable: false);
+
+  static List<Offset> _boxCorners(Size size, {required bool square}) {
+    final w = square ? size.width * .48 : size.width * .58;
+    final h = square ? size.height * .52 : size.height * .42;
+    final front = Rect.fromCenter(
+      center: Offset(size.width * .50, size.height * .60),
+      width: w,
+      height: h,
+    );
+    final back = front.shift(Offset(size.width * .14, -size.height * .16));
+    return <Offset>[
+      front.topLeft,
+      front.topRight,
+      front.bottomRight,
+      front.bottomLeft,
+      back.topLeft,
+      back.topRight,
+      back.bottomRight,
+      back.bottomLeft,
+    ];
+  }
+
+  static List<(Offset, Offset, bool)> _boxEdges(
+    Size size, {
+    required bool square,
+  }) {
+    final points = _boxCorners(size, square: square);
+    final f = points.sublist(0, 4);
+    final b = points.sublist(4, 8);
+    return <(Offset, Offset, bool)>[
+      for (var i = 0; i < 4; i++) (f[i], f[(i + 1) % 4], false),
+      for (var i = 0; i < 4; i++) (b[i], b[(i + 1) % 4], true),
+      for (var i = 0; i < 4; i++) (f[i], b[i], false),
+    ];
+  }
+
+  static Offset _pyramidApex(Size size) =>
+      Offset(size.width * .48, size.height * .12);
+
+  static List<Offset> _pyramidBase(Size size) => <Offset>[
+        Offset(size.width * .18, size.height * .68),
+        Offset(size.width * .72, size.height * .68),
+        Offset(size.width * .86, size.height * .86),
+        Offset(size.width * .32, size.height * .86),
+      ];
+
+  static List<(Offset, Offset, bool)> _pyramidEdges(Size size) {
+    final apex = _pyramidApex(size);
+    final base = _pyramidBase(size);
+    return <(Offset, Offset, bool)>[
+      for (var i = 0; i < 4; i++)
+        (base[i], base[(i + 1) % 4], i == 2),
+      for (var i = 0; i < 4; i++) (apex, base[i], i == 2),
+    ];
+  }
+
+  static List<Rect> _cylinderRings(Size size) {
+    final top = Rect.fromLTWH(
+      size.width * .20,
+      size.height * .14,
+      size.width * .60,
+      size.height * .25,
+    );
+    return <Rect>[top, top.shift(Offset(0, size.height * .48))];
+  }
+
+  static Rect _coneBase(Size size) => Rect.fromLTWH(
+        size.width * .18,
+        size.height * .66,
+        size.width * .64,
+        size.height * .24,
+      );
+
+  static Offset _mid(Offset a, Offset b) =>
+      Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+}
+
+class _BodyFaceShape {
+  const _BodyFaceShape(this.path, this.center);
+  final Path path;
+  final Offset center;
+}
+
+class _BodyFaceGeometry {
+  static List<_BodyFaceShape> forBody(String body, Size size) {
+    switch (body) {
+      case 'Würfel':
+        return _boxNet(size, rectangle: false);
+      case 'Quader':
+        return _boxNet(size, rectangle: true);
+      case 'Pyramide':
+        return _pyramidNet(size);
+      case 'Zylinder':
+        return _cylinderNet(size);
+      case 'Kegel':
+        return _coneNet(size);
+      case 'Kugel':
+        final center = Offset(size.width / 2, size.height / 2);
+        final radius = size.shortestSide * .36;
+        return <_BodyFaceShape>[
+          _BodyFaceShape(
+            Path()..addOval(Rect.fromCircle(center: center, radius: radius)),
+            center,
+          ),
+        ];
+      default:
+        return const <_BodyFaceShape>[];
+    }
+  }
+
+  static List<_BodyFaceShape> _boxNet(Size size, {required bool rectangle}) {
+    final cellW = rectangle ? 40.0 : 36.0;
+    final cellH = rectangle ? 28.0 : 36.0;
+    final origin = Offset(
+      size.width / 2 - cellW * 1.5,
+      size.height / 2 - cellH / 2,
+    );
+    final offsets = <Offset>[
+      origin,
+      origin.translate(cellW, 0),
+      origin.translate(cellW * 2, 0),
+      origin.translate(cellW * 3, 0),
+      origin.translate(cellW, -cellH),
+      origin.translate(cellW, cellH),
+    ];
+    return offsets.map((offset) {
+      final rect = Rect.fromLTWH(offset.dx, offset.dy, cellW, cellH);
+      return _BodyFaceShape(Path()..addRect(rect), rect.center);
+    }).toList(growable: false);
+  }
+
+  static List<_BodyFaceShape> _pyramidNet(Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    const half = 28.0;
+    final square = Rect.fromCenter(center: c, width: half * 2, height: half * 2);
+    Path triangle(Offset a, Offset b, Offset tip) => Path()
+      ..moveTo(a.dx, a.dy)
+      ..lineTo(b.dx, b.dy)
+      ..lineTo(tip.dx, tip.dy)
+      ..close();
+    final topTip = Offset(c.dx, square.top - 40);
+    final rightTip = Offset(square.right + 40, c.dy);
+    final bottomTip = Offset(c.dx, square.bottom + 40);
+    final leftTip = Offset(square.left - 40, c.dy);
+    return <_BodyFaceShape>[
+      _BodyFaceShape(Path()..addRect(square), c),
+      _BodyFaceShape(
+        triangle(square.topLeft, square.topRight, topTip),
+        Offset(c.dx, square.top - 14),
+      ),
+      _BodyFaceShape(
+        triangle(square.topRight, square.bottomRight, rightTip),
+        Offset(square.right + 14, c.dy),
+      ),
+      _BodyFaceShape(
+        triangle(square.bottomLeft, square.bottomRight, bottomTip),
+        Offset(c.dx, square.bottom + 14),
+      ),
+      _BodyFaceShape(
+        triangle(square.topLeft, square.bottomLeft, leftTip),
+        Offset(square.left - 14, c.dy),
+      ),
+    ];
+  }
+
+  static List<_BodyFaceShape> _cylinderNet(Size size) {
+    final rect = Rect.fromLTWH(
+      size.width * .28,
+      size.height * .30,
+      size.width * .44,
+      size.height * .42,
+    );
+    final radius = size.width * .10;
+    final left = Offset(size.width * .12, size.height * .51);
+    final right = Offset(size.width * .88, size.height * .51);
+    return <_BodyFaceShape>[
+      _BodyFaceShape(Path()..addRect(rect), rect.center),
+      _BodyFaceShape(
+        Path()..addOval(Rect.fromCircle(center: left, radius: radius)),
+        left,
+      ),
+      _BodyFaceShape(
+        Path()..addOval(Rect.fromCircle(center: right, radius: radius)),
+        right,
+      ),
+    ];
+  }
+
+  static List<_BodyFaceShape> _coneNet(Size size) {
+    final center = Offset(size.width * .54, size.height * .52);
+    final sector = Path()
+      ..moveTo(center.dx, center.dy)
+      ..lineTo(size.width * .18, size.height * .22)
+      ..quadraticBezierTo(
+        size.width * .78,
+        size.height * .06,
+        size.width * .88,
+        size.height * .56,
+      )
+      ..close();
+    final circleCenter = Offset(size.width * .28, size.height * .86);
+    const radius = 20.0;
+    return <_BodyFaceShape>[
+      _BodyFaceShape(sector, Offset(size.width * .55, size.height * .34)),
+      _BodyFaceShape(
+        Path()..addOval(Rect.fromCircle(center: circleCenter, radius: radius)),
+        circleCenter,
+      ),
+    ];
+  }
+}
+
+class _TouchBodyDiagramPainter extends CustomPainter {
+  const _TouchBodyDiagramPainter({
+    required this.body,
+    required this.property,
+    required this.selectedFeatures,
+    required this.lineColor,
+    required this.accentColor,
+  });
+
+  final String body;
+  final String property;
+  final Set<int> selectedFeatures;
+  final Color lineColor;
+  final Color accentColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final line = Paint()
+      ..color = lineColor
+      ..strokeWidth = 2.6
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final rear = Paint()
+      ..color = lineColor.withValues(alpha: .38)
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final accent = Paint()
+      ..color = accentColor
+      ..strokeWidth = 4.2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    if (body == 'Würfel' || body == 'Quader') {
+      final edges = _BodyTouchGeometry._boxEdges(
+        size,
+        square: body == 'Würfel',
+      );
+      for (var index = 0; index < edges.length; index++) {
+        final edge = edges[index];
+        canvas.drawLine(
+          edge.$1,
+          edge.$2,
+          selectedFeatures.contains(index) ? accent : (edge.$3 ? rear : line),
+        );
+      }
+      _paintSelectedCorners(canvas, size);
+      return;
+    }
+
+    if (body == 'Pyramide') {
+      final edges = _BodyTouchGeometry._pyramidEdges(size);
+      for (var index = 0; index < edges.length; index++) {
+        final edge = edges[index];
+        canvas.drawLine(
+          edge.$1,
+          edge.$2,
+          selectedFeatures.contains(index) ? accent : (edge.$3 ? rear : line),
+        );
+      }
+      _paintSelectedCorners(canvas, size);
+      return;
+    }
+
+    if (body == 'Zylinder') {
+      final rings = _BodyTouchGeometry._cylinderRings(size);
+      for (var index = 0; index < rings.length; index++) {
+        canvas.drawOval(
+          rings[index],
+          property == 'Kanten' && selectedFeatures.contains(index)
+              ? accent
+              : line,
+        );
+      }
+      canvas.drawLine(
+        Offset(rings.first.left, rings.first.center.dy),
+        Offset(rings.last.left, rings.last.center.dy),
+        line,
+      );
+      canvas.drawLine(
+        Offset(rings.first.right, rings.first.center.dy),
+        Offset(rings.last.right, rings.last.center.dy),
+        line,
+      );
+      return;
+    }
+
+    if (body == 'Kegel') {
+      final apex = Offset(size.width * .50, size.height * .12);
+      final base = _BodyTouchGeometry._coneBase(size);
+      canvas.drawLine(apex, Offset(base.left, base.center.dy), line);
+      canvas.drawLine(apex, Offset(base.right, base.center.dy), line);
+      canvas.drawOval(
+        base,
+        property == 'Kanten' && selectedFeatures.contains(0) ? accent : line,
+      );
+      _paintSelectedCorners(canvas, size);
+      return;
+    }
+
+    if (body == 'Kugel') {
+      final center = Offset(size.width / 2, size.height / 2);
+      final radius = size.shortestSide * .36;
+      canvas.drawCircle(center, radius, line);
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: center,
+          width: radius * 2,
+          height: radius * .60,
+        ),
+        rear,
+      );
+      return;
+    }
+  }
+
+  void _paintSelectedCorners(Canvas canvas, Size size) {
+    if (property != 'Ecken') return;
+    final points = _BodyTouchGeometry.cornerPoints(body, size);
+    for (var index = 0; index < points.length; index++) {
+      if (!selectedFeatures.contains(index)) continue;
+      canvas.drawCircle(points[index], 6, Paint()..color = accentColor);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TouchBodyDiagramPainter oldDelegate) =>
+      body != oldDelegate.body ||
+      property != oldDelegate.property ||
+      !setEquals(selectedFeatures, oldDelegate.selectedFeatures) ||
+      lineColor != oldDelegate.lineColor ||
+      accentColor != oldDelegate.accentColor;
+}
+
+class _TouchBodySurfacePainter extends CustomPainter {
+  const _TouchBodySurfacePainter({
+    required this.body,
+    required this.selectedFeatures,
+    required this.lineColor,
+    required this.accentColor,
+  });
+
+  final String body;
+  final Set<int> selectedFeatures;
+  final Color lineColor;
+  final Color accentColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final line = Paint()
+      ..color = lineColor
+      ..strokeWidth = 2.2
+      ..style = PaintingStyle.stroke;
+    final baseFill = Paint()
+      ..color = accentColor.withValues(alpha: .08)
+      ..style = PaintingStyle.fill;
+    final selectedFill = Paint()
+      ..color = accentColor.withValues(alpha: .34)
+      ..style = PaintingStyle.fill;
+    final faces = _BodyFaceGeometry.forBody(body, size);
+    for (var index = 0; index < faces.length; index++) {
+      final face = faces[index];
+      canvas.drawPath(
+        face.path,
+        selectedFeatures.contains(index) ? selectedFill : baseFill,
+      );
+      canvas.drawPath(face.path, line);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TouchBodySurfacePainter oldDelegate) =>
+      body != oldDelegate.body ||
+      !setEquals(selectedFeatures, oldDelegate.selectedFeatures) ||
+      lineColor != oldDelegate.lineColor ||
+      accentColor != oldDelegate.accentColor;
 }
 
 class _CounterGroupCard extends StatelessWidget {
