@@ -78,6 +78,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int? selectedDivisionRemainder;
   final List<int> divisionQuotientDigits = <int>[];
   String divisionStepFeedback = '';
+  final List<String> routeMoves = <String>[];
   int pathX = 0;
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
@@ -178,6 +179,18 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedDivisionRemainder = null;
     divisionQuotientDigits.clear();
     divisionStepFeedback = '';
+    routeMoves.clear();
+    if (widget.plan.kind == TouchInteractionKind.routeSequenceWalker &&
+        widget.plan.dataOperation == 'skip-first' &&
+        widget.plan.dataLabels.length >= 2 &&
+        widget.plan.dataValues.length >= 2) {
+      routeMoves.addAll(
+        List<String>.filled(
+          widget.plan.dataValues[0],
+          widget.plan.dataLabels[0],
+        ),
+      );
+    }
     if (widget.plan.kind == TouchInteractionKind.writtenColumnProcedure &&
         widget.plan.dataValues.length >= 2 &&
         widget.plan.dataOperation == '-') {
@@ -286,6 +299,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildWrittenMultiplicationProcedure(context),
             TouchInteractionKind.writtenDivisionProcedure =>
               _buildWrittenDivisionProcedure(context),
+            TouchInteractionKind.routeSequenceWalker =>
+              _buildRouteSequenceWalker(context),
             TouchInteractionKind.pathWalker => _buildPathWalker(context),
             TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
@@ -4047,6 +4062,213 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     widget.onAnswer(_wrongAnswer(candidate, expected));
   }
 
+  List<String> _expectedRouteMoves() {
+    if (widget.plan.dataLabels.length < 2 || widget.plan.dataValues.length < 2) {
+      return const <String>[];
+    }
+    return <String>[
+      ...List<String>.filled(widget.plan.dataValues[0], widget.plan.dataLabels[0]),
+      ...List<String>.filled(widget.plan.dataValues[1], widget.plan.dataLabels[1]),
+    ];
+  }
+
+  int _routeLockedPrefixLength() {
+    if (widget.plan.dataOperation != 'skip-first' ||
+        widget.plan.dataValues.isEmpty) {
+      return 0;
+    }
+    return widget.plan.dataValues.first;
+  }
+
+  String _routeArrow(String direction) => switch (direction) {
+        'right' => '→',
+        'up' => '↑',
+        'left' => '←',
+        'down' => '↓',
+        _ => '?',
+      };
+
+  String _routeLabel(String direction) => switch (direction) {
+        'right' => 'rechts',
+        'up' => 'hoch',
+        'left' => 'links',
+        'down' => 'runter',
+        _ => direction,
+      };
+
+  IconData _routeIcon(String direction) => switch (direction) {
+        'right' => Icons.arrow_forward_rounded,
+        'up' => Icons.arrow_upward_rounded,
+        'left' => Icons.arrow_back_rounded,
+        'down' => Icons.arrow_downward_rounded,
+        _ => Icons.help_outline_rounded,
+      };
+
+  void _addRouteMove(String direction) {
+    final expected = _expectedRouteMoves();
+    if (widget.locked || routeMoves.length >= expected.length) return;
+    setState(() => routeMoves.add(direction));
+  }
+
+  void _undoRouteMove() {
+    final prefix = _routeLockedPrefixLength();
+    if (widget.locked || routeMoves.length <= prefix) return;
+    setState(() => routeMoves.removeLast());
+  }
+
+  void _resetRouteMoves() {
+    if (widget.locked) return;
+    final prefix = _routeLockedPrefixLength();
+    setState(() {
+      if (prefix == 0) {
+        routeMoves.clear();
+      } else {
+        routeMoves
+          ..clear()
+          ..addAll(
+            List<String>.filled(
+              prefix,
+              widget.plan.dataLabels.first,
+            ),
+          );
+      }
+    });
+  }
+
+  Widget _buildRouteSequenceWalker(BuildContext context) {
+    final expectedMoves = _expectedRouteMoves();
+    final prefix = _routeLockedPrefixLength();
+    final required = expectedMoves.length;
+    final completedAfterPrefix = math.max(0, routeMoves.length - prefix);
+    final remainingAfterPrefix = math.max(0, required - routeMoves.length);
+    const directions = <String>['left', 'up', 'down', 'right'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (prefix > 0) ...[
+          Container(
+            key: const ValueKey('touch-route-prefix-checked'),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: Theme.of(context).colorScheme.secondaryContainer,
+            ),
+            child: Text(
+              'Abschnitt 1 geprüft: $prefix × ${_routeArrow(widget.plan.dataLabels.first)}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+        Center(
+          child: SizedBox(
+            width: 260,
+            height: 220,
+            child: CustomPaint(
+              key: const ValueKey('touch-route-grid'),
+              painter: _TouchRoutePainter(
+                moves: routeMoves,
+                verifiedPrefixLength: prefix,
+                color: Theme.of(context).colorScheme.onSurface,
+                accent: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          prefix > 0
+              ? '$completedAfterPrefix Felder im zweiten Abschnitt gegangen · noch $remainingAfterPrefix'
+              : '${routeMoves.length} von $required Feldern gegangen',
+          key: const ValueKey('touch-route-progress'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        if (routeMoves.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            routeMoves.map(_routeArrow).join(' '),
+            key: const ValueKey('touch-route-arrows'),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2,
+                ),
+          ),
+        ],
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final direction in directions)
+              FilledButton.tonalIcon(
+                key: ValueKey('touch-route-$direction'),
+                onPressed: widget.locked || routeMoves.length >= required
+                    ? null
+                    : () => _addRouteMove(direction),
+                icon: Icon(_routeIcon(direction)),
+                label: Text('1 ${_routeLabel(direction)}'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            TextButton.icon(
+              key: const ValueKey('touch-route-undo'),
+              onPressed: widget.locked || routeMoves.length <= prefix
+                  ? null
+                  : _undoRouteMove,
+              icon: const Icon(Icons.undo_rounded),
+              label: const Text('Letztes Feld zurück'),
+            ),
+            TextButton.icon(
+              key: const ValueKey('touch-route-reset'),
+              onPressed: widget.locked || routeMoves.length <= prefix
+                  ? null
+                  : _resetRouteMoves,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Abschnitt neu'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-route-submit'),
+          onPressed: widget.locked || routeMoves.length != required
+              ? null
+              : _submitRouteSequence,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Route prüfen'),
+        ),
+      ],
+    );
+  }
+
+  void _submitRouteSequence() {
+    final expectedMoves = _expectedRouteMoves();
+    final expectedAnswer = widget.plan.expectedAnswer ?? 0;
+    final exact = _listEqualsString(routeMoves, expectedMoves);
+    widget.onAnswer(
+      exact ? expectedAnswer : _wrongAnswer(expectedAnswer, expectedAnswer),
+    );
+  }
+
+  bool _listEqualsString(List<String> first, List<String> second) {
+    if (first.length != second.length) return false;
+    for (var index = 0; index < first.length; index++) {
+      if (first[index] != second[index]) return false;
+    }
+    return true;
+  }
+
   Widget _buildPathWalker(BuildContext context) {
     final goalRight = widget.plan.pathRight ?? 0;
     final goalUp = widget.plan.pathUp ?? 0;
@@ -5237,6 +5459,95 @@ class _CounterDots extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _TouchRoutePainter extends CustomPainter {
+  const _TouchRoutePainter({
+    required this.moves,
+    required this.verifiedPrefixLength,
+    required this.color,
+    required this.accent,
+  });
+
+  final List<String> moves;
+  final int verifiedPrefixLength;
+  final Color color;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final points = <Offset>[Offset.zero];
+    var current = Offset.zero;
+    for (final move in moves) {
+      current += switch (move) {
+        'right' => const Offset(1, 0),
+        'left' => const Offset(-1, 0),
+        'up' => const Offset(0, 1),
+        'down' => const Offset(0, -1),
+        _ => Offset.zero,
+      };
+      points.add(current);
+    }
+
+    final minX = points.map((point) => point.dx).reduce(math.min);
+    final maxX = points.map((point) => point.dx).reduce(math.max);
+    final minY = points.map((point) => point.dy).reduce(math.min);
+    final maxY = points.map((point) => point.dy).reduce(math.max);
+    final columns = math.max(5, (maxX - minX + 3).ceil());
+    final rows = math.max(5, (maxY - minY + 3).ceil());
+    final cell = math.min(size.width / columns, size.height / rows);
+    final origin = Offset(
+      (size.width - (maxX - minX) * cell) / 2 - minX * cell,
+      (size.height + (maxY - minY) * cell) / 2 + minY * cell,
+    );
+    Offset screen(Offset point) =>
+        Offset(origin.dx + point.dx * cell, origin.dy - point.dy * cell);
+
+    final grid = Paint()
+      ..color = color.withValues(alpha: 0.15)
+      ..strokeWidth = 1;
+    for (var x = 0.0; x <= size.width; x += cell) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
+    }
+    for (var y = 0.0; y <= size.height; y += cell) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+
+    final verifiedPaint = Paint()
+      ..color = color.withValues(alpha: 0.55)
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+    final activePaint = Paint()
+      ..color = accent
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+    for (var index = 1; index < points.length; index++) {
+      canvas.drawLine(
+        screen(points[index - 1]),
+        screen(points[index]),
+        index <= verifiedPrefixLength ? verifiedPaint : activePaint,
+      );
+    }
+    final start = screen(points.first);
+    final end = screen(points.last);
+    canvas.drawCircle(start, 6, Paint()..color = color);
+    canvas.drawCircle(end, 8, Paint()..color = accent);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TouchRoutePainter oldDelegate) =>
+      !_stringListsEqual(moves, oldDelegate.moves) ||
+      verifiedPrefixLength != oldDelegate.verifiedPrefixLength ||
+      color != oldDelegate.color ||
+      accent != oldDelegate.accent;
+
+  static bool _stringListsEqual(List<String> first, List<String> second) {
+    if (first.length != second.length) return false;
+    for (var index = 0; index < first.length; index++) {
+      if (first[index] != second[index]) return false;
+    }
+    return true;
+  }
 }
 
 class _TouchPathPainter extends CustomPainter {

@@ -4863,6 +4863,204 @@ void main() {
     expect(find.byKey(const ValueKey('touch-family-backward')), findsOneWidget);
   });
 
+
+  test('route planner preserves direction order and can skip a checked first segment', () {
+    final full = TouchInteractionPlan.forTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: 'plan:route:left:2:down:3',
+      answer: 1,
+      maxValue: 1000,
+      choices: const <String>['A', 'B', 'C'],
+    );
+    final targeted = TouchInteractionPlan.forTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: 'plan:route:right:3:up:2',
+      answer: 0,
+      maxValue: 1000,
+      choices: const <String>['A', 'B', 'C'],
+      targetCompetency: MicroCompetencyId.planDirections,
+    );
+
+    expect(full?.kind, TouchInteractionKind.routeSequenceWalker);
+    expect(full?.dataLabels, const <String>['left', 'down']);
+    expect(full?.dataValues, const <int>[2, 3]);
+    expect(full?.dataOperation, 'full');
+    expect(targeted?.kind, TouchInteractionKind.routeSequenceWalker);
+    expect(targeted?.dataOperation, 'skip-first');
+  });
+
+  testWidgets('route walker rejects the same endpoint in the wrong section order',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'plan:route:right:2:up:1',
+      kind: TouchInteractionKind.routeSequenceWalker,
+      instruction: 'Laufe die Route.',
+      dataLabels: <String>['right', 'up'],
+      dataValues: <int>[2, 1],
+      dataOperation: 'full',
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    for (final direction in <String>['right', 'up', 'right']) {
+      final button = find.byKey(ValueKey('touch-route-$direction'));
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pump();
+    }
+    final submit = find.byKey(const ValueKey('touch-route-submit'));
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    await tester.pump();
+    expect(answer, isNot(2));
+
+    final reset = find.byKey(const ValueKey('touch-route-reset'));
+    await tester.ensureVisible(reset);
+    await tester.tap(reset);
+    await tester.pump();
+    for (final direction in <String>['right', 'right', 'up']) {
+      final button = find.byKey(ValueKey('touch-route-$direction'));
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pump();
+    }
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    await tester.pump();
+    expect(answer, 2);
+  });
+
+  testWidgets('route walker supports left and down directions', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'plan:route:left:2:down:3',
+      kind: TouchInteractionKind.routeSequenceWalker,
+      instruction: 'Laufe die Route.',
+      dataLabels: <String>['left', 'down'],
+      dataValues: <int>[2, 3],
+      dataOperation: 'full',
+      expectedAnswer: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    for (final direction in <String>['left', 'left', 'down', 'down', 'down']) {
+      final button = find.byKey(ValueKey('touch-route-$direction'));
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pump();
+    }
+    final submit = find.byKey(const ValueKey('touch-route-submit'));
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    await tester.pump();
+    expect(answer, 1);
+  });
+
+  testWidgets('targeted route continues only after the independent first segment',
+      (tester) async {
+    final controller = await _controller();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.plansAndOrientation,
+      prompt: 'Lies den Weg im Pfeilplan: → → → | ↑ ↑',
+      answer: 0,
+      hint: 'Lies beide Blöcke.',
+      key: 'plan:route:right:3:up:2',
+      choices: <String>[
+        '3 Felder nach rechts, dann 2 Felder nach oben',
+        '3 Felder nach oben, dann 2 Felder nach rechts',
+        '2 Felder nach rechts, dann 3 Felder nach oben',
+      ],
+      method: 'Pfeilpläne und Wegabschnitte lesen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.plansAndOrientation,
+          targetCompetency: MicroCompetencyId.planDirections,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-route-grid')), findsNothing);
+    final firstSegment = find.widgetWithText(
+      FilledButton,
+      '3 Felder nach rechts',
+    );
+    await tester.ensureVisible(firstSegment);
+    await tester.tap(firstSegment);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byKey(const ValueKey('touch-route-grid')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-route-prefix-checked')), findsOneWidget);
+    expect(find.text('Abschnitt 1 geprüft: 3 × →'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-route-undo')), findsOneWidget);
+    expect(
+      tester.widget<TextButton>(find.byKey(const ValueKey('touch-route-undo'))).onPressed,
+      isNull,
+    );
+  });
+
+  testWidgets('route touch stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'plan:route:left:4:down:3',
+      kind: TouchInteractionKind.routeSequenceWalker,
+      instruction: 'Laufe den Pfeilplan in Reihenfolge ab.',
+      dataLabels: <String>['left', 'down'],
+      dataValues: <int>[4, 3],
+      dataOperation: 'full',
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-route-grid')), findsOneWidget);
+  });
+
 }
 
 void _noopAnswer(int value) {}
