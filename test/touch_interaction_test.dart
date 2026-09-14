@@ -3962,6 +3962,355 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey('touch-written-table')), findsOneWidget);
   });
+
+  test('written multiplication and division planners use procedures', () {
+    final single = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenMultiply,
+      taskKey: 'written:x:237:4',
+      answer: 948,
+      maxValue: 1000,
+    );
+    final partial = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenMultiply,
+      taskKey: 'written:x:123:14',
+      answer: 1722,
+      maxValue: 2000,
+    );
+    final division = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenDivide,
+      taskKey: 'written:divide:324:6',
+      answer: 54,
+      maxValue: 100,
+    );
+    final rest = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenDivide,
+      taskKey: 'written:divide-rest:325:6',
+      answer: 0,
+      maxValue: 100,
+      choices: const <String>[
+        '54 Rest 1',
+        '55 Rest 1',
+        '54 Rest 2',
+        '53 Rest 1',
+      ],
+    );
+
+    expect(single?.kind, TouchInteractionKind.writtenMultiplicationProcedure);
+    expect(single?.dataOperation, 'single');
+    expect(partial?.kind, TouchInteractionKind.writtenMultiplicationProcedure);
+    expect(partial?.dataOperation, 'partial');
+    expect(division?.kind, TouchInteractionKind.writtenDivisionProcedure);
+    expect(division?.dataOperation, 'exact');
+    expect(rest?.kind, TouchInteractionKind.writtenDivisionProcedure);
+    expect(rest?.dataOperation, 'rest');
+  });
+
+  testWidgets('written multiplication requires each digit and carry',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'written:x:237:4',
+      kind: TouchInteractionKind.writtenMultiplicationProcedure,
+      instruction: 'Multipliziere spaltenweise.',
+      dataValues: <int>[237, 4],
+      dataOperation: 'single',
+      expectedAnswer: 948,
+      maxValue: 1000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-digit-8')));
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-carry-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-step-submit')));
+    await tester.pump();
+    expect(answer, isNot(948));
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-carry-2')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-step-submit')));
+    await tester.pump();
+    expect(find.textContaining('3 × 4 + Übertrag 2'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-digit-4')));
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-carry-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-step-submit')));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-digit-9')));
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-carry-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-multiply-step-submit')));
+    expect(answer, 948);
+  });
+
+  testWidgets('two-digit multiplier builds shifted partial products',
+      (tester) async {
+    const plan = TouchInteractionPlan(
+      taskKey: 'written:x:123:14',
+      kind: TouchInteractionKind.writtenMultiplicationProcedure,
+      instruction: 'Baue Teilprodukte.',
+      dataValues: <int>[123, 14],
+      dataOperation: 'partial',
+      expectedAnswer: 1722,
+      maxValue: 2000,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    Future<void> step(int digit, int carry) async {
+      await tester.tap(find.byKey(ValueKey('touch-written-multiply-digit-$digit')));
+      await tester.tap(find.byKey(ValueKey('touch-written-multiply-carry-$carry')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('touch-written-multiply-step-submit')));
+      await tester.pump();
+    }
+
+    await step(2, 1);
+    await step(9, 0);
+    await step(4, 0);
+    expect(find.text('Teilprodukt 1: 492'), findsOneWidget);
+    await step(3, 0);
+    await step(2, 0);
+    await step(1, 0);
+    expect(find.text('Teilprodukt 2: 1230'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-written-multiply-total-pad')), findsOneWidget);
+  });
+
+  testWidgets('written division validates quotient digit and remainder',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'written:divide:324:6',
+      kind: TouchInteractionKind.writtenDivisionProcedure,
+      instruction: 'Teile schrittweise.',
+      dataValues: <int>[324, 6],
+      dataOperation: 'exact',
+      expectedAnswer: 54,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('32 ÷ 6'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-written-division-q-5')));
+    await tester.tap(find.byKey(const ValueKey('touch-written-division-r-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-division-step-submit')));
+    await tester.pump();
+    expect(answer, isNot(54));
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-division-r-2')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-division-step-submit')));
+    await tester.pump();
+    expect(find.text('24 ÷ 6'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('touch-written-division-q-4')));
+    await tester.tap(find.byKey(const ValueKey('touch-written-division-r-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-written-division-step-submit')));
+    expect(answer, 54);
+  });
+
+  testWidgets('written division preserves a zero quotient digit',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'written:divide:1005:5',
+      kind: TouchInteractionKind.writtenDivisionProcedure,
+      instruction: 'Teile schrittweise.',
+      dataValues: <int>[1005, 5],
+      dataOperation: 'exact',
+      expectedAnswer: 201,
+      maxValue: 300,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    for (final pair in <(int, int)>[(2, 0), (0, 0), (1, 0)]) {
+      await tester.tap(find.byKey(ValueKey('touch-written-division-q-${pair.$1}')));
+      await tester.tap(find.byKey(ValueKey('touch-written-division-r-${pair.$2}')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('touch-written-division-step-submit')));
+      await tester.pump();
+    }
+    expect(answer, 201);
+  });
+
+  testWidgets('division with rest submits the encoded answer choice',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'written:divide-rest:325:6',
+      kind: TouchInteractionKind.writtenDivisionProcedure,
+      instruction: 'Teile schrittweise.',
+      dataValues: <int>[325, 6],
+      dataOperation: 'rest',
+      answerChoices: <String>['54 Rest 1', '55 Rest 1', '54 Rest 2'],
+      expectedAnswer: 0,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    for (final pair in <(int, int)>[(5, 2), (4, 1)]) {
+      await tester.tap(find.byKey(ValueKey('touch-written-division-q-${pair.$1}')));
+      await tester.tap(find.byKey(ValueKey('touch-written-division-r-${pair.$2}')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('touch-written-division-step-submit')));
+      await tester.pump();
+    }
+    expect(answer, 0);
+  });
+
+  testWidgets('written multiply and divide curriculum keep classic fallback',
+      (tester) async {
+    final controller = await _controller();
+    const multiply = CurriculumExercise(
+      mode: TrainingMode.writtenMultiply,
+      prompt: 'Rechne: 237 × 4',
+      answer: 948,
+      hint: 'Stelle für Stelle.',
+      key: 'written:x:237:4',
+      maxAnswerValue: 1000,
+      method: 'Schriftliche Multiplikation',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.writtenMultiply,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(multiply),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-written-multiply-table')), findsOneWidget);
+    var fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(fallback, 240, scrollable: find.byType(Scrollable).first);
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    const division = CurriculumExercise(
+      mode: TrainingMode.writtenDivide,
+      prompt: 'Rechne schriftlich: 325 ÷ 6',
+      answer: 0,
+      hint: 'Teile von links nach rechts.',
+      key: 'written:divide-rest:325:6',
+      choices: <String>['54 Rest 1', '55 Rest 1', '54 Rest 2'],
+      method: 'Schriftliche Division mit Rest',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.writtenDivide,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(division),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-written-division-table')), findsOneWidget);
+    fallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(fallback, 240, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(fallback);
+    await tester.pump();
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('54 Rest 1'), findsOneWidget);
+  });
+
+  testWidgets('written multiplication and division stay stable at 200 percent text scale',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'written:divide:1005:5',
+      kind: TouchInteractionKind.writtenDivisionProcedure,
+      instruction: 'Teile schrittweise.',
+      dataValues: <int>[1005, 5],
+      dataOperation: 'exact',
+      expectedAnswer: 201,
+      maxValue: 200,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-written-division-table')), findsOneWidget);
+  });
 }
 
 void _noopAnswer(int value) {}
