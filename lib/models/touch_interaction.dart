@@ -24,6 +24,7 @@ enum TouchInteractionKind {
   largeNumberOrder,
   largeNumberDecompose,
   largeNumberPlaceDigit,
+  numberWordPlaceValueBuilder,
   mentalChunkPath,
   strategyAnchorJump,
   arithmeticLawStructure,
@@ -1401,6 +1402,29 @@ class TouchInteractionPlan {
               'Tippe in der Stellenwerttafel genau die gefragte Stelle an.',
           dataValues: <int>[number, place],
           expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.largeNumbers &&
+        taskKey.startsWith('large:word:read:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      final number = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (number != null && number >= 0 && answer >= 0 && answer < choices.length) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.numberWordPlaceValueBuilder,
+          instruction:
+              'Entschlüssle das Zahlwort Stelle für Stelle. Tippe eine Stelle an und setze dort die passende Ziffer.',
+          dataValues: <int>[number],
+          dataOperation: targetCompetency == MicroCompetencyId.numberWordReading
+              ? 'read:skip-tens-ones'
+              : 'read',
+          answerChoices: choices,
+          expectedAnswer: answer,
+          maxValue: maxValue,
         );
       }
     }

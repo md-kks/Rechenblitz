@@ -4179,6 +4179,212 @@ void main() {
     expect(find.byKey(const ValueKey('touch-large-decompose-table')), findsOneWidget);
   });
 
+  test('number-word reading uses a place-value builder but writing stays linguistic', () {
+    final read = TouchInteractionPlan.forTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:word:read:347',
+      answer: 1,
+      maxValue: 1000,
+      choices: const <String>['374', '347', '437', '743'],
+    );
+    final targeted = TouchInteractionPlan.forTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:word:read:347',
+      answer: 1,
+      maxValue: 1000,
+      choices: const <String>['374', '347', '437', '743'],
+      targetCompetency: MicroCompetencyId.numberWordReading,
+    );
+    final write = TouchInteractionPlan.forTask(
+      mode: TrainingMode.largeNumbers,
+      taskKey: 'large:word:write:347',
+      answer: 1,
+      maxValue: 1000,
+      choices: const <String>[
+        'dreihundertsiebenundvierzig',
+        'dreihundertsiebenundvierzig',
+        'vierhundertsiebenunddreißig',
+        'siebenhundertdreiundvierzig',
+      ],
+    );
+
+    expect(read?.kind, TouchInteractionKind.numberWordPlaceValueBuilder);
+    expect(read?.dataValues, <int>[347]);
+    expect(read?.dataOperation, 'read');
+    expect(targeted?.dataOperation, 'read:skip-tens-ones');
+    expect(write, isNull);
+  });
+
+  testWidgets('number-word builder requires every place including an internal zero', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'large:word:read:305',
+      kind: TouchInteractionKind.numberWordPlaceValueBuilder,
+      instruction: 'Entschlüssle das Zahlwort.',
+      dataValues: <int>[305],
+      dataOperation: 'read',
+      answerChoices: <String>['350', '305', '503', '35'],
+      expectedAnswer: 1,
+      maxValue: 1000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-number-word-submit')), findsOneWidget);
+    var submit = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('touch-number-word-submit')),
+    );
+    expect(submit.onPressed, isNull);
+
+    await tester.tap(find.byKey(const ValueKey('touch-number-word-choice-3')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-number-word-choice-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-number-word-choice-4')));
+    await tester.pump();
+    submit = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('touch-number-word-submit')),
+    );
+    expect(submit.onPressed, isNotNull);
+    await tester.tap(find.byKey(const ValueKey('touch-number-word-submit')));
+    expect(answer, isNot(1));
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-number-word-place-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-number-word-choice-5')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-number-word-submit')));
+    expect(answer, 1);
+  });
+
+  testWidgets('targeted number-word task reuses checked tens and ones', (tester) async {
+    final controller = await _controller();
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.largeNumbers,
+      prompt: 'Welche Zahl bedeutet das Zahlwort? dreihundertsiebenundvierzig',
+      answer: 1,
+      hint: 'Lies die Stellenwertgruppen.',
+      key: 'large:word:read:347',
+      choices: <String>['374', '347', '437', '743'],
+      method: 'Zahlwort lesen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.largeNumbers,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.numberWordReading,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('4 Zehner und 7 Einer'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-number-word-table')), findsNothing);
+    await tester.tap(find.text('4 Zehner und 7 Einer'));
+    await tester.pump(const Duration(milliseconds: 450));
+
+    expect(find.byKey(const ValueKey('touch-number-word-table')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-number-word-checked-suffix')), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('touch-number-word-digit-10'))).data,
+      '4',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('touch-number-word-digit-1'))).data,
+      '7',
+    );
+
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('touch-number-word-digit-100'))).data,
+      '?',
+    );
+  });
+
+  testWidgets('number-word curriculum defaults to place values and keeps choice fallback', (tester) async {
+    final controller = await _controller();
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.largeNumbers,
+      prompt: 'Welche Zahl bedeutet das Zahlwort? dreihundertfünf',
+      answer: 1,
+      hint: 'Lies die Stellenwertgruppen.',
+      key: 'large:word:read:305',
+      choices: <String>['350', '305', '503', '35'],
+      method: 'Zahlwort lesen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.largeNumbers,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-number-word-table')), findsOneWidget);
+    expect(find.text('350'), findsNothing);
+    final fallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(
+      fallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('350'), findsOneWidget);
+    expect(find.text('305'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-switch-interaction')), findsOneWidget);
+  });
+
+  testWidgets('number-word place-value builder stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'large:word:read:583041',
+      kind: TouchInteractionKind.numberWordPlaceValueBuilder,
+      instruction: 'Entschlüssle das Zahlwort Stelle für Stelle.',
+      dataValues: <int>[583041],
+      dataOperation: 'read',
+      answerChoices: <String>['583401', '583041', '538041', '580341'],
+      expectedAnswer: 1,
+      maxValue: 1000000,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-number-word-table')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-number-word-choice-9')), findsOneWidget);
+  });
+
   test('written add/sub planner uses a column procedure', () {
     final plus = TouchInteractionPlan.forTask(
       mode: TrainingMode.writtenAddSub,
