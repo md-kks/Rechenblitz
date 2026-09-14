@@ -24,6 +24,8 @@ enum TouchInteractionKind {
   mentalChunkPath,
   strategyAnchorJump,
   arithmeticLawStructure,
+  romanNumeralReader,
+  romanNumeralBuilder,
   writtenColumnProcedure,
   writtenMultiplicationProcedure,
   writtenDivisionProcedure,
@@ -1021,6 +1023,46 @@ class TouchInteractionPlan {
       }
     }
 
+    if (mode == TrainingMode.romanNumerals && taskKey.startsWith('roman:')) {
+      final parts = taskKey.split(':');
+      final value = parts.length >= 3 ? int.tryParse(parts[2]) : null;
+      if (value != null && value >= 1 && value <= 100) {
+        final roman = _romanText(value);
+        if (parts[1] == 'read') {
+          final tokens = _romanTokens(value);
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.romanNumeralReader,
+            instruction: targetCompetency == MicroCompetencyId.romanNumeral
+                ? 'Der Zehnerblock wurde schon geprüft. Bestimme jetzt den Gesamtwert der römischen Zahl.'
+                : 'Lies die römische Zahl blockweise. Bestimme erst die Werte der Blöcke und danach den Gesamtwert.',
+            dataLabels: tokens.map((entry) => entry.$1).toList(growable: false),
+            dataValues: tokens.map((entry) => entry.$2).toList(growable: false),
+            dataOperation: targetCompetency == MicroCompetencyId.romanNumeral
+                ? 'read-total'
+                : 'read-groups',
+            unitLabel: roman,
+            expectedAnswer: answer,
+            maxValue: max(maxValue, value),
+          );
+        }
+        if (parts[1] == 'write' && choices != null && choices.isNotEmpty) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.romanNumeralBuilder,
+            instruction:
+                'Baue die römische Zahl selbst aus I, V, X, L und C. Achte besonders auf IV, IX, XL und XC.',
+            dataValues: <int>[value],
+            dataLabels: roman.split(''),
+            answerChoices: choices,
+            unitLabel: roman,
+            expectedAnswer: answer,
+            maxValue: maxValue,
+          );
+        }
+      }
+    }
+
     if (mode == TrainingMode.writtenMultiply &&
         taskKey.startsWith('written:x:')) {
       final parts = taskKey.split(':');
@@ -1393,6 +1435,34 @@ class TouchInteractionPlan {
         ),
       _ => null,
     };
+  }
+
+  static String _romanText(int value) {
+    var rest = value;
+    final out = StringBuffer();
+    const values = <int>[100, 90, 50, 40, 10, 9, 5, 4, 1];
+    const symbols = <String>['C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+    for (var i = 0; i < values.length; i++) {
+      while (rest >= values[i]) {
+        out.write(symbols[i]);
+        rest -= values[i];
+      }
+    }
+    return out.toString();
+  }
+
+  static List<(String, int)> _romanTokens(int value) {
+    var rest = value;
+    final out = <(String, int)>[];
+    const values = <int>[100, 90, 50, 40, 10, 9, 5, 4, 1];
+    const symbols = <String>['C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+    for (var i = 0; i < values.length; i++) {
+      while (rest >= values[i]) {
+        out.add((symbols[i], values[i]));
+        rest -= values[i];
+      }
+    }
+    return out;
   }
 
   static int _missingNumberStart(List<String> parts, int answer) {
