@@ -52,6 +52,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final Set<int> selectedLawTerms = <int>{};
   final List<int> selectedLawOrder = <int>[];
   int? selectedLawGap;
+  int romanReadIndex = 0;
+  int? selectedRomanBlockValue;
+  String romanReadFeedback = '';
+  final List<String> romanBuiltSymbols = <String>[];
   int writtenColumnIndex = 0;
   int writtenIncomingCarry = 0;
   int? selectedWrittenDigit;
@@ -141,6 +145,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedLawTerms.clear();
     selectedLawOrder.clear();
     selectedLawGap = null;
+    romanReadIndex = 0;
+    selectedRomanBlockValue = null;
+    romanReadFeedback = '';
+    romanBuiltSymbols.clear();
     if (widget.plan.kind == TouchInteractionKind.largeNumberDecompose &&
         widget.plan.dataValues.isNotEmpty) {
       largePlaceDigits.addAll(
@@ -264,6 +272,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildStrategyAnchorJump(context),
             TouchInteractionKind.arithmeticLawStructure =>
               _buildArithmeticLawStructure(context),
+            TouchInteractionKind.romanNumeralReader =>
+              _buildRomanNumeralReader(context),
+            TouchInteractionKind.romanNumeralBuilder =>
+              _buildRomanNumeralBuilder(context),
             TouchInteractionKind.writtenColumnProcedure =>
               _buildWrittenColumnProcedure(context),
             TouchInteractionKind.writtenMultiplicationProcedure =>
@@ -309,6 +321,255 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildRomanNumeralReader(BuildContext context) {
+    final labels = widget.plan.dataLabels;
+    final values = widget.plan.dataValues;
+    final skipBlocks = widget.plan.dataOperation == 'read-total';
+    final blocksComplete = skipBlocks || romanReadIndex >= values.length;
+    final currentValue = blocksComplete ? null : values[romanReadIndex];
+    final currentLabel = blocksComplete ? null : labels[romanReadIndex];
+    final roman = widget.plan.unitLabel ?? labels.join();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          key: const ValueKey('touch-roman-read-display'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
+          child: Text(
+            roman,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 3,
+                ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (!skipBlocks) ...[
+          Wrap(
+            key: const ValueKey('touch-roman-read-blocks'),
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var i = 0; i < labels.length; i++)
+                Chip(
+                  avatar: i < romanReadIndex
+                      ? const Icon(Icons.check_rounded, size: 18)
+                      : null,
+                  label: Text(labels[i]),
+                  side: i == romanReadIndex
+                      ? BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        )
+                      : null,
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+        ] else ...[
+          const Text(
+            'Der Zehnerblock wurde im Zwischenschritt schon geprüft.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+        ],
+        if (!blocksComplete && currentValue != null && currentLabel != null) ...[
+          Text(
+            'Welchen Wert hat der Block $currentLabel?',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final candidate in _romanValueCandidates(currentValue))
+                ChoiceChip(
+                  key: ValueKey('touch-roman-read-value-$candidate'),
+                  selected: selectedRomanBlockValue == candidate,
+                  label: Text('$candidate'),
+                  onSelected: widget.locked
+                      ? null
+                      : (_) => setState(() {
+                            selectedRomanBlockValue = candidate;
+                            romanReadFeedback = '';
+                          }),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          FilledButton(
+            key: const ValueKey('touch-roman-read-step-submit'),
+            onPressed: widget.locked || selectedRomanBlockValue == null
+                ? null
+                : () {
+                    if (selectedRomanBlockValue == currentValue) {
+                      setState(() {
+                        romanReadIndex += 1;
+                        selectedRomanBlockValue = null;
+                        romanReadFeedback = '';
+                      });
+                    } else {
+                      setState(() {
+                        romanReadFeedback = 'Dieser Blockwert passt noch nicht.';
+                      });
+                    }
+                  },
+            child: const Text('Block prüfen'),
+          ),
+          if (romanReadFeedback.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              romanReadFeedback,
+              key: const ValueKey('touch-roman-read-feedback'),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ] else ...[
+          Text(
+            'Wie viel ist $roman insgesamt?',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          NumberAnswerPad(
+            key: const ValueKey('touch-roman-read-total-pad'),
+            maxValue: math.max(1, widget.plan.maxValue),
+            onAnswer: widget.locked ? (_) {} : widget.onAnswer,
+          ),
+        ],
+      ],
+    );
+  }
+
+  List<int> _romanValueCandidates(int correct) {
+    const universe = <int>[1, 4, 5, 9, 10, 40, 50, 90, 100];
+    final result = <int>{correct};
+    final index = universe.indexOf(correct);
+    if (index >= 0) {
+      for (var distance = 1; result.length < 4; distance++) {
+        final left = index - distance;
+        final right = index + distance;
+        if (left >= 0) result.add(universe[left]);
+        if (right < universe.length) result.add(universe[right]);
+        if (left < 0 && right >= universe.length) break;
+      }
+    }
+    for (final value in universe) {
+      if (result.length >= 4) break;
+      result.add(value);
+    }
+    final out = result.take(4).toList()..sort();
+    return out;
+  }
+
+  Widget _buildRomanNumeralBuilder(BuildContext context) {
+    final target = widget.plan.dataValues.isEmpty ? 0 : widget.plan.dataValues.first;
+    final expectedRoman = widget.plan.dataLabels.join();
+    final built = romanBuiltSymbols.join();
+    final expectedAnswer = widget.plan.expectedAnswer ?? 0;
+    const symbols = <String>['I', 'V', 'X', 'L', 'C'];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '$target',
+          key: const ValueKey('touch-roman-build-target'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          key: const ValueKey('touch-roman-build-display'),
+          constraints: const BoxConstraints(minHeight: 58),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
+          child: Text(
+            built.isEmpty ? '…' : built,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 3,
+                ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          key: const ValueKey('touch-roman-symbols'),
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final symbol in symbols)
+              ActionChip(
+                key: ValueKey('touch-roman-symbol-$symbol'),
+                label: Text(symbol),
+                onPressed: widget.locked || romanBuiltSymbols.length >= 10
+                    ? null
+                    : () => setState(() => romanBuiltSymbols.add(symbol)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            TextButton.icon(
+              key: const ValueKey('touch-roman-backspace'),
+              onPressed: widget.locked || romanBuiltSymbols.isEmpty
+                  ? null
+                  : () => setState(() => romanBuiltSymbols.removeLast()),
+              icon: const Icon(Icons.backspace_outlined),
+              label: const Text('Letztes Zeichen'),
+            ),
+            TextButton.icon(
+              key: const ValueKey('touch-roman-reset'),
+              onPressed: widget.locked || romanBuiltSymbols.isEmpty
+                  ? null
+                  : () => setState(romanBuiltSymbols.clear),
+              icon: const Icon(Icons.replay_rounded),
+              label: const Text('Neu'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        FilledButton(
+          key: const ValueKey('touch-roman-build-submit'),
+          onPressed: widget.locked || romanBuiltSymbols.isEmpty
+              ? null
+              : () {
+                  final correct = built == expectedRoman;
+                  final alternatives = widget.plan.answerChoices.length;
+                  final wrong = alternatives > 1
+                      ? (expectedAnswer + 1) % alternatives
+                      : expectedAnswer == 0
+                          ? 1
+                          : 0;
+                  widget.onAnswer(correct ? expectedAnswer : wrong);
+                },
+          child: const Text('Römische Zahl prüfen'),
+        ),
+      ],
+    );
+  }
 
   Widget _buildMentalChunkPath(BuildContext context) {
     final values = widget.plan.dataValues;
