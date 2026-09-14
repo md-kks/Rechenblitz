@@ -5061,6 +5061,162 @@ void main() {
     expect(find.byKey(const ValueKey('touch-route-grid')), findsOneWidget);
   });
 
+  test('scale planner maps plan centimeters to equal real-distance blocks', () {
+    final regular = TouchInteractionPlan.forTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: 'plan:scale:100:6',
+      answer: 600,
+      maxValue: 10000,
+    );
+    final targeted = TouchInteractionPlan.forTask(
+      mode: TrainingMode.plansAndOrientation,
+      taskKey: 'plan:scale:1000:4',
+      answer: 4000,
+      maxValue: 10000,
+      targetCompetency: MicroCompetencyId.scale,
+    );
+
+    expect(regular, isNotNull);
+    expect(regular!.kind, TouchInteractionKind.scaleDistanceBuilder);
+    expect(regular.dataValues, <int>[100, 6]);
+    expect(regular.dataOperation, 'full');
+    expect(targeted, isNotNull);
+    expect(targeted!.kind, TouchInteractionKind.scaleDistanceBuilder);
+    expect(targeted.dataValues, <int>[1000, 4]);
+    expect(targeted.dataOperation, 'operation-checked');
+    expect(targeted.instruction, contains('schon geprüft'));
+  });
+
+  testWidgets('scale builder needs the correct block structure before the total counts',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'plan:scale:100:6',
+      kind: TouchInteractionKind.scaleDistanceBuilder,
+      instruction: 'Übertrage die Maßstabszuordnung.',
+      dataValues: <int>[100, 6],
+      expectedAnswer: 600,
+      maxValue: 10000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    tester
+        .widget<NumberAnswerPad>(
+          find.byKey(const ValueKey('touch-scale-number-pad')),
+        )
+        .onAnswer(600);
+    await tester.pump();
+    expect(answer, isNot(600));
+
+    final add = find.byKey(const ValueKey('touch-scale-add'));
+    for (var index = 0; index < 5; index++) {
+      tester.widget<FilledButton>(add).onPressed!();
+      await tester.pump();
+    }
+    tester
+        .widget<NumberAnswerPad>(
+          find.byKey(const ValueKey('touch-scale-number-pad')),
+        )
+        .onAnswer(600);
+    await tester.pump();
+    expect(answer, isNot(600));
+
+    tester.widget<FilledButton>(add).onPressed!();
+    await tester.pump();
+    expect(find.text('Realstrecke: 6 Blöcke gebaut'), findsOneWidget);
+    tester
+        .widget<NumberAnswerPad>(
+          find.byKey(const ValueKey('touch-scale-number-pad')),
+        )
+        .onAnswer(600);
+    await tester.pump();
+    expect(answer, 600);
+  });
+
+  testWidgets('targeted scale shows the builder only after operation evidence',
+      (tester) async {
+    final controller = await _controller();
+    controller.gradeLevel = GradeLevel.fourth;
+    controller.numberRange = NumberRangeLevel.million;
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.plansAndOrientation,
+      prompt:
+          'Im Plan entsprechen 1 cm genau 100 m. Eine Strecke ist 6 cm lang. Wie viele Meter sind das?',
+      answer: 600,
+      hint: 'Nutze die Zuordnung pro Zentimeter.',
+      key: 'plan:scale:100:6',
+      answerSuffix: 'm',
+      maxAnswerValue: 10000,
+      method: 'Pläne und Maßstabsbeziehungen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.plansAndOrientation,
+          targetCompetency: MicroCompetencyId.scale,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-scale-ratio')), findsNothing);
+    final operation = find.widgetWithText(
+      FilledButton,
+      'Planlänge × Meter pro Zentimeter',
+    );
+    await tester.ensureVisible(operation);
+    await tester.tap(operation);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byKey(const ValueKey('touch-scale-ratio')), findsOneWidget);
+    expect(find.text('1 cm im Plan = 100 m in Wirklichkeit'), findsOneWidget);
+    expect(find.textContaining('schon geprüft'), findsOneWidget);
+  });
+
+  testWidgets('scale touch stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'plan:scale:1000:8',
+      kind: TouchInteractionKind.scaleDistanceBuilder,
+      instruction: 'Baue die Maßstabszuordnung.',
+      dataValues: <int>[1000, 8],
+      expectedAnswer: 8000,
+      maxValue: 10000,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-scale-ratio')), findsOneWidget);
+  });
+
 }
 
 void _noopAnswer(int value) {}

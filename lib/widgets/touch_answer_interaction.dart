@@ -35,6 +35,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final Set<int> selectedMeasureParts = <int>{};
   int? selectedMeasureChoice;
   int proportionalUnitValue = 0;
+  int scaleBuiltSegments = 0;
   int? selectedConversionChoice;
   int durationCurrent = 0;
   int durationElapsed = 0;
@@ -126,6 +127,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedMeasureParts.clear();
     selectedMeasureChoice = null;
     proportionalUnitValue = 0;
+    scaleBuiltSegments = 0;
     selectedConversionChoice = null;
     durationCurrent = widget.plan.kind == TouchInteractionKind.durationTimeline && widget.plan.dataValues.isNotEmpty
         ? widget.plan.dataValues.first
@@ -263,6 +265,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             TouchInteractionKind.fractionMeasure => _buildFractionMeasure(context),
             TouchInteractionKind.proportionalUnitBuilder =>
               _buildProportionalUnitBuilder(context),
+            TouchInteractionKind.scaleDistanceBuilder =>
+              _buildScaleDistanceBuilder(context),
             TouchInteractionKind.unitConversionMachine =>
               _buildUnitConversionMachine(context),
             TouchInteractionKind.durationTimeline =>
@@ -2645,6 +2649,142 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             final expected = widget.plan.expectedAnswer ?? 0;
             final correct = proportionalUnitValue == unit && candidate == expected;
             widget.onAnswer(correct ? expected : _wrongAnswer(candidate, expected));
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScaleDistanceBuilder(BuildContext context) {
+    final values = widget.plan.dataValues;
+    final metersPerCentimeter = values.isNotEmpty ? values[0] : 1;
+    final planCentimeters = values.length > 1 ? values[1] : 1;
+    final expected = widget.plan.expectedAnswer ??
+        metersPerCentimeter * planCentimeters;
+    final maxBuilt = planCentimeters + 2;
+
+    Widget segment(String label, {bool real = false}) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: real
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outlineVariant,
+            ),
+            color: real
+                ? Theme.of(context).colorScheme.primaryContainer
+                : Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '1 cm im Plan = $metersPerCentimeter m in Wirklichkeit',
+          key: const ValueKey('touch-scale-ratio'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Planstrecke',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          key: const ValueKey('touch-scale-plan-segments'),
+          alignment: WrapAlignment.center,
+          spacing: 5,
+          runSpacing: 5,
+          children: [
+            for (var index = 0; index < planCentimeters; index++)
+              segment('1 cm'),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Realstrecke: $scaleBuiltSegments Blöcke gebaut',
+          key: const ValueKey('touch-scale-built-count'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        if (scaleBuiltSegments == 0)
+          Text(
+            'Baue die reale Strecke aus gleich großen Paketen.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          )
+        else
+          Wrap(
+            key: const ValueKey('touch-scale-real-segments'),
+            alignment: WrapAlignment.center,
+            spacing: 5,
+            runSpacing: 5,
+            children: [
+              for (var index = 0; index < scaleBuiltSegments; index++)
+                segment('$metersPerCentimeter m', real: true),
+            ],
+          ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.tonalIcon(
+              key: const ValueKey('touch-scale-add'),
+              onPressed: widget.locked || scaleBuiltSegments >= maxBuilt
+                  ? null
+                  : () => setState(() => scaleBuiltSegments += 1),
+              icon: const Icon(Icons.add_rounded),
+              label: Text('$metersPerCentimeter m hinzufügen'),
+            ),
+            FilledButton.tonalIcon(
+              key: const ValueKey('touch-scale-remove'),
+              onPressed: widget.locked || scaleBuiltSegments == 0
+                  ? null
+                  : () => setState(() => scaleBuiltSegments -= 1),
+              icon: const Icon(Icons.remove_rounded),
+              label: const Text('Letzten Block entfernen'),
+            ),
+            TextButton.icon(
+              key: const ValueKey('touch-scale-reset'),
+              onPressed: widget.locked || scaleBuiltSegments == 0
+                  ? null
+                  : () => setState(() => scaleBuiltSegments = 0),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Neu bauen'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Wie lang ist die ganze Strecke in Wirklichkeit?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        NumberAnswerPad(
+          key: const ValueKey('touch-scale-number-pad'),
+          maxValue: widget.plan.maxValue,
+          onAnswer: (candidate) {
+            final structureCorrect = scaleBuiltSegments == planCentimeters;
+            widget.onAnswer(
+              structureCorrect && candidate == expected
+                  ? expected
+                  : _wrongAnswer(candidate, expected),
+            );
           },
         ),
       ],
