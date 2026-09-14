@@ -220,6 +220,113 @@ void main() {
     }
   });
 
+  test('body property help has a visual without hijacking cube-net tasks', () {
+    const bodies = <String>[
+      'Würfel',
+      'Quader',
+      'Kugel',
+      'Zylinder',
+      'Kegel',
+      'Pyramide',
+    ];
+    const properties = <String>['Ecken', 'Kanten', 'Flächen'];
+    for (final body in bodies) {
+      for (final property in properties) {
+        expect(
+          LearningVisualAid.canRender(
+            pattern: ErrorPattern.spatialReasoning,
+            taskKey: 'body:$body:$property',
+            methodKey: 'geometryBodies:properties',
+          ),
+          isTrue,
+          reason: '$body / $property',
+        );
+      }
+    }
+    expect(
+      LearningVisualAid.canRender(
+        pattern: ErrorPattern.spatialReasoning,
+        taskKey: 'body:cube-net:faces',
+        methodKey: 'geometryBodies:cube-net-basics',
+      ),
+      isFalse,
+    );
+  });
+
+  testWidgets('all body property visuals render in two representations', (
+    tester,
+  ) async {
+    const bodies = <String>[
+      'Würfel',
+      'Quader',
+      'Kugel',
+      'Zylinder',
+      'Kegel',
+      'Pyramide',
+    ];
+    const properties = <String>['Ecken', 'Kanten', 'Flächen'];
+    for (final body in bodies) {
+      for (final property in properties) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: LearningVisualAid(
+                  pattern: ErrorPattern.spatialReasoning,
+                  taskKey: 'body:$body:$property',
+                  expected: 0,
+                  methodKey: 'geometryBodies:properties',
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(
+          find.byKey(ValueKey('body-aid:$body:$property')),
+          findsOneWidget,
+          reason: '$body / $property',
+        );
+        expect(find.text('Körperansicht'), findsOneWidget);
+        expect(
+          find.text(property == 'Flächen'
+              ? 'Flächen auseinandergelegt'
+              : 'Zweite Ansicht'),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull, reason: '$body / $property');
+      }
+    }
+  });
+
+  testWidgets('body property visual stays stable at 200 percent text scale', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: LearningVisualAid(
+              pattern: ErrorPattern.spatialReasoning,
+              taskKey: 'body:Pyramide:Flächen',
+              expected: 5,
+              methodKey: 'geometryBodies:properties',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('body-aid:Pyramide:Flächen')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('number friend visual keeps the missing part unsolved', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
