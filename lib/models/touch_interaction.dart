@@ -19,6 +19,7 @@ enum TouchInteractionKind {
   calendarStepper,
   geometryRelationChoice,
   cubeNetFoldChoice,
+  bodyPropertySelector,
   largeNumberCompare,
   largeNumberOrder,
   largeNumberDecompose,
@@ -675,6 +676,38 @@ class TouchInteractionPlan {
             kind: TouchInteractionKind.durationTimeline,
             instruction: 'Gehe auf der Zeitlinie in passenden Etappen vom Beginn bis zum Ende.',
             dataValues: <int>[start, start + duration],
+            expectedAnswer: answer,
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.geometryBodies &&
+        taskKey.startsWith('body:') &&
+        !taskKey.startsWith('body:cube-net:')) {
+      final parts = taskKey.split(':');
+      if (parts.length == 3) {
+        final body = parts[1];
+        final property = parts[2];
+        const counts = <String, Map<String, int>>{
+          'Würfel': <String, int>{'Ecken': 8, 'Kanten': 12, 'Flächen': 6},
+          'Quader': <String, int>{'Ecken': 8, 'Kanten': 12, 'Flächen': 6},
+          'Kugel': <String, int>{'Ecken': 0, 'Kanten': 0, 'Flächen': 1},
+          'Zylinder': <String, int>{'Ecken': 0, 'Kanten': 2, 'Flächen': 3},
+          'Kegel': <String, int>{'Ecken': 1, 'Kanten': 1, 'Flächen': 2},
+          'Pyramide': <String, int>{'Ecken': 5, 'Kanten': 8, 'Flächen': 5},
+        };
+        final count = counts[body]?[property];
+        if (count != null && count == answer) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.bodyPropertySelector,
+            instruction: property == 'Flächen'
+                ? 'Tippe im Flächenmodell jede Fläche genau einmal an.'
+                : 'Tippe am Körper jede $property genau einmal an. Rückwärtige Kanten sind gestrichelt.',
+            geometryShape: body,
+            dataOperation: property,
+            correctSelectionIndexes: List<int>.generate(count, (index) => index),
             expectedAnswer: answer,
           );
         }

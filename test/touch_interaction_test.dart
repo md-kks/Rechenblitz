@@ -3556,6 +3556,271 @@ void main() {
     expect(find.byKey(const ValueKey('touch-geometry-option-3')), findsOneWidget);
   });
 
+  test('body property planner covers all bodies and properties', () {
+    const counts = <String, Map<String, int>>{
+      'Würfel': <String, int>{'Ecken': 8, 'Kanten': 12, 'Flächen': 6},
+      'Quader': <String, int>{'Ecken': 8, 'Kanten': 12, 'Flächen': 6},
+      'Kugel': <String, int>{'Ecken': 0, 'Kanten': 0, 'Flächen': 1},
+      'Zylinder': <String, int>{'Ecken': 0, 'Kanten': 2, 'Flächen': 3},
+      'Kegel': <String, int>{'Ecken': 1, 'Kanten': 1, 'Flächen': 2},
+      'Pyramide': <String, int>{'Ecken': 5, 'Kanten': 8, 'Flächen': 5},
+    };
+
+    for (final bodyEntry in counts.entries) {
+      for (final propertyEntry in bodyEntry.value.entries) {
+        final plan = TouchInteractionPlan.forTask(
+          mode: TrainingMode.geometryBodies,
+          taskKey: 'body:${bodyEntry.key}:${propertyEntry.key}',
+          answer: propertyEntry.value,
+          maxValue: 20,
+        );
+        expect(
+          plan?.kind,
+          TouchInteractionKind.bodyPropertySelector,
+          reason: '${bodyEntry.key}:${propertyEntry.key}',
+        );
+        expect(plan?.geometryShape, bodyEntry.key);
+        expect(plan?.dataOperation, propertyEntry.key);
+        expect(plan?.correctSelectionIndexes, hasLength(propertyEntry.value));
+      }
+    }
+
+    expect(
+      TouchInteractionPlan.forTask(
+        mode: TrainingMode.geometryBodies,
+        taskKey: 'body:cube-net:faces',
+        answer: 6,
+        maxValue: 20,
+      ),
+      isNull,
+    );
+  });
+
+  testWidgets('all body property touch diagrams expose the real feature count', (
+    tester,
+  ) async {
+    const counts = <String, Map<String, int>>{
+      'Würfel': <String, int>{'Ecken': 8, 'Kanten': 12, 'Flächen': 6},
+      'Quader': <String, int>{'Ecken': 8, 'Kanten': 12, 'Flächen': 6},
+      'Kugel': <String, int>{'Ecken': 0, 'Kanten': 0, 'Flächen': 1},
+      'Zylinder': <String, int>{'Ecken': 0, 'Kanten': 2, 'Flächen': 3},
+      'Kegel': <String, int>{'Ecken': 1, 'Kanten': 1, 'Flächen': 2},
+      'Pyramide': <String, int>{'Ecken': 5, 'Kanten': 8, 'Flächen': 5},
+    };
+
+    for (final bodyEntry in counts.entries) {
+      for (final propertyEntry in bodyEntry.value.entries) {
+        final indexes = List<int>.generate(
+          propertyEntry.value,
+          (index) => index,
+        );
+        final plan = TouchInteractionPlan(
+          taskKey: 'body:${bodyEntry.key}:${propertyEntry.key}',
+          kind: TouchInteractionKind.bodyPropertySelector,
+          instruction: 'Prüfe den Körper.',
+          geometryShape: bodyEntry.key,
+          dataOperation: propertyEntry.key,
+          correctSelectionIndexes: indexes,
+          expectedAnswer: propertyEntry.value,
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(tester.takeException(), isNull, reason: plan.taskKey);
+        expect(find.byKey(const ValueKey('touch-body-preview')), findsOneWidget);
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget.key is ValueKey<String> &&
+                (widget.key! as ValueKey<String>).value.startsWith(
+                      'touch-body-feature-',
+                    ),
+          ),
+          findsNWidgets(propertyEntry.value),
+          reason: plan.taskKey,
+        );
+      }
+    }
+  });
+
+  testWidgets('body edges require every actual cube edge', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'body:Würfel:Kanten',
+      kind: TouchInteractionKind.bodyPropertySelector,
+      instruction: 'Tippe jede Kante an.',
+      geometryShape: 'Würfel',
+      dataOperation: 'Kanten',
+      correctSelectionIndexes: <int>[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      expectedAnswer: 12,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    for (var index = 0; index < 11; index++) {
+      await tester.tap(find.byKey(ValueKey('touch-body-feature-$index')));
+    }
+    await tester.tap(find.byKey(const ValueKey('touch-body-submit')));
+    expect(answer, 11);
+
+    await tester.tap(find.byKey(const ValueKey('touch-body-feature-11')));
+    await tester.tap(find.byKey(const ValueKey('touch-body-submit')));
+    expect(answer, 12);
+  });
+
+  testWidgets('body surfaces use the unfolded cylinder surfaces', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'body:Zylinder:Flächen',
+      kind: TouchInteractionKind.bodyPropertySelector,
+      instruction: 'Tippe jede Fläche an.',
+      geometryShape: 'Zylinder',
+      dataOperation: 'Flächen',
+      correctSelectionIndexes: <int>[0, 1, 2],
+      expectedAnswer: 3,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Zylinder · Flächenmodell'), findsOneWidget);
+    for (var index = 0; index < 3; index++) {
+      await tester.tap(find.byKey(ValueKey('touch-body-feature-$index')));
+    }
+    await tester.tap(find.byKey(const ValueKey('touch-body-submit')));
+    expect(answer, 3);
+  });
+
+  testWidgets('zero body properties need an explicit none decision', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'body:Kugel:Ecken',
+      kind: TouchInteractionKind.bodyPropertySelector,
+      instruction: 'Prüfe die Ecken.',
+      geometryShape: 'Kugel',
+      dataOperation: 'Ecken',
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('touch-body-submit')));
+    expect(answer, 1);
+    await tester.tap(find.byKey(const ValueKey('touch-body-none')));
+    await tester.tap(find.byKey(const ValueKey('touch-body-submit')));
+    expect(answer, 0);
+  });
+
+  testWidgets('body property curriculum defaults to touch and keeps keypad fallback', (
+    tester,
+  ) async {
+    final controller = await _controller();
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.geometryBodies,
+      prompt: 'Wie viele Flächen hat ein Quader?',
+      answer: 6,
+      hint: 'Untersuche den Körper.',
+      key: 'body:Quader:Flächen',
+      maxAnswerValue: 20,
+      method: 'Körper und Eigenschaften',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.geometryBodies,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-body-preview')), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      fallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+  });
+
+  testWidgets('body property touch stays stable at 200 percent text scale', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'body:Pyramide:Kanten',
+      kind: TouchInteractionKind.bodyPropertySelector,
+      instruction: 'Tippe jede Kante der Pyramide genau einmal an.',
+      geometryShape: 'Pyramide',
+      dataOperation: 'Kanten',
+      correctSelectionIndexes: <int>[0, 1, 2, 3, 4, 5, 6, 7],
+      expectedAnswer: 8,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-body-preview')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-body-feature-7')), findsOneWidget);
+  });
+
   test('cube-net foldability gets a direct touch plan from the encoded net', () {
     final plan = TouchInteractionPlan.forTask(
       mode: TrainingMode.geometryBodies,
