@@ -6668,6 +6668,281 @@ void main() {
     );
   });
 
+  test('control-check planner covers written errors and plausibility', () {
+    final targetedError = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'process:error:add:place:10:462:337:809',
+      answer: 1,
+      maxValue: 1000,
+      choices: const <String>[
+        'Die Rechnung stimmt.',
+        'Das Ergebnis ist um 10 zu groß.',
+        'Das Ergebnis ist um 10 zu klein.',
+        'Die Zahlen dürfen so nicht addiert werden.',
+      ],
+    );
+    final plainError = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'process:error:add:462:337:789',
+      answer: 2,
+      maxValue: 1000,
+      choices: const <String>[
+        'Die Rechnung stimmt.',
+        'Das Ergebnis ist um 10 zu groß.',
+        'Das Ergebnis ist um 10 zu klein.',
+        'Die Zahlen dürfen so nicht addiert werden.',
+      ],
+    );
+    final plausibility = TouchInteractionPlan.forTask(
+      mode: TrainingMode.estimation,
+      taskKey: 'process:plausibility:462:337:1200:100',
+      answer: 1,
+      maxValue: 1000,
+      choices: const <String>['plausibel', 'nicht plausibel'],
+    );
+    final targetedErrorAfterCheckpoint = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'process:error:add:place:10:462:337:809',
+      answer: 1,
+      maxValue: 1000,
+      choices: const <String>[
+        'Die Rechnung stimmt.',
+        'Das Ergebnis ist um 10 zu groß.',
+        'Das Ergebnis ist um 10 zu klein.',
+        'Die Zahlen dürfen so nicht addiert werden.',
+      ],
+      targetCompetency: MicroCompetencyId.errorChecking,
+    );
+    final targetedPlausibilityAfterCheckpoint = TouchInteractionPlan.forTask(
+      mode: TrainingMode.estimation,
+      taskKey: 'process:plausibility:462:337:1200:100',
+      answer: 1,
+      maxValue: 1000,
+      choices: const <String>['plausibel', 'nicht plausibel'],
+      targetCompetency: MicroCompetencyId.plausibilityCheck,
+    );
+
+    expect(targetedError?.kind, TouchInteractionKind.writtenErrorInspector);
+    expect(targetedError?.dataValues.take(5), <int>[462, 337, 809, 10, 799]);
+    expect(targetedError?.dataOperation, 'too-large');
+    expect(plainError?.kind, TouchInteractionKind.writtenErrorInspector);
+    expect(plainError?.dataOperation, 'too-small');
+    expect(plausibility?.kind, TouchInteractionKind.estimationRounding);
+    expect(plausibility?.dataOperation, 'plausibility');
+    expect(plausibility?.dataValues, <int>[462, 337, 100, 500, 300, 1200]);
+    expect(targetedErrorAfterCheckpoint?.dataOperation, 'too-large:skip-place');
+    expect(
+      targetedPlausibilityAfterCheckpoint?.dataOperation,
+      'plausibility:skip-estimate',
+    );
+  });
+
+  testWidgets('written error inspector needs place and direction', (tester) async {
+    var answer = -1;
+    final plan = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'process:error:add:place:10:462:337:809',
+      answer: 1,
+      maxValue: 1000,
+      choices: const <String>[
+        'Die Rechnung stimmt.',
+        'Das Ergebnis ist um 10 zu groß.',
+        'Das Ergebnis ist um 10 zu klein.',
+        'Die Zahlen dürfen so nicht addiert werden.',
+      ],
+    )!;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-error-place-100')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-error-too-large')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('touch-error-submit')));
+    await tester.tap(find.byKey(const ValueKey('touch-error-submit')));
+    expect(answer, isNot(1), reason: 'Die richtige Richtung allein darf nicht genügen.');
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-error-place-10')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-error-too-small')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('touch-error-submit')));
+    await tester.tap(find.byKey(const ValueKey('touch-error-submit')));
+    expect(answer, isNot(1), reason: 'Der richtige Stellenwert allein darf nicht genügen.');
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-error-too-large')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('touch-error-submit')));
+    await tester.tap(find.byKey(const ValueKey('touch-error-submit')));
+    expect(answer, 1);
+  });
+
+  testWidgets('plausibility requires correct rounding before the verdict', (tester) async {
+    var answer = -1;
+    final plan = TouchInteractionPlan.forTask(
+      mode: TrainingMode.estimation,
+      taskKey: 'process:plausibility:462:337:1200:100',
+      answer: 1,
+      maxValue: 2000,
+      choices: const <String>['plausibel', 'nicht plausibel'],
+    )!;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-estimate-a-400')));
+    await tester.tap(find.byKey(const ValueKey('touch-estimate-b-300')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-estimate-result-1')));
+    expect(answer, isNot(1), reason: 'Ein richtig geratenes Urteil darf falsches Runden nicht verdecken.');
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-estimate-a-500')));
+    await tester.pump();
+    expect(find.textContaining('Überschlag: 500 + 300 = 800'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-estimate-result-1')));
+    expect(answer, 1);
+  });
+
+  testWidgets('control checks default to touch and keep choice fallback', (tester) async {
+    final controller = await _controller();
+    controller.gradeLevel = GradeLevel.third;
+    const error = CurriculumExercise(
+      mode: TrainingMode.writtenAddSub,
+      prompt: 'Prüfe die Rechnung:\n462 + 337 = 809\nWelche Aussage beschreibt den Fehler?',
+      answer: 1,
+      hint: 'Prüfe Stelle für Stelle.',
+      key: 'process:error:add:place:10:462:337:809',
+      choices: <String>[
+        'Die Rechnung stimmt.',
+        'Das Ergebnis ist um 10 zu groß.',
+        'Das Ergebnis ist um 10 zu klein.',
+        'Die Zahlen dürfen so nicht addiert werden.',
+      ],
+      method: 'Fehler finden und begründen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.writtenAddSub,
+          targetCompetency: MicroCompetencyId.errorChecking,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(error),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-error-calculation')), findsNothing);
+    final errorCheckpoint = find.widgetWithText(FilledButton, 'Zehnerstelle');
+    expect(errorCheckpoint, findsOneWidget);
+    await tester.tap(errorCheckpoint);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const ValueKey('touch-error-calculation')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-error-place-checked')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-error-places')), findsNothing);
+    final errorFallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(
+      errorFallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(errorFallback);
+    await tester.pump();
+    expect(find.text('Das Ergebnis ist um 10 zu groß.'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    const plausibility = CurriculumExercise(
+      mode: TrainingMode.estimation,
+      prompt: '462 + 337 soll 1200 ergeben. Ist dieses Ergebnis nach einem Überschlag plausibel?',
+      answer: 1,
+      hint: 'Runde beide Ausgangszahlen grob.',
+      key: 'process:plausibility:462:337:1200:100',
+      choices: <String>['plausibel', 'nicht plausibel'],
+      method: 'Ergebnis kontrollieren',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.estimation,
+          targetCompetency: MicroCompetencyId.plausibilityCheck,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(plausibility),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-estimate-status')), findsNothing);
+    final estimateCheckpoint = find.widgetWithText(FilledButton, '800');
+    expect(estimateCheckpoint, findsOneWidget);
+    await tester.tap(estimateCheckpoint);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const ValueKey('touch-estimate-status')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('touch-estimate-reference-checked')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('touch-estimate-a-500')), findsNothing);
+  });
+
+  testWidgets('control-check touch stays stable at 200 percent text scale',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    final plan = TouchInteractionPlan.forTask(
+      mode: TrainingMode.writtenAddSub,
+      taskKey: 'process:error:add:place:100:1462:337:1899',
+      answer: 1,
+      maxValue: 2000,
+      choices: const <String>[
+        'Die Rechnung stimmt.',
+        'Das Ergebnis ist um 100 zu groß.',
+        'Das Ergebnis ist um 100 zu klein.',
+        'Die Zahlen dürfen so nicht addiert werden.',
+      ],
+    )!;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-error-places')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-error-directions')), findsOneWidget);
+  });
+
 }
 
 void _noopAnswer(int value) {}
