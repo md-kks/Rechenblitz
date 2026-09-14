@@ -24,9 +24,16 @@ class LearningVisualAid extends StatelessWidget {
     String? methodKey,
   }) {
     if (methodKey == 'addition:toFullTen' ||
+        methodKey == 'numberFriends:decomposition' ||
         taskKey.startsWith('gap:') ||
         taskKey.startsWith('neighbor:') ||
         taskKey.startsWith('minus:') ||
+        taskKey.startsWith('double:') ||
+        taskKey.startsWith('half:') ||
+        taskKey.startsWith('family:') ||
+        taskKey.startsWith('sequence:') ||
+        taskKey.startsWith('measure:add:') ||
+        taskKey.startsWith('measure:subtract:') ||
         taskKey.startsWith('process:strategy:') ||
         taskKey.startsWith('process:error:') ||
         taskKey.startsWith('process:plausibility:') ||
@@ -60,9 +67,20 @@ class LearningVisualAid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final processChild = methodKey == 'addition:toFullTen'
-        ? _additionToFullTenAid()
-        : taskKey.startsWith('gap:')
+    final processChild = methodKey == 'numberFriends:decomposition'
+        ? _numberFriendAid()
+        : methodKey == 'addition:toFullTen'
+            ? _additionToFullTenAid()
+            : taskKey.startsWith('double:') || taskKey.startsWith('half:')
+                ? _doubleHalfAid(context)
+                : taskKey.startsWith('family:')
+                    ? _inverseFamilyAid()
+                    : taskKey.startsWith('sequence:')
+                        ? _sequenceAid()
+                        : taskKey.startsWith('measure:add:') ||
+                                taskKey.startsWith('measure:subtract:')
+                            ? _measurementLengthAid(context)
+                            : taskKey.startsWith('gap:')
             ? _missingNumberAid()
             : taskKey.startsWith('neighbor:')
                 ? _neighborAid()
@@ -110,6 +128,263 @@ class LearningVisualAid extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: child,
       ),
+    );
+  }
+
+  Widget _numberFriendAid() {
+    final parts = taskKey.split(':');
+    final a = parts.length >= 3 ? int.tryParse(parts[1]) : null;
+    final b = parts.length >= 3 ? int.tryParse(parts[2]) : null;
+    if (a == null || b == null) {
+      return const _AidLabel(
+        title: 'Zahlzerlegung',
+        text: 'Das Ganze besteht aus zwei Teilen. Ein Teil ist bekannt, der andere fehlt.',
+      );
+    }
+    final whole = a + b;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _AidLabel(
+          title: 'Zahlzerlegung',
+          text: 'Das Ganze steht oben. Unten liegen die beiden Teile.',
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: Chip(
+            key: const ValueKey('help-number-friend-whole'),
+            avatar: const Icon(Icons.account_tree_outlined),
+            label: Text('Ganzes: $whole'),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Icon(Icons.keyboard_double_arrow_down_rounded),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            Chip(label: Text('bekannter Teil: $a')),
+            const Chip(
+              key: ValueKey('help-number-friend-missing'),
+              label: Text('fehlender Teil: ?'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '$a + ? = $whole',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ],
+    );
+  }
+
+  Widget _doubleHalfAid(BuildContext context) {
+    final numbers = _numbers(taskKey);
+    final value = numbers.isEmpty ? null : numbers.last;
+    if (value == null) {
+      return const _AidLabel(
+        title: 'Gleich große Mengen',
+        text: 'Doppelt bedeutet zwei gleiche Mengen. Halbieren bedeutet in zwei gleiche Teile teilen.',
+      );
+    }
+    final isDouble = taskKey.startsWith('double:');
+    Widget group(String label) => Container(
+          width: 116,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label, textAlign: TextAlign.center),
+              const SizedBox(height: 6),
+              if (isDouble && value <= 12)
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 3,
+                  runSpacing: 3,
+                  children: List.generate(
+                    value,
+                    (_) => const Icon(Icons.circle, size: 10),
+                  ),
+                )
+              else
+                Text(
+                  isDouble ? '$value' : 'gleich groß',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+            ],
+          ),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _AidLabel(
+          title: isDouble ? 'Doppelt = zweimal gleich viel' : 'Hälfte = zwei gleich große Teile',
+          text: isDouble
+              ? 'Lege dieselbe Menge zweimal nebeneinander.'
+              : 'Teile die ganze Menge so, dass beide Teile gleich groß sind.',
+        ),
+        const SizedBox(height: 12),
+        if (!isDouble)
+          Text(
+            'Ganzes: $value',
+            key: const ValueKey('help-half-whole'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        if (!isDouble) const SizedBox(height: 8),
+        Wrap(
+          key: const ValueKey('help-double-half-groups'),
+          alignment: WrapAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: [group('Teil 1'), group('Teil 2')],
+        ),
+      ],
+    );
+  }
+
+  Widget _inverseFamilyAid() {
+    final parts = taskKey.split(':');
+    if (parts.length < 4) {
+      return const _AidLabel(
+        title: 'Vorwärts und rückwärts',
+        text: 'Eine Umkehraufgabe macht den Rechenschritt wieder rückgängig.',
+      );
+    }
+    final operation = parts[1];
+    final a = int.tryParse(parts[2]);
+    final b = int.tryParse(parts[3]);
+    if (a == null || b == null) {
+      return const _AidLabel(
+        title: 'Vorwärts und rückwärts',
+        text: 'Eine Umkehraufgabe macht den Rechenschritt wieder rückgängig.',
+      );
+    }
+    final multiply = operation == 'x';
+    final result = multiply ? a * b : a + b;
+    final forward = multiply ? '×$b' : '+$b';
+    final backward = multiply ? '÷$b' : '−$b';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _AidLabel(
+          title: 'Umkehraufgabe',
+          text: 'Lies zuerst vorwärts. Danach gehst du mit der Gegenrechenart zurück.',
+        ),
+        const SizedBox(height: 12),
+        _ProcessAid(
+          title: 'Vorwärts',
+          text: 'Der bekannte Rechenschritt führt zum Ergebnis.',
+          nodes: [a, result],
+          nodeLabels: const ['Start', 'Ergebnis'],
+          operations: [forward],
+          footer: 'Rückweg: $result → $backward → ?',
+        ),
+      ],
+    );
+  }
+
+  Widget _sequenceAid() {
+    final parts = taskKey.split(':');
+    if (parts.length < 4) {
+      return const _AidLabel(
+        title: 'Muster sichtbar machen',
+        text: 'Zwischen benachbarten Zahlen muss immer derselbe Schritt liegen.',
+      );
+    }
+    final start = int.tryParse(parts[2]);
+    final step = int.tryParse(parts[3]);
+    if (start == null || step == null) {
+      return const _AidLabel(
+        title: 'Muster sichtbar machen',
+        text: 'Zwischen benachbarten Zahlen muss immer derselbe Schritt liegen.',
+      );
+    }
+    final backwards = parts[1] == '-';
+    final second = backwards ? start - step : start + step;
+    final third = backwards ? start - 2 * step : start + 2 * step;
+    final op = backwards ? '−$step' : '+$step';
+    return _ProcessAid(
+      title: 'Gleicher Schritt',
+      text: 'Markiere dieselbe Veränderung zwischen allen sichtbaren Zahlen.',
+      nodes: [start, second, third],
+      nodeLabels: const ['1.', '2.', '3.'],
+      operations: [op, op],
+      footer: '$third → $op → ?',
+    );
+  }
+
+  Widget _measurementLengthAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    if (parts.length < 5) {
+      return const _AidLabel(
+        title: 'Längen darstellen',
+        text: 'Lege Längen aneinander oder markiere den abgeschnittenen Teil.',
+      );
+    }
+    final first = int.tryParse(parts[3]);
+    final second = int.tryParse(parts[4]);
+    if (first == null || second == null) {
+      return const _AidLabel(
+        title: 'Längen darstellen',
+        text: 'Lege Längen aneinander oder markiere den abgeschnittenen Teil.',
+      );
+    }
+    final subtraction = taskKey.startsWith('measure:subtract:');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _AidLabel(
+          title: subtraction ? 'Abschneiden sichtbar machen' : 'Längen aneinanderlegen',
+          text: subtraction
+              ? 'Die ganze Länge bleibt sichtbar. Der abgeschnittene Abschnitt gehört nicht mehr zum Rest.'
+              : 'Beide Stücke haben dieselbe Einheit und werden ohne Lücke aneinandergelegt.',
+        ),
+        const SizedBox(height: 12),
+        if (subtraction) ...[
+          Container(
+            key: const ValueKey('help-measure-whole'),
+            height: 26,
+            decoration: BoxDecoration(
+              border: Border.all(color: Theme.of(context).colorScheme.outline),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: Text('ganz: $first cm'),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            children: [
+              const Chip(label: Text('Rest: ? cm')),
+              Chip(label: Text('abgeschnitten: $second cm')),
+            ],
+          ),
+        ] else ...[
+          Wrap(
+            key: const ValueKey('help-measure-parts'),
+            alignment: WrapAlignment.center,
+            spacing: 4,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('$first cm')),
+              const Text('+', style: TextStyle(fontWeight: FontWeight.w800)),
+              Chip(label: Text('$second cm')),
+              const Text('→'),
+              const Chip(label: Text('zusammen: ? cm')),
+            ],
+          ),
+        ],
+      ],
     );
   }
 

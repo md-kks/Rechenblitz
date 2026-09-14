@@ -250,6 +250,10 @@ class GuidedMethodFactory {
       return _representationGuide(taskKey);
     }
 
+    if (mode == TrainingMode.numberFriends && fact != null) {
+      return _numberFriendsGuide(fact);
+    }
+
     if (fact != null && fact.operation == MathOperation.plus) {
       if (_landsOnNextTen(fact)) return _additionToFullTen(fact);
       if (_needsAdditionBridge(fact)) return _additionBridge(fact);
@@ -2385,6 +2389,52 @@ class GuidedMethodFactory {
           instruction: addition
               ? 'Lege beide Preise zusammen und addiere erst jetzt die Beträge.'
               : 'Ziehe den bekannten oder ausgegebenen Betrag erst jetzt vom vorhandenen Gesamtbetrag ab.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _numberFriendsGuide(MathFact fact) {
+    final whole = fact.result;
+    final known = fact.a;
+    final missing = fact.b;
+    final uniqueWholeChoices = <String>{'$whole', '$known', '$missing'}.toList();
+    final missingChoices = <String>{
+      '$missing',
+      '${max(0, missing - 1)}',
+      '${missing + 1}',
+    }.toList();
+    return GuidedMethodGuide(
+      methodKey: 'numberFriends:decomposition',
+      methodLabel: 'Ganzes in zwei Teile zerlegen',
+      nudge:
+          'Die $whole ist das Ganze. Ein Teil ist $known. Suche den zweiten Teil, der zusammen wieder $whole ergibt.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Ganzes erkennen',
+          instruction:
+              'Bei einer Zahlenfreund-Aufgabe kennst du das Ganze und einen Teil.',
+          question: 'Welche Zahl ist hier das Ganze?',
+          choices: uniqueWholeChoices,
+          correctChoice: uniqueWholeChoices.indexOf('$whole'),
+          evidenceKey: 'numberFriendWhole',
+          evidenceCompetency: MicroCompetencyId.numberDecomposition,
+          evidenceWeight: 0.35,
+        ),
+        GuidedMethodStep(
+          title: 'Fehlenden Teil ergänzen',
+          instruction:
+              'Ergänze vom bekannten Teil $known bis zum Ganzen $whole.',
+          question: 'Welcher zweite Teil fehlt?',
+          choices: missingChoices,
+          correctChoice: missingChoices.indexOf('$missing'),
+          evidenceKey: 'numberFriendMissingPart',
+          evidenceCompetency: MicroCompetencyId.numberDecomposition,
+          evidenceWeight: 0.40,
+        ),
+        GuidedMethodStep(
+          title: 'Zerlegung prüfen',
+          instruction: '$known + $missing = $whole. Beide Teile ergeben zusammen wieder das Ganze.',
         ),
       ],
     );

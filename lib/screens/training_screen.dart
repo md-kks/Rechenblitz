@@ -47,6 +47,16 @@ class _TrainingScreenState extends State<TrainingScreen> {
   HelpPreferences get _helpPreferences => widget.controller.helpPreferences;
   HelpLevel? get _manualHelpLevel => _helpPreferences.manualStartLevel;
   bool get _helpAvailable => _helpPreferences.enabled;
+  bool get _manualHelpAvailable =>
+      _helpAvailable &&
+      widget.mode != TrainingMode.speed &&
+      widget.mode != TrainingMode.tempo &&
+      widget.mode != TrainingMode.blitz &&
+      (widget.mode == TrainingMode.numberFriends ||
+          _independentArithmeticSteps.isNotEmpty ||
+          current.isMinus ||
+          current.isMultiply ||
+          current.isDivide);
   TouchInteractionPlan? get _touchInteraction => TouchInteractionPlan.forTask(
         mode: widget.mode,
         taskKey: current.key,
@@ -684,13 +694,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                       },
                       onSpeak: widget.controller.speakOnDemand,
                     ),
-                  if (!showHelp &&
-                      _helpAvailable &&
-                      widget.mode != TrainingMode.tempo &&
-                      (_independentArithmeticSteps.isNotEmpty ||
-                          current.isMinus ||
-                          current.isMultiply ||
-                          current.isDivide))
+                  if (!showHelp && _manualHelpAvailable)
                     TextButton.icon(
                       onPressed: () {
                         final starter = _manualHelpLevel;
