@@ -48,6 +48,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int? selectedLargeDigitPlace;
   final List<int> selectedLargeOrder = <int>[];
   final List<int> largePlaceDigits = <int>[];
+  final List<int?> numberWordDigits = <int?>[];
+  final Set<int> numberWordLockedPlaces = <int>{};
+  int numberWordActiveIndex = 0;
   final List<int> mentalSelectedChunks = <int>[];
   int? selectedStrategyJump;
   final Set<int> selectedLawTerms = <int>{};
@@ -147,6 +150,27 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedLargeDigitPlace = null;
     selectedLargeOrder.clear();
     largePlaceDigits.clear();
+    numberWordDigits.clear();
+    numberWordLockedPlaces.clear();
+    numberWordActiveIndex = 0;
+    if (widget.plan.kind == TouchInteractionKind.numberWordPlaceValueBuilder &&
+        widget.plan.dataValues.isNotEmpty) {
+      final number = widget.plan.dataValues.first;
+      final places = _largePlaces(number);
+      numberWordDigits.addAll(List<int?>.filled(places.length, null));
+      if (widget.plan.dataOperation == 'read:skip-tens-ones') {
+        for (var index = 0; index < places.length; index++) {
+          if (places[index] == 10 || places[index] == 1) {
+            numberWordDigits[index] = (number ~/ places[index]) % 10;
+            numberWordLockedPlaces.add(index);
+          }
+        }
+        final firstOpen = List<int>.generate(places.length, (index) => index)
+            .where((index) => !numberWordLockedPlaces.contains(index))
+            .toList(growable: false);
+        if (firstOpen.isNotEmpty) numberWordActiveIndex = firstOpen.first;
+      }
+    }
     mentalSelectedChunks.clear();
     selectedStrategyJump = null;
     selectedLawTerms.clear();
@@ -294,6 +318,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildLargeNumberDecompose(context),
             TouchInteractionKind.largeNumberPlaceDigit =>
               _buildLargeNumberPlaceDigit(context),
+            TouchInteractionKind.numberWordPlaceValueBuilder =>
+              _buildNumberWordPlaceValueBuilder(context),
             TouchInteractionKind.mentalChunkPath =>
               _buildMentalChunkPath(context),
             TouchInteractionKind.strategyAnchorJump =>
@@ -2011,6 +2037,199 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                   widget.onAnswer(exact ? expected : _wrongAnswer(expected, expected));
                 },
           child: const Text('Prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNumberWordPlaceValueBuilder(BuildContext context) {
+    if (widget.plan.dataValues.isEmpty) return const SizedBox.shrink();
+    final number = widget.plan.dataValues.first;
+    final places = _largePlaces(number);
+    if (numberWordDigits.length != places.length) {
+      numberWordDigits
+        ..clear()
+        ..addAll(List<int?>.filled(places.length, null));
+      numberWordLockedPlaces.clear();
+      numberWordActiveIndex = 0;
+    }
+    final skipTensOnes = widget.plan.dataOperation == 'read:skip-tens-ones';
+    if (skipTensOnes) {
+      for (var index = 0; index < places.length; index++) {
+        if ((places[index] == 10 || places[index] == 1) &&
+            !numberWordLockedPlaces.contains(index)) {
+          numberWordDigits[index] = (number ~/ places[index]) % 10;
+          numberWordLockedPlaces.add(index);
+        }
+      }
+    }
+    final complete = numberWordDigits.every((digit) => digit != null);
+    var built = 0;
+    if (complete) {
+      for (var index = 0; index < places.length; index++) {
+        built += numberWordDigits[index]! * places[index];
+      }
+    }
+    final activePlace = places[numberWordActiveIndex.clamp(0, places.length - 1)];
+
+    void selectDigit(int digit) {
+      if (widget.locked || numberWordLockedPlaces.contains(numberWordActiveIndex)) {
+        return;
+      }
+      setState(() {
+        numberWordDigits[numberWordActiveIndex] = digit;
+        final openIndexes = List<int>.generate(places.length, (index) => index)
+            .where((index) =>
+                !numberWordLockedPlaces.contains(index) &&
+                numberWordDigits[index] == null)
+            .toList(growable: false);
+        if (openIndexes.isNotEmpty) {
+          final after = openIndexes.where((index) => index > numberWordActiveIndex);
+          numberWordActiveIndex = after.isNotEmpty ? after.first : openIndexes.first;
+        }
+      });
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (skipTensOnes) ...[
+          Card.outlined(
+            key: const ValueKey('touch-number-word-checked-suffix'),
+            margin: EdgeInsets.zero,
+            child: const Padding(
+              padding: EdgeInsets.all(10),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_outline_rounded),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Zehner und Einer sind aus deinem ersten Schritt schon geklärt.',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            key: const ValueKey('touch-number-word-table'),
+            children: List<Widget>.generate(places.length, (index) {
+              final place = places[index];
+              final digit = numberWordDigits[index];
+              final lockedPlace = numberWordLockedPlaces.contains(index);
+              final active = numberWordActiveIndex == index && !lockedPlace;
+              return Semantics(
+                button: !lockedPlace,
+                selected: active,
+                label: lockedPlace
+                    ? '${_largePlaceLabel(place)} bereits geklärt: ${digit ?? 0}'
+                    : '${_largePlaceLabel(place)} auswählen',
+                child: InkWell(
+                  key: ValueKey('touch-number-word-place-$place'),
+                  onTap: widget.locked || lockedPlace
+                      ? null
+                      : () => setState(() => numberWordActiveIndex = index),
+                  borderRadius: BorderRadius.circular(12),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    width: 62,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        width: active ? 3 : 1.5,
+                        color: active
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                      color: lockedPlace
+                          ? Theme.of(context).colorScheme.surfaceContainerHighest
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _largePlaceLabel(place),
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          digit?.toString() ?? '?',
+                          key: ValueKey('touch-number-word-digit-$place'),
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                        if (lockedPlace)
+                          const Icon(Icons.check_rounded, size: 17),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          numberWordLockedPlaces.contains(numberWordActiveIndex)
+              ? 'Diese Stelle ist bereits geklärt.'
+              : 'Welche Ziffer gehört an die Stelle ${_largePlaceLabel(activePlace)}?',
+          key: const ValueKey('touch-number-word-active-label'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          key: const ValueKey('touch-number-word-digits'),
+          alignment: WrapAlignment.center,
+          spacing: 7,
+          runSpacing: 7,
+          children: List<Widget>.generate(10, (digit) {
+            final selected = !numberWordLockedPlaces.contains(numberWordActiveIndex) &&
+                numberWordDigits[numberWordActiveIndex] == digit;
+            return ChoiceChip(
+              key: ValueKey('touch-number-word-choice-$digit'),
+              selected: selected,
+              label: Text('$digit'),
+              onSelected: widget.locked ||
+                      numberWordLockedPlaces.contains(numberWordActiveIndex)
+                  ? null
+                  : (_) => selectDigit(digit),
+            );
+          }),
+        ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          key: const ValueKey('touch-number-word-clear'),
+          onPressed: widget.locked ||
+                  numberWordLockedPlaces.contains(numberWordActiveIndex)
+              ? null
+              : () => setState(() => numberWordDigits[numberWordActiveIndex] = null),
+          icon: const Icon(Icons.backspace_outlined),
+          label: const Text('Aktuelle Stelle leeren'),
+        ),
+        const SizedBox(height: 4),
+        FilledButton.icon(
+          key: const ValueKey('touch-number-word-submit'),
+          onPressed: widget.locked || !complete
+              ? null
+              : () {
+                  final expected = widget.plan.expectedAnswer ?? 0;
+                  widget.onAnswer(
+                    built == number ? expected : _wrongAnswer(expected, expected),
+                  );
+                },
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Zahl prüfen'),
         ),
       ],
     );
