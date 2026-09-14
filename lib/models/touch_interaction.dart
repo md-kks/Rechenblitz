@@ -22,6 +22,8 @@ enum TouchInteractionKind {
   largeNumberDecompose,
   largeNumberPlaceDigit,
   writtenColumnProcedure,
+  writtenMultiplicationProcedure,
+  writtenDivisionProcedure,
   pathWalker,
   symmetryAxes,
   shapeCorners,
@@ -884,6 +886,53 @@ class TouchInteractionPlan {
           rectangleWidth: width,
           rectangleHeight: height,
           expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.writtenMultiply &&
+        taskKey.startsWith('written:x:')) {
+      final parts = taskKey.split(':');
+      final a = parts.length >= 4 ? int.tryParse(parts[2]) : null;
+      final b = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (a != null && b != null && a > 0 && b > 0 && b < 100) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.writtenMultiplicationProcedure,
+          instruction: b < 10
+              ? 'Multipliziere von rechts nach links. Setze Ergebnisziffer und Übertrag in jeder Spalte.'
+              : 'Baue die Teilprodukte von rechts nach links und beachte die Stellenverschiebung der Zehnerzeile.',
+          dataValues: <int>[a, b],
+          dataOperation: b < 10 ? 'single' : 'partial',
+          expectedAnswer: answer,
+          maxValue: max(maxValue, answer),
+        );
+      }
+    }
+
+    if (mode == TrainingMode.writtenDivide &&
+        (taskKey.startsWith('written:divide:') ||
+            taskKey.startsWith('written:divide-rest:'))) {
+      final parts = taskKey.split(':');
+      final dividend = parts.length >= 4 ? int.tryParse(parts[parts.length - 2]) : null;
+      final divisor = parts.length >= 4 ? int.tryParse(parts.last) : null;
+      final withRest = taskKey.startsWith('written:divide-rest:');
+      if (dividend != null &&
+          divisor != null &&
+          dividend > 0 &&
+          divisor > 1 &&
+          divisor <= 9 &&
+          (!withRest || (choices != null && choices.isNotEmpty))) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.writtenDivisionProcedure,
+          instruction:
+              'Teile von links nach rechts: Quotientenziffer bestimmen, multiplizieren, abziehen und die nächste Ziffer herunterholen.',
+          dataValues: <int>[dividend, divisor],
+          dataOperation: withRest ? 'rest' : 'exact',
+          answerChoices: choices ?? const <String>[],
+          expectedAnswer: answer,
+          maxValue: max(9, dividend ~/ divisor),
         );
       }
     }

@@ -54,6 +54,20 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final List<int> writtenResultDigits = <int>[];
   final List<int> writtenWorkingTopDigits = <int>[];
   String writtenStepFeedback = '';
+  int multiplicationRowIndex = 0;
+  int multiplicationColumnIndex = 0;
+  int multiplicationIncomingCarry = 0;
+  int? selectedMultiplicationDigit;
+  int? selectedMultiplicationCarry;
+  final List<int> multiplicationCurrentDigits = <int>[];
+  final List<int> multiplicationPartialProducts = <int>[];
+  String multiplicationStepFeedback = '';
+  bool multiplicationAwaitingTotal = false;
+  int divisionStepIndex = 0;
+  int? selectedDivisionQuotient;
+  int? selectedDivisionRemainder;
+  final List<int> divisionQuotientDigits = <int>[];
+  String divisionStepFeedback = '';
   int pathX = 0;
   int pathY = 0;
   final Set<int> selectedAxes = <int>{};
@@ -130,6 +144,20 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     writtenResultDigits.clear();
     writtenWorkingTopDigits.clear();
     writtenStepFeedback = '';
+    multiplicationRowIndex = 0;
+    multiplicationColumnIndex = 0;
+    multiplicationIncomingCarry = 0;
+    selectedMultiplicationDigit = null;
+    selectedMultiplicationCarry = null;
+    multiplicationCurrentDigits.clear();
+    multiplicationPartialProducts.clear();
+    multiplicationStepFeedback = '';
+    multiplicationAwaitingTotal = false;
+    divisionStepIndex = 0;
+    selectedDivisionQuotient = null;
+    selectedDivisionRemainder = null;
+    divisionQuotientDigits.clear();
+    divisionStepFeedback = '';
     if (widget.plan.kind == TouchInteractionKind.writtenColumnProcedure &&
         widget.plan.dataValues.length >= 2 &&
         widget.plan.dataOperation == '-') {
@@ -222,6 +250,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildLargeNumberPlaceDigit(context),
             TouchInteractionKind.writtenColumnProcedure =>
               _buildWrittenColumnProcedure(context),
+            TouchInteractionKind.writtenMultiplicationProcedure =>
+              _buildWrittenMultiplicationProcedure(context),
+            TouchInteractionKind.writtenDivisionProcedure =>
+              _buildWrittenDivisionProcedure(context),
             TouchInteractionKind.pathWalker => _buildPathWalker(context),
             TouchInteractionKind.symmetryAxes => _buildSymmetryAxes(context),
             TouchInteractionKind.shapeCorners => _buildShapeCorners(context),
@@ -261,6 +293,411 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildWrittenMultiplicationProcedure(BuildContext context) {
+    final a = widget.plan.dataValues[0];
+    final b = widget.plan.dataValues[1];
+    final multiplierDigits = _digitsLeastSignificantFirst(b);
+    final multiplicandDigits = _digitsLeastSignificantFirst(a);
+    final row = multiplicationRowIndex.clamp(0, multiplierDigits.length - 1);
+    final multiplierDigit = multiplierDigits[row];
+
+    if (multiplicationAwaitingTotal) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _writtenMultiplicationSummary(context, a, b),
+          const SizedBox(height: 10),
+          Text(
+            'Addiere die Teilprodukte stellenrichtig.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 8),
+          NumberAnswerPad(
+            key: const ValueKey('touch-written-multiply-total-pad'),
+            maxValue: math.max(1, widget.plan.maxValue),
+            onAnswer: widget.locked ? (_) {} : widget.onAnswer,
+          ),
+        ],
+      );
+    }
+
+    final column = multiplicationColumnIndex.clamp(0, multiplicandDigits.length - 1);
+    final multiplicandDigit = multiplicandDigits[column];
+    final place = _pow10(column + row);
+    final placeLabel = _largePlaceLabel(place);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _writtenMultiplicationSummary(context, a, b),
+        const SizedBox(height: 10),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Text(
+              '$placeLabel: $multiplicandDigit × $multiplierDigit${multiplicationIncomingCarry > 0 ? ' + Übertrag $multiplicationIncomingCarry' : ''}',
+              key: const ValueKey('touch-written-multiply-calculation'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Ergebnisziffer',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: List<Widget>.generate(10, (digit) => ChoiceChip(
+                key: ValueKey('touch-written-multiply-digit-$digit'),
+                selected: selectedMultiplicationDigit == digit,
+                label: Text('$digit'),
+                onSelected: widget.locked
+                    ? null
+                    : (_) => setState(() {
+                          selectedMultiplicationDigit = digit;
+                          multiplicationStepFeedback = '';
+                        }),
+              )),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Übertrag in die nächste Spalte',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: List<Widget>.generate(10, (carry) => ChoiceChip(
+                key: ValueKey('touch-written-multiply-carry-$carry'),
+                selected: selectedMultiplicationCarry == carry,
+                label: Text('$carry'),
+                onSelected: widget.locked
+                    ? null
+                    : (_) => setState(() {
+                          selectedMultiplicationCarry = carry;
+                          multiplicationStepFeedback = '';
+                        }),
+              )),
+        ),
+        if (multiplicationStepFeedback.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            multiplicationStepFeedback,
+            key: const ValueKey('touch-written-multiply-feedback'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ],
+        const SizedBox(height: 10),
+        FilledButton(
+          key: const ValueKey('touch-written-multiply-step-submit'),
+          onPressed: widget.locked ||
+                  selectedMultiplicationDigit == null ||
+                  selectedMultiplicationCarry == null
+              ? null
+              : _submitWrittenMultiplicationStep,
+          child: const Text('Spalte prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _writtenMultiplicationSummary(BuildContext context, int a, int b) {
+    return Card(
+      key: const ValueKey('touch-written-multiply-table'),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            Text(
+              '$a × $b',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            if (multiplicationPartialProducts.isNotEmpty) ...[
+              const Divider(),
+              for (var index = 0;
+                  index < multiplicationPartialProducts.length;
+                  index++)
+                Text(
+                  'Teilprodukt ${index + 1}: ${multiplicationPartialProducts[index]}',
+                  key: ValueKey('touch-written-multiply-partial-$index'),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submitWrittenMultiplicationStep() {
+    final a = widget.plan.dataValues[0];
+    final b = widget.plan.dataValues[1];
+    final expected = widget.plan.expectedAnswer ?? a * b;
+    final multiplierDigits = _digitsLeastSignificantFirst(b);
+    final multiplicandDigits = _digitsLeastSignificantFirst(a);
+    final row = multiplicationRowIndex;
+    final column = multiplicationColumnIndex;
+    final multiplierDigit = multiplierDigits[row];
+    final raw = multiplicandDigits[column] * multiplierDigit +
+        multiplicationIncomingCarry;
+    final expectedDigit = raw % 10;
+    final expectedCarry = raw ~/ 10;
+    final correct = selectedMultiplicationDigit == expectedDigit &&
+        selectedMultiplicationCarry == expectedCarry;
+
+    if (!correct) {
+      setState(() {
+        multiplicationStepFeedback =
+            'Prüfe Ergebnisziffer und Übertrag in dieser Spalte.';
+      });
+      widget.onAnswer(_wrongAnswer(expected, expected));
+      return;
+    }
+
+    while (multiplicationCurrentDigits.length <= column) {
+      multiplicationCurrentDigits.add(0);
+    }
+    multiplicationCurrentDigits[column] = expectedDigit;
+    final lastColumn = column == multiplicandDigits.length - 1;
+    if (!lastColumn) {
+      setState(() {
+        multiplicationIncomingCarry = expectedCarry;
+        multiplicationColumnIndex += 1;
+        selectedMultiplicationDigit = null;
+        selectedMultiplicationCarry = null;
+        multiplicationStepFeedback = '';
+      });
+      return;
+    }
+
+    if (expectedCarry > 0) {
+      multiplicationCurrentDigits.add(expectedCarry);
+    }
+    var unshifted = 0;
+    for (var index = 0; index < multiplicationCurrentDigits.length; index++) {
+      unshifted += multiplicationCurrentDigits[index] * _pow10(index);
+    }
+    final partial = unshifted * _pow10(row);
+    multiplicationPartialProducts.add(partial);
+    final lastRow = row == multiplierDigits.length - 1;
+    if (lastRow) {
+      if (multiplierDigits.length == 1) {
+        widget.onAnswer(multiplicationPartialProducts.fold<int>(0, (a, b) => a + b));
+        return;
+      }
+      setState(() {
+        multiplicationAwaitingTotal = true;
+        selectedMultiplicationDigit = null;
+        selectedMultiplicationCarry = null;
+        multiplicationStepFeedback = '';
+      });
+      return;
+    }
+
+    setState(() {
+      multiplicationRowIndex += 1;
+      multiplicationColumnIndex = 0;
+      multiplicationIncomingCarry = 0;
+      selectedMultiplicationDigit = null;
+      selectedMultiplicationCarry = null;
+      multiplicationCurrentDigits.clear();
+      multiplicationStepFeedback = '';
+    });
+  }
+
+  Widget _buildWrittenDivisionProcedure(BuildContext context) {
+    final dividend = widget.plan.dataValues[0];
+    final divisor = widget.plan.dataValues[1];
+    final steps = _writtenDivisionSteps(dividend, divisor);
+    final index = divisionStepIndex.clamp(0, steps.length - 1);
+    final step = steps[index];
+    final quotientText = divisionQuotientDigits.isEmpty
+        ? '–'
+        : divisionQuotientDigits.join();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          key: const ValueKey('touch-written-division-table'),
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              children: [
+                Text(
+                  '$dividend ÷ $divisor',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Quotient bisher: $quotientText',
+                  key: const ValueKey('touch-written-division-quotient'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Text(
+              '${step.$1} ÷ $divisor',
+              key: const ValueKey('touch-written-division-chunk'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Quotientenziffer',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: List<Widget>.generate(10, (digit) => ChoiceChip(
+                key: ValueKey('touch-written-division-q-$digit'),
+                selected: selectedDivisionQuotient == digit,
+                label: Text('$digit'),
+                onSelected: widget.locked
+                    ? null
+                    : (_) => setState(() {
+                          selectedDivisionQuotient = digit;
+                          divisionStepFeedback = '';
+                        }),
+              )),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Rest nach diesem Schritt',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: List<Widget>.generate(divisor, (remainder) => ChoiceChip(
+                key: ValueKey('touch-written-division-r-$remainder'),
+                selected: selectedDivisionRemainder == remainder,
+                label: Text('$remainder'),
+                onSelected: widget.locked
+                    ? null
+                    : (_) => setState(() {
+                          selectedDivisionRemainder = remainder;
+                          divisionStepFeedback = '';
+                        }),
+              )),
+        ),
+        if (divisionStepFeedback.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            divisionStepFeedback,
+            key: const ValueKey('touch-written-division-feedback'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ],
+        const SizedBox(height: 10),
+        FilledButton(
+          key: const ValueKey('touch-written-division-step-submit'),
+          onPressed: widget.locked ||
+                  selectedDivisionQuotient == null ||
+                  selectedDivisionRemainder == null
+              ? null
+              : _submitWrittenDivisionStep,
+          child: Text(index == steps.length - 1 ? 'Ergebnis prüfen' : 'Schritt prüfen'),
+        ),
+      ],
+    );
+  }
+
+  void _submitWrittenDivisionStep() {
+    final dividend = widget.plan.dataValues[0];
+    final divisor = widget.plan.dataValues[1];
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final steps = _writtenDivisionSteps(dividend, divisor);
+    final step = steps[divisionStepIndex];
+    final correct = selectedDivisionQuotient == step.$2 &&
+        selectedDivisionRemainder == step.$3;
+
+    if (!correct) {
+      setState(() {
+        divisionStepFeedback =
+            'Prüfe Quotientenziffer und Rest dieses Divisionsschritts.';
+      });
+      widget.onAnswer(_wrongAnswer(expected, expected));
+      return;
+    }
+
+    divisionQuotientDigits.add(step.$2);
+    final last = divisionStepIndex == steps.length - 1;
+    if (last) {
+      if (widget.plan.dataOperation == 'rest') {
+        widget.onAnswer(expected);
+        return;
+      }
+      var quotient = 0;
+      for (final digit in divisionQuotientDigits) {
+        quotient = quotient * 10 + digit;
+      }
+      widget.onAnswer(quotient);
+      return;
+    }
+
+    setState(() {
+      divisionStepIndex += 1;
+      selectedDivisionQuotient = null;
+      selectedDivisionRemainder = null;
+      divisionStepFeedback = '';
+    });
+  }
+
+  List<(int, int, int, int)> _writtenDivisionSteps(int dividend, int divisor) {
+    final digits = '$dividend'.split('').map(int.parse).toList(growable: false);
+    final steps = <(int, int, int, int)>[];
+    var current = 0;
+    var started = false;
+    for (var index = 0; index < digits.length; index++) {
+      current = current * 10 + digits[index];
+      if (!started && current < divisor && index < digits.length - 1) {
+        continue;
+      }
+      started = true;
+      final quotient = current ~/ divisor;
+      final remainder = current % divisor;
+      steps.add((current, quotient, remainder, index));
+      current = remainder;
+    }
+    return steps;
+  }
 
   Widget _buildWrittenColumnProcedure(BuildContext context) {
     final values = widget.plan.dataValues;

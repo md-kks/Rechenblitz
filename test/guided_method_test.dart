@@ -2704,6 +2704,18 @@ void main() {
 
     await tester.tap(find.widgetWithText(FilledButton, '2'));
     await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      find.byKey(const ValueKey('touch-written-multiply-table')),
+      findsOneWidget,
+    );
+    final keypadSwitch = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      keypadSwitch,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(keypadSwitch);
+    await tester.pump();
     expect(find.text('Antwort eingeben'), findsOneWidget);
 
     for (final label in ['9', '4', '8', 'OK']) {
