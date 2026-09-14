@@ -12,6 +12,7 @@ enum TouchInteractionKind {
   fractionBuilder,
   fractionMeasure,
   proportionalUnitBuilder,
+  scaleDistanceBuilder,
   unitConversionMachine,
   durationTimeline,
   calendarStepper,
@@ -745,6 +746,34 @@ class TouchInteractionPlan {
             maxValue: max(maxValue, answer),
           );
         }
+      }
+    }
+
+    if (mode == TrainingMode.plansAndOrientation &&
+        taskKey.startsWith('plan:scale:')) {
+      final parts = taskKey.split(':');
+      final metersPerCentimeter =
+          parts.length >= 4 ? int.tryParse(parts[2]) : null;
+      final planCentimeters =
+          parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (metersPerCentimeter != null &&
+          planCentimeters != null &&
+          metersPerCentimeter > 0 &&
+          planCentimeters > 0 &&
+          planCentimeters <= 12) {
+        final operationAlreadyChecked =
+            targetCompetency == MicroCompetencyId.scale;
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.scaleDistanceBuilder,
+          instruction: operationAlreadyChecked
+              ? 'Die passende Rechenart wurde schon geprüft. Baue jetzt für jeden Plan-Zentimeter genau einen gleich großen Realstrecken-Block und bestimme danach die Gesamtstrecke selbst.'
+              : 'Übertrage die Maßstabszuordnung: Baue für jeden Plan-Zentimeter genau einen gleich großen Realstrecken-Block und bestimme danach die Gesamtstrecke selbst.',
+          dataValues: <int>[metersPerCentimeter, planCentimeters],
+          dataOperation: operationAlreadyChecked ? 'operation-checked' : 'full',
+          expectedAnswer: answer,
+          maxValue: max(maxValue, answer),
+        );
       }
     }
 
