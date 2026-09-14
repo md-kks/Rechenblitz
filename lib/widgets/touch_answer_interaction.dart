@@ -51,6 +51,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final List<int?> numberWordDigits = <int?>[];
   final Set<int> numberWordLockedPlaces = <int>{};
   int numberWordActiveIndex = 0;
+  final Set<int> selectedStoryFacts = <int>{};
+  int? selectedStoryOperation;
+  int? selectedStoryEquationLeft;
+  int? selectedStoryEquationOperation;
+  int? selectedStoryEquationRight;
   final List<int> mentalSelectedChunks = <int>[];
   int? selectedStrategyJump;
   final Set<int> selectedLawTerms = <int>{};
@@ -171,6 +176,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         if (firstOpen.isNotEmpty) numberWordActiveIndex = firstOpen.first;
       }
     }
+    selectedStoryFacts.clear();
+    selectedStoryOperation = null;
+    selectedStoryEquationLeft = null;
+    selectedStoryEquationOperation = null;
+    selectedStoryEquationRight = null;
     mentalSelectedChunks.clear();
     selectedStrategyJump = null;
     selectedLawTerms.clear();
@@ -320,6 +330,12 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildLargeNumberPlaceDigit(context),
             TouchInteractionKind.numberWordPlaceValueBuilder =>
               _buildNumberWordPlaceValueBuilder(context),
+            TouchInteractionKind.storyRelevantFacts =>
+              _buildStoryRelevantFacts(context),
+            TouchInteractionKind.storyOperationRelation =>
+              _buildStoryOperationRelation(context),
+            TouchInteractionKind.storyEquationBuilder =>
+              _buildStoryEquationBuilder(context),
             TouchInteractionKind.mentalChunkPath =>
               _buildMentalChunkPath(context),
             TouchInteractionKind.strategyAnchorJump =>
@@ -381,6 +397,266 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildStoryRelevantFacts(BuildContext context) {
+    final expectedSet = widget.plan.correctSelectionIndexes.toSet();
+    final expected = widget.plan.expectedAnswer ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          key: const ValueKey('touch-story-facts'),
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: List<Widget>.generate(widget.plan.selectionLabels.length, (index) {
+            final selected = selectedStoryFacts.contains(index);
+            return FilterChip(
+              key: ValueKey('touch-story-fact-$index'),
+              selected: selected,
+              avatar: Icon(selected ? Icons.check_circle_rounded : Icons.circle_outlined),
+              label: Text(widget.plan.selectionLabels[index]),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() {
+                        if (!selectedStoryFacts.add(index)) {
+                          selectedStoryFacts.remove(index);
+                        }
+                      }),
+            );
+          }),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '${selectedStoryFacts.length} Angaben markiert',
+          key: const ValueKey('touch-story-facts-count'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-story-facts-submit'),
+          onPressed: widget.locked
+              ? null
+              : () => widget.onAnswer(
+                    setEquals(selectedStoryFacts, expectedSet)
+                        ? expected
+                        : _wrongAnswer(expected, expected),
+                  ),
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Angaben prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoryOperationRelation(BuildContext context) {
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final correctIndex = widget.plan.correctSelectionIndexes.isEmpty
+        ? -1
+        : widget.plan.correctSelectionIndexes.first;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          key: const ValueKey('touch-story-operations'),
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 10,
+          children: List<Widget>.generate(widget.plan.dataLabels.length, (index) {
+            final operation = widget.plan.dataLabels[index];
+            final selected = selectedStoryOperation == index;
+            return ChoiceChip(
+              key: ValueKey('touch-story-operation-$index'),
+              selected: selected,
+              avatar: Icon(_storyOperationIcon(operation)),
+              label: Text(
+                '${_storyOperationSymbol(operation)}  ${_storyOperationMeaning(operation)}',
+              ),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() => selectedStoryOperation = index),
+            );
+          }),
+        ),
+        const SizedBox(height: 10),
+        if (selectedStoryOperation != null)
+          Text(
+            'Gewählt: ${_storyOperationMeaning(widget.plan.dataLabels[selectedStoryOperation!])}',
+            key: const ValueKey('touch-story-operation-status'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-story-operation-submit'),
+          onPressed: widget.locked || selectedStoryOperation == null
+              ? null
+              : () => widget.onAnswer(
+                    selectedStoryOperation == correctIndex
+                        ? expected
+                        : _wrongAnswer(expected, expected),
+                  ),
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Rechenart prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoryEquationBuilder(BuildContext context) {
+    final values = widget.plan.dataValues;
+    if (values.length < 2) return const SizedBox.shrink();
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final operation = widget.plan.dataOperation ?? '';
+    final selectedOperation = selectedStoryEquationOperation == null
+        ? null
+        : widget.plan.dataLabels[selectedStoryEquationOperation!];
+    final ready = selectedStoryEquationLeft != null &&
+        selectedStoryEquationRight != null &&
+        selectedStoryEquationOperation != null;
+    final leftText = selectedStoryEquationLeft == null
+        ? '?'
+        : '${values[selectedStoryEquationLeft!]}';
+    final rightText = selectedStoryEquationRight == null
+        ? '?'
+        : '${values[selectedStoryEquationRight!]}';
+    final opText = selectedOperation == null ? '?' : _storyOperationSymbol(selectedOperation);
+
+    Widget numberPicker({required String label, required bool left}) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 6,
+              children: List<Widget>.generate(2, (index) {
+                final selected = left
+                    ? selectedStoryEquationLeft == index
+                    : selectedStoryEquationRight == index;
+                return ChoiceChip(
+                  key: ValueKey(
+                    left
+                        ? 'touch-story-equation-left-$index'
+                        : 'touch-story-equation-right-$index',
+                  ),
+                  selected: selected,
+                  label: Text('${values[index]}'),
+                  onSelected: widget.locked
+                      ? null
+                      : (_) => setState(() {
+                            if (left) {
+                              selectedStoryEquationLeft = index;
+                            } else {
+                              selectedStoryEquationRight = index;
+                            }
+                          }),
+                );
+              }),
+            ),
+          ],
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          key: const ValueKey('touch-story-equation-builder'),
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            numberPicker(label: '1. Angabe', left: true),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Rechenzeichen', style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  children: List<Widget>.generate(widget.plan.dataLabels.length, (index) {
+                    final op = widget.plan.dataLabels[index];
+                    return ChoiceChip(
+                      key: ValueKey('touch-story-equation-op-$index'),
+                      selected: selectedStoryEquationOperation == index,
+                      label: Text(_storyOperationSymbol(op)),
+                      onSelected: widget.locked
+                          ? null
+                          : (_) => setState(() => selectedStoryEquationOperation = index),
+                    );
+                  }),
+                ),
+              ],
+            ),
+            numberPicker(label: '2. Angabe', left: false),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Container(
+          key: const ValueKey('touch-story-equation-preview'),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
+          child: Text(
+            '$leftText  $opText  $rightText = ?',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-story-equation-submit'),
+          onPressed: widget.locked || !ready
+              ? null
+              : () {
+                  final left = selectedStoryEquationLeft!;
+                  final right = selectedStoryEquationRight!;
+                  final distinctInputs = left != right;
+                  final orderCorrect = operation == '+' || operation == 'x'
+                      ? distinctInputs
+                      : left == 0 && right == 1;
+                  final correct = distinctInputs &&
+                      selectedOperation == operation &&
+                      orderCorrect;
+                  widget.onAnswer(
+                    correct ? expected : _wrongAnswer(expected, expected),
+                  );
+                },
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Rechnung prüfen'),
+        ),
+      ],
+    );
+  }
+
+  String _storyOperationSymbol(String operation) => switch (operation) {
+        '+' => '+',
+        '-' => '−',
+        'x' => '×',
+        'divide' => '÷',
+        _ => '?',
+      };
+
+  String _storyOperationMeaning(String operation) => switch (operation) {
+        '+' => 'zusammenführen',
+        '-' => 'wegnehmen',
+        'x' => 'gleiche Gruppen',
+        'divide' => 'gleich verteilen',
+        _ => 'Beziehung',
+      };
+
+  IconData _storyOperationIcon(String operation) => switch (operation) {
+        '+' => Icons.add_circle_outline_rounded,
+        '-' => Icons.remove_circle_outline_rounded,
+        'x' => Icons.grid_view_rounded,
+        'divide' => Icons.call_split_rounded,
+        _ => Icons.help_outline_rounded,
+      };
 
   Widget _buildInverseFamilyMachine(BuildContext context) {
     final values = widget.plan.dataValues;
