@@ -29,6 +29,7 @@ enum TouchInteractionKind {
   storyOperationRelation,
   storyEquationBuilder,
   storyInterpretationBuilder,
+  writtenErrorInspector,
   mentalChunkPath,
   strategyAnchorJump,
   arithmeticLawStructure,
@@ -164,6 +165,80 @@ class TouchInteractionPlan {
             maxValue: upper,
             startValue: number,
             dataValues: <int>[place],
+            expectedAnswer: answer,
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.writtenAddSub &&
+        taskKey.startsWith('process:error:add:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      int? a;
+      int? b;
+      int? wrong;
+      int? encodedPlace;
+      if (parts.length == 6) {
+        a = int.tryParse(parts[3]);
+        b = int.tryParse(parts[4]);
+        wrong = int.tryParse(parts[5]);
+      } else if (parts.length == 8 && parts[3] == 'place') {
+        encodedPlace = int.tryParse(parts[4]);
+        a = int.tryParse(parts[5]);
+        b = int.tryParse(parts[6]);
+        wrong = int.tryParse(parts[7]);
+      }
+      if (a != null && b != null && wrong != null) {
+        final correct = a + b;
+        final delta = wrong - correct;
+        final errorPlace = encodedPlace ?? delta.abs();
+        if (delta != 0 && errorPlace > 0 && delta.abs() == errorPlace) {
+          final maxNumber = max(max(a, b), max(wrong, correct));
+          final places = <int>[1, 10, 100, 1000, 10000, 100000]
+              .where((place) => place <= max(100, maxNumber * 10))
+              .toList(growable: false);
+          final correctPlaceIndex = places.indexOf(errorPlace);
+          if (correctPlaceIndex >= 0) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.writtenErrorInspector,
+              instruction:
+                  'Prüfe die Rechnung gezielt: An welchem Stellenwert liegt der Fehler und ist das Ergebnis dort zu groß oder zu klein?',
+              dataValues: <int>[a, b, wrong, errorPlace, correct, ...places],
+              dataOperation: '${delta > 0 ? 'too-large' : 'too-small'}${targetCompetency == MicroCompetencyId.errorChecking ? ':skip-place' : ''}',
+              correctSelectionIndexes: <int>[correctPlaceIndex, delta > 0 ? 0 : 1],
+              answerChoices: choices,
+              expectedAnswer: answer,
+            );
+          }
+        }
+      }
+    }
+
+    if (mode == TrainingMode.estimation &&
+        taskKey.startsWith('process:plausibility:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      if (parts.length == 6) {
+        final a = int.tryParse(parts[2]);
+        final b = int.tryParse(parts[3]);
+        final candidate = int.tryParse(parts[4]);
+        final place = int.tryParse(parts[5]);
+        if (a != null && b != null && candidate != null && place != null && place > 0) {
+          int rounded(int value) => ((value + place ~/ 2) ~/ place) * place;
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.estimationRounding,
+            instruction:
+                'Runde beide Summanden passend und nutze den Überschlag, um das vorgeschlagene Ergebnis zu prüfen.',
+            dataValues: <int>[a, b, place, rounded(a), rounded(b), candidate],
+            dataOperation: targetCompetency == MicroCompetencyId.plausibilityCheck
+                ? 'plausibility:skip-estimate'
+                : 'plausibility',
+            answerChoices: choices,
             expectedAnswer: answer,
           );
         }

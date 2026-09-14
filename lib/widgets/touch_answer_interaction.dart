@@ -58,6 +58,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int? selectedStoryEquationRight;
   int? selectedStoryInterpretationMeaning;
   int? selectedStoryInterpretationUnit;
+  int? selectedErrorPlaceIndex;
+  int? selectedErrorDirection;
   final List<int> mentalSelectedChunks = <int>[];
   int? selectedStrategyJump;
   final Set<int> selectedLawTerms = <int>{};
@@ -185,6 +187,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedStoryEquationRight = null;
     selectedStoryInterpretationMeaning = null;
     selectedStoryInterpretationUnit = null;
+    selectedErrorPlaceIndex = null;
+    selectedErrorDirection = null;
     mentalSelectedChunks.clear();
     selectedStrategyJump = null;
     selectedLawTerms.clear();
@@ -342,6 +346,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildStoryEquationBuilder(context),
             TouchInteractionKind.storyInterpretationBuilder =>
               _buildStoryInterpretationBuilder(context),
+            TouchInteractionKind.writtenErrorInspector =>
+              _buildWrittenErrorInspector(context),
             TouchInteractionKind.mentalChunkPath =>
               _buildMentalChunkPath(context),
             TouchInteractionKind.strategyAnchorJump =>
@@ -743,6 +749,143 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                 },
           icon: const Icon(Icons.check_rounded),
           label: const Text('Deutung prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWrittenErrorInspector(BuildContext context) {
+    final values = widget.plan.dataValues;
+    if (values.length < 8) return const SizedBox.shrink();
+    final a = values[0];
+    final b = values[1];
+    final wrong = values[2];
+    final places = values.sublist(5);
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final skipPlace = widget.plan.dataOperation?.endsWith(':skip-place') ?? false;
+    final correctPlace = widget.plan.correctSelectionIndexes.isNotEmpty
+        ? widget.plan.correctSelectionIndexes[0]
+        : -1;
+    final correctDirection = widget.plan.correctSelectionIndexes.length > 1
+        ? widget.plan.correctSelectionIndexes[1]
+        : -1;
+    const placeNames = <int, String>{
+      1: 'Einer',
+      10: 'Zehner',
+      100: 'Hunderter',
+      1000: 'Tausender',
+      10000: 'Zehntausender',
+      100000: 'Hunderttausender',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          key: const ValueKey('touch-error-calculation'),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
+          child: Text(
+            '${a.toString().padLeft(7)}\n+ ${b.toString().padLeft(5)}\n────────\n${wrong.toString().padLeft(7)}',
+            textAlign: TextAlign.right,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (skipPlace) ...[
+          const Text(
+            '1. Fehlerstelle',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Chip(
+              key: const ValueKey('touch-error-place-checked'),
+              avatar: const Icon(Icons.check_rounded, size: 18),
+              label: Text(
+                '${placeNames[places[correctPlace]] ?? places[correctPlace]} (${places[correctPlace]}) – schon geprüft',
+              ),
+            ),
+          ),
+        ] else ...[
+          const Text(
+            '1. Welche Stellenwert-Einheit erklärt die Abweichung?',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            key: const ValueKey('touch-error-places'),
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: List<Widget>.generate(places.length, (index) {
+              final place = places[index];
+              return ChoiceChip(
+                key: ValueKey('touch-error-place-$place'),
+                selected: selectedErrorPlaceIndex == index,
+                label: Text('${placeNames[place] ?? place} ($place)'),
+                onSelected: widget.locked
+                    ? null
+                    : (_) => setState(() => selectedErrorPlaceIndex = index),
+              );
+            }),
+          ),
+        ],
+        const SizedBox(height: 14),
+        const Text(
+          '2. In welche Richtung geht der Fehler?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          key: const ValueKey('touch-error-directions'),
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              key: const ValueKey('touch-error-too-large'),
+              selected: selectedErrorDirection == 0,
+              label: const Text('Ergebnis ist zu groß'),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() => selectedErrorDirection = 0),
+            ),
+            ChoiceChip(
+              key: const ValueKey('touch-error-too-small'),
+              selected: selectedErrorDirection == 1,
+              label: const Text('Ergebnis ist zu klein'),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() => selectedErrorDirection = 1),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-error-submit'),
+          onPressed: widget.locked ||
+                  (!skipPlace && selectedErrorPlaceIndex == null) ||
+                  selectedErrorDirection == null
+              ? null
+              : () {
+                  final correct = (skipPlace || selectedErrorPlaceIndex == correctPlace) &&
+                      selectedErrorDirection == correctDirection;
+                  widget.onAnswer(
+                    correct ? expected : _wrongAnswer(expected, expected),
+                  );
+                },
+          icon: const Icon(Icons.fact_check_outlined),
+          label: const Text('Fehler prüfen'),
         ),
       ],
     );
@@ -3661,17 +3804,35 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       );
     }
 
-    final ready = selectedEstimateA != null && selectedEstimateB != null;
+    final plausibility = widget.plan.dataOperation?.startsWith('plausibility') ?? false;
+    final skipEstimate = widget.plan.dataOperation == 'plausibility:skip-estimate';
+    final ready = skipEstimate ||
+        (selectedEstimateA != null && selectedEstimateB != null);
+    final candidate = plausibility && values.length >= 6 ? values[5] : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        rowFor(label: 'Erster Summand', value: a, first: true),
-        const SizedBox(height: 12),
-        rowFor(label: 'Zweiter Summand', value: b, first: false),
+        if (skipEstimate) ...[
+          Chip(
+            key: const ValueKey('touch-estimate-reference-checked'),
+            avatar: const Icon(Icons.check_rounded, size: 18),
+            label: Text(
+              'Referenz-Überschlag ${roundedA + roundedB} – schon geprüft',
+            ),
+          ),
+        ] else ...[
+          rowFor(label: 'Erster Summand', value: a, first: true),
+          const SizedBox(height: 12),
+          rowFor(label: 'Zweiter Summand', value: b, first: false),
+        ],
         const SizedBox(height: 12),
         Text(
           ready
-              ? '${selectedEstimateA!} + ${selectedEstimateB!} – welcher Überschlag passt?'
+              ? plausibility
+                  ? skipEstimate
+                      ? 'Passt $candidate ungefähr zum Referenz-Überschlag ${roundedA + roundedB}?'
+                      : 'Überschlag: ${selectedEstimateA!} + ${selectedEstimateB!} = ${selectedEstimateA! + selectedEstimateB!}. Passt $candidate ungefähr dazu?'
+                  : '${selectedEstimateA!} + ${selectedEstimateB!} – welcher Überschlag passt?'
               : 'Runde zuerst beide Summanden.',
           key: const ValueKey('touch-estimate-status'),
           textAlign: TextAlign.center,
@@ -3686,8 +3847,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                   ? null
                   : () {
                       final expected = widget.plan.expectedAnswer ?? 0;
-                      final structureCorrect =
-                          selectedEstimateA == roundedA && selectedEstimateB == roundedB;
+                      final structureCorrect = skipEstimate ||
+                          (selectedEstimateA == roundedA && selectedEstimateB == roundedB);
                       widget.onAnswer(
                         structureCorrect && index == expected
                             ? expected
