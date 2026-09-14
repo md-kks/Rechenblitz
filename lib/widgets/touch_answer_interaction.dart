@@ -2243,7 +2243,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                 borderRadius: BorderRadius.circular(14),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 140),
-                  width: operation == 'figure' ? 132 : 150,
+                  width: operation == 'figure' || operation == 'basic-shape' ? 132 : 150,
                   height: 118,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -2259,6 +2259,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                     painter: _GeometryChoicePainter(
                       operation: operation,
                       index: index,
+                      label: operation == 'basic-shape' &&
+                              index < widget.plan.answerChoices.length
+                          ? widget.plan.answerChoices[index]
+                          : null,
                       lineColor: Theme.of(context).colorScheme.onSurface,
                       accentColor: Theme.of(context).colorScheme.primary,
                     ),
@@ -6861,12 +6865,14 @@ class _GeometryChoicePainter extends CustomPainter {
   const _GeometryChoicePainter({
     required this.operation,
     required this.index,
+    this.label,
     required this.lineColor,
     required this.accentColor,
   });
 
   final String operation;
   final int index;
+  final String? label;
   final Color lineColor;
   final Color accentColor;
 
@@ -6890,6 +6896,8 @@ class _GeometryChoicePainter extends CustomPainter {
         _figure(canvas, size, line, accent);
       case 'circle':
         _circle(canvas, size, line, accent);
+      case 'basic-shape':
+        _basicShape(canvas, size, line);
     }
   }
 
@@ -6947,6 +6955,33 @@ class _GeometryChoicePainter extends CustomPainter {
     }
   }
 
+  void _basicShape(Canvas canvas, Size size, Paint line) {
+    final center = Offset(size.width / 2, size.height / 2);
+    switch (label) {
+      case 'Dreieck':
+        final path = Path()
+          ..moveTo(center.dx, size.height * .18)
+          ..lineTo(size.width * .18, size.height * .82)
+          ..lineTo(size.width * .82, size.height * .82)
+          ..close();
+        canvas.drawPath(path, line);
+      case 'Quadrat':
+        canvas.drawRect(
+          Rect.fromCenter(center: center, width: 72, height: 72),
+          line,
+        );
+      case 'Rechteck':
+        canvas.drawRect(
+          Rect.fromCenter(center: center, width: 98, height: 62),
+          line,
+        );
+      case 'Kreis':
+        canvas.drawCircle(center, size.shortestSide * .32, line);
+      default:
+        canvas.drawCircle(center, size.shortestSide * .12, line);
+    }
+  }
+
   void _circle(Canvas canvas, Size size, Paint line, Paint accent) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.shortestSide * .34;
@@ -6976,5 +7011,9 @@ class _GeometryChoicePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GeometryChoicePainter oldDelegate) =>
-      operation != oldDelegate.operation || index != oldDelegate.index || lineColor != oldDelegate.lineColor || accentColor != oldDelegate.accentColor;
+      operation != oldDelegate.operation ||
+      index != oldDelegate.index ||
+      label != oldDelegate.label ||
+      lineColor != oldDelegate.lineColor ||
+      accentColor != oldDelegate.accentColor;
 }

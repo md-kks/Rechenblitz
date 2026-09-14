@@ -3299,6 +3299,143 @@ void main() {
     );
   });
 
+  test('basic shape name planner keeps shuffled choice indexes', () {
+    const choices = <String>['Kreis', 'Dreieck', 'Rechteck', 'Quadrat'];
+    final plan = TouchInteractionPlan.forTask(
+      mode: TrainingMode.geometry,
+      taskKey: 'geometry:name:triangle',
+      answer: 1,
+      maxValue: 20,
+      choices: choices,
+    );
+
+    expect(plan?.kind, TouchInteractionKind.geometryRelationChoice);
+    expect(plan?.dataOperation, 'basic-shape');
+    expect(plan?.answerChoices, choices);
+    expect(plan?.correctSelectionIndexes, const <int>[1]);
+  });
+
+  testWidgets('basic shape diagrams follow shuffled answer order', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'geometry:name:triangle',
+      kind: TouchInteractionKind.geometryRelationChoice,
+      instruction: 'Tippe die Form an, die du oben siehst.',
+      answerChoices: <String>['Kreis', 'Dreieck', 'Rechteck', 'Quadrat'],
+      correctSelectionIndexes: <int>[1],
+      dataOperation: 'basic-shape',
+      expectedAnswer: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final painters = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .where((painter) => painter?.runtimeType.toString() == '_GeometryChoicePainter')
+        .toList();
+    expect(painters.length, 4);
+    expect((painters[0] as dynamic).label, 'Kreis');
+    expect((painters[1] as dynamic).label, 'Dreieck');
+    expect((painters[2] as dynamic).label, 'Rechteck');
+    expect((painters[3] as dynamic).label, 'Quadrat');
+    expect(find.text('Dreieck'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('touch-geometry-option-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-geometry-submit')));
+    expect(answer, 0);
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-geometry-option-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-geometry-submit')));
+    expect(answer, 1);
+  });
+
+  testWidgets('basic geometry names default to diagrams and keep choice fallback', (
+    tester,
+  ) async {
+    final controller = await _controller();
+    const exercise = StructuredExercise(
+      mode: TrainingMode.geometry,
+      prompt: 'Welche Form siehst du?',
+      answer: 3,
+      hint: 'Achte auf die Begrenzung.',
+      key: 'geometry:name:circle',
+      choices: <String>['Dreieck', 'Quadrat', 'Rechteck', 'Kreis'],
+      shape: ExerciseShape.circle,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.geometry,
+          targetTasks: 1,
+          exerciseGenerator: _FixedStructuredGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-geometry-options')), findsOneWidget);
+    expect(find.text('Dreieck'), findsNothing);
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      fallback,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('Dreieck'), findsOneWidget);
+    expect(find.text('Kreis'), findsOneWidget);
+  });
+
+  testWidgets('basic shape diagrams stay stable at 200 percent text scale', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'geometry:name:square',
+      kind: TouchInteractionKind.geometryRelationChoice,
+      instruction: 'Tippe die Form an, die du oben siehst.',
+      answerChoices: <String>['Kreis', 'Dreieck', 'Quadrat', 'Rechteck'],
+      correctSelectionIndexes: <int>[2],
+      dataOperation: 'basic-shape',
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-geometry-options')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   test('touch planner covers all geometry relation families', () {
     final cases = <(String, int, List<String>, String)>[
       ('geomrel:lines:parallel:third', 0, const ['parallel', 'senkrecht', 'weder noch'], 'lines'),
