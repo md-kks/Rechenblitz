@@ -6,6 +6,7 @@ import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
+import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/theme/app_theme.dart';
@@ -166,6 +167,98 @@ void main() {
     final dynamic painter = customPaint.painter;
     expect(painter.lineColor, Colors.black87);
     expect(painter.accentColor, Colors.black);
+  });
+
+  test('number friends use decomposition help instead of ordinary plus help', () {
+    final fact = MathFact(a: 6, b: 4, operation: MathOperation.plus);
+    final result = GuidedMethodFactory.forTask(
+      mode: TrainingMode.numberFriends,
+      taskKey: fact.key,
+      expected: 4,
+      preferences: preferences,
+      fact: fact,
+    );
+
+    expect(result.methodKey, 'numberFriends:decomposition');
+    expect(result.nudge, contains('10 ist das Ganze'));
+    expect(result.steps, hasLength(3));
+    expect(result.steps[1].question, 'Welcher zweite Teil fehlt?');
+    expect(
+      result.steps[1].choices[result.steps[1].correctChoice!],
+      '4',
+    );
+    expect(
+      LearningVisualAid.canRender(
+        pattern: ErrorPattern.numberBond,
+        taskKey: fact.key,
+        methodKey: result.methodKey,
+      ),
+      isTrue,
+    );
+  });
+
+  test('visual help exists for early structural task families', () {
+    const cases = <(ErrorPattern, String, String)>[
+      (ErrorPattern.numberBond, 'double:6', 'doublesHalves:relationship'),
+      (ErrorPattern.numberBond, 'half:12', 'doublesHalves:relationship'),
+      (ErrorPattern.inverseOperation, 'family:+:7:5', 'inverse:operationRelationship'),
+      (ErrorPattern.patternRule, 'sequence:+:4:2', 'sequence:constantStep'),
+      (ErrorPattern.unitConversion, 'measure:add:ribbon:7:5', 'measure:calculationPlan'),
+      (ErrorPattern.unitConversion, 'measure:subtract:rope:12:5', 'measure:calculationPlan'),
+    ];
+
+    for (final entry in cases) {
+      expect(
+        LearningVisualAid.canRender(
+          pattern: entry.$1,
+          taskKey: entry.$2,
+          methodKey: entry.$3,
+        ),
+        isTrue,
+        reason: entry.$2,
+      );
+    }
+  });
+
+  testWidgets('number friend visual keeps the missing part unsolved', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.numberBond,
+            taskKey: 'plus:6:4',
+            expected: 4,
+            methodKey: 'numberFriends:decomposition',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Ganzes: 10'), findsOneWidget);
+    expect(find.text('bekannter Teil: 6'), findsOneWidget);
+    expect(find.text('fehlender Teil: ?'), findsOneWidget);
+    expect(find.text('fehlender Teil: 4'), findsNothing);
+    expect(find.text('6 + ? = 10'), findsOneWidget);
+  });
+
+  testWidgets('measure calculation visual is a length model, not a unit ladder',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.unitConversion,
+            taskKey: 'measure:add:ribbon:7:5',
+            expected: 12,
+            methodKey: 'measure:calculationPlan',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Längen aneinanderlegen'), findsOneWidget);
+    expect(find.byKey(const ValueKey('help-measure-parts')), findsOneWidget);
+    expect(find.text('zusammen: ? cm'), findsOneWidget);
   });
 
   test('generated structured and upper-primary tasks have specific help', () {

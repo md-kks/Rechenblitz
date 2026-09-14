@@ -5,10 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/help_preferences.dart';
 import 'package:rechenblitz/models/learner_profile.dart';
+import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/screens/parent_screen.dart';
 import 'package:rechenblitz/screens/structured_training_screen.dart';
+import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -179,6 +181,69 @@ void main() {
 
     expect(find.textContaining('Hilfe ·'), findsOneWidget);
     expect(find.textContaining('Schritt 1 von'), findsOneWidget);
+  });
+
+  testWidgets('Zahlenfreunde können progressive Hilfe manuell öffnen',
+      (tester) async {
+    final controller = await _controller();
+    controller.facts = <MathFact>[
+      MathFact(a: 6, b: 4, operation: MathOperation.plus),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainingScreen(
+          controller: controller,
+          mode: TrainingMode.numberFriends,
+          targetTasks: 1,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final helpButton = find.text('Ich brauche Hilfe');
+    expect(helpButton, findsOneWidget);
+    await tester.ensureVisible(helpButton);
+    await tester.tap(helpButton);
+    await tester.pump();
+
+    expect(find.textContaining('Hilfe ·'), findsOneWidget);
+    final visualButton = find.byKey(const ValueKey('help-show-visual'));
+    expect(visualButton, findsOneWidget);
+    await tester.ensureVisible(visualButton);
+    await tester.tap(visualButton);
+    await tester.pump();
+
+    expect(find.text('Ganzes: 10'), findsOneWidget);
+    expect(find.text('fehlender Teil: ?'), findsOneWidget);
+  });
+
+  testWidgets('zeitkritische Rechenmodi blenden manuelle Hilfe aus',
+      (tester) async {
+    final controller = await _controller();
+    controller.facts = <MathFact>[
+      MathFact(a: 6, b: 4, operation: MathOperation.plus),
+    ];
+
+    for (final mode in <TrainingMode>[
+      TrainingMode.speed,
+      TrainingMode.tempo,
+      TrainingMode.blitz,
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainingScreen(
+            controller: controller,
+            mode: mode,
+            targetTasks: 1,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Ich brauche Hilfe'), findsNothing, reason: mode.name);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }
   });
 
   testWidgets('Meine Runde zeigt bei Lückenaufgaben den konkreten Rechenweg', (
