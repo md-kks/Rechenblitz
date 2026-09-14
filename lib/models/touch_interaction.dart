@@ -915,6 +915,23 @@ class TouchInteractionPlan {
     }
 
     if (mode == TrainingMode.geometry &&
+        taskKey.startsWith('geometry:name:') &&
+        choices != null &&
+        choices.length == 4 &&
+        answer >= 0 &&
+        answer < choices.length) {
+      return TouchInteractionPlan(
+        taskKey: taskKey,
+        kind: TouchInteractionKind.geometryRelationChoice,
+        instruction: 'Tippe die Form an, die du oben siehst.',
+        answerChoices: choices,
+        correctSelectionIndexes: <int>[answer],
+        dataOperation: 'basic-shape',
+        expectedAnswer: answer,
+      );
+    }
+
+    if (mode == TrainingMode.geometry &&
         taskKey.startsWith('geometry:corners:')) {
       final shape = taskKey.split(':').last;
       final correct = switch (shape) {
