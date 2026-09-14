@@ -6457,6 +6457,217 @@ void main() {
     expect(find.byKey(const ValueKey('touch-story-equation-builder')), findsOneWidget);
   });
 
+
+  test('story interpretation planner separates meaning and quantity type', () {
+    final plus = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:interpret:+:7:5:12',
+      answer: 2,
+      maxValue: 20,
+      choices: const <String>[
+        'Im Raum sind 12 Kinder.',
+        'Es kommen noch 12 Sticker dazu.',
+        'Mara hat jetzt 12 Sticker.',
+        'Mara hat 12 Sticker abgegeben.',
+      ],
+    );
+    final minus = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:interpret:-:9:4:5',
+      answer: 1,
+      maxValue: 20,
+      choices: const <String>[
+        'Am Anfang lagen 5 Karten dort.',
+        'Es bleiben 5 Karten übrig.',
+        'Es wurden 5 Karten weggenommen.',
+        'Es kommen 5 Karten dazu.',
+      ],
+    );
+    final calculation = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:calc:+:7:5',
+      answer: 12,
+      maxValue: 20,
+    );
+
+    expect(plus?.kind, TouchInteractionKind.storyInterpretationBuilder);
+    expect(plus?.dataValues, <int>[7, 5, 12]);
+    expect(
+      plus?.dataLabels[plus.correctSelectionIndexes[0]],
+      contains('Endbestand'),
+    );
+    expect(
+      plus?.selectionLabels[plus.correctSelectionIndexes[1]],
+      'Sticker',
+    );
+    expect(minus?.kind, TouchInteractionKind.storyInterpretationBuilder);
+    expect(
+      minus?.dataLabels[minus.correctSelectionIndexes[0]],
+      contains('Restbestand'),
+    );
+    expect(
+      minus?.selectionLabels[minus.correctSelectionIndexes[1]],
+      'Karten',
+    );
+    expect(
+      calculation,
+      isNull,
+      reason: 'Das reine Ausrechnen bleibt bewusst bei der Zahleneingabe.',
+    );
+  });
+
+  testWidgets('story interpretation needs correct meaning and quantity type',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:interpret:+:7:5:12',
+      kind: TouchInteractionKind.storyInterpretationBuilder,
+      instruction: 'Deute das Ergebnis.',
+      dataValues: <int>[7, 5, 12],
+      dataLabels: <String>[
+        'Zuwachs – so viele kommen noch dazu',
+        'Endbestand – so viele sind jetzt da',
+        'Abgabe – so viele wurden weggegeben',
+      ],
+      selectionLabels: <String>['Kinder', 'Karten', 'Sticker'],
+      correctSelectionIndexes: <int>[1, 2],
+      expectedAnswer: 3,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('touch-story-interpretation-meaning-1')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('touch-story-interpretation-unit-0')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('touch-story-interpretation-submit')),
+    );
+    expect(answer, isNot(3), reason: 'Die richtige Bedeutung mit falscher Größe reicht nicht.');
+
+    await tester.tap(
+      find.byKey(const ValueKey('touch-story-interpretation-meaning-0')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('touch-story-interpretation-unit-2')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('touch-story-interpretation-submit')),
+    );
+    expect(answer, isNot(3), reason: 'Die richtige Größe mit falscher Bedeutung reicht nicht.');
+
+    await tester.tap(
+      find.byKey(const ValueKey('touch-story-interpretation-meaning-1')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('touch-story-interpretation-submit')),
+    );
+    expect(answer, 3);
+  });
+
+  testWidgets('story interpretation defaults to touch and keeps sentence fallback',
+      (tester) async {
+    final controller = await _controller();
+    const exercise = StructuredExercise(
+      mode: TrainingMode.wordProblems,
+      prompt:
+          'Mara hat 7 Sticker und bekommt 5 dazu. Die Rechnung 7 + 5 = 12 ist schon gelöst. Welche Antwort passt?',
+      answer: 2,
+      hint: 'Beziehe die 12 auf die Sticker.',
+      key: 'story:interpret:+:7:5:12',
+      choices: <String>[
+        'Im Raum sind 12 Kinder.',
+        'Es kommen noch 12 Sticker dazu.',
+        'Mara hat jetzt 12 Sticker.',
+        'Mara hat 12 Sticker abgegeben.',
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.wordProblems,
+          targetCompetency: MicroCompetencyId.wordProblemInterpretation,
+          targetTasks: 1,
+          exerciseGenerator: _FixedStructuredGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('touch-story-interpretation-result')),
+      findsOneWidget,
+    );
+    await tester.drag(
+      find.byKey(const ValueKey('structured-training-scroll')),
+      const Offset(0, -620),
+    );
+    await tester.pump();
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    expect(fallback, findsOneWidget);
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('Mara hat jetzt 12 Sticker.'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('touch-switch-interaction')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('story interpretation stays stable at 200 percent text scale',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:interpret:-:9:4:5',
+      kind: TouchInteractionKind.storyInterpretationBuilder,
+      instruction: 'Deute das Ergebnis.',
+      dataValues: <int>[9, 4, 5],
+      dataLabels: <String>[
+        'Restbestand – so viele bleiben übrig',
+        'Abgabe – so viele wurden weggenommen',
+        'Anfangsbestand – so viele waren vorher da',
+      ],
+      selectionLabels: <String>['Karten', 'Sticker', 'Kinder'],
+      correctSelectionIndexes: <int>[0, 0],
+      expectedAnswer: 1,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey('touch-story-interpretation-meanings')),
+      findsOneWidget,
+    );
+  });
+
 }
 
 void _noopAnswer(int value) {}

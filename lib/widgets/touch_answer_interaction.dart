@@ -56,6 +56,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int? selectedStoryEquationLeft;
   int? selectedStoryEquationOperation;
   int? selectedStoryEquationRight;
+  int? selectedStoryInterpretationMeaning;
+  int? selectedStoryInterpretationUnit;
   final List<int> mentalSelectedChunks = <int>[];
   int? selectedStrategyJump;
   final Set<int> selectedLawTerms = <int>{};
@@ -181,6 +183,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedStoryEquationLeft = null;
     selectedStoryEquationOperation = null;
     selectedStoryEquationRight = null;
+    selectedStoryInterpretationMeaning = null;
+    selectedStoryInterpretationUnit = null;
     mentalSelectedChunks.clear();
     selectedStrategyJump = null;
     selectedLawTerms.clear();
@@ -336,6 +340,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildStoryOperationRelation(context),
             TouchInteractionKind.storyEquationBuilder =>
               _buildStoryEquationBuilder(context),
+            TouchInteractionKind.storyInterpretationBuilder =>
+              _buildStoryInterpretationBuilder(context),
             TouchInteractionKind.mentalChunkPath =>
               _buildMentalChunkPath(context),
             TouchInteractionKind.strategyAnchorJump =>
@@ -629,6 +635,114 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                 },
           icon: const Icon(Icons.check_rounded),
           label: const Text('Rechnung prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoryInterpretationBuilder(BuildContext context) {
+    if (widget.plan.dataValues.length < 3 ||
+        widget.plan.correctSelectionIndexes.length < 2) {
+      return const SizedBox.shrink();
+    }
+    final result = widget.plan.dataValues[2];
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final correctMeaning = widget.plan.correctSelectionIndexes[0];
+    final correctUnit = widget.plan.correctSelectionIndexes[1];
+    final ready = selectedStoryInterpretationMeaning != null &&
+        selectedStoryInterpretationUnit != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          key: const ValueKey('touch-story-interpretation-result'),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
+          child: Column(
+            children: [
+              const Text('Berechnetes Ergebnis',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text(
+                '$result',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'Was bedeutet diese Zahl?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          key: const ValueKey('touch-story-interpretation-meanings'),
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: List<Widget>.generate(widget.plan.dataLabels.length, (index) {
+            return ChoiceChip(
+              key: ValueKey('touch-story-interpretation-meaning-$index'),
+              selected: selectedStoryInterpretationMeaning == index,
+              label: Text(widget.plan.dataLabels[index]),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() => selectedStoryInterpretationMeaning = index),
+            );
+          }),
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'Wozu gehört die Zahl?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          key: const ValueKey('touch-story-interpretation-units'),
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: List<Widget>.generate(widget.plan.selectionLabels.length, (index) {
+            return ChoiceChip(
+              key: ValueKey('touch-story-interpretation-unit-$index'),
+              selected: selectedStoryInterpretationUnit == index,
+              label: Text(widget.plan.selectionLabels[index]),
+              onSelected: widget.locked
+                  ? null
+                  : (_) => setState(() => selectedStoryInterpretationUnit = index),
+            );
+          }),
+        ),
+        if (ready) ...[
+          const SizedBox(height: 12),
+          Text(
+            '$result ${widget.plan.selectionLabels[selectedStoryInterpretationUnit!]} · ${widget.plan.dataLabels[selectedStoryInterpretationMeaning!]}',
+            key: const ValueKey('touch-story-interpretation-preview'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ],
+        const SizedBox(height: 12),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-story-interpretation-submit'),
+          onPressed: widget.locked || !ready
+              ? null
+              : () {
+                  final correct = selectedStoryInterpretationMeaning == correctMeaning &&
+                      selectedStoryInterpretationUnit == correctUnit;
+                  widget.onAnswer(correct ? expected : _wrongAnswer(expected, expected));
+                },
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Deutung prüfen'),
         ),
       ],
     );
