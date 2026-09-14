@@ -6943,6 +6943,229 @@ void main() {
     expect(find.byKey(const ValueKey('touch-error-directions')), findsOneWidget);
   });
 
+
+  test('transfer-story planner covers irrelevant difference and reverse', () {
+    final irrelevant = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:transfer:irrelevant:24:4:7',
+      answer: 0,
+      maxValue: 100,
+      choices: const <String>['24 + 4', '24 + 7', '4 + 7', '24 − 4'],
+    );
+    final difference = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:transfer:difference:73:48',
+      answer: 25,
+      maxValue: 100,
+    );
+    final reverse = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:transfer:reverse:18:7',
+      answer: 25,
+      maxValue: 100,
+    );
+
+    expect(irrelevant?.kind, TouchInteractionKind.storyRelevantFacts);
+    expect(irrelevant?.selectionLabels, <String>['24 Kinder', '4 Erwachsene', '7 Bälle']);
+    expect(irrelevant?.correctSelectionIndexes, <int>[0, 1]);
+    expect(difference?.kind, TouchInteractionKind.storyDifferenceGap);
+    expect(difference?.dataValues, <int>[73, 48]);
+    expect(reverse?.kind, TouchInteractionKind.inverseFamilyMachine);
+    expect(reverse?.dataValues, <int>[25, 7, 18]);
+    expect(reverse?.dataOperation, 'subtract-story');
+  });
+
+  testWidgets('transfer irrelevant information needs the exact facts', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:transfer:irrelevant:24:4:7',
+      kind: TouchInteractionKind.storyRelevantFacts,
+      instruction: 'Markiere nur Personen.',
+      selectionLabels: <String>['24 Kinder', '4 Erwachsene', '7 Bälle'],
+      correctSelectionIndexes: <int>[0, 1],
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('touch-story-fact-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-fact-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-facts-submit')));
+    expect(answer, isNot(0));
+
+    await tester.tap(find.byKey(const ValueKey('touch-story-fact-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-fact-1')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-facts-submit')));
+    expect(answer, 0);
+  });
+
+  testWidgets('transfer difference requires the exact comparison gap', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:transfer:difference:73:48',
+      kind: TouchInteractionKind.storyDifferenceGap,
+      instruction: 'Stelle den Unterschied ein.',
+      minValue: 0,
+      maxValue: 73,
+      startValue: 0,
+      dataValues: <int>[73, 48],
+      expectedAnswer: 25,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+    tester.widget<Slider>(
+      find.byKey(const ValueKey('touch-story-difference-slider')),
+    ).onChanged!(24);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-story-difference-submit')));
+    expect(answer, isNot(25));
+
+    tester.widget<Slider>(
+      find.byKey(const ValueKey('touch-story-difference-slider')),
+    ).onChanged!(25);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-story-difference-submit')));
+    expect(answer, 25);
+  });
+
+  testWidgets('reverse transfer needs the inverse operation and start value', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:transfer:reverse:18:7',
+      kind: TouchInteractionKind.inverseFamilyMachine,
+      instruction: 'Gehe rückwärts.',
+      dataValues: <int>[25, 7, 18],
+      dataOperation: 'subtract-story',
+      expectedAnswer: 25,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('?'), findsWidgets, reason: 'Die Anfangsmenge darf nicht verraten werden.');
+    await tester.tap(find.byKey(const ValueKey('touch-family-operation-0')));
+    await tester.pump();
+    tester.widget<NumberAnswerPad>(
+      find.byKey(const ValueKey('touch-family-result-pad')),
+    ).onAnswer(25);
+    expect(answer, isNot(25), reason: 'Die richtige Zahl mit falscher Gegenoperation darf nicht zählen.');
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-family-operation-1')));
+    await tester.pump();
+    tester.widget<NumberAnswerPad>(
+      find.byKey(const ValueKey('touch-family-result-pad')),
+    ).onAnswer(25);
+    expect(answer, 25);
+  });
+
+  testWidgets('transfer stories default to touch and keep classic fallback', (tester) async {
+    final controller = await _controller();
+    const exercise = StructuredExercise(
+      mode: TrainingMode.wordProblems,
+      prompt: 'Eine Klasse sammelt 73 Kastanien, eine andere 48. Um wie viele mehr?',
+      answer: 25,
+      hint: 'Vergleiche beide Mengen.',
+      key: 'story:transfer:difference:73:48',
+      maxAnswerValue: 100,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.wordProblems,
+          targetTasks: 1,
+          exerciseGenerator: _FixedStructuredGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-story-difference-bars')), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      fallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-switch-interaction')), findsOneWidget);
+  });
+
+  testWidgets('transfer-story touch stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const difference = TouchInteractionPlan(
+      taskKey: 'story:transfer:difference:73:48',
+      kind: TouchInteractionKind.storyDifferenceGap,
+      instruction: 'Vergleiche beide Mengen.',
+      minValue: 0,
+      maxValue: 73,
+      dataValues: <int>[73, 48],
+      expectedAnswer: 25,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: difference, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-story-difference-slider')), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    const reverse = TouchInteractionPlan(
+      taskKey: 'story:transfer:reverse:18:7',
+      kind: TouchInteractionKind.inverseFamilyMachine,
+      instruction: 'Gehe rückwärts.',
+      dataValues: <int>[25, 7, 18],
+      dataOperation: 'subtract-story',
+      expectedAnswer: 25,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: reverse, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-family-forward')), findsOneWidget);
+  });
+
 }
 
 void _noopAnswer(int value) {}

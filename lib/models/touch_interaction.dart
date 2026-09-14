@@ -29,6 +29,7 @@ enum TouchInteractionKind {
   storyOperationRelation,
   storyEquationBuilder,
   storyInterpretationBuilder,
+  storyDifferenceGap,
   writtenErrorInspector,
   mentalChunkPath,
   strategyAnchorJump,
@@ -488,6 +489,85 @@ class TouchInteractionPlan {
             dataOperation: parts[1],
             expectedAnswer: answer,
             maxValue: maxValue,
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.wordProblems &&
+        taskKey.startsWith('story:transfer:irrelevant:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      if (parts.length == 6) {
+        final children = int.tryParse(parts[3]);
+        final adults = int.tryParse(parts[4]);
+        final balls = int.tryParse(parts[5]);
+        if (children != null && adults != null && balls != null) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.storyRelevantFacts,
+            instruction:
+                'Markiere nur die Angaben, die du für die Frage nach Personen brauchst.',
+            selectionLabels: <String>[
+              '$children Kinder',
+              '$adults Erwachsene',
+              '$balls Bälle',
+            ],
+            correctSelectionIndexes: const <int>[0, 1],
+            answerChoices: choices,
+            expectedAnswer: answer,
+            dataOperation: 'transfer-irrelevant',
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.wordProblems &&
+        taskKey.startsWith('story:transfer:difference:')) {
+      final parts = taskKey.split(':');
+      if (parts.length == 5) {
+        final first = int.tryParse(parts[3]);
+        final second = int.tryParse(parts[4]);
+        if (first != null &&
+            second != null &&
+            first >= second &&
+            answer == first - second) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.storyDifferenceGap,
+            instruction:
+                'Vergleiche beide Mengen. Stelle den Abstand ein, um den die erste Menge größer ist.',
+            minValue: 0,
+            maxValue: max(1, first),
+            startValue: 0,
+            dataValues: <int>[first, second],
+            expectedAnswer: answer,
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.wordProblems &&
+        taskKey.startsWith('story:transfer:reverse:')) {
+      final parts = taskKey.split(':');
+      if (parts.length == 5) {
+        final finalAmount = int.tryParse(parts[3]);
+        final gaveAway = int.tryParse(parts[4]);
+        if (finalAmount != null &&
+            gaveAway != null &&
+            finalAmount >= 0 &&
+            gaveAway > 0 &&
+            answer == finalAmount + gaveAway) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.inverseFamilyMachine,
+            instruction:
+                'Gehe die Veränderung rückwärts: Was musst du zum Rest wieder dazunehmen, um die Menge vorher zu finden?',
+            dataValues: <int>[answer, gaveAway, finalAmount],
+            dataOperation: 'subtract-story',
+            expectedAnswer: answer,
+            maxValue: max(maxValue, answer),
           );
         }
       }

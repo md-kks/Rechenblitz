@@ -346,6 +346,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildStoryEquationBuilder(context),
             TouchInteractionKind.storyInterpretationBuilder =>
               _buildStoryInterpretationBuilder(context),
+            TouchInteractionKind.storyDifferenceGap =>
+              _buildStoryDifferenceGap(context),
             TouchInteractionKind.writtenErrorInspector =>
               _buildWrittenErrorInspector(context),
             TouchInteractionKind.mentalChunkPath =>
@@ -456,6 +458,82 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                   ),
           icon: const Icon(Icons.check_rounded),
           label: const Text('Angaben prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoryDifferenceGap(BuildContext context) {
+    final values = widget.plan.dataValues;
+    if (values.length < 2) return const SizedBox.shrink();
+    final first = values[0];
+    final second = values[1];
+    final span = math.max(1, widget.plan.maxValue - widget.plan.minValue);
+
+    Widget amountBar(String label, int value, double width) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$label: $value',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              height: 22,
+              width: width,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 2,
+                ),
+                color: Theme.of(context).colorScheme.primaryContainer,
+              ),
+            ),
+          ],
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = math.max(120.0, math.min(420.0, constraints.maxWidth));
+            final secondWidth = first == 0 ? width : width * second / first;
+            return Column(
+              key: const ValueKey('touch-story-difference-bars'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                amountBar('Erste Klasse', first, width),
+                const SizedBox(height: 10),
+                amountBar('Zweite Klasse', second, secondWidth),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Unterschied: $selectedValue',
+          key: const ValueKey('touch-story-difference-value'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        Slider(
+          key: const ValueKey('touch-story-difference-slider'),
+          value: selectedValue.toDouble(),
+          min: widget.plan.minValue.toDouble(),
+          max: widget.plan.maxValue.toDouble(),
+          divisions: span,
+          label: '$selectedValue',
+          onChanged: widget.locked
+              ? null
+              : (value) => setState(() => selectedValue = value.round()),
+        ),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-story-difference-submit'),
+          onPressed: widget.locked ? null : () => widget.onAnswer(selectedValue),
+          icon: const Icon(Icons.compare_arrows_rounded),
+          label: const Text('Unterschied prüfen'),
         ),
       ],
     );
@@ -922,13 +1000,25 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final operand = values[1];
     final result = values[2];
     final multiply = widget.plan.dataOperation?.startsWith('multiply') ?? false;
+    final subtractStory =
+        widget.plan.dataOperation?.startsWith('subtract-story') ?? false;
     final skipOperation =
         widget.plan.dataOperation?.endsWith(':skip-operation') ?? false;
-    final sourceOperation = multiply ? '×$operand' : '+$operand';
-    final inverseOperation = multiply ? '÷$operand' : '−$operand';
-    final options = multiply
-        ? <String>['×$operand', '÷$operand']
-        : <String>['+$operand', '−$operand'];
+    final sourceOperation = subtractStory
+        ? '−$operand'
+        : multiply
+            ? '×$operand'
+            : '+$operand';
+    final inverseOperation = subtractStory
+        ? '+$operand'
+        : multiply
+            ? '÷$operand'
+            : '−$operand';
+    final options = subtractStory
+        ? <String>['−$operand', '+$operand']
+        : multiply
+            ? <String>['×$operand', '÷$operand']
+            : <String>['+$operand', '−$operand'];
     final operationReady = skipOperation || selectedInverseOperation != null;
     final operationCorrect = skipOperation || selectedInverseOperation == 1;
     final expected = widget.plan.expectedAnswer ?? start;
@@ -966,7 +1056,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            valueChip('$start'),
+            valueChip(subtractStory ? '?' : '$start'),
             const Icon(Icons.arrow_forward_rounded),
             Chip(label: Text(sourceOperation)),
             const Icon(Icons.arrow_forward_rounded),
@@ -1021,10 +1111,12 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         ],
         if (operationReady) ...[
           const SizedBox(height: 12),
-          const Text(
-            'Welche Zahl muss am Ende wieder herauskommen?',
+          Text(
+            subtractStory
+                ? 'Wie viele waren vor dem Weggeben da?'
+                : 'Welche Zahl muss am Ende wieder herauskommen?',
             textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.w700),
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           NumberAnswerPad(
