@@ -28,6 +28,7 @@ enum TouchInteractionKind {
   storyRelevantFacts,
   storyOperationRelation,
   storyEquationBuilder,
+  storyInterpretationBuilder,
   mentalChunkPath,
   strategyAnchorJump,
   arithmeticLawStructure,
@@ -533,6 +534,68 @@ class TouchInteractionPlan {
               expectedAnswer: answer,
             );
           }
+        }
+      }
+    }
+
+    if (mode == TrainingMode.wordProblems &&
+        taskKey.startsWith('story:interpret:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      if (parts.length == 6) {
+        final operation = parts[2];
+        final a = int.tryParse(parts[3]);
+        final b = int.tryParse(parts[4]);
+        final result = int.tryParse(parts[5]);
+        if ((operation == '+' || operation == '-') &&
+            a != null &&
+            b != null &&
+            result != null) {
+          final correctMeaning = operation == '+'
+              ? 'Endbestand – so viele sind jetzt da'
+              : 'Restbestand – so viele bleiben übrig';
+          final rawMeanings = operation == '+'
+              ? <String>[
+                  correctMeaning,
+                  'Abgabe – so viele wurden weggegeben',
+                  'Zuwachs – so viele kommen noch dazu',
+                  'Anfangsbestand – so viele waren vorher da',
+                ]
+              : <String>[
+                  correctMeaning,
+                  'Abgabe – so viele wurden weggenommen',
+                  'Anfangsbestand – so viele waren vorher da',
+                  'Zuwachs – so viele kommen dazu',
+                ];
+          final meaningShift = result % rawMeanings.length;
+          final meanings = <String>[
+            ...rawMeanings.skip(meaningShift),
+            ...rawMeanings.take(meaningShift),
+          ];
+          final correctUnit = operation == '+' ? 'Sticker' : 'Karten';
+          final rawUnits = <String>[correctUnit, 'Kinder', operation == '+' ? 'Karten' : 'Sticker'];
+          final unitShift = (a + b) % rawUnits.length;
+          final units = <String>[
+            ...rawUnits.skip(unitShift),
+            ...rawUnits.take(unitShift),
+          ];
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.storyInterpretationBuilder,
+            instruction:
+                'Deute das Ergebnis: Was bedeutet die Zahl in der Situation und wozu gehört sie?',
+            dataValues: <int>[a, b, result],
+            dataLabels: meanings,
+            selectionLabels: units,
+            correctSelectionIndexes: <int>[
+              meanings.indexOf(correctMeaning),
+              units.indexOf(correctUnit),
+            ],
+            dataOperation: operation,
+            expectedAnswer: answer,
+            answerChoices: choices,
+          );
         }
       }
     }
