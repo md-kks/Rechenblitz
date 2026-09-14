@@ -1334,6 +1334,43 @@ class TouchInteractionPlan {
       );
     }
 
+    if (mode == TrainingMode.doublesHalves &&
+        (taskKey.startsWith('double:') || taskKey.startsWith('half:'))) {
+      final parts = taskKey.split(':');
+      final value = parts.length == 2 ? int.tryParse(parts[1]) : null;
+      if (value != null && value > 0) {
+        if (taskKey.startsWith('double:')) {
+          final total = value * 2;
+          if (total <= 24) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.equalGroupsBuilder,
+              instruction: targetCompetency == MicroCompetencyId.doublesHalves
+                  ? 'Die Bedeutung von „doppelt“ wurde schon geprüft. Baue jetzt zwei gleich große Gruppen mit je $value Punkten.'
+                  : 'Baue zwei gleich große Gruppen mit je $value Punkten. Zusammen zeigen sie das Doppelte.',
+              groupCount: 2,
+              itemsPerGroup: value,
+              totalItems: total,
+              expectedAnswer: answer,
+            );
+          }
+        } else if (value <= 24 && value.isEven) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.divisionGroupsBuilder,
+            instruction: targetCompetency == MicroCompetencyId.doublesHalves
+                ? 'Die Bedeutung von „Hälfte“ wurde schon geprüft. Verteile jetzt alle $value Punkte fair auf zwei gleich große Gruppen.'
+                : 'Verteile alle $value Punkte fair auf zwei gleich große Gruppen. Eine Gruppe ist die Hälfte.',
+            totalItems: value,
+            groupCount: 2,
+            itemsPerGroup: value ~/ 2,
+            divisionGrouping: false,
+            expectedAnswer: answer,
+          );
+        }
+      }
+    }
+
     if (maxValue > 100) return null;
 
     if (mode == TrainingMode.numberWall &&

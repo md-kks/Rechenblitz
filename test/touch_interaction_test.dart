@@ -5217,6 +5217,138 @@ void main() {
     expect(find.byKey(const ValueKey('touch-scale-ratio')), findsOneWidget);
   });
 
+  test('doubles and halves reuse equal-group manipulatives for small quantities', () {
+    final doublePlan = TouchInteractionPlan.forTask(
+      mode: TrainingMode.doublesHalves,
+      taskKey: 'double:7',
+      answer: 14,
+      maxValue: 20,
+    );
+    final halfPlan = TouchInteractionPlan.forTask(
+      mode: TrainingMode.doublesHalves,
+      taskKey: 'half:14',
+      answer: 7,
+      maxValue: 20,
+    );
+
+    expect(doublePlan, isNotNull);
+    expect(doublePlan!.kind, TouchInteractionKind.equalGroupsBuilder);
+    expect(doublePlan.groupCount, 2);
+    expect(doublePlan.itemsPerGroup, 7);
+    expect(doublePlan.totalItems, 14);
+
+    expect(halfPlan, isNotNull);
+    expect(halfPlan!.kind, TouchInteractionKind.divisionGroupsBuilder);
+    expect(halfPlan.groupCount, 2);
+    expect(halfPlan.totalItems, 14);
+    expect(halfPlan.divisionGrouping, isFalse);
+  });
+
+  test('large doubles and halves keep the classic input instead of click-heavy grids', () {
+    expect(
+      TouchInteractionPlan.forTask(
+        mode: TrainingMode.doublesHalves,
+        taskKey: 'double:20',
+        answer: 40,
+        maxValue: 100,
+      ),
+      isNull,
+    );
+    expect(
+      TouchInteractionPlan.forTask(
+        mode: TrainingMode.doublesHalves,
+        taskKey: 'half:40',
+        answer: 20,
+        maxValue: 100,
+      ),
+      isNull,
+    );
+  });
+
+  testWidgets('targeted double shows two-group touch only after meaning checkpoint',
+      (tester) async {
+    final controller = await _controller();
+    const exercise = StructuredExercise(
+      mode: TrainingMode.doublesHalves,
+      prompt: 'Was ist das Doppelte von 4?',
+      answer: 8,
+      hint: 'Doppelt bedeutet: 4 + 4.',
+      key: 'double:4',
+      checkpoints: <ExerciseCheckpoint>[
+        ExerciseCheckpoint(
+          key: 'doubleHalfMeaning',
+          question: 'Was bedeutet „das Doppelte“?',
+          choices: <String>[
+            'zweimal dieselbe Menge zusammen',
+            'in zwei gleich große Teile teilen',
+          ],
+          correctChoice: 0,
+          competencyId: MicroCompetencyId.doublesHalves,
+          evidenceWeight: 0.40,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.doublesHalves,
+          targetCompetency: MicroCompetencyId.doublesHalves,
+          targetTasks: 1,
+          exerciseGenerator: _FixedStructuredGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('touch-equal-group-0')), findsNothing);
+    final meaning = find.widgetWithText(
+      FilledButton,
+      'zweimal dieselbe Menge zusammen',
+    );
+    await tester.ensureVisible(meaning);
+    await tester.tap(meaning);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byKey(const ValueKey('touch-equal-group-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-equal-group-1')), findsOneWidget);
+    expect(find.textContaining('Bedeutung von „doppelt“ wurde schon geprüft'), findsOneWidget);
+  });
+
+  testWidgets('double-half group touch stays stable at 200 percent text scale',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'half:12',
+      kind: TouchInteractionKind.divisionGroupsBuilder,
+      instruction: 'Verteile alle 12 Punkte fair auf zwei Gruppen.',
+      totalItems: 12,
+      groupCount: 2,
+      itemsPerGroup: 6,
+      divisionGrouping: false,
+      expectedAnswer: 6,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-sharing-group-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-sharing-group-1')), findsOneWidget);
+  });
+
 }
 
 void _noopAnswer(int value) {}
