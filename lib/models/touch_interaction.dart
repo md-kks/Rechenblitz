@@ -28,6 +28,7 @@ enum TouchInteractionKind {
   romanNumeralReader,
   romanNumeralBuilder,
   inverseFamilyMachine,
+  numberBondComposer,
   writtenColumnProcedure,
   writtenMultiplicationProcedure,
   writtenDivisionProcedure,
@@ -1332,6 +1333,28 @@ class TouchInteractionPlan {
         maxValue: number + 3,
         startValue: number,
       );
+    }
+
+    if (mode == TrainingMode.numberFriends && taskKey.startsWith('plus:')) {
+      final parts = taskKey.split(':');
+      if (parts.length == 3) {
+        final known = int.tryParse(parts[1]);
+        final missing = int.tryParse(parts[2]);
+        if (known != null && missing != null) {
+          final target = known + missing;
+          if (target > 0 && target <= 20 && answer == missing) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.numberBondComposer,
+              instruction:
+                  'Baue den fehlenden Teil so, dass beide Teile zusammen genau $target ergeben.',
+              dataValues: <int>[target, known],
+              expectedAnswer: answer,
+              maxValue: target,
+            );
+          }
+        }
+      }
     }
 
     if (mode == TrainingMode.doublesHalves &&

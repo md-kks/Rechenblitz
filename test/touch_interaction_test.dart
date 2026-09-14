@@ -5349,6 +5349,125 @@ void main() {
     expect(find.byKey(const ValueKey('touch-sharing-group-1')), findsOneWidget);
   });
 
+
+  test('number friends use a bond composer only for child-sized targets', () {
+    final small = TouchInteractionPlan.forTask(
+      mode: TrainingMode.numberFriends,
+      taskKey: 'plus:6:4',
+      answer: 4,
+      maxValue: 20,
+    );
+    final large = TouchInteractionPlan.forTask(
+      mode: TrainingMode.numberFriends,
+      taskKey: 'plus:30:20',
+      answer: 20,
+      maxValue: 100,
+    );
+
+    expect(small, isNotNull);
+    expect(small!.kind, TouchInteractionKind.numberBondComposer);
+    expect(small.dataValues, <int>[10, 6]);
+    expect(small.expectedAnswer, 4);
+    expect(large, isNull);
+  });
+
+  testWidgets('number bond requires the exact missing part', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'plus:6:4',
+      kind: TouchInteractionKind.numberBondComposer,
+      instruction: 'Baue den fehlenden Teil.',
+      dataValues: <int>[10, 6],
+      expectedAnswer: 4,
+      maxValue: 10,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const ValueKey('touch-number-bond-add')));
+      await tester.pump();
+    }
+    await tester.tap(find.byKey(const ValueKey('touch-number-bond-submit')));
+    await tester.pump();
+    expect(answer, isNot(4));
+
+    await tester.tap(find.byKey(const ValueKey('touch-number-bond-add')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-number-bond-submit')));
+    await tester.pump();
+    expect(answer, 4);
+  });
+
+  testWidgets('number friends default to decomposition touch and keep keypad fallback',
+      (tester) async {
+    final controller = await _controller();
+    controller.numberRange = NumberRangeLevel.twenty;
+    controller.facts = <MathFact>[
+      MathFact(a: 6, b: 4, operation: MathOperation.plus),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainingScreen(
+          controller: controller,
+          mode: TrainingMode.numberFriends,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.numberDecomposition,
+          reviewEmphasis: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('10 = 6 + ?'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-number-bond-groups')), findsOneWidget);
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.ensureVisible(fallback);
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.byType(NumberAnswerPad), findsOneWidget);
+  });
+
+  testWidgets('number bond stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'plus:11:9',
+      kind: TouchInteractionKind.numberBondComposer,
+      instruction: 'Baue den fehlenden Teil.',
+      dataValues: <int>[20, 11],
+      expectedAnswer: 9,
+      maxValue: 20,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-number-bond-missing')), findsOneWidget);
+  });
+
 }
 
 void _noopAnswer(int value) {}

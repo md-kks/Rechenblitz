@@ -58,6 +58,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   String romanReadFeedback = '';
   final List<String> romanBuiltSymbols = <String>[];
   int? selectedInverseOperation;
+  int numberBondMissing = 0;
   int writtenColumnIndex = 0;
   int writtenIncomingCarry = 0;
   int? selectedWrittenDigit;
@@ -297,6 +298,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildRomanNumeralBuilder(context),
             TouchInteractionKind.inverseFamilyMachine =>
               _buildInverseFamilyMachine(context),
+            TouchInteractionKind.numberBondComposer =>
+              _buildNumberBondComposer(context),
             TouchInteractionKind.writtenColumnProcedure =>
               _buildWrittenColumnProcedure(context),
             TouchInteractionKind.writtenMultiplicationProcedure =>
@@ -469,6 +472,73 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                     ),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildNumberBondComposer(BuildContext context) {
+    final values = widget.plan.dataValues;
+    if (values.length < 2) return const SizedBox.shrink();
+    final target = values[0];
+    final known = values[1];
+    final expected = widget.plan.expectedAnswer ?? math.max(0, target - known);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Zielzahl: $target',
+          key: const ValueKey('touch-number-bond-target'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          key: const ValueKey('touch-number-bond-groups'),
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _StaticCounterGroup(label: 'Bekannter Teil', count: known),
+            const Icon(Icons.add_rounded),
+            _CounterGroupCard(
+              key: const ValueKey('touch-number-bond-missing'),
+              label: 'Fehlender Teil',
+              count: numberBondMissing,
+              onAdd: widget.locked || numberBondMissing >= target
+                  ? null
+                  : () => setState(() => numberBondMissing += 1),
+              onRemove: widget.locked || numberBondMissing == 0
+                  ? null
+                  : () => setState(() => numberBondMissing -= 1),
+              addKey: const ValueKey('touch-number-bond-add'),
+              removeKey: const ValueKey('touch-number-bond-remove'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '$known + $numberBondMissing sollen zusammen $target ergeben.',
+          key: const ValueKey('touch-number-bond-equation'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-number-bond-submit'),
+          onPressed: widget.locked
+              ? null
+              : () => widget.onAnswer(
+                    numberBondMissing == expected
+                        ? expected
+                        : _wrongAnswer(numberBondMissing, expected),
+                  ),
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Zerlegung prüfen'),
+        ),
       ],
     );
   }
