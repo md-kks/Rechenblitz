@@ -25,6 +25,9 @@ enum TouchInteractionKind {
   largeNumberDecompose,
   largeNumberPlaceDigit,
   numberWordPlaceValueBuilder,
+  storyRelevantFacts,
+  storyOperationRelation,
+  storyEquationBuilder,
   mentalChunkPath,
   strategyAnchorJump,
   arithmeticLawStructure,
@@ -410,6 +413,126 @@ class TouchInteractionPlan {
             expectedAnswer: answer,
             maxValue: maxValue,
           );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.wordProblems &&
+        taskKey.startsWith('story:info:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      if (parts.length == 6) {
+        final first = int.tryParse(parts[3]);
+        final second = int.tryParse(parts[4]);
+        final irrelevant = int.tryParse(parts[5]);
+        if (first != null && second != null && irrelevant != null) {
+          final labels = switch (parts[2]) {
+            'trip' => <String>[
+                '$first Kinder',
+                '$second Erwachsene',
+                '$irrelevant Bälle',
+              ],
+            'pencils' => <String>[
+                '$first rote Stifte',
+                '$second blaue Stifte',
+                '$irrelevant leere Schachteln',
+              ],
+            'groups' => <String>[
+                '$first Kinder in Gruppe 1',
+                '$second Kinder in Gruppe 2',
+                '$irrelevant Buchseiten',
+              ],
+            _ => const <String>[],
+          };
+          if (labels.length == 3) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.storyRelevantFacts,
+              instruction:
+                  'Markiere nur die Angaben, die du für die Frage wirklich brauchst.',
+              selectionLabels: labels,
+              correctSelectionIndexes: const <int>[0, 1],
+              answerChoices: choices,
+              expectedAnswer: answer,
+              dataOperation: 'relevant-info',
+            );
+          }
+        }
+      }
+    }
+
+    if (mode == TrainingMode.wordProblems &&
+        taskKey.startsWith('story:operation:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      if (parts.length == 5) {
+        final a = int.tryParse(parts[3]);
+        final b = int.tryParse(parts[4]);
+        final operation = parts[2];
+        if (a != null && b != null) {
+          const all = <String>['+', '-', 'x', 'divide'];
+          bool present(String op) => switch (op) {
+                '+' => choices.any((choice) => choice.contains('Plus')),
+                '-' => choices.any((choice) => choice.contains('Minus')),
+                'x' => choices.any((choice) => choice.contains('Mal')),
+                'divide' => choices.any((choice) => choice.contains('Geteilt')),
+                _ => false,
+              };
+          final operations = all.where(present).toList(growable: false);
+          final correct = operations.indexOf(operation);
+          if (correct >= 0) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.storyOperationRelation,
+              instruction:
+                  'Wähle die mathematische Beziehung, die zur Situation passt.',
+              dataValues: <int>[a, b],
+              dataLabels: operations,
+              dataOperation: operation,
+              correctSelectionIndexes: <int>[correct],
+              answerChoices: choices,
+              expectedAnswer: answer,
+            );
+          }
+        }
+      }
+    }
+
+    if (mode == TrainingMode.wordProblems &&
+        taskKey.startsWith('story:equation:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      if (parts.length == 5) {
+        final a = int.tryParse(parts[3]);
+        final b = int.tryParse(parts[4]);
+        final operation = parts[2];
+        if (a != null && b != null) {
+          const symbols = <String, String>{
+            '+': '+',
+            '-': '−',
+            'x': '×',
+            'divide': '÷',
+          };
+          final operations = symbols.entries
+              .where((entry) => choices.any((choice) => choice.contains(' ${entry.value} ')))
+              .map((entry) => entry.key)
+              .toList(growable: false);
+          if (operations.contains(operation)) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.storyEquationBuilder,
+              instruction:
+                  'Baue aus den beiden Angaben und dem passenden Rechenzeichen die Rechnung.',
+              dataValues: <int>[a, b],
+              dataLabels: operations,
+              dataOperation: operation,
+              answerChoices: choices,
+              expectedAnswer: answer,
+            );
+          }
         }
       }
     }

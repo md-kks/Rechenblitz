@@ -3916,9 +3916,10 @@ void main() {
     );
     await tester.pump();
 
-    final answerButtons = find.byType(FilledButton);
-    expect(answerButtons, findsWidgets);
-    await tester.tap(answerButtons.first);
+    expect(find.byKey(const ValueKey('touch-story-operations')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-story-operation-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-story-operation-submit')));
     await tester.pump();
 
     final steps = controller.microObservations

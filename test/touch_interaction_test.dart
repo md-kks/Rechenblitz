@@ -6248,6 +6248,215 @@ void main() {
     expect(find.byKey(const ValueKey('touch-length-ruler-slider')), findsOneWidget);
   });
 
+  test('word-problem modeling planner covers facts operation and equation', () {
+    final facts = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:info:trip:6:2:3',
+      answer: 2,
+      maxValue: 20,
+      choices: const <String>[
+        '6 Kinder und 3 Bälle',
+        'Nur die 3 Bälle',
+        '6 Kinder und 2 Erwachsene',
+        '2 Erwachsene und 3 Bälle',
+      ],
+    );
+    final operation = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:operation:x:4:3',
+      answer: 2,
+      maxValue: 20,
+      choices: const <String>[
+        'Geteilt (÷)',
+        'Plus (+)',
+        'Mal (×)',
+        'Minus (−)',
+      ],
+    );
+    final equation = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:equation:-:9:4',
+      answer: 1,
+      maxValue: 20,
+      choices: const <String>['9 + 4', '9 − 4', '4 − 9', '9 − 3'],
+    );
+
+    expect(facts?.kind, TouchInteractionKind.storyRelevantFacts);
+    expect(facts?.selectionLabels, <String>['6 Kinder', '2 Erwachsene', '3 Bälle']);
+    expect(facts?.correctSelectionIndexes, <int>[0, 1]);
+    expect(operation?.kind, TouchInteractionKind.storyOperationRelation);
+    expect(operation?.dataOperation, 'x');
+    expect(operation?.dataLabels, containsAll(<String>['+', '-', 'x', 'divide']));
+    expect(equation?.kind, TouchInteractionKind.storyEquationBuilder);
+    expect(equation?.dataValues, <int>[9, 4]);
+    expect(equation?.dataOperation, '-');
+  });
+
+  testWidgets('relevant facts require the exact information set', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:info:trip:6:2:3',
+      kind: TouchInteractionKind.storyRelevantFacts,
+      instruction: 'Markiere wichtige Angaben.',
+      selectionLabels: <String>['6 Kinder', '2 Erwachsene', '3 Bälle'],
+      correctSelectionIndexes: <int>[0, 1],
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('touch-story-fact-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-fact-2')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-story-facts-submit')));
+    expect(answer, isNot(2), reason: 'Gleiche Anzahl markierter Angaben darf nicht genügen.');
+
+    await tester.tap(find.byKey(const ValueKey('touch-story-fact-2')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-fact-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-story-facts-submit')));
+    expect(answer, 2);
+  });
+
+  testWidgets('story operation uses the mathematical relation', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:operation:x:4:3',
+      kind: TouchInteractionKind.storyOperationRelation,
+      instruction: 'Wähle die Beziehung.',
+      dataLabels: <String>['+', '-', 'x', 'divide'],
+      correctSelectionIndexes: <int>[2],
+      expectedAnswer: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('touch-story-operation-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-operation-submit')));
+    expect(answer, isNot(1));
+    await tester.tap(find.byKey(const ValueKey('touch-story-operation-2')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-story-operation-submit')));
+    expect(answer, 1);
+  });
+
+  testWidgets('story equation checks operation and operand order', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:equation:-:9:4',
+      kind: TouchInteractionKind.storyEquationBuilder,
+      instruction: 'Baue die Rechnung.',
+      dataValues: <int>[9, 4],
+      dataLabels: <String>['+', '-'],
+      dataOperation: '-',
+      expectedAnswer: 3,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: (value) => answer = value),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-left-1')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-op-1')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-right-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-submit')));
+    expect(answer, isNot(3), reason: 'Bei Minus muss die Reihenfolge der Größen stimmen.');
+
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-left-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-right-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-submit')));
+    expect(answer, 3);
+  });
+
+  testWidgets('word-problem modeling defaults to touch and keeps text fallback', (tester) async {
+    final controller = await _controller();
+    const exercise = StructuredExercise(
+      mode: TrainingMode.wordProblems,
+      prompt: 'Zu einem Ausflug fahren 6 Kinder und 2 Erwachsene mit. Außerdem werden 3 Bälle eingepackt. Welche Angaben brauchst du?',
+      answer: 2,
+      hint: 'Achte auf Personen.',
+      key: 'story:info:trip:6:2:3',
+      choices: <String>[
+        '6 Kinder und 3 Bälle',
+        'Nur die 3 Bälle',
+        '6 Kinder und 2 Erwachsene',
+        '2 Erwachsene und 3 Bälle',
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.wordProblems,
+          targetCompetency: MicroCompetencyId.wordProblemRelevantInformation,
+          targetTasks: 1,
+          exerciseGenerator: _FixedStructuredGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-story-facts')), findsOneWidget);
+    await tester.drag(
+      find.byKey(const ValueKey('structured-training-scroll')),
+      const Offset(0, -520),
+    );
+    await tester.pump();
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    expect(fallback, findsOneWidget);
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.text('6 Kinder und 2 Erwachsene'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-switch-interaction')), findsOneWidget);
+  });
+
+  testWidgets('story modeling stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:equation:divide:12:3',
+      kind: TouchInteractionKind.storyEquationBuilder,
+      instruction: 'Baue die passende Rechnung.',
+      dataValues: <int>[12, 3],
+      dataLabels: <String>['+', '-', 'divide'],
+      dataOperation: 'divide',
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-story-equation-builder')), findsOneWidget);
+  });
+
 }
 
 void _noopAnswer(int value) {}
