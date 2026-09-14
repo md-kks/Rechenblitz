@@ -4,6 +4,12 @@ on:
   push:
     branches: ['**']
   workflow_dispatch:
+    inputs:
+      build_android:
+        description: 'Android APK/AAB bauen und prüfen'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   test:
@@ -22,6 +28,7 @@ jobs:
             python3 -c 'import json,sys; print(json.load(sys.stdin)["frameworkVersion"])')"
           test "$actual" = "3.47.2"
       - name: Configure Android release signing
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         shell: bash
         env:
           ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
@@ -59,8 +66,10 @@ jobs:
           git diff --exit-code -- pubspec.lock
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build apk --release
+      - if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
+        run: flutter build apk --release
       - name: Verify release APK signature
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         shell: bash
         run: |
           set -euo pipefail
@@ -70,6 +79,7 @@ jobs:
           test -x "$APKSIGNER"
           "$APKSIGNER" verify --verbose --print-certs             build/app/outputs/flutter-apk/app-release.apk
       - name: Verify release privacy permissions
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         shell: bash
         run: |
           set -euo pipefail
@@ -107,6 +117,7 @@ jobs:
             fi
           done
       - name: Verify local-only Android backup policy
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         shell: bash
         run: |
           set -euo pipefail
@@ -121,6 +132,7 @@ jobs:
           grep -Fq 'android:fullBackupContent="false"' <<< "$MANIFEST"
           grep -Fq 'android:dataExtractionRules=' <<< "$MANIFEST"
       - name: Verify optional camera hardware
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         shell: bash
         run: |
           set -euo pipefail
@@ -145,6 +157,7 @@ jobs:
             fi
           done
       - name: Verify Android 16 KB page size compatibility
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         shell: bash
         run: |
           set -euo pipefail
@@ -210,12 +223,15 @@ jobs:
           fi
           exit "$failed"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         with:
           name: Rechenblitz-Release-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
-      - run: flutter build appbundle --release
+      - if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
+        run: flutter build appbundle --release
       - name: Verify release AAB signature
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         shell: bash
         run: |
           set -euo pipefail
@@ -223,6 +239,7 @@ jobs:
           keytool -printcert -jarfile "$AAB" > /dev/null
           jarsigner -verify "$AAB" > /dev/null
       - name: Validate release AAB with bundletool
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         shell: bash
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -285,18 +302,21 @@ jobs:
           BADGING="$("$AAPT2" dump badging "$UNIVERSAL_APK")"
           grep -Eq "^package: name='de\.mdkks\.rechenblitz' versionCode='[1-9][0-9]*' versionName='[^']+'" <<< "$BADGING"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         with:
           name: Rechenblitz-Release-AAB
           path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
-      - run: flutter build apk --debug
+      - if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
+        run: flutter build apk --debug
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         with:
           name: Rechenblitz-Debug-APK
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
       - name: Remove Android signing material
-        if: always()
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.build_android }}
         shell: bash
         run: |
           rm -f "${RECHENBLITZ_KEY_PROPERTIES:-}"
