@@ -7166,6 +7166,207 @@ void main() {
     expect(find.byKey(const ValueKey('touch-family-forward')), findsOneWidget);
   });
 
+
+  test('reasoning planner covers compensate commute and distribute', () {
+    final compensate = TouchInteractionPlan.forTask(
+      mode: TrainingMode.arithmeticLaws,
+      taskKey: 'process:reasoning:compensate:27:35:2',
+      answer: 1,
+      maxValue: 100,
+      choices: const <String>['a', 'b', 'c', 'd'],
+    );
+    final targeted = TouchInteractionPlan.forTask(
+      mode: TrainingMode.arithmeticLaws,
+      taskKey: 'process:reasoning:commute:6:8',
+      answer: 2,
+      maxValue: 100,
+      choices: const <String>['a', 'b', 'c', 'd'],
+      targetCompetency: MicroCompetencyId.reasoningJustification,
+    );
+    final distribute = TouchInteractionPlan.forTask(
+      mode: TrainingMode.arithmeticLaws,
+      taskKey: 'process:reasoning:distribute:7:38:40:2',
+      answer: 0,
+      maxValue: 100,
+      choices: const <String>['a', 'b', 'c', 'd'],
+    );
+
+    expect(compensate?.kind, TouchInteractionKind.reasoningJustificationBuilder);
+    expect(compensate?.dataValues, <int>[27, 35, 2, 25, 37]);
+    expect(compensate?.dataOperation, 'compensate');
+    expect(targeted?.kind, TouchInteractionKind.reasoningJustificationBuilder);
+    expect(targeted?.dataOperation, 'commute:skip-relation');
+    expect(distribute?.kind, TouchInteractionKind.reasoningJustificationBuilder);
+    expect(distribute?.dataValues, <int>[7, 38, 40, 2]);
+  });
+
+  testWidgets('reasoning builder requires relation and causal reason', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'process:reasoning:compensate:27:35:2',
+      kind: TouchInteractionKind.reasoningJustificationBuilder,
+      instruction: 'Baue die Begründung.',
+      dataValues: <int>[27, 35, 2, 25, 37],
+      dataOperation: 'compensate',
+      expectedAnswer: 2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-relation-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-cause-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-submit')));
+    expect(answer, isNot(2));
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-relation-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-cause-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-submit')));
+    expect(answer, isNot(2));
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-cause-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-submit')));
+    expect(answer, 2);
+  });
+
+  testWidgets('distributive reasoning keeps factor in the correction', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'process:reasoning:distribute:7:38:40:2',
+      kind: TouchInteractionKind.reasoningJustificationBuilder,
+      instruction: 'Begründe den Rechenweg.',
+      dataValues: <int>[7, 38, 40, 2],
+      dataOperation: 'distribute',
+      expectedAnswer: 3,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('7 × 38 = 7 × 40 − 14'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-relation-2')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-cause-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-submit')));
+    expect(answer, isNot(3));
+
+    answer = -1;
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-cause-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-reasoning-submit')));
+    expect(answer, 3);
+  });
+
+  testWidgets('targeted reasoning continues after relation checkpoint', (tester) async {
+    final controller = await _controller();
+    const exercise = CurriculumExercise(
+      mode: TrainingMode.arithmeticLaws,
+      prompt: '27 + 35 = 25 + 37. Welche Begründung passt?',
+      answer: 0,
+      hint: 'Vergleiche beide Summanden.',
+      key: 'process:reasoning:compensate:27:35:2',
+      choices: <String>[
+        'Ein Summand wird um 2 kleiner, der andere um 2 größer. Deshalb bleibt die Summe gleich.',
+        'Beide Summanden werden um 2 kleiner.',
+        'Die Summanden werden nur vertauscht.',
+        'Man darf immer 2 von beiden Summanden abziehen.',
+      ],
+      method: 'Rechenbeziehung begründen',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.arithmeticLaws,
+          targetCompetency: MicroCompetencyId.reasoningJustification,
+          targetTasks: 1,
+          exerciseGenerator: _FixedCurriculumGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Welche Rechenbeziehung liegt hier vor?'), findsOneWidget);
+    await tester.tap(find.text('ein Summand kleiner, der andere gleich viel größer'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      find.byKey(const ValueKey('touch-reasoning-relation-checked')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('touch-reasoning-relations')), findsNothing);
+
+    final fallback = find.byKey(const ValueKey('touch-switch-choices'));
+    await tester.scrollUntilVisible(
+      fallback,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(
+      find.text('Ein Summand wird um 2 kleiner, der andere um 2 größer. Deshalb bleibt die Summe gleich.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('reasoning touch stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'process:reasoning:commute:6:8',
+      kind: TouchInteractionKind.reasoningJustificationBuilder,
+      instruction: 'Begründe den Rechenweg.',
+      dataValues: <int>[6, 8],
+      dataOperation: 'commute:skip-relation',
+      expectedAnswer: 0,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey('touch-reasoning-relation-checked')),
+      findsOneWidget,
+    );
+  });
+
 }
 
 void _noopAnswer(int value) {}

@@ -65,6 +65,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final Set<int> selectedLawTerms = <int>{};
   final List<int> selectedLawOrder = <int>[];
   int? selectedLawGap;
+  int? selectedReasoningRelation;
+  int? selectedReasoningCause;
   int romanReadIndex = 0;
   int? selectedRomanBlockValue;
   String romanReadFeedback = '';
@@ -194,6 +196,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedLawTerms.clear();
     selectedLawOrder.clear();
     selectedLawGap = null;
+    selectedReasoningRelation = null;
+    selectedReasoningCause = null;
     romanReadIndex = 0;
     selectedRomanBlockValue = null;
     romanReadFeedback = '';
@@ -356,6 +360,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildStrategyAnchorJump(context),
             TouchInteractionKind.arithmeticLawStructure =>
               _buildArithmeticLawStructure(context),
+            TouchInteractionKind.reasoningJustificationBuilder =>
+              _buildReasoningJustification(context),
             TouchInteractionKind.romanNumeralReader =>
               _buildRomanNumeralReader(context),
             TouchInteractionKind.romanNumeralBuilder =>
@@ -1838,6 +1844,153 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                     ),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildReasoningJustification(BuildContext context) {
+    final rawOperation = widget.plan.dataOperation ?? '';
+    final family = rawOperation.split(':').first;
+    final skipRelation = rawOperation.endsWith(':skip-relation');
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final relationIndex = switch (family) {
+      'compensate' => 0,
+      'commute' => 1,
+      'distribute' => 2,
+      _ => -1,
+    };
+    const relationLabels = <String>[
+      'Ausgleichen: eine Zahl kleiner, die andere gleich viel größer',
+      'Vertauschen: gleiche Faktoren, andere Reihenfolge',
+      'Verteilen: derselbe Faktor wirkt auf mehrere Teile',
+    ];
+    final relationCorrect =
+        skipRelation || selectedReasoningRelation == relationIndex;
+    final relationReady = skipRelation || selectedReasoningRelation != null;
+
+    final causeLabels = switch (family) {
+      'compensate' => <String>[
+          'Verlust und Gewinn sind gleich groß und gleichen sich aus.',
+          'Beide Summanden werden kleiner, deshalb bleibt die Summe gleich.',
+          'Nur die Reihenfolge der Summanden ändert sich.',
+        ],
+      'commute' => <String>[
+          'Es bleiben genau dieselben beiden Faktoren; nur ihre Reihenfolge wechselt.',
+          'Beide Faktoren werden verdoppelt und gleichen sich dadurch aus.',
+          'Ein Faktor kann weggelassen werden, wenn die Reihenfolge wechselt.',
+        ],
+      'distribute' => <String>[
+          'Der Abstand zur glatten Zahl muss mit demselben Faktor multipliziert werden.',
+          'Es reicht, nur den Abstand zur glatten Zahl abzuziehen.',
+          'Die Korrektur hängt nur von der glatten Zahl ab, nicht vom Faktor.',
+        ],
+      _ => const <String>[],
+    };
+
+    Widget structureCard() {
+      final values = widget.plan.dataValues;
+      final text = switch (family) {
+        'compensate' when values.length >= 5 =>
+          '${values[0]} + ${values[1]} = ${values[3]} + ${values[4]}',
+        'commute' when values.length >= 2 =>
+          '${values[0]} × ${values[1]} = ${values[1]} × ${values[0]}',
+        'distribute' when values.length >= 4 =>
+          '${values[0]} × ${values[1]} = ${values[0]} × ${values[2]} − ${values[0] * values[3]}',
+        _ => '',
+      };
+      return Card(
+        key: const ValueKey('touch-reasoning-structure'),
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        structureCard(),
+        const SizedBox(height: 12),
+        if (skipRelation)
+          Chip(
+            key: const ValueKey('touch-reasoning-relation-checked'),
+            avatar: const Icon(Icons.check_rounded, size: 18),
+            label: Text(relationLabels[relationIndex]),
+          )
+        else ...[
+          const Text(
+            '1. Welche Rechenbeziehung siehst du?',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            key: const ValueKey('touch-reasoning-relations'),
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var index = 0; index < relationLabels.length; index++)
+                ChoiceChip(
+                  key: ValueKey('touch-reasoning-relation-$index'),
+                  selected: selectedReasoningRelation == index,
+                  label: Text(relationLabels[index]),
+                  onSelected: widget.locked
+                      ? null
+                      : (_) => setState(() {
+                            selectedReasoningRelation = index;
+                            selectedReasoningCause = null;
+                          }),
+                ),
+            ],
+          ),
+        ],
+        if (relationReady) ...[
+          const SizedBox(height: 14),
+          const Text(
+            '2. Warum bleibt der Wert gleich?',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          ...List.generate(
+            causeLabels.length,
+            (index) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ChoiceChip(
+                key: ValueKey('touch-reasoning-cause-$index'),
+                selected: selectedReasoningCause == index,
+                label: Text(causeLabels[index]),
+                onSelected: widget.locked
+                    ? null
+                    : (_) => setState(() => selectedReasoningCause = index),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-reasoning-submit'),
+          onPressed: widget.locked ||
+                  !relationReady ||
+                  selectedReasoningCause == null
+              ? null
+              : () => widget.onAnswer(
+                    relationCorrect && selectedReasoningCause == 0
+                        ? expected
+                        : _wrongAnswer(expected, expected),
+                  ),
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Begründung prüfen'),
+        ),
       ],
     );
   }

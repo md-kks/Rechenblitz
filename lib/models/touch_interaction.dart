@@ -34,6 +34,7 @@ enum TouchInteractionKind {
   mentalChunkPath,
   strategyAnchorJump,
   arithmeticLawStructure,
+  reasoningJustificationBuilder,
   romanNumeralReader,
   romanNumeralBuilder,
   inverseFamilyMachine,
@@ -1452,6 +1453,75 @@ class TouchInteractionPlan {
                 : operation,
             expectedAnswer: answer,
             maxValue: max(maxValue, max(a, answer)),
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.arithmeticLaws &&
+        taskKey.startsWith('process:reasoning:') &&
+        choices != null &&
+        choices.isNotEmpty) {
+      final parts = taskKey.split(':');
+      final family = parts.length >= 3 ? parts[2] : '';
+      final skipRelation =
+          targetCompetency == MicroCompetencyId.reasoningJustification;
+      if (family == 'compensate' && parts.length == 6) {
+        final a = int.tryParse(parts[3]);
+        final b = int.tryParse(parts[4]);
+        final shift = int.tryParse(parts[5]);
+        if (a != null && b != null && shift != null && shift > 0) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.reasoningJustificationBuilder,
+            instruction: skipRelation
+                ? 'Die Rechenbeziehung wurde schon erkannt. Begründe jetzt, warum der Wert trotz der Veränderung gleich bleibt.'
+                : 'Baue die Begründung in zwei Schritten: Erkenne zuerst die Rechenbeziehung und dann den Grund für die Gleichwertigkeit.',
+            dataValues: <int>[a, b, shift, a - shift, b + shift],
+            dataOperation: 'compensate${skipRelation ? ':skip-relation' : ''}',
+            answerChoices: choices,
+            expectedAnswer: answer,
+          );
+        }
+      }
+      if (family == 'commute' && parts.length == 5) {
+        final a = int.tryParse(parts[3]);
+        final b = int.tryParse(parts[4]);
+        if (a != null && b != null) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.reasoningJustificationBuilder,
+            instruction: skipRelation
+                ? 'Die Rechenbeziehung wurde schon erkannt. Begründe jetzt, warum das Produkt beim Vertauschen gleich bleibt.'
+                : 'Baue die Begründung in zwei Schritten: Erkenne zuerst die Rechenbeziehung und dann den Grund für die Gleichwertigkeit.',
+            dataValues: <int>[a, b],
+            dataOperation: 'commute${skipRelation ? ':skip-relation' : ''}',
+            answerChoices: choices,
+            expectedAnswer: answer,
+          );
+        }
+      }
+      if (family == 'distribute' && parts.length == 7) {
+        final factor = int.tryParse(parts[3]);
+        final value = int.tryParse(parts[4]);
+        final rounded = int.tryParse(parts[5]);
+        final difference = int.tryParse(parts[6]);
+        if (factor != null &&
+            value != null &&
+            rounded != null &&
+            difference != null &&
+            factor > 0 &&
+            difference > 0) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.reasoningJustificationBuilder,
+            instruction: skipRelation
+                ? 'Die Rechenbeziehung wurde schon erkannt. Begründe jetzt, warum die Korrektur mit dem Faktor multipliziert werden muss.'
+                : 'Baue die Begründung in zwei Schritten: Erkenne zuerst die Rechenbeziehung und dann den Grund für die Gleichwertigkeit.',
+            dataValues: <int>[factor, value, rounded, difference],
+            dataOperation: 'distribute${skipRelation ? ':skip-relation' : ''}',
+            answerChoices: choices,
+            expectedAnswer: answer,
           );
         }
       }
