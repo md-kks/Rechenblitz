@@ -34,6 +34,7 @@ class LearningVisualAid extends StatelessWidget {
         taskKey.startsWith('sequence:') ||
         taskKey.startsWith('measure:add:') ||
         taskKey.startsWith('measure:subtract:') ||
+        (taskKey.startsWith('body:') && !taskKey.startsWith('body:cube-net:')) ||
         taskKey.startsWith('process:strategy:') ||
         taskKey.startsWith('process:error:') ||
         taskKey.startsWith('process:plausibility:') ||
@@ -80,7 +81,10 @@ class LearningVisualAid extends StatelessWidget {
                         : taskKey.startsWith('measure:add:') ||
                                 taskKey.startsWith('measure:subtract:')
                             ? _measurementLengthAid(context)
-                            : taskKey.startsWith('gap:')
+                            : taskKey.startsWith('body:') &&
+                                    !taskKey.startsWith('body:cube-net:')
+                                ? _geometryBodyAid(context)
+                                : taskKey.startsWith('gap:')
             ? _missingNumberAid()
             : taskKey.startsWith('neighbor:')
                 ? _neighborAid()
@@ -129,6 +133,29 @@ class LearningVisualAid extends StatelessWidget {
         child: child,
       ),
     );
+  }
+
+  Widget _geometryBodyAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    final body = parts.length >= 3 ? parts[1] : '';
+    final property = parts.length >= 3 ? parts[2] : '';
+    const supportedBodies = <String>{
+      'Würfel',
+      'Quader',
+      'Kugel',
+      'Zylinder',
+      'Kegel',
+      'Pyramide',
+    };
+    const supportedProperties = <String>{'Ecken', 'Kanten', 'Flächen'};
+    if (!supportedBodies.contains(body) ||
+        !supportedProperties.contains(property)) {
+      return const _AidLabel(
+        title: 'Körper untersuchen',
+        text: 'Betrachte den Körper aus mehreren Richtungen und prüfe nur die gesuchte Eigenschaft.',
+      );
+    }
+    return _BodyPropertyAid(body: body, property: property);
   }
 
   Widget _numberFriendAid() {
@@ -1607,6 +1634,405 @@ class _NumberLinePainter extends CustomPainter {
       start != oldDelegate.start ||
       bridge != oldDelegate.bridge ||
       end != oldDelegate.end ||
+      lineColor != oldDelegate.lineColor ||
+      accentColor != oldDelegate.accentColor;
+}
+
+class _BodyPropertyAid extends StatelessWidget {
+  const _BodyPropertyAid({required this.body, required this.property});
+
+  final String body;
+  final String property;
+
+  @override
+  Widget build(BuildContext context) {
+    final explanation = switch (property) {
+      'Ecken' =>
+        'Suche nur echte Treffpunkte von Kanten. Drehe den Körper gedanklich, damit keine hintere Ecke verloren geht.',
+      'Kanten' =>
+        'Verfolge jede Kante genau einmal. Dünnere Linien gehören zur Rückseite des Körpers.',
+      _ =>
+        'Lege die Flächen gedanklich auseinander. Auch gekrümmte Oberflächen zählen als Flächen.',
+    };
+    final secondLabel = property == 'Flächen'
+        ? 'Flächen auseinandergelegt'
+        : 'Zweite Ansicht';
+    return Column(
+      key: ValueKey('body-aid:$body:$property'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AidLabel(
+          title: '$body · $property untersuchen',
+          text: explanation,
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _BodyDiagramCard(
+              label: 'Körperansicht',
+              body: body,
+              property: property,
+            ),
+            _BodyDiagramCard(
+              label: secondLabel,
+              body: body,
+              property: property,
+              alternate: true,
+              surfaces: property == 'Flächen',
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          property == 'Flächen'
+              ? 'Zähle jetzt jede getrennte Fläche genau einmal.'
+              : 'Vergleiche beide Ansichten und zähle jedes Merkmal nur einmal.',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ],
+    );
+  }
+}
+
+class _BodyDiagramCard extends StatelessWidget {
+  const _BodyDiagramCard({
+    required this.label,
+    required this.body,
+    required this.property,
+    this.alternate = false,
+    this.surfaces = false,
+  });
+
+  final String label;
+  final String body;
+  final String property;
+  final bool alternate;
+  final bool surfaces;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: '$label für $body, gesucht: $property',
+        child: Container(
+          width: 170,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              SizedBox(
+                width: 148,
+                height: 124,
+                child: CustomPaint(
+                  painter: surfaces
+                      ? _BodySurfacePainter(
+                          body: body,
+                          lineColor: Theme.of(context).colorScheme.onSurface,
+                          accentColor: Theme.of(context).colorScheme.primary,
+                        )
+                      : _BodyDiagramPainter(
+                          body: body,
+                          property: property,
+                          alternate: alternate,
+                          lineColor: Theme.of(context).colorScheme.onSurface,
+                          accentColor: Theme.of(context).colorScheme.primary,
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _BodyDiagramPainter extends CustomPainter {
+  const _BodyDiagramPainter({
+    required this.body,
+    required this.property,
+    required this.alternate,
+    required this.lineColor,
+    required this.accentColor,
+  });
+
+  final String body;
+  final String property;
+  final bool alternate;
+  final Color lineColor;
+  final Color accentColor;
+
+  Paint get _line => Paint()
+    ..color = lineColor
+    ..strokeWidth = 2.6
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round;
+  Paint get _rear => Paint()
+    ..color = lineColor.withValues(alpha: 0.38)
+    ..strokeWidth = 1.8
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round;
+  Paint get _accent => Paint()
+    ..color = accentColor
+    ..strokeWidth = 4
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round;
+  Paint get _fill => Paint()
+    ..color = accentColor.withValues(alpha: 0.16)
+    ..style = PaintingStyle.fill;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    switch (body) {
+      case 'Würfel':
+        _box(canvas, size, square: true);
+      case 'Quader':
+        _box(canvas, size, square: false);
+      case 'Pyramide':
+        _pyramid(canvas, size);
+      case 'Zylinder':
+        _cylinder(canvas, size);
+      case 'Kegel':
+        _cone(canvas, size);
+      case 'Kugel':
+        _sphere(canvas, size);
+    }
+  }
+
+  void _box(Canvas canvas, Size size, {required bool square}) {
+    final w = square ? size.width * .48 : size.width * .56;
+    final h = square ? size.height * .52 : size.height * .42;
+    final dx = (alternate ? -.13 : .14) * size.width;
+    final dy = -.16 * size.height;
+    final front = Rect.fromCenter(
+      center: Offset(size.width * .50, size.height * .58),
+      width: w,
+      height: h,
+    );
+    final back = front.shift(Offset(dx, dy));
+    final f = <Offset>[front.topLeft, front.topRight, front.bottomRight, front.bottomLeft];
+    final b = <Offset>[back.topLeft, back.topRight, back.bottomRight, back.bottomLeft];
+    if (property == 'Flächen') {
+      canvas.drawRect(front, _fill);
+      final top = Path()
+        ..moveTo(f[0].dx, f[0].dy)
+        ..lineTo(f[1].dx, f[1].dy)
+        ..lineTo(b[1].dx, b[1].dy)
+        ..lineTo(b[0].dx, b[0].dy)
+        ..close();
+      canvas.drawPath(top, _fill);
+    }
+    canvas.drawRect(back, _rear);
+    canvas.drawRect(front, property == 'Kanten' ? _accent : _line);
+    for (var i = 0; i < 4; i++) {
+      canvas.drawLine(f[i], b[i], property == 'Kanten' ? _accent : _line);
+    }
+    if (property == 'Kanten') {
+      for (var i = 0; i < 4; i++) {
+        canvas.drawLine(b[i], b[(i + 1) % 4], _accent);
+      }
+    }
+    if (property == 'Ecken') {
+      for (final point in [...f, ...b]) {
+        canvas.drawCircle(point, 4.5, Paint()..color = accentColor);
+      }
+    }
+  }
+
+  void _pyramid(Canvas canvas, Size size) {
+    final apex = Offset(size.width * (alternate ? .62 : .48), size.height * .12);
+    final base = <Offset>[
+      Offset(size.width * .18, size.height * .68),
+      Offset(size.width * .72, size.height * .68),
+      Offset(size.width * .86, size.height * .86),
+      Offset(size.width * .32, size.height * .86),
+    ];
+    final edgePaint = property == 'Kanten' ? _accent : _line;
+    for (var i = 0; i < 4; i++) {
+      canvas.drawLine(base[i], base[(i + 1) % 4], i == 2 ? _rear : edgePaint);
+      canvas.drawLine(apex, base[i], i == 2 ? _rear : edgePaint);
+    }
+    if (property == 'Ecken') {
+      for (final point in [apex, ...base]) {
+        canvas.drawCircle(point, 4.5, Paint()..color = accentColor);
+      }
+    }
+  }
+
+  void _cylinder(Canvas canvas, Size size) {
+    final top = Rect.fromLTWH(size.width * .20, size.height * .14, size.width * .60, size.height * .25);
+    final bottom = top.shift(Offset(0, size.height * .48));
+    if (property == 'Flächen') {
+      canvas.drawRect(
+        Rect.fromLTRB(top.left, top.center.dy, top.right, bottom.center.dy),
+        _fill,
+      );
+    }
+    canvas.drawOval(top, property == 'Kanten' ? _accent : _line);
+    canvas.drawOval(bottom, property == 'Kanten' ? _accent : _line);
+    canvas.drawLine(Offset(top.left, top.center.dy), Offset(bottom.left, bottom.center.dy), _line);
+    canvas.drawLine(Offset(top.right, top.center.dy), Offset(bottom.right, bottom.center.dy), _line);
+  }
+
+  void _cone(Canvas canvas, Size size) {
+    final apex = Offset(size.width * (alternate ? .58 : .50), size.height * .12);
+    final base = Rect.fromLTWH(size.width * .18, size.height * .66, size.width * .64, size.height * .24);
+    canvas.drawLine(apex, Offset(base.left, base.center.dy), _line);
+    canvas.drawLine(apex, Offset(base.right, base.center.dy), _line);
+    canvas.drawOval(base, property == 'Kanten' ? _accent : _line);
+    if (property == 'Ecken') {
+      canvas.drawCircle(apex, 5, Paint()..color = accentColor);
+    }
+  }
+
+  void _sphere(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide * .37;
+    if (property == 'Flächen') canvas.drawCircle(center, radius, _fill);
+    canvas.drawCircle(center, radius, _line);
+    canvas.drawOval(
+      Rect.fromCenter(center: center, width: radius * 2, height: radius * .62),
+      _rear,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(center: center, width: radius * .62, height: radius * 2),
+      _rear,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BodyDiagramPainter oldDelegate) =>
+      body != oldDelegate.body ||
+      property != oldDelegate.property ||
+      alternate != oldDelegate.alternate ||
+      lineColor != oldDelegate.lineColor ||
+      accentColor != oldDelegate.accentColor;
+}
+
+class _BodySurfacePainter extends CustomPainter {
+  const _BodySurfacePainter({
+    required this.body,
+    required this.lineColor,
+    required this.accentColor,
+  });
+
+  final String body;
+  final Color lineColor;
+  final Color accentColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final line = Paint()
+      ..color = lineColor
+      ..strokeWidth = 2.2
+      ..style = PaintingStyle.stroke;
+    final fill = Paint()
+      ..color = accentColor.withValues(alpha: .14)
+      ..style = PaintingStyle.fill;
+    switch (body) {
+      case 'Würfel':
+      case 'Quader':
+        _boxNet(canvas, size, line, fill, body == 'Quader');
+      case 'Pyramide':
+        _pyramidNet(canvas, size, line, fill);
+      case 'Zylinder':
+        _cylinderNet(canvas, size, line, fill);
+      case 'Kegel':
+        _coneNet(canvas, size, line, fill);
+      case 'Kugel':
+        _sphereSurface(canvas, size, line, fill);
+    }
+  }
+
+  void _boxNet(Canvas canvas, Size size, Paint line, Paint fill, bool rectangle) {
+    final cellW = rectangle ? 29.0 : 27.0;
+    final cellH = rectangle ? 22.0 : 27.0;
+    final origin = Offset(size.width / 2 - cellW * 1.5, size.height / 2 - cellH / 2);
+    final cells = <Offset>[
+      origin,
+      origin.translate(cellW, 0),
+      origin.translate(cellW * 2, 0),
+      origin.translate(cellW * 3, 0),
+      origin.translate(cellW, -cellH),
+      origin.translate(cellW, cellH),
+    ];
+    for (final o in cells) {
+      final r = Rect.fromLTWH(o.dx, o.dy, cellW, cellH);
+      canvas.drawRect(r, fill);
+      canvas.drawRect(r, line);
+    }
+  }
+
+  void _pyramidNet(Canvas canvas, Size size, Paint line, Paint fill) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final half = 24.0;
+    final square = Rect.fromCenter(center: c, width: half * 2, height: half * 2);
+    canvas.drawRect(square, fill);
+    canvas.drawRect(square, line);
+    final triangles = <Path>[
+      Path()..moveTo(square.left, square.top)..lineTo(square.right, square.top)..lineTo(c.dx, square.top - 34)..close(),
+      Path()..moveTo(square.right, square.top)..lineTo(square.right, square.bottom)..lineTo(square.right + 34, c.dy)..close(),
+      Path()..moveTo(square.left, square.bottom)..lineTo(square.right, square.bottom)..lineTo(c.dx, square.bottom + 34)..close(),
+      Path()..moveTo(square.left, square.top)..lineTo(square.left, square.bottom)..lineTo(square.left - 34, c.dy)..close(),
+    ];
+    for (final path in triangles) {
+      canvas.drawPath(path, fill);
+      canvas.drawPath(path, line);
+    }
+  }
+
+  void _cylinderNet(Canvas canvas, Size size, Paint line, Paint fill) {
+    final rect = Rect.fromLTWH(size.width * .25, size.height * .30, size.width * .50, size.height * .42);
+    canvas.drawRect(rect, fill);
+    canvas.drawRect(rect, line);
+    final r = size.width * .12;
+    for (final x in [size.width * .12, size.width * .88]) {
+      canvas.drawCircle(Offset(x, size.height * .51), r, fill);
+      canvas.drawCircle(Offset(x, size.height * .51), r, line);
+    }
+  }
+
+  void _coneNet(Canvas canvas, Size size, Paint line, Paint fill) {
+    final center = Offset(size.width * .50, size.height * .56);
+    final sector = Path()
+      ..moveTo(center.dx, center.dy)
+      ..lineTo(size.width * .16, size.height * .24)
+      ..quadraticBezierTo(size.width * .78, size.height * .06, size.width * .86, size.height * .56)
+      ..close();
+    canvas.drawPath(sector, fill);
+    canvas.drawPath(sector, line);
+    canvas.drawCircle(Offset(size.width * .30, size.height * .88), 17, fill);
+    canvas.drawCircle(Offset(size.width * .30, size.height * .88), 17, line);
+  }
+
+  void _sphereSurface(Canvas canvas, Size size, Paint line, Paint fill) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final r = size.shortestSide * .37;
+    canvas.drawCircle(center, r, fill);
+    canvas.drawCircle(center, r, line);
+    canvas.drawArc(
+      Rect.fromCenter(center: center, width: r * 2, height: r * .66),
+      0,
+      math.pi * 2,
+      false,
+      line,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BodySurfacePainter oldDelegate) =>
+      body != oldDelegate.body ||
       lineColor != oldDelegate.lineColor ||
       accentColor != oldDelegate.accentColor;
 }
