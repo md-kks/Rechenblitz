@@ -30,6 +30,7 @@ enum TouchInteractionKind {
   writtenColumnProcedure,
   writtenMultiplicationProcedure,
   writtenDivisionProcedure,
+  routeSequenceWalker,
   pathWalker,
   symmetryAxes,
   shapeCorners,
@@ -773,6 +774,40 @@ class TouchInteractionPlan {
           answerChoices: choices,
           correctSelectionIndexes: <int>[answer],
           dataOperation: operation,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.plansAndOrientation &&
+        taskKey.startsWith('plan:route:')) {
+      final parts = taskKey.split(':');
+      final firstDirection = parts.length >= 6 ? parts[2] : null;
+      final firstLength = parts.length >= 6 ? int.tryParse(parts[3]) : null;
+      final secondDirection = parts.length >= 6 ? parts[4] : null;
+      final secondLength = parts.length >= 6 ? int.tryParse(parts[5]) : null;
+      const directions = <String>{'right', 'up', 'left', 'down'};
+      if (firstDirection != null &&
+          secondDirection != null &&
+          directions.contains(firstDirection) &&
+          directions.contains(secondDirection) &&
+          firstDirection != secondDirection &&
+          firstLength != null &&
+          secondLength != null &&
+          firstLength > 0 &&
+          secondLength > 0) {
+        final firstAlreadyChecked =
+            targetCompetency == MicroCompetencyId.planDirections;
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.routeSequenceWalker,
+          instruction: firstAlreadyChecked
+              ? 'Der erste Wegabschnitt wurde schon geprüft. Setze die Route jetzt Feld für Feld mit dem zweiten Abschnitt fort.'
+              : 'Laufe den Pfeilplan Feld für Feld in der richtigen Reihenfolge ab.',
+          dataLabels: <String>[firstDirection, secondDirection],
+          dataValues: <int>[firstLength, secondLength],
+          dataOperation: firstAlreadyChecked ? 'skip-first' : 'full',
+          answerChoices: choices ?? const <String>[],
           expectedAnswer: answer,
         );
       }
