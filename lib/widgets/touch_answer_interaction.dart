@@ -56,6 +56,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int? selectedRomanBlockValue;
   String romanReadFeedback = '';
   final List<String> romanBuiltSymbols = <String>[];
+  int? selectedInverseOperation;
   int writtenColumnIndex = 0;
   int writtenIncomingCarry = 0;
   int? selectedWrittenDigit;
@@ -149,6 +150,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedRomanBlockValue = null;
     romanReadFeedback = '';
     romanBuiltSymbols.clear();
+    selectedInverseOperation = null;
     if (widget.plan.kind == TouchInteractionKind.largeNumberDecompose &&
         widget.plan.dataValues.isNotEmpty) {
       largePlaceDigits.addAll(
@@ -276,6 +278,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildRomanNumeralReader(context),
             TouchInteractionKind.romanNumeralBuilder =>
               _buildRomanNumeralBuilder(context),
+            TouchInteractionKind.inverseFamilyMachine =>
+              _buildInverseFamilyMachine(context),
             TouchInteractionKind.writtenColumnProcedure =>
               _buildWrittenColumnProcedure(context),
             TouchInteractionKind.writtenMultiplicationProcedure =>
@@ -321,6 +325,134 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+
+  Widget _buildInverseFamilyMachine(BuildContext context) {
+    final values = widget.plan.dataValues;
+    if (values.length < 3) return const SizedBox.shrink();
+    final start = values[0];
+    final operand = values[1];
+    final result = values[2];
+    final multiply = widget.plan.dataOperation?.startsWith('multiply') ?? false;
+    final skipOperation =
+        widget.plan.dataOperation?.endsWith(':skip-operation') ?? false;
+    final sourceOperation = multiply ? '×$operand' : '+$operand';
+    final inverseOperation = multiply ? '÷$operand' : '−$operand';
+    final options = multiply
+        ? <String>['×$operand', '÷$operand']
+        : <String>['+$operand', '−$operand'];
+    final operationReady = skipOperation || selectedInverseOperation != null;
+    final operationCorrect = skipOperation || selectedInverseOperation == 1;
+    final expected = widget.plan.expectedAnswer ?? start;
+
+    Widget valueChip(String label, {Key? key}) => Container(
+          key: key,
+          constraints: const BoxConstraints(minWidth: 52),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Vorwärts',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          key: const ValueKey('touch-family-forward'),
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            valueChip('$start'),
+            const Icon(Icons.arrow_forward_rounded),
+            Chip(label: Text(sourceOperation)),
+            const Icon(Icons.arrow_forward_rounded),
+            valueChip('$result'),
+          ],
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'Rückwärts',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          key: const ValueKey('touch-family-backward'),
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            valueChip('$result'),
+            const Icon(Icons.arrow_forward_rounded),
+            if (skipOperation)
+              Chip(
+                key: const ValueKey('touch-family-operation-checked'),
+                avatar: const Icon(Icons.check_rounded, size: 18),
+                label: Text(inverseOperation),
+              )
+            else
+              for (var index = 0; index < options.length; index++)
+                ChoiceChip(
+                  key: ValueKey('touch-family-operation-$index'),
+                  selected: selectedInverseOperation == index,
+                  label: Text(options[index]),
+                  onSelected: widget.locked
+                      ? null
+                      : (_) => setState(() => selectedInverseOperation = index),
+                ),
+            const Icon(Icons.arrow_forward_rounded),
+            valueChip('?', key: const ValueKey('touch-family-target')),
+          ],
+        ),
+        if (!skipOperation) ...[
+          const SizedBox(height: 8),
+          Text(
+            selectedInverseOperation == null
+                ? 'Welche Operation macht $sourceOperation wieder rückgängig?'
+                : 'Gewählt: ${options[selectedInverseOperation!]}',
+            key: const ValueKey('touch-family-operation-status'),
+            textAlign: TextAlign.center,
+          ),
+        ],
+        if (operationReady) ...[
+          const SizedBox(height: 12),
+          const Text(
+            'Welche Zahl muss am Ende wieder herauskommen?',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          NumberAnswerPad(
+            key: const ValueKey('touch-family-result-pad'),
+            maxValue: math.max(1, widget.plan.maxValue),
+            onAnswer: widget.locked
+                ? (_) {}
+                : (value) => widget.onAnswer(
+                      operationCorrect
+                          ? value
+                          : _wrongAnswer(value, expected),
+                    ),
+          ),
+        ],
+      ],
+    );
+  }
 
   Widget _buildRomanNumeralReader(BuildContext context) {
     final labels = widget.plan.dataLabels;

@@ -4,6 +4,7 @@ import 'package:rechenblitz/models/cube_net.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
+import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/models/touch_interaction.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/screens/curriculum_training_screen.dart';
@@ -4655,6 +4656,213 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey('touch-mental-path')), findsOneWidget);
   });
+
+  test('fact-family planner builds additive and multiplicative inverse machines', () {
+    final add = TouchInteractionPlan.forTask(
+      mode: TrainingMode.factFamilies,
+      taskKey: 'family:+:7:5',
+      answer: 7,
+      maxValue: 20,
+    );
+    final multiply = TouchInteractionPlan.forTask(
+      mode: TrainingMode.factFamilies,
+      taskKey: 'family:x:6:4',
+      answer: 6,
+      maxValue: 100,
+    );
+    final targeted = TouchInteractionPlan.forTask(
+      mode: TrainingMode.factFamilies,
+      taskKey: 'family:+:7:5',
+      answer: 7,
+      maxValue: 20,
+      targetCompetency: MicroCompetencyId.inverseRelationship,
+    );
+
+    expect(add?.kind, TouchInteractionKind.inverseFamilyMachine);
+    expect(add?.dataValues, <int>[7, 5, 12]);
+    expect(add?.dataOperation, 'add');
+    expect(multiply?.dataValues, <int>[6, 4, 24]);
+    expect(multiply?.dataOperation, 'multiply');
+    expect(targeted?.dataOperation, 'add:skip-operation');
+  });
+
+  testWidgets('fact-family machine rejects a correct number with the wrong inverse operation',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'family:+:7:5',
+      kind: TouchInteractionKind.inverseFamilyMachine,
+      instruction: 'Drehe die Maschine um.',
+      dataValues: <int>[7, 5, 12],
+      dataOperation: 'add',
+      expectedAnswer: 7,
+      maxValue: 20,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    var target = find.byKey(const ValueKey('touch-family-operation-0'));
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pump();
+    target = find.widgetWithText(FilledButton, '7');
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pump();
+    target = find.byKey(const ValueKey('number-pad-submit'));
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pump();
+    expect(answer, isNot(7));
+
+    target = find.byKey(const ValueKey('touch-family-operation-1'));
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pump();
+    target = find.widgetWithText(FilledButton, '7');
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pump();
+    target = find.byKey(const ValueKey('number-pad-submit'));
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pump();
+    expect(answer, 7);
+  });
+
+  testWidgets('multiplication fact family uses division as the inverse operation',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'family:x:6:4',
+      kind: TouchInteractionKind.inverseFamilyMachine,
+      instruction: 'Drehe die Maschine um.',
+      dataValues: <int>[6, 4, 24],
+      dataOperation: 'multiply',
+      expectedAnswer: 6,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    var target = find.byKey(const ValueKey('touch-family-operation-1'));
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pump();
+    target = find.widgetWithText(FilledButton, '6');
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pump();
+    target = find.byKey(const ValueKey('number-pad-submit'));
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pump();
+    expect(answer, 6);
+  });
+
+  testWidgets('targeted fact family shows touch machine only after the independent checkpoint',
+      (tester) async {
+    final controller = await _controller();
+    const exercise = StructuredExercise(
+      mode: TrainingMode.factFamilies,
+      prompt: 'Wenn 7 + 5 = 12: Mit der passenden Umkehroperation kommst du von 12 zurück zu welcher Zahl?',
+      answer: 7,
+      hint: 'Suche die Gegenrechenart.',
+      key: 'family:+:7:5',
+      checkpoints: <ExerciseCheckpoint>[
+        ExerciseCheckpoint(
+          key: 'inverseOperationChoice',
+          question: 'Welche Rechenoperation macht +5 wieder rückgängig?',
+          choices: <String>['+5', '−5'],
+          correctChoice: 1,
+          competencyId: MicroCompetencyId.inverseRelationship,
+          evidenceWeight: 0.40,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.factFamilies,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.inverseRelationship,
+          exerciseGenerator: _FixedStructuredGenerator(exercise),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-family-backward')), findsNothing);
+    await tester.tap(find.text('−5'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const ValueKey('touch-family-backward')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-family-operation-checked')), findsOneWidget);
+
+    final fallback = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.scrollUntilVisible(
+      fallback,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(fallback);
+    await tester.tap(fallback);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-family-backward')), findsNothing);
+    expect(find.text('Antwort eingeben'), findsOneWidget);
+  });
+
+  testWidgets('fact-family touch stays stable at 200 percent text scale',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'family:x:6:4',
+      kind: TouchInteractionKind.inverseFamilyMachine,
+      instruction: 'Drehe die Rechenmaschine um.',
+      dataValues: <int>[6, 4, 24],
+      dataOperation: 'multiply',
+      expectedAnswer: 6,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('touch-family-backward')), findsOneWidget);
+  });
+
 }
 
 void _noopAnswer(int value) {}
@@ -4671,5 +4879,22 @@ class _FixedCurriculumGenerator extends CurriculumExerciseGenerator {
     required int maxValue,
     Iterable<String> recentKeys = const <String>[],
     MicroCompetencyId? targetCompetency,
+  }) => exercise;
+}
+
+
+class _FixedStructuredGenerator extends StructuredExerciseGenerator {
+  _FixedStructuredGenerator(this.exercise);
+
+  final StructuredExercise exercise;
+
+  @override
+  StructuredExercise generate({
+    required TrainingMode mode,
+    required int maxValue,
+    Iterable<String> recentKeys = const <String>[],
+    MicroCompetencyId? targetCompetency,
+    GradeLevel gradeLevel = GradeLevel.second,
+    bool transferEmphasis = false,
   }) => exercise;
 }

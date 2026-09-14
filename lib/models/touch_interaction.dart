@@ -26,6 +26,7 @@ enum TouchInteractionKind {
   arithmeticLawStructure,
   romanNumeralReader,
   romanNumeralBuilder,
+  inverseFamilyMachine,
   writtenColumnProcedure,
   writtenMultiplicationProcedure,
   writtenDivisionProcedure,
@@ -1060,6 +1061,32 @@ class TouchInteractionPlan {
             maxValue: maxValue,
           );
         }
+      }
+    }
+
+    if (mode == TrainingMode.factFamilies && taskKey.startsWith('family:')) {
+      final parts = taskKey.split(':');
+      final operation = parts.length >= 4 ? parts[1] : '';
+      final a = parts.length >= 4 ? int.tryParse(parts[2]) : null;
+      final b = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (a != null && b != null && a >= 0 && b > 0 &&
+          (operation == '+' || operation == 'x')) {
+        final multiply = operation == 'x';
+        final result = multiply ? a * b : a + b;
+        final skipOperation =
+            targetCompetency == MicroCompetencyId.inverseRelationship;
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.inverseFamilyMachine,
+          instruction: skipOperation
+              ? 'Die Gegenoperation wurde schon geprüft. Nutze sie jetzt, um vom Ergebnis zur Ausgangszahl zurückzurechnen.'
+              : 'Drehe die Rechenmaschine um: Wähle zuerst die passende Gegenoperation und rechne dann zur Ausgangszahl zurück.',
+          dataValues: <int>[a, b, result],
+          dataOperation:
+              '${multiply ? 'multiply' : 'add'}${skipOperation ? ':skip-operation' : ''}',
+          expectedAnswer: answer,
+          maxValue: max(maxValue, result),
+        );
       }
     }
 
