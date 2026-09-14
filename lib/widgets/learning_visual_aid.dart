@@ -37,6 +37,9 @@ class LearningVisualAid extends StatelessWidget {
         taskKey.startsWith('money:') ||
         taskKey.startsWith('clock:') ||
         taskKey.startsWith('geometry:') ||
+        taskKey.startsWith('round:') ||
+        taskKey.startsWith('estimate:') ||
+        taskKey.startsWith('roman:') ||
         (taskKey.startsWith('body:') && !taskKey.startsWith('body:cube-net:')) ||
         taskKey.startsWith('process:strategy:') ||
         taskKey.startsWith('process:error:') ||
@@ -67,7 +70,10 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.representationTranslation ||
       ErrorPattern.moneyCalculation ||
       ErrorPattern.clockReading ||
-      ErrorPattern.geometryProperty => true,
+      ErrorPattern.geometryProperty ||
+      ErrorPattern.roundingPlace ||
+      ErrorPattern.estimation ||
+      ErrorPattern.romanNumeral => true,
       _ => false,
     };
   }
@@ -93,10 +99,16 @@ class LearningVisualAid extends StatelessWidget {
                                     ? _clockAid(context)
                                     : taskKey.startsWith('geometry:')
                                         ? _basicGeometryAid(context)
-                                        : taskKey.startsWith('body:') &&
-                                                !taskKey.startsWith('body:cube-net:')
-                                            ? _geometryBodyAid(context)
-                                            : taskKey.startsWith('gap:')
+                                        : taskKey.startsWith('round:')
+                                            ? _roundingAid(context)
+                                            : taskKey.startsWith('estimate:')
+                                                ? _estimationAid(context)
+                                                : taskKey.startsWith('roman:')
+                                                    ? _romanAid(context)
+                                                    : taskKey.startsWith('body:') &&
+                                                            !taskKey.startsWith('body:cube-net:')
+                                                        ? _geometryBodyAid(context)
+                                                        : taskKey.startsWith('gap:')
             ? _missingNumberAid()
             : taskKey.startsWith('neighbor:')
                 ? _neighborAid()
@@ -137,6 +149,9 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.moneyCalculation => _moneyAid(context),
       ErrorPattern.clockReading => _clockAid(context),
       ErrorPattern.geometryProperty => _basicGeometryAid(context),
+      ErrorPattern.roundingPlace => _roundingAid(context),
+      ErrorPattern.estimation => _estimationAid(context),
+      ErrorPattern.romanNumeral => _romanAid(context),
       _ => null,
     };
 
@@ -1197,6 +1212,115 @@ class LearningVisualAid extends StatelessWidget {
     );
   }
 
+  Widget _roundingAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    final number = parts.length >= 3 ? int.tryParse(parts[1]) : null;
+    final place = parts.length >= 3 ? int.tryParse(parts[2]) : null;
+    if (number == null || place == null || place <= 0) {
+      return const _AidLabel(
+        title: 'Zwischen zwei Rundungsankern',
+        text: 'Suche die beiden benachbarten glatten Zahlen und markiere die Mitte dazwischen.',
+      );
+    }
+    return Column(
+      key: const ValueKey('help-rounding-anchors'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(
+          title: 'Zwischen zwei Rundungsankern',
+          text: 'Die Zahl liegt zwischen zwei glatten Nachbarn. Die Mitte entscheidet, zu welcher Seite gerundet wird.',
+        ),
+        const SizedBox(height: 12),
+        _RoundingAnchorBar(value: number, place: place),
+        const SizedBox(height: 8),
+        const Text(
+          'Entscheide selbst, auf welcher Seite der Mitte die Zahl liegt.',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+
+  Widget _estimationAid(BuildContext context) {
+    final numbers = _numbers(taskKey);
+    if (numbers.length < 3) {
+      return const _AidLabel(
+        title: 'Überschlag vorbereiten',
+        text: 'Runde beide Summanden getrennt auf dieselbe Stelle. Addiere erst danach.',
+      );
+    }
+    final a = numbers[numbers.length - 3];
+    final b = numbers[numbers.length - 2];
+    final place = numbers.last;
+    if (place <= 0) return const SizedBox.shrink();
+    return Column(
+      key: const ValueKey('help-estimation-anchors'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(
+          title: 'Beide Zahlen getrennt runden',
+          text: 'Bestimme für jeden Summanden zuerst nur den passenden Rundungsanker. Der Überschlag selbst bleibt noch offen.',
+        ),
+        const SizedBox(height: 12),
+        Text('1. Summand: $a', style: const TextStyle(fontWeight: FontWeight.w800)),
+        _RoundingAnchorBar(value: a, place: place),
+        const SizedBox(height: 12),
+        Text('2. Summand: $b', style: const TextStyle(fontWeight: FontWeight.w800)),
+        _RoundingAnchorBar(value: b, place: place),
+        const SizedBox(height: 8),
+        const Text(
+          'Erst wenn beide Rundungswerte feststehen, werden sie zum Überschlag addiert.',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+
+  Widget _romanAid(BuildContext context) {
+    final writing = taskKey.startsWith('roman:write:');
+    return Column(
+      key: const ValueKey('help-roman-structure'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AidLabel(
+          title: writing ? 'Römische Zahl zusammensetzen' : 'Römische Zahl in Blöcke teilen',
+          text: writing
+              ? 'Nutze zuerst die Grundwerte und prüfe dann, ob ein kleineres Zeichen vor einem größeren als Subtraktion gelesen wird.'
+              : 'Lies nicht Zeichen für Zeichen blind weiter. Suche zuerst bekannte Einzelwerte und Subtraktionspaare.',
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          key: const ValueKey('help-roman-legend'),
+          spacing: 8,
+          runSpacing: 8,
+          children: const [
+            Chip(label: Text('I = 1')),
+            Chip(label: Text('V = 5')),
+            Chip(label: Text('X = 10')),
+            Chip(label: Text('L = 50')),
+            Chip(label: Text('C = 100')),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            Chip(label: Text('IV: 1 vor 5')),
+            Chip(label: Text('IX: 1 vor 10')),
+            Chip(label: Text('XL: 10 vor 50')),
+            Chip(label: Text('XC: 10 vor 100')),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Das konkrete Ergebnis der Aufgabe musst du aus diesen Regeln selbst zusammensetzen.',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+
   Widget _plausibilityAid() {
     final numbers = _numbers(taskKey);
     if (numbers.length < 4) return const SizedBox.shrink();
@@ -1238,6 +1362,56 @@ class LearningVisualAid extends StatelessWidget {
       .allMatches(value)
       .map((match) => int.parse(match.group(0)!))
       .toList();
+}
+
+class _RoundingAnchorBar extends StatelessWidget {
+  const _RoundingAnchorBar({
+    required this.value,
+    required this.place,
+  });
+
+  final int value;
+  final int place;
+
+  @override
+  Widget build(BuildContext context) {
+    final lower = (value ~/ place) * place;
+    final upper = lower + place;
+    final midpoint = lower + place ~/ 2;
+    final fraction = ((value - lower) / place).clamp(0.0, 1.0);
+    return Column(
+      children: [
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            disabledActiveTrackColor: Theme.of(context).colorScheme.primary,
+            disabledInactiveTrackColor: Theme.of(context).colorScheme.outlineVariant,
+            disabledThumbColor: Theme.of(context).colorScheme.primary,
+            showValueIndicator: ShowValueIndicator.never,
+          ),
+          child: Slider(
+            key: ValueKey('help-rounding-marker-$value-$place'),
+            value: fraction,
+            onChanged: null,
+          ),
+        ),
+        Row(
+          children: [
+            Expanded(child: Text('$lower', textAlign: TextAlign.left)),
+            Expanded(
+              child: Text(
+                'Mitte\n$midpoint',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            Expanded(child: Text('$upper', textAlign: TextAlign.right)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text('Zahl: $value', style: const TextStyle(fontWeight: FontWeight.w800)),
+      ],
+    );
+  }
 }
 
 class _ProcessAid extends StatelessWidget {

@@ -478,6 +478,123 @@ void main() {
     }
   });
 
+  test('visual help covers rounding estimation and roman numerals', () {
+    const cases = <(ErrorPattern, String, String)>[
+      (ErrorPattern.roundingPlace, 'round:347:100', 'rounding:place'),
+      (ErrorPattern.estimation, 'estimate:347:181:100', 'estimation:roundedSummands'),
+      (ErrorPattern.romanNumeral, 'roman:read:44', 'roman:tens-block'),
+      (ErrorPattern.romanNumeral, 'roman:write:44', 'roman:compose'),
+    ];
+    for (final entry in cases) {
+      expect(
+        LearningVisualAid.canRender(
+          pattern: entry.$1,
+          taskKey: entry.$2,
+          methodKey: entry.$3,
+        ),
+        isTrue,
+        reason: entry.$2,
+      );
+    }
+  });
+
+  testWidgets('rounding visual shows anchors without stating the rounded result',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.roundingPlace,
+            taskKey: 'round:347:100',
+            expected: 300,
+            methodKey: 'rounding:place',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-rounding-anchors')), findsOneWidget);
+    expect(find.text('300'), findsOneWidget);
+    expect(find.text('400'), findsOneWidget);
+    expect(find.text('Mitte\n350'), findsOneWidget);
+    expect(find.text('347 ≈ 300'), findsNothing);
+    expect(find.text('Das Ergebnis ist 300.'), findsNothing);
+  });
+
+  testWidgets('estimation visual keeps rounded summands and total unsolved',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.estimation,
+            taskKey: 'estimate:347:181:100',
+            expected: 500,
+            methodKey: 'estimation:roundedSummands',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-estimation-anchors')), findsOneWidget);
+    expect(find.text('1. Summand: 347'), findsOneWidget);
+    expect(find.text('2. Summand: 181'), findsOneWidget);
+    expect(find.textContaining('Überschlag: 500'), findsNothing);
+    expect(find.text('347 ≈ 300'), findsNothing);
+    expect(find.text('181 ≈ 200'), findsNothing);
+  });
+
+  testWidgets('roman visual teaches symbols without composing the target answer',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.romanNumeral,
+            taskKey: 'roman:write:44',
+            expected: 0,
+            methodKey: 'roman:compose',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-roman-legend')), findsOneWidget);
+    expect(find.text('I = 1'), findsOneWidget);
+    expect(find.text('X = 10'), findsOneWidget);
+    expect(find.text('XLIV'), findsNothing);
+  });
+
+  testWidgets('number-representation help stays stable at 200 percent text scale',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const cases = <(ErrorPattern, String, int, String)>[
+      (ErrorPattern.roundingPlace, 'round:347:100', 300, 'rounding:place'),
+      (ErrorPattern.estimation, 'estimate:347:181:100', 500, 'estimation:roundedSummands'),
+      (ErrorPattern.romanNumeral, 'roman:write:44', 0, 'roman:compose'),
+    ];
+    for (final entry in cases) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: LearningVisualAid(
+                pattern: entry.$1,
+                taskKey: entry.$2,
+                expected: entry.$3,
+                methodKey: entry.$4,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: entry.$2);
+    }
+  });
+
   test('generated structured and upper-primary tasks have specific help', () {
     final structured = StructuredExerciseGenerator(random: Random(17));
     final curriculum = CurriculumExerciseGenerator(random: Random(23));
