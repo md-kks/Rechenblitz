@@ -21,6 +21,9 @@ enum TouchInteractionKind {
   largeNumberOrder,
   largeNumberDecompose,
   largeNumberPlaceDigit,
+  mentalChunkPath,
+  strategyAnchorJump,
+  arithmeticLawStructure,
   writtenColumnProcedure,
   writtenMultiplicationProcedure,
   writtenDivisionProcedure,
@@ -887,6 +890,134 @@ class TouchInteractionPlan {
           rectangleHeight: height,
           expectedAnswer: answer,
         );
+      }
+    }
+
+    if (mode == TrainingMode.mentalStrategies &&
+        taskKey.startsWith('process:strategy:')) {
+      final parts = taskKey.split(':');
+      final a = parts.length >= 6 ? int.tryParse(parts[3]) : null;
+      final b = parts.length >= 6 ? int.tryParse(parts[4]) : null;
+      final anchor = parts.length >= 6 ? int.tryParse(parts[5]) : null;
+      if (a != null && b != null && anchor != null) {
+        final gap = anchor - a;
+        final rest = b - gap;
+        if (gap > 0 && rest >= 0 && gap <= b) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.strategyAnchorJump,
+            instruction:
+                'Finde zuerst den passenden Sprung zur glatten Zielzahl. Erst danach bleibt der Rest des zweiten Summanden übrig.',
+            dataValues: <int>[a, b, anchor, gap, rest],
+            answerChoices: choices ?? const <String>[],
+            expectedAnswer: answer,
+            maxValue: max(maxValue, anchor + rest),
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.mentalStrategies &&
+        taskKey.startsWith('mental:')) {
+      final parts = taskKey.split(':');
+      final a = parts.length >= 4 ? int.tryParse(parts[2]) : null;
+      final b = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      final operation = parts.length >= 2 ? parts[1] : '';
+      if (a != null &&
+          b != null &&
+          b >= 10 &&
+          (operation == '+' || operation == '-')) {
+        final chunks = <int>[];
+        var place = 1;
+        while (place * 10 <= b) {
+          place *= 10;
+        }
+        var remaining = b;
+        while (place >= 1) {
+          final digit = remaining ~/ place;
+          if (digit > 0) {
+            final chunk = digit * place;
+            chunks.add(chunk);
+            remaining -= chunk;
+          }
+          place ~/= 10;
+        }
+        if (chunks.length >= 2) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.mentalChunkPath,
+            instruction:
+                'Zerlege den zweiten Operanden in Stellenwertblöcke. Rechne vom größten Block zum kleinsten und gib danach das Ergebnis selbst ein.',
+            dataValues: <int>[a, b, ...chunks],
+            dataOperation: targetCompetency == MicroCompetencyId.mentalStrategy
+                ? '$operation:skip-first'
+                : operation,
+            expectedAnswer: answer,
+            maxValue: max(maxValue, max(a, answer)),
+          );
+        }
+      }
+    }
+
+    if (mode == TrainingMode.arithmeticLaws &&
+        taskKey.startsWith('law:associate:')) {
+      final parts = taskKey.split(':');
+      final a = parts.length >= 5 ? int.tryParse(parts[2]) : null;
+      final b = parts.length >= 5 ? int.tryParse(parts[3]) : null;
+      final c = parts.length >= 5 ? int.tryParse(parts[4]) : null;
+      if (a != null && b != null && c != null) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.arithmeticLawStructure,
+          instruction:
+              'Tippe genau die zwei Summanden an, die du für einen Rechenvorteil zuerst zusammenfassen würdest.',
+          dataValues: <int>[a, b, c],
+          dataOperation: 'associate',
+          correctSelectionIndexes: const <int>[0, 2],
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.arithmeticLaws &&
+        taskKey.startsWith('law:commute:')) {
+      final parts = taskKey.split(':');
+      final a = parts.length >= 4 ? int.tryParse(parts[2]) : null;
+      final b = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (a != null && b != null && a != b) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.arithmeticLawStructure,
+          instruction:
+              'Baue die vertauschte Malaufgabe, indem du die beiden Faktoren in der neuen Reihenfolge antippst.',
+          dataValues: <int>[a, b],
+          dataOperation: 'commute',
+          correctSelectionIndexes: const <int>[1, 0],
+          expectedAnswer: answer,
+        );
+      }
+    }
+
+    if (mode == TrainingMode.arithmeticLaws &&
+        taskKey.startsWith('law:distribute:')) {
+      final parts = taskKey.split(':');
+      final factor = parts.length >= 4 ? int.tryParse(parts[2]) : null;
+      final value = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+      if (factor != null && value != null && factor > 0 && value > 0) {
+        final rounded = ((value + 9) ~/ 10) * 10;
+        final gap = rounded - value;
+        if (gap > 0) {
+          return TouchInteractionPlan(
+            taskKey: taskKey,
+            kind: TouchInteractionKind.arithmeticLawStructure,
+            instruction:
+                'Zerlege über die nächste glatte Zahl: Bestimme zuerst den Abstand und danach die nötige Produkt-Korrektur.',
+            dataValues: <int>[factor, value, rounded, gap],
+            dataOperation: 'distribute',
+            expectedAnswer: answer,
+            maxValue: max(maxValue, answer),
+          );
+        }
       }
     }
 
