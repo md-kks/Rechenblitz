@@ -41,6 +41,11 @@ class AppController extends ChangeNotifier {
   static const int _stepRecoveryIndependentConfirmations = 2;
   static const Duration _stepRecoveryFreshness = Duration(days: 2);
   static const Duration _unstableReviewRetryGap = Duration(days: 1);
+  static const Duration _initialReviewGap = Duration(days: 2);
+  static const Duration _reinforcedReviewGap = Duration(days: 7);
+  static const Duration _masteredReviewGap = Duration(days: 14);
+  static const Duration _reinforcedTransferGap = Duration(days: 5);
+  static const Duration _masteredTransferGap = Duration(days: 14);
   static const Set<TrainingMode> _rangeReadinessModes = <TrainingMode>{
     TrainingMode.practice,
     TrainingMode.minus,
@@ -1776,12 +1781,15 @@ class AppController extends ChangeNotifier {
                 !latestReviewUnstable;
             final requiredGap = latestReviewUnstable
                 ? _unstableReviewRetryGap
-                : hasStableDelayedEvidence
-                    ? const Duration(days: 7)
-                    : const Duration(days: 2);
-            final anchor = latestReviewUnstable && latestReview != null
-                ? latestReview.occurredAt
-                : progress.lastSeen!;
+                : progress.state == MicroCompetencyState.mastered
+                    ? _masteredReviewGap
+                    : hasStableDelayedEvidence
+                        ? _reinforcedReviewGap
+                        : _initialReviewGap;
+            final basisAnchor =
+                _latestBasisObservation(progress.definition.id)?.occurredAt ??
+                    progress.lastSeen!;
+            final anchor = latestReview?.occurredAt ?? basisAnchor;
             return reference.difference(anchor) >= requiredGap;
           },
         )
@@ -1802,18 +1810,40 @@ class AppController extends ChangeNotifier {
   }
 
   MicroCompetencyProgress? transferCandidateMicroCompetency({
+    DateTime? now,
+    bool respectSchedule = false,
     MicroCompetencyId? excluding,
     Iterable<MicroCompetencyId> excludingAny = const <MicroCompetencyId>[],
   }) {
     final blocked = <MicroCompetencyId>{...excludingAny};
     if (excluding != null) blocked.add(excluding);
+    final reference = now ?? DateTime.now();
     final candidates = microCompetenciesForGrade()
         .where(
-          (progress) =>
-              !blocked.contains(progress.definition.id) &&
-              _microCompetencyIsUnlocked(progress.definition.id) &&
-              (progress.state == MicroCompetencyState.secure ||
-                  progress.state == MicroCompetencyState.mastered),
+          (progress) {
+            if (blocked.contains(progress.definition.id) ||
+                !_microCompetencyIsUnlocked(progress.definition.id) ||
+                (progress.state != MicroCompetencyState.secure &&
+                    progress.state != MicroCompetencyState.mastered)) {
+              return false;
+            }
+            if (!respectSchedule) return true;
+            final latestTransfer = _latestMicroObservationForSource(
+              progress.definition.id,
+              MicroEvidenceSource.transfer,
+            );
+            if (latestTransfer == null) return true;
+            final unstable = _latestSourceEvidenceIsUnstable(
+              progress.definition.id,
+              MicroEvidenceSource.transfer,
+            );
+            final gap = unstable
+                ? _unstableReviewRetryGap
+                : progress.state == MicroCompetencyState.mastered
+                    ? _masteredTransferGap
+                    : _reinforcedTransferGap;
+            return reference.difference(latestTransfer.occurredAt) >= gap;
+          },
         )
         .toList()
       ..sort((a, b) {
@@ -2148,6 +2178,8 @@ class AppController extends ChangeNotifier {
       ?reviewTarget,
     };
     final transferMicro = transferCandidateMicroCompetency(
+      now: now,
+      respectSchedule: true,
       excludingAny: protectedBeforeTransfer,
     );
     final transferTarget = transferMicro?.definition.id;
@@ -2362,6 +2394,7 @@ class AppController extends ChangeNotifier {
     if (review != null) return review;
 
     final transfer = transferCandidateMicroCompetency(
+      now: now,
       excluding: review?.definition.id,
     );
     if (transfer != null) return transfer;
@@ -2609,6 +2642,7 @@ class AppController extends ChangeNotifier {
       final guidedFocus = guidedStepFocus();
       final dueReview = dueReviewMicroCompetency(now: now);
       final transfer = transferCandidateMicroCompetency(
+        now: now,
         excluding: dueReview?.definition.id,
       );
 
