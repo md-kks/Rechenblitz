@@ -218,6 +218,54 @@ extension ErrorPatternX on ErrorPattern {
           'Stelle die Malaufgabe als gleich große Gruppen vor.',
         ErrorPattern.divisionFact =>
           'Welche Malaufgabe ist die Umkehrung dieser Geteiltaufgabe?',
+        ErrorPattern.numberRelations =>
+          'Welche beiden Steine oder Zahlen gehören direkt zusammen?',
+        ErrorPattern.patternRule =>
+          'Vergleiche zwei Nachbarzahlen: Um wie viel verändert sich die Folge jedes Mal?',
+        ErrorPattern.moneyCalculation =>
+          'Stelle zuerst nur die vorhandenen Geldbeträge dar. Was wird zusammengelegt oder weggenommen?',
+        ErrorPattern.clockReading =>
+          'Lies zuerst nur den langen Minutenzeiger. Danach kommt die Stunde.',
+        ErrorPattern.unitConversion =>
+          'Welche Einheit ist gegeben und in welche Einheit soll umgewandelt werden?',
+        ErrorPattern.geometryProperty =>
+          'Markiere zuerst direkt an der Figur die Eigenschaft, nach der gefragt wird.',
+        ErrorPattern.roundingPlace =>
+          'Markiere die Rundungsstelle und schau nur auf die Ziffer direkt rechts daneben.',
+        ErrorPattern.mentalStrategy =>
+          'Welcher erste Teilschritt macht die Zahl glatter oder leichter?',
+        ErrorPattern.writtenRegrouping =>
+          'Prüfe die aktuelle Spalte: Muss hier gebündelt oder entbündelt werden?',
+        ErrorPattern.writtenProcedure =>
+          'Beginne an der richtigen Stelle und prüfe jeden schriftlichen Teilschritt einzeln.',
+        ErrorPattern.estimation =>
+          'Runde zuerst beide Zahlen passend. Rechne den Überschlag noch nicht exakt.',
+        ErrorPattern.arithmeticLaw =>
+          'Was verändert sich an der Rechnung – und was bleibt dabei gleich?',
+        ErrorPattern.romanNumeral =>
+          'Lies die römische Zahl in Blöcken. Prüfe besonders IV, IX, XL und XC.',
+        ErrorPattern.fractionPart =>
+          'Wie viele gleich große Teile hat das Ganze? Bestimme zuerst die Größe eines Teils.',
+        ErrorPattern.timeDuration =>
+          'Markiere Start und Ende und gehe zuerst bis zu einer gut erreichbaren Uhrzeit.',
+        ErrorPattern.dataReading =>
+          'Lies zuerst Beschriftung und Einheit. Welche Werte brauchst du wirklich?',
+        ErrorPattern.probabilityReasoning =>
+          'Welche Ergebnisse sind überhaupt möglich? Zähle sie, bevor du die Chance vergleichst.',
+        ErrorPattern.combinatorics =>
+          'Halte eine Möglichkeit fest und variiere danach nur einen Bestandteil systematisch.',
+        ErrorPattern.proportionalReasoning =>
+          'Bestimme zuerst den Wert für genau eine Einheit.',
+        ErrorPattern.perimeterArea =>
+          'Geht es um den Rand oder um das Innere der Figur?',
+        ErrorPattern.spatialReasoning =>
+          'Betrachte den Körper aus einer zweiten Richtung und prüfe nur eine Eigenschaft zugleich.',
+        ErrorPattern.symmetry =>
+          'Würde die Figur an dieser Linie beim Falten genau auf sich selbst liegen?',
+        ErrorPattern.planScale =>
+          'Trenne Planstrecke und reale Strecke. Welche Beziehung verbindet beide?',
+        ErrorPattern.volume =>
+          'Bestimme zuerst, wie viele Würfel in einer einzigen Schicht liegen.',
         _ => 'Prüfe genau den Rechenschritt, bei dem sich dein Ergebnis verändert hat.',
       };
 }
@@ -402,6 +450,7 @@ class ErrorClassifier {
       TrainingMode.combinatorics => ErrorPattern.combinatorics,
       TrainingMode.proportionality => ErrorPattern.proportionalReasoning,
       TrainingMode.perimeterArea => ErrorPattern.perimeterArea,
+      TrainingMode.geometryRelations => ErrorPattern.geometryProperty,
       TrainingMode.geometryBodies => ErrorPattern.spatialReasoning,
       TrainingMode.symmetry => ErrorPattern.symmetry,
       TrainingMode.plansAndOrientation => ErrorPattern.planScale,
