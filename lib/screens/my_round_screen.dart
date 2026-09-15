@@ -338,6 +338,16 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                     Text('${nextSegment.tasks} Aufgaben'),
                     const SizedBox(height: 6),
                     Text(nextSegment.reason),
+                    if (nextSegment.rangeBridge) ...[
+                      const SizedBox(height: 8),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Chip(
+                          avatar: Icon(Icons.compare_arrows_rounded, size: 18),
+                          label: Text('Brückenaufgaben im neuen Zahlenraum'),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
                     FilledButton.icon(
                       key: const ValueKey('round-next-button'),
@@ -368,7 +378,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                       ),
                       title: Text('${plan[index].role.label}: ${plan[index].mode.title}'),
                       subtitle: Text(
-                        '${plan[index].tasks} Aufgaben · ${plan[index].reason}',
+                        '${plan[index].tasks} Aufgaben${plan[index].rangeBridge ? ' · Brücke' : ''} · ${plan[index].reason}',
                       ),
                     ),
                 ],
