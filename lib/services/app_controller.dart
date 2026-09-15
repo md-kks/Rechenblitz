@@ -1984,7 +1984,10 @@ class AppController extends ChangeNotifier {
       ...protectedBeforeTransfer,
       ?transferTarget,
     };
-    final warmUpMicro = warmUpMicroCompetency(
+    final bridgeMicro = rangeBridgeCandidateMicroCompetency(
+      excludingAny: protectedBeforeWarmUp,
+    );
+    final warmUpMicro = bridgeMicro ?? warmUpMicroCompetency(
       excluding: protectedBeforeWarmUp,
     );
     final warmUpTarget = warmUpMicro?.definition.id;
@@ -2087,10 +2090,13 @@ class AppController extends ChangeNotifier {
         role: GuidedRoundRole.warmUp,
         mode: warmUpMode,
         tasks: 2,
-        reason: warmUpTarget == null
-            ? 'Mit vertrauten Grundlagen ruhig ankommen.'
-            : 'Mit „${warmUpMicro!.definition.label}“ ruhig ankommen; diese sichere Kompetenz war länger nicht im Mittelpunkt.',
+        reason: bridgeMicro != null
+            ? '„${bridgeMicro.definition.label}“ war im vorherigen Zahlenraum stabil. Zwei Aufgaben prüfen jetzt, ob die Grundlage auch im Zahlenraum ${numberRange.label} selbstständig trägt.'
+            : warmUpTarget == null
+                ? 'Mit vertrauten Grundlagen ruhig ankommen.'
+                : 'Mit „${warmUpMicro!.definition.label}“ ruhig ankommen; diese sichere Kompetenz war länger nicht im Mittelpunkt.',
         targetCompetency: warmUpTarget,
+        rangeBridge: bridgeMicro != null,
       ),
       GuidedRoundSegment(
         role: GuidedRoundRole.focus,
@@ -2329,11 +2335,21 @@ class AppController extends ChangeNotifier {
     DateTime? now,
   }) {
     final plan = buildMyRound(now: now);
+    final warmUp = plan[0];
     final focus = plan[1];
     final review = plan[2];
     final transfer = plan[3];
     final guidedFocus = guidedStepFocus();
     final parts = <String>[];
+
+    if (warmUp.rangeBridge && warmUp.targetCompetency != null) {
+      final label =
+          MicroCompetencyCatalog.definition(warmUp.targetCompetency!).label;
+      final bridge = numberRangeBridgeStatus();
+      parts.add(
+        '${warmUp.tasks} Brückenaufgaben bestätigen „$label“ aus ${bridge.previousRange?.label ?? 'dem vorherigen Zahlenraum'} im Zahlenraum ${numberRange.label}',
+      );
+    }
 
     if (focus.targetCompetency != null) {
       final label =
@@ -2723,6 +2739,123 @@ class AppController extends ChangeNotifier {
     return TrainingMode.practice;
   }
 
+  NumberRangeLevel? _previousAvailableRange() {
+    final ranges = availableRanges;
+    final index = ranges.indexOf(numberRange);
+    if (index <= 0) return null;
+    return ranges[index - 1];
+  }
+
+  bool _stableFoundationInRange(
+    MicroCompetencyId id,
+    NumberRangeLevel range,
+  ) {
+    final observations = microObservations
+        .where(
+          (entry) =>
+              entry.id == id &&
+              entry.gradeLevel == gradeLevel &&
+              entry.numberRange == range &&
+              (entry.source == MicroEvidenceSource.practice ||
+                  entry.source == MicroEvidenceSource.remediation ||
+                  entry.source == MicroEvidenceSource.independentStep),
+        )
+        .toList()
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    if (observations.isEmpty) return false;
+
+    var evidence = 0.0;
+    var correctEvidence = 0.0;
+    for (final observation in observations) {
+      if (observation.usedHelp) continue;
+      evidence += observation.evidenceWeight;
+      if (observation.correct) correctEvidence += observation.evidenceWeight;
+    }
+    if (!_evidenceAtLeast(evidence, _secureIndependentEvidence)) return false;
+    if (evidence <= _evidenceEpsilon ||
+        correctEvidence / evidence < _secureIndependentAccuracy) {
+      return false;
+    }
+
+    for (final observation in observations) {
+      if (observation.source == MicroEvidenceSource.practice ||
+          observation.source == MicroEvidenceSource.remediation) {
+        return observation.correct && !observation.usedHelp;
+      }
+    }
+    return true;
+  }
+
+  bool _confirmedFoundationInCurrentRange(MicroCompetencyId id) {
+    final progress = microCompetencyProgress(id);
+    return _evidenceAtLeast(progress.independentEvidence, 1.5) &&
+        progress.independentAccuracy >= _secureIndependentAccuracy &&
+        !progress.basisNeedsReconfirmation;
+  }
+
+  NumberRangeBridgeStatus numberRangeBridgeStatus() {
+    final previous = _previousAvailableRange();
+    if (previous == null) {
+      return NumberRangeBridgeStatus(
+        previousRange: null,
+        currentRange: numberRange,
+        foundationCompetencies: const <MicroCompetencyId>[],
+        confirmedCompetencies: const <MicroCompetencyId>[],
+        pendingCompetencies: const <MicroCompetencyId>[],
+        reason: 'Dies ist der erste verfügbare Zahlenraum; es gibt keine frühere Grundlage zu bestätigen.',
+      );
+    }
+
+    final previousIds = MicroCompetencyCatalog.forContext(gradeLevel, previous)
+        .map((definition) => definition.id)
+        .toSet();
+    final foundations = MicroCompetencyCatalog.forContext(gradeLevel, numberRange)
+        .where(
+          (definition) =>
+              previousIds.contains(definition.id) &&
+              (definition.domain == MicroCompetencyDomain.numberSense ||
+                  definition.domain == MicroCompetencyDomain.arithmetic) &&
+              _rangeReadinessModes.contains(definition.preferredMode) &&
+              _stableFoundationInRange(definition.id, previous),
+        )
+        .map((definition) => definition.id)
+        .toList(growable: false);
+    final confirmed = foundations
+        .where(_confirmedFoundationInCurrentRange)
+        .toList(growable: false);
+    final confirmedSet = confirmed.toSet();
+    final pending = foundations
+        .where((id) => !confirmedSet.contains(id))
+        .toList(growable: false);
+
+    final reason = foundations.isEmpty
+        ? 'Im Zahlenraum ${previous.label} gibt es noch keine ausreichend stabile Kernkompetenz, die gezielt übernommen werden sollte.'
+        : pending.isEmpty
+            ? 'Alle ${foundations.length} stabilen Grundlagen aus ${previous.label} wurden im Zahlenraum ${numberRange.label} bereits selbstständig bestätigt.'
+            : '${confirmed.length} von ${foundations.length} stabilen Grundlagen aus ${previous.label} wurden im Zahlenraum ${numberRange.label} bestätigt. Die übrigen werden kurz in „Meine Runde“ überprüft.';
+    return NumberRangeBridgeStatus(
+      previousRange: previous,
+      currentRange: numberRange,
+      foundationCompetencies: foundations,
+      confirmedCompetencies: confirmed,
+      pendingCompetencies: pending,
+      reason: reason,
+    );
+  }
+
+  MicroCompetencyProgress? rangeBridgeCandidateMicroCompetency({
+    Iterable<MicroCompetencyId> excludingAny = const <MicroCompetencyId>[],
+  }) {
+    final status = numberRangeBridgeStatus();
+    if (!status.isActive) return null;
+    final excluded = excludingAny.toSet();
+    for (final id in status.pendingCompetencies) {
+      if (excluded.contains(id)) continue;
+      return microCompetencyProgress(id);
+    }
+    return null;
+  }
+
   NumberRangeReadiness numberRangeReadiness() {
     final ranges = availableRanges;
     final currentIndex = ranges.indexOf(numberRange);
@@ -3073,6 +3206,8 @@ class AppController extends ChangeNotifier {
   Future<void> setNumberRange(NumberRangeLevel value) async {
     if (value != numberRange) {
       await clearGuidedRoundProgress();
+      recentTaskKeysByMode = <String, List<String>>{};
+      await storage.saveTaskDiversity(recentTaskKeysByMode);
     }
     numberRange = value;
     notifyListeners();

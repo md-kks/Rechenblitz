@@ -219,6 +219,7 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
   Widget build(BuildContext context) {
     final groups = _groups();
     final allMicro = widget.controller.microCompetenciesForGrade();
+    final rangeBridge = widget.controller.numberRangeBridgeStatus();
     final safe = allMicro
         .where(
           (progress) =>
@@ -242,6 +243,47 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 34),
         children: [
+          if (rangeBridge.isActive) ...[
+            Card(
+              key: const ValueKey('learning-map-range-bridge'),
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.compare_arrows_rounded),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Grundlagen in ${rangeBridge.currentRange.label} bestätigen',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(rangeBridge.reason),
+                    const SizedBox(height: 10),
+                    LinearProgressIndicator(
+                      value: rangeBridge.progress,
+                      minHeight: 9,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Wichtig: Sicher in ${rangeBridge.previousRange!.label} wird nicht automatisch als sicher in ${rangeBridge.currentRange.label} gewertet. Rechenblitz prüft die Grundlage erst kurz mit größeren Zahlen.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
           if (focus != null) ...[
             Card(
               child: Padding(

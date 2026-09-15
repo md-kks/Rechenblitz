@@ -5,6 +5,7 @@ import '../models/help_preferences.dart';
 import '../models/learning_methods.dart';
 import '../models/learning_path.dart';
 import '../models/math_fact.dart';
+import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
@@ -96,6 +97,7 @@ class _ParentScreenState extends State<ParentScreen> {
     final c = widget.controller;
     final recommendation = c.recommendationText();
     final rangeReadiness = c.numberRangeReadiness();
+    final rangeBridge = c.numberRangeBridgeStatus();
     final insight = c.parentInsight();
     final priority = c.parentPriorityMicroCompetency();
     final methodInsight = priority == null || priority.observations == 0
@@ -538,6 +540,44 @@ class _ParentScreenState extends State<ParentScreen> {
                       '${rangeReadiness.nextRange!.label} verwenden',
                     ),
                   ),
+                ],
+                if (rangeBridge.isActive) ...[
+                  const Divider(height: 30),
+                  Row(
+                    children: [
+                      const Icon(Icons.compare_arrows_rounded),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Übergang ${rangeBridge.previousRange!.label} → ${rangeBridge.currentRange.label}',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                      ),
+                      Text(
+                        '${rangeBridge.confirmedCompetencies.length}/${rangeBridge.foundationCompetencies.length}',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    key: const ValueKey('range-bridge-progress'),
+                    value: rangeBridge.progress,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(rangeBridge.reason),
+                  if (rangeBridge.pendingCompetencies.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Noch kurz zu bestätigen: ${rangeBridge.pendingCompetencies.take(3).map((id) => MicroCompetencyCatalog.definition(id).label).join(' · ')}',
+                      key: const ValueKey('range-bridge-pending'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ],
               ],
             ),

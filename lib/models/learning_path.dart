@@ -47,6 +47,7 @@ class GuidedRoundSegment {
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
     this.scaffoldFading = false,
+    this.rangeBridge = false,
   });
 
   final GuidedRoundRole role;
@@ -57,6 +58,7 @@ class GuidedRoundSegment {
   final bool reviewEmphasis;
   final bool transferEmphasis;
   final bool scaffoldFading;
+  final bool rangeBridge;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'role': role.name,
@@ -67,6 +69,7 @@ class GuidedRoundSegment {
         'reviewEmphasis': reviewEmphasis,
         'transferEmphasis': transferEmphasis,
         'scaffoldFading': scaffoldFading,
+        'rangeBridge': rangeBridge,
       };
 
   factory GuidedRoundSegment.fromJson(Map<String, dynamic> json) =>
@@ -83,6 +86,7 @@ class GuidedRoundSegment {
         reviewEmphasis: json['reviewEmphasis'] as bool? ?? false,
         transferEmphasis: json['transferEmphasis'] as bool? ?? false,
         scaffoldFading: json['scaffoldFading'] as bool? ?? false,
+        rangeBridge: json['rangeBridge'] as bool? ?? false,
       );
 
   GuidedRoundSegment copyWith({
@@ -98,6 +102,7 @@ class GuidedRoundSegment {
         reviewEmphasis: reviewEmphasis,
         transferEmphasis: transferEmphasis,
         scaffoldFading: scaffoldFading,
+        rangeBridge: rangeBridge,
       );
 }
 
@@ -258,6 +263,33 @@ class NumberRangeReadiness {
   final String reason;
 
   bool get isReady => status == NumberRangeReadinessStatus.ready;
+}
+
+class NumberRangeBridgeStatus {
+  const NumberRangeBridgeStatus({
+    required this.previousRange,
+    required this.currentRange,
+    required this.foundationCompetencies,
+    required this.confirmedCompetencies,
+    required this.pendingCompetencies,
+    required this.reason,
+  });
+
+  final NumberRangeLevel? previousRange;
+  final NumberRangeLevel currentRange;
+  final List<MicroCompetencyId> foundationCompetencies;
+  final List<MicroCompetencyId> confirmedCompetencies;
+  final List<MicroCompetencyId> pendingCompetencies;
+  final String reason;
+
+  bool get isActive =>
+      previousRange != null &&
+      foundationCompetencies.isNotEmpty &&
+      pendingCompetencies.isNotEmpty;
+
+  double get progress => foundationCompetencies.isEmpty
+      ? 0
+      : confirmedCompetencies.length / foundationCompetencies.length;
 }
 
 class GuidedStepFocus {
