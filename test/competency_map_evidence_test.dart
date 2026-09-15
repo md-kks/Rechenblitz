@@ -128,4 +128,57 @@ void main() {
     expect(find.text('bisher mit Hilfe'), findsNWidgets(2));
     expect(find.text('0 % richtig'), findsNothing);
   });
+
+  testWidgets('Lernlandkarte zeigt den Erhaltungsplan einer sicheren Kompetenz', (
+    tester,
+  ) async {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      for (var index = 0; index < 6; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 1, 8, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          helpLevel: 0,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'map-stability:$index',
+        ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(home: CompetencyMapScreen(controller: controller)),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('learning-group:Zahlen & Rechnen')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('learning-mode:practice')));
+    await tester.pumpAndSettle();
+    final info = find.byKey(const ValueKey('micro-info:additionTenBridge'));
+    await tester.scrollUntilVisible(
+      info,
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(info);
+    await tester.pumpAndSettle();
+    await tester.tap(info);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('micro-stability:additionTenBridge')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Abstandskontrolle'), findsOneWidget);
+    expect(find.textContaining('Transfer'), findsOneWidget);
+  });
+
 }

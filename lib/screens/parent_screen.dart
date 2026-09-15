@@ -269,6 +269,11 @@ class _ParentScreenState extends State<ParentScreen> {
                   title: 'Entwicklung',
                   text: insight.trend,
                 ),
+                _InsightLine(
+                  icon: Icons.event_repeat_rounded,
+                  title: 'Langfristig festigen',
+                  text: insight.stability,
+                ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(

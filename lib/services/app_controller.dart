@@ -1748,6 +1748,90 @@ class AppController extends ChangeNotifier {
     return candidates.isEmpty ? null : candidates.first;
   }
 
+  DateTime? nextReviewDueAt(MicroCompetencyId id) {
+    final progress = microCompetencyProgress(id);
+    if (progress.lastSeen == null ||
+        (progress.state != MicroCompetencyState.secure &&
+            progress.state != MicroCompetencyState.mastered)) {
+      return null;
+    }
+    final latestReview = _latestMicroObservationForSource(
+      id,
+      MicroEvidenceSource.review,
+    );
+    final latestReviewUnstable = _latestSourceEvidenceIsUnstable(
+      id,
+      MicroEvidenceSource.review,
+    );
+    final hasStableDelayedEvidence = _evidenceAtLeast(
+          progress.reviewIndependentEvidence,
+          _masteredReviewEvidence,
+        ) &&
+        progress.reviewIndependentAccuracy >= _masteredReviewAccuracy &&
+        !latestReviewUnstable;
+    final requiredGap = latestReviewUnstable
+        ? _unstableReviewRetryGap
+        : progress.state == MicroCompetencyState.mastered
+            ? _masteredReviewGap
+            : hasStableDelayedEvidence
+                ? _reinforcedReviewGap
+                : _initialReviewGap;
+    final basisAnchor =
+        _latestBasisObservation(id)?.occurredAt ?? progress.lastSeen!;
+    final anchor = latestReview?.occurredAt ?? basisAnchor;
+    return anchor.add(requiredGap);
+  }
+
+  DateTime? nextTransferDueAt(MicroCompetencyId id) {
+    final progress = microCompetencyProgress(id);
+    if (progress.lastSeen == null ||
+        (progress.state != MicroCompetencyState.secure &&
+            progress.state != MicroCompetencyState.mastered)) {
+      return null;
+    }
+    final latestTransfer = _latestMicroObservationForSource(
+      id,
+      MicroEvidenceSource.transfer,
+    );
+    if (latestTransfer == null) return progress.lastSeen;
+    final unstable = _latestSourceEvidenceIsUnstable(
+      id,
+      MicroEvidenceSource.transfer,
+    );
+    final gap = unstable
+        ? _unstableReviewRetryGap
+        : progress.state == MicroCompetencyState.mastered
+            ? _masteredTransferGap
+            : _reinforcedTransferGap;
+    return latestTransfer.occurredAt.add(gap);
+  }
+
+  String microStabilityScheduleText(
+    MicroCompetencyId id, {
+    DateTime? now,
+  }) {
+    final progress = microCompetencyProgress(id);
+    if (progress.state != MicroCompetencyState.secure &&
+        progress.state != MicroCompetencyState.mastered) {
+      return 'Noch kein Erhaltungsplan: Erst wenn der Teilschritt sicher ist, plant Rechenblitz Abstand und Transfer gezielt ein.';
+    }
+    final reference = now ?? DateTime.now();
+    String dueText(DateTime? due, String noun) {
+      if (due == null) return '$noun noch nicht planbar';
+      if (!due.isAfter(reference)) return '$noun jetzt fällig';
+      final referenceDay = DateTime(reference.year, reference.month, reference.day);
+      final dueDay = DateTime(due.year, due.month, due.day);
+      final days = dueDay.difference(referenceDay).inDays;
+      if (days <= 0) return '$noun später heute';
+      if (days == 1) return '$noun morgen';
+      return '$noun in $days Tagen';
+    }
+
+    final review = dueText(nextReviewDueAt(id), 'Abstandskontrolle');
+    final transfer = dueText(nextTransferDueAt(id), 'Transfer');
+    return '$review · $transfer. Fehler oder Hilfebedarf verkürzen den Abstand automatisch.';
+  }
+
   MicroCompetencyProgress? dueReviewMicroCompetency({
     DateTime? now,
     Iterable<MicroCompetencyId> excluding = const <MicroCompetencyId>[],
@@ -1764,33 +1848,8 @@ class AppController extends ChangeNotifier {
                     progress.state != MicroCompetencyState.mastered)) {
               return false;
             }
-            final latestReview = _latestMicroObservationForSource(
-              progress.definition.id,
-              MicroEvidenceSource.review,
-            );
-            final latestReviewUnstable = _latestSourceEvidenceIsUnstable(
-              progress.definition.id,
-              MicroEvidenceSource.review,
-            );
-            final hasStableDelayedEvidence = _evidenceAtLeast(
-                  progress.reviewIndependentEvidence,
-                  _masteredReviewEvidence,
-                ) &&
-                progress.reviewIndependentAccuracy >=
-                    _masteredReviewAccuracy &&
-                !latestReviewUnstable;
-            final requiredGap = latestReviewUnstable
-                ? _unstableReviewRetryGap
-                : progress.state == MicroCompetencyState.mastered
-                    ? _masteredReviewGap
-                    : hasStableDelayedEvidence
-                        ? _reinforcedReviewGap
-                        : _initialReviewGap;
-            final basisAnchor =
-                _latestBasisObservation(progress.definition.id)?.occurredAt ??
-                    progress.lastSeen!;
-            final anchor = latestReview?.occurredAt ?? basisAnchor;
-            return reference.difference(anchor) >= requiredGap;
+            final dueAt = nextReviewDueAt(progress.definition.id);
+            return dueAt != null && !dueAt.isAfter(reference);
           },
         )
         .toList()
@@ -1828,21 +1887,8 @@ class AppController extends ChangeNotifier {
               return false;
             }
             if (!respectSchedule) return true;
-            final latestTransfer = _latestMicroObservationForSource(
-              progress.definition.id,
-              MicroEvidenceSource.transfer,
-            );
-            if (latestTransfer == null) return true;
-            final unstable = _latestSourceEvidenceIsUnstable(
-              progress.definition.id,
-              MicroEvidenceSource.transfer,
-            );
-            final gap = unstable
-                ? _unstableReviewRetryGap
-                : progress.state == MicroCompetencyState.mastered
-                    ? _masteredTransferGap
-                    : _reinforcedTransferGap;
-            return reference.difference(latestTransfer.occurredAt) >= gap;
+            final dueAt = nextTransferDueAt(progress.definition.id);
+            return dueAt != null && !dueAt.isAfter(reference);
           },
         )
         .toList()
@@ -2749,6 +2795,7 @@ class AppController extends ChangeNotifier {
         action: action,
         notYet: notYet,
         trend: _weeklyTrendText(),
+        stability: microStabilityScheduleText(priority.definition.id, now: now),
         mastery: _parentMasteryText(priority),
         evidence: _parentEvidenceText(priority),
         selection: _parentSelectionText(now: now),
@@ -2806,6 +2853,8 @@ class AppController extends ChangeNotifier {
       action: action,
       notYet: notYet,
       trend: _weeklyTrendText(),
+      stability:
+          'Sobald genügend selbstständige Evidenz vorliegt, plant Rechenblitz Wiederholung und Transfer mit wachsendem Abstand.',
       mastery:
           'Noch liegen nicht genug Mikro-Beobachtungen vor, um „Sicher“ und „Gemeistert“ für einen konkreten Teilschritt zu erklären.',
       evidence:
