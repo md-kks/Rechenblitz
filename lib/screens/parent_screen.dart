@@ -270,6 +270,11 @@ class _ParentScreenState extends State<ParentScreen> {
                   text: insight.trend,
                 ),
                 _InsightLine(
+                  icon: Icons.fact_check_outlined,
+                  title: 'Aussagekraft',
+                  text: insight.confidence,
+                ),
+                _InsightLine(
                   icon: Icons.event_repeat_rounded,
                   title: 'Langfristig festigen',
                   text: insight.stability,

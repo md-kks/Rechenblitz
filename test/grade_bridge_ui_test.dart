@@ -67,6 +67,28 @@ void main() {
     expect(find.byKey(const ValueKey('grade-bridge-pending')), findsOneWidget);
   });
 
+
+  testWidgets('Elternbereich zeigt die Aussagekraft des Lernstands', (tester) async {
+    final controller = await _controllerWithGradeBridge();
+    await tester.pumpWidget(MaterialApp(home: ParentScreen(controller: controller)));
+    await tester.pump();
+
+    await tester.scrollUntilVisible(
+      find.text('Aussagekraft'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Aussagekraft'), findsOneWidget);
+    expect(
+      find.textContaining('Daten').evaluate().isNotEmpty ||
+          find.textContaining('Aussage').evaluate().isNotEmpty ||
+          find.textContaining('Bestätigung').evaluate().isNotEmpty,
+      isTrue,
+    );
+  });
+
   testWidgets('Lernlandkarte erklaert die Klassenstufen-Bruecke', (tester) async {
     final controller = await _controllerWithGradeBridge();
     await tester.pumpWidget(
