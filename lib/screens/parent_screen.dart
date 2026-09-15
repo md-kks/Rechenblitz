@@ -97,6 +97,7 @@ class _ParentScreenState extends State<ParentScreen> {
     final c = widget.controller;
     final recommendation = c.recommendationText();
     final rangeReadiness = c.numberRangeReadiness();
+    final gradeBridge = c.gradeBridgeStatus();
     final rangeBridge = c.numberRangeBridgeStatus();
     final insight = c.parentInsight();
     final priority = c.parentPriorityMicroCompetency();
@@ -540,6 +541,44 @@ class _ParentScreenState extends State<ParentScreen> {
                       '${rangeReadiness.nextRange!.label} verwenden',
                     ),
                   ),
+                ],
+                if (gradeBridge.isActive) ...[
+                  const Divider(height: 30),
+                  Row(
+                    children: [
+                      const Icon(Icons.school_rounded),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Übergang ${gradeBridge.previousGrade!.label} → ${gradeBridge.currentGrade.label}',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                      ),
+                      Text(
+                        '${gradeBridge.confirmedCompetencies.length}/${gradeBridge.foundationCompetencies.length}',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    key: const ValueKey('grade-bridge-progress'),
+                    value: gradeBridge.progress,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(gradeBridge.reason),
+                  if (gradeBridge.pendingCompetencies.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Noch kurz zu bestätigen: ${gradeBridge.pendingCompetencies.take(3).map((id) => MicroCompetencyCatalog.definition(id).label).join(' · ')}',
+                      key: const ValueKey('grade-bridge-pending'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ],
                 if (rangeBridge.isActive) ...[
                   const Divider(height: 30),

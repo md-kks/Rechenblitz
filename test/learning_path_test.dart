@@ -1613,6 +1613,226 @@ void main() {
     expect(controller.recentTaskKeysByMode, isEmpty);
   });
 
+
+  test('Klassenstufen-Brücke übernimmt stabile Grundlagen aus der Vorstufe', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final start = DateTime(2026, 9, 15, 9);
+    controller.microObservations.addAll(
+      List.generate(
+        6,
+        (index) => _rangeObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          when: start.add(Duration(minutes: index)),
+          range: NumberRangeLevel.twenty,
+          grade: GradeLevel.first,
+          mode: TrainingMode.numberFriends,
+          taskKey: 'grade-bridge-old:$index',
+        ),
+      ),
+    );
+
+    final bridge = controller.gradeBridgeStatus();
+    final current = controller.microCompetencyProgress(
+      MicroCompetencyId.numberDecomposition,
+    );
+
+    expect(bridge.isActive, isTrue);
+    expect(bridge.previousGrade, GradeLevel.first);
+    expect(bridge.currentGrade, GradeLevel.second);
+    expect(
+      bridge.pendingCompetencies,
+      contains(MicroCompetencyId.numberDecomposition),
+    );
+    expect(current.state, MicroCompetencyState.newSkill);
+    expect(bridge.reason, contains('Klasse 1'));
+  });
+
+  test('Klassenstufen-Brücke hat Vorrang vor einer Zahlenraum-Brücke', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final start = DateTime(2026, 9, 15, 9);
+    controller.microObservations.addAll([
+      ...List.generate(
+        6,
+        (index) => _rangeObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          when: start.add(Duration(minutes: index)),
+          range: NumberRangeLevel.twenty,
+          grade: GradeLevel.first,
+          mode: TrainingMode.numberFriends,
+          taskKey: 'grade-priority-old:$index',
+        ),
+      ),
+      ...List.generate(
+        6,
+        (index) => _rangeObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          when: start.add(Duration(hours: 1, minutes: index)),
+          range: NumberRangeLevel.twenty,
+          grade: GradeLevel.second,
+          mode: TrainingMode.numberFriends,
+          taskKey: 'range-priority-old:$index',
+        ),
+      ),
+    ]);
+
+    expect(controller.gradeBridgeStatus().isActive, isTrue);
+    expect(controller.numberRangeBridgeStatus().isActive, isTrue);
+
+    final plan = controller.buildMyRound();
+    final warmUp = plan.first;
+
+    expect(warmUp.gradeBridge, isTrue);
+    expect(warmUp.rangeBridge, isFalse);
+    expect(warmUp.isBridge, isTrue);
+    expect(
+      warmUp.targetCompetency,
+      MicroCompetencyId.numberDecomposition,
+    );
+    expect(warmUp.reason, contains('Klasse 1'));
+    expect(warmUp.reason, contains('Klasse 2'));
+  });
+
+  test('neue eigenständige Evidenz schließt eine Klassenstufen-Brücke', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final start = DateTime(2026, 9, 15, 9);
+    controller.microObservations.addAll([
+      ...List.generate(
+        6,
+        (index) => _rangeObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          when: start.add(Duration(minutes: index)),
+          range: NumberRangeLevel.twenty,
+          grade: GradeLevel.first,
+          mode: TrainingMode.numberFriends,
+          taskKey: 'grade-close-old:$index',
+        ),
+      ),
+      _rangeObservation(
+        id: MicroCompetencyId.numberDecomposition,
+        when: start.add(const Duration(days: 1)),
+        range: NumberRangeLevel.hundred,
+        grade: GradeLevel.second,
+        mode: TrainingMode.numberFriends,
+        taskKey: 'grade-close-new:1',
+      ),
+      _rangeObservation(
+        id: MicroCompetencyId.numberDecomposition,
+        when: start.add(const Duration(days: 1, minutes: 1)),
+        range: NumberRangeLevel.hundred,
+        grade: GradeLevel.second,
+        mode: TrainingMode.numberFriends,
+        taskKey: 'grade-close-new:2',
+      ),
+    ]);
+
+    final bridge = controller.gradeBridgeStatus();
+
+    expect(
+      bridge.confirmedCompetencies,
+      contains(MicroCompetencyId.numberDecomposition),
+    );
+    expect(
+      bridge.pendingCompetencies,
+      isNot(contains(MicroCompetencyId.numberDecomposition)),
+    );
+    expect(bridge.progress, 1);
+    expect(bridge.isActive, isFalse);
+  });
+
+  test('zuletzt instabile Vorstufen-Evidenz wird nicht überbrückt', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final start = DateTime(2026, 9, 15, 9);
+    controller.microObservations.addAll(
+      List.generate(
+        6,
+        (index) => _rangeObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          when: start.add(Duration(minutes: index)),
+          range: NumberRangeLevel.twenty,
+          grade: GradeLevel.first,
+          mode: TrainingMode.numberFriends,
+          taskKey: 'grade-unstable-old:$index',
+        ),
+      ),
+    );
+    controller.microObservations.add(
+      _rangeObservation(
+        id: MicroCompetencyId.numberDecomposition,
+        when: start.add(const Duration(hours: 1)),
+        range: NumberRangeLevel.twenty,
+        grade: GradeLevel.first,
+        mode: TrainingMode.numberFriends,
+        taskKey: 'grade-unstable-latest',
+        correct: false,
+      ),
+    );
+
+    final bridge = controller.gradeBridgeStatus();
+
+    expect(
+      bridge.foundationCompetencies,
+      isNot(contains(MicroCompetencyId.numberDecomposition)),
+    );
+  });
+
+  test('Klassenstufen-Brückenrolle bleibt im gespeicherten Rundenplan erhalten', () {
+    const segment = GuidedRoundSegment(
+      role: GuidedRoundRole.warmUp,
+      mode: TrainingMode.numberFriends,
+      tasks: 2,
+      reason: 'Klassenbrücke',
+      targetCompetency: MicroCompetencyId.numberDecomposition,
+      gradeBridge: true,
+    );
+
+    final restored = GuidedRoundSegment.fromJson(segment.toJson());
+
+    expect(restored.gradeBridge, isTrue);
+    expect(restored.rangeBridge, isFalse);
+    expect(restored.isBridge, isTrue);
+    expect(restored.targetCompetency, MicroCompetencyId.numberDecomposition);
+  });
+
+  test('Klassenwechsel verwirft alten Rundenplan und Aufgaben-Diversität', () async {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.twenty;
+    controller.recentTaskKeysByMode = <String, List<String>>{
+      TrainingMode.numberFriends.name: <String>['plus:6:4'],
+    };
+    controller.guidedRoundProgress = GuidedRoundProgress(
+      plan: const <GuidedRoundSegment>[
+        GuidedRoundSegment(
+          role: GuidedRoundRole.warmUp,
+          mode: TrainingMode.numberFriends,
+          tasks: 2,
+          reason: 'alt',
+        ),
+      ],
+      completedRoles: const <GuidedRoundRole>{},
+      gradeLevel: GradeLevel.first,
+      numberRange: NumberRangeLevel.twenty,
+      startedAt: DateTime(2026, 9, 15, 9),
+      updatedAt: DateTime(2026, 9, 15, 9),
+      recoveryRequired: false,
+    );
+
+    await controller.setGradeLevel(GradeLevel.second);
+
+    expect(controller.gradeLevel, GradeLevel.second);
+    expect(controller.numberRange, NumberRangeLevel.hundred);
+    expect(controller.guidedRoundProgress, isNull);
+    expect(controller.recentTaskKeysByMode, isEmpty);
+  });
+
 }
 
 

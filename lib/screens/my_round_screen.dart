@@ -338,7 +338,17 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                     Text('${nextSegment.tasks} Aufgaben'),
                     const SizedBox(height: 6),
                     Text(nextSegment.reason),
-                    if (nextSegment.rangeBridge) ...[
+                    if (nextSegment.gradeBridge) ...[
+                      const SizedBox(height: 8),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Chip(
+                          key: ValueKey('round-grade-bridge-chip'),
+                          avatar: Icon(Icons.school_rounded, size: 18),
+                          label: Text('Brückenaufgaben in der neuen Klassenstufe'),
+                        ),
+                      ),
+                    ] else if (nextSegment.rangeBridge) ...[
                       const SizedBox(height: 8),
                       const Align(
                         alignment: Alignment.centerLeft,
@@ -378,7 +388,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                       ),
                       title: Text('${plan[index].role.label}: ${plan[index].mode.title}'),
                       subtitle: Text(
-                        '${plan[index].tasks} Aufgaben${plan[index].rangeBridge ? ' · Brücke' : ''} · ${plan[index].reason}',
+                        '${plan[index].tasks} Aufgaben${plan[index].isBridge ? ' · Brücke' : ''} · ${plan[index].reason}',
                       ),
                     ),
                 ],

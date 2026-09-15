@@ -219,6 +219,7 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
   Widget build(BuildContext context) {
     final groups = _groups();
     final allMicro = widget.controller.microCompetenciesForGrade();
+    final gradeBridge = widget.controller.gradeBridgeStatus();
     final rangeBridge = widget.controller.numberRangeBridgeStatus();
     final safe = allMicro
         .where(
@@ -243,6 +244,48 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 34),
         children: [
+          if (gradeBridge.isActive) ...[
+            Card(
+              key: const ValueKey('learning-map-grade-bridge'),
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.school_rounded),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Grundlagen aus ${gradeBridge.previousGrade!.label} bestätigen',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(gradeBridge.reason),
+                    const SizedBox(height: 10),
+                    LinearProgressIndicator(
+                      key: const ValueKey('learning-map-grade-bridge-progress'),
+                      value: gradeBridge.progress,
+                      minHeight: 9,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Wichtig: Sicher in ${gradeBridge.previousGrade!.label} wird nicht automatisch als sicher in ${gradeBridge.currentGrade.label} gewertet. Rechenblitz bestätigt die Grundlage kurz mit Aufgaben der neuen Klassenstufe.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
           if (rangeBridge.isActive) ...[
             Card(
               key: const ValueKey('learning-map-range-bridge'),

@@ -48,6 +48,7 @@ class GuidedRoundSegment {
     this.transferEmphasis = false,
     this.scaffoldFading = false,
     this.rangeBridge = false,
+    this.gradeBridge = false,
   });
 
   final GuidedRoundRole role;
@@ -59,6 +60,9 @@ class GuidedRoundSegment {
   final bool transferEmphasis;
   final bool scaffoldFading;
   final bool rangeBridge;
+  final bool gradeBridge;
+
+  bool get isBridge => rangeBridge || gradeBridge;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'role': role.name,
@@ -70,6 +74,7 @@ class GuidedRoundSegment {
         'transferEmphasis': transferEmphasis,
         'scaffoldFading': scaffoldFading,
         'rangeBridge': rangeBridge,
+        'gradeBridge': gradeBridge,
       };
 
   factory GuidedRoundSegment.fromJson(Map<String, dynamic> json) =>
@@ -87,6 +92,7 @@ class GuidedRoundSegment {
         transferEmphasis: json['transferEmphasis'] as bool? ?? false,
         scaffoldFading: json['scaffoldFading'] as bool? ?? false,
         rangeBridge: json['rangeBridge'] as bool? ?? false,
+        gradeBridge: json['gradeBridge'] as bool? ?? false,
       );
 
   GuidedRoundSegment copyWith({
@@ -103,6 +109,7 @@ class GuidedRoundSegment {
         transferEmphasis: transferEmphasis,
         scaffoldFading: scaffoldFading,
         rangeBridge: rangeBridge,
+        gradeBridge: gradeBridge,
       );
 }
 
@@ -284,6 +291,33 @@ class NumberRangeBridgeStatus {
 
   bool get isActive =>
       previousRange != null &&
+      foundationCompetencies.isNotEmpty &&
+      pendingCompetencies.isNotEmpty;
+
+  double get progress => foundationCompetencies.isEmpty
+      ? 0
+      : confirmedCompetencies.length / foundationCompetencies.length;
+}
+
+class GradeBridgeStatus {
+  const GradeBridgeStatus({
+    required this.previousGrade,
+    required this.currentGrade,
+    required this.foundationCompetencies,
+    required this.confirmedCompetencies,
+    required this.pendingCompetencies,
+    required this.reason,
+  });
+
+  final GradeLevel? previousGrade;
+  final GradeLevel currentGrade;
+  final List<MicroCompetencyId> foundationCompetencies;
+  final List<MicroCompetencyId> confirmedCompetencies;
+  final List<MicroCompetencyId> pendingCompetencies;
+  final String reason;
+
+  bool get isActive =>
+      previousGrade != null &&
       foundationCompetencies.isNotEmpty &&
       pendingCompetencies.isNotEmpty;
 
