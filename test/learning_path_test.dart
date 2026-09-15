@@ -2048,6 +2048,142 @@ void main() {
     expect(controller.recentTaskKeysByMode, isEmpty);
   });
 
+
+  test('Stabilitätsplan nennt nächste Wiederholung und Transfer konsistent', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final id = MicroCompetencyId.additionTenBridge;
+    controller.microObservations = List.generate(
+      6,
+      (index) => _microObservation(
+        id: id,
+        when: DateTime(2026, 9, 1, 8, index),
+        source: MicroEvidenceSource.practice,
+        taskKey: 'stability-base:$index',
+      ),
+    );
+
+    expect(controller.microCompetencyProgress(id).state, MicroCompetencyState.secure);
+    expect(controller.nextReviewDueAt(id), DateTime(2026, 9, 3, 8, 5));
+    expect(controller.nextTransferDueAt(id), DateTime(2026, 9, 1, 8, 5));
+    expect(
+      controller.microStabilityScheduleText(id, now: DateTime(2026, 9, 2, 9)),
+      contains('Abstandskontrolle morgen'),
+    );
+    expect(
+      controller.microStabilityScheduleText(id, now: DateTime(2026, 9, 2, 9)),
+      contains('Transfer jetzt fällig'),
+    );
+  });
+
+  test('stabile und instabile Kontrollen verändern den sichtbaren Abstand', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final id = MicroCompetencyId.additionTenBridge;
+    final base = List.generate(
+      6,
+      (index) => _microObservation(
+        id: id,
+        when: DateTime(2026, 9, 1, 8, index),
+        source: MicroEvidenceSource.practice,
+        taskKey: 'stability-base:$index',
+      ),
+    );
+    controller.microObservations = [
+      ...base,
+      for (var index = 0; index < 2; index++)
+        _microObservation(
+          id: id,
+          when: DateTime(2026, 9, 3, 8, index),
+          source: MicroEvidenceSource.review,
+          taskKey: 'stability-review:$index',
+        ),
+    ];
+    expect(controller.nextReviewDueAt(id), DateTime(2026, 9, 10, 8, 1));
+    expect(
+      controller.microStabilityScheduleText(id, now: DateTime(2026, 9, 4, 8)),
+      contains('Abstandskontrolle in 6 Tagen'),
+    );
+
+    controller.microObservations = [
+      ...base,
+      _microObservation(
+        id: id,
+        when: DateTime(2026, 9, 4, 8),
+        source: MicroEvidenceSource.review,
+        taskKey: 'stability-unstable',
+        usedHelp: true,
+        helpLevel: 1,
+      ),
+    ];
+    expect(controller.nextReviewDueAt(id), DateTime(2026, 9, 5, 8));
+    expect(
+      controller.microStabilityScheduleText(id, now: DateTime(2026, 9, 4, 9)),
+      contains('Abstandskontrolle morgen'),
+    );
+  });
+
+  test('gemeisterte Kompetenz erhält vierzehn Tage für Review und Transfer', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final id = MicroCompetencyId.additionTenBridge;
+    controller.microObservations = [
+      for (var index = 0; index < 6; index++)
+        _microObservation(
+          id: id,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'mastery-base:$index',
+        ),
+      for (var index = 0; index < 2; index++)
+        _microObservation(
+          id: id,
+          when: DateTime(2026, 9, 3, 8, index),
+          source: MicroEvidenceSource.review,
+          taskKey: 'mastery-review:$index',
+        ),
+      for (var index = 0; index < 2; index++)
+        _microObservation(
+          id: id,
+          when: DateTime(2026, 9, 4, 8, index),
+          source: MicroEvidenceSource.transfer,
+          mode: TrainingMode.wordProblems,
+          taskKey: 'mastery-transfer:$index',
+        ),
+    ];
+
+    expect(controller.microCompetencyProgress(id).state, MicroCompetencyState.mastered);
+    expect(controller.nextReviewDueAt(id), DateTime(2026, 9, 17, 8, 1));
+    expect(controller.nextTransferDueAt(id), DateTime(2026, 9, 18, 8, 1));
+    final insight = controller.parentInsight(now: DateTime(2026, 9, 5, 8));
+    expect(insight.stability, contains('Abstandskontrolle in 12 Tagen'));
+    expect(insight.stability, contains('Transfer in 13 Tagen'));
+  });
+
+  test('unsichere Kompetenz zeigt bewusst noch keinen Erhaltungsplan', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 1, 8),
+        source: MicroEvidenceSource.practice,
+        taskKey: 'not-secure',
+      ),
+    ];
+
+    expect(controller.nextReviewDueAt(MicroCompetencyId.additionTenBridge), isNull);
+    expect(controller.nextTransferDueAt(MicroCompetencyId.additionTenBridge), isNull);
+    expect(
+      controller.microStabilityScheduleText(MicroCompetencyId.additionTenBridge),
+      contains('Noch kein Erhaltungsplan'),
+    );
+  });
+
 }
 
 

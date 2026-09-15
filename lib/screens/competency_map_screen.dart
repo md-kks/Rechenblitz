@@ -264,6 +264,28 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                 _EvidenceLine(label: 'Später noch einmal', value: review),
                 _EvidenceLine(label: 'Bei anderer Aufgabe', value: transfer),
                 const SizedBox(height: 10),
+                Card(
+                  key: ValueKey('micro-stability:${progress.definition.id.name}'),
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.event_repeat_rounded, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            widget.controller.microStabilityScheduleText(
+                              progress.definition.id,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Text(
                   'Hilfe ist völlig okay. Sie zählt hier nur nicht als allein geschafft.',
                   style: Theme.of(context).textTheme.bodySmall,
