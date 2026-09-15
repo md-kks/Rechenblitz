@@ -120,6 +120,7 @@ class GuidedRoundOrchestrator {
     required List<GuidedRoundSegment> current,
     required List<GuidedRoundSegment> updated,
     required Set<GuidedRoundRole> completedRoles,
+    Map<GuidedRoundRole, int> completedTaskCounts = const <GuidedRoundRole, int>{},
     int? regularTaskBudget,
   }) {
     final completedSegments = <GuidedRoundRole, GuidedRoundSegment>{
@@ -134,7 +135,11 @@ class GuidedRoundOrchestrator {
 
     final completedTasks = merged
         .where((segment) => completedRoles.contains(segment.role))
-        .fold<int>(0, (sum, segment) => sum + segment.tasks);
+        .fold<int>(
+          0,
+          (sum, segment) =>
+              sum + (completedTaskCounts[segment.role] ?? segment.tasks),
+        );
     var remaining = regularTaskBudget - completedTasks;
     final open = merged
         .where((segment) => !completedRoles.contains(segment.role))
@@ -268,6 +273,7 @@ class GuidedRoundProgress {
     this.decisionTrace = const GuidedRoundDecisionTrace(items: <GuidedRoundDecisionItem>[]),
     this.lastAdaptationKind,
     this.lastAdaptationMessage,
+    this.completedTaskCounts = const <GuidedRoundRole, int>{},
   });
 
   final List<GuidedRoundSegment> plan;
@@ -283,6 +289,26 @@ class GuidedRoundProgress {
   final GuidedRoundDecisionTrace decisionTrace;
   final GuidedRoundAdaptationKind? lastAdaptationKind;
   final String? lastAdaptationMessage;
+  final Map<GuidedRoundRole, int> completedTaskCounts;
+
+  int completedTasksFor(GuidedRoundSegment segment) {
+    if (!completedRoles.contains(segment.role)) return 0;
+    return completedTaskCounts[segment.role] ?? segment.tasks;
+  }
+
+  int get completedRegularTasks => plan.fold<int>(
+        0,
+        (sum, segment) => sum + completedTasksFor(segment),
+      );
+
+  int get effectiveRegularTaskTotal => plan.fold<int>(
+        0,
+        (sum, segment) =>
+            sum +
+            (completedRoles.contains(segment.role)
+                ? completedTasksFor(segment)
+                : segment.tasks),
+      );
 
   bool get isComplete =>
       plan.every((segment) => completedRoles.contains(segment.role)) &&
@@ -320,6 +346,10 @@ class GuidedRoundProgress {
         'decisionTrace': decisionTrace.toJson(),
         'lastAdaptationKind': lastAdaptationKind?.name,
         'lastAdaptationMessage': lastAdaptationMessage,
+        'completedTaskCounts': <String, int>{
+          for (final entry in completedTaskCounts.entries)
+            entry.key.name: entry.value,
+        },
       };
 
   factory GuidedRoundProgress.fromJson(Map<String, dynamic> json) =>
@@ -357,6 +387,14 @@ class GuidedRoundProgress {
                 json['lastAdaptationKind'] as String,
               ),
         lastAdaptationMessage: json['lastAdaptationMessage'] as String?,
+        completedTaskCounts: json['completedTaskCounts'] is Map
+            ? <GuidedRoundRole, int>{
+                for (final entry in
+                    (json['completedTaskCounts'] as Map).entries)
+                  GuidedRoundRole.values.byName(entry.key as String):
+                      (entry.value as num).toInt(),
+              }
+            : const <GuidedRoundRole, int>{},
       );
 }
 

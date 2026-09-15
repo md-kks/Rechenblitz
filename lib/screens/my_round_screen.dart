@@ -24,6 +24,8 @@ class MyRoundScreen extends StatefulWidget {
 class _MyRoundScreenState extends State<MyRoundScreen> {
   late List<GuidedRoundSegment> plan;
   final Set<GuidedRoundRole> completedRoles = <GuidedRoundRole>{};
+  final Map<GuidedRoundRole, int> completedTaskCounts =
+      <GuidedRoundRole, int>{};
   bool stepRecoveryAttempted = false;
   bool stepRecoveryCompleted = false;
   bool deferEmergingRecovery = false;
@@ -40,6 +42,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
     if (restored != null) {
       plan = List<GuidedRoundSegment>.from(restored.plan);
       completedRoles.addAll(restored.completedRoles);
+      completedTaskCounts.addAll(restored.completedTaskCounts);
       stepRecoveryAttempted = restored.stepRecoveryAttempted;
       stepRecoveryCompleted = restored.stepRecoveryCompleted;
       deferEmergingRecovery = restored.deferEmergingRecovery;
@@ -81,6 +84,8 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
         decisionTrace: decisionTrace,
         lastAdaptationKind: lastAdaptationKind,
         lastAdaptationMessage: lastAdaptationMessage,
+        completedTaskCounts:
+            Map<GuidedRoundRole, int>.from(completedTaskCounts),
       );
 
   Future<void> _persistRound() =>
@@ -101,6 +106,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             reviewEmphasis: segment.reviewEmphasis,
             transferEmphasis: segment.transferEmphasis,
             scaffoldFading: segment.scaffoldFading,
+            adaptiveLength: true,
           ),
         ),
       );
@@ -115,6 +121,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             reviewEmphasis: segment.reviewEmphasis,
             transferEmphasis: segment.transferEmphasis,
             scaffoldFading: segment.scaffoldFading,
+            adaptiveLength: true,
           ),
         ),
       );
@@ -129,6 +136,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             reviewEmphasis: segment.reviewEmphasis,
             transferEmphasis: segment.transferEmphasis,
             scaffoldFading: segment.scaffoldFading,
+            adaptiveLength: true,
           ),
         ),
       );
@@ -139,9 +147,18 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
       final result = widget.controller.history.first;
       setState(() {
         completedRoles.add(segment.role);
+        completedTaskCounts[segment.role] = result.total;
+        if (result.endedAdaptively && result.total < segment.tasks) {
+          plan[index] = segment.copyWith(
+            tasks: result.total,
+            reason:
+                '${segment.reason} Dieser Teil endete adaptiv nach ${result.total} von ${result.plannedTotal ?? segment.tasks} geplanten Aufgaben.',
+          );
+        }
         final adaptation = widget.controller.adaptMyRoundAfterSegment(
           current: plan,
           completedRoles: completedRoles,
+          completedTaskCounts: completedTaskCounts,
           completedSegment: segment,
           result: result,
         );
@@ -157,7 +174,10 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             emergingRecovery != null) {
           final completedTasks = plan
               .where(_isCompleted)
-              .fold<int>(0, (sum, item) => sum + item.tasks);
+              .fold<int>(
+                0,
+                (sum, item) => sum + _completedTaskCountFor(item),
+              );
           if (completedTasks > 9) {
             deferEmergingRecovery = true;
             lastAdaptationKind = GuidedRoundAdaptationKind.support;
@@ -182,6 +202,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
       current: plan,
       updated: updated,
       completedRoles: completedRoles,
+      completedTaskCounts: completedTaskCounts,
       regularTaskBudget: compactForRecovery ? 9 : null,
     );
     decisionTrace = widget.controller.guidedRoundDecisionTrace();
@@ -189,6 +210,9 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
 
   bool _isCompleted(GuidedRoundSegment segment) =>
       completedRoles.contains(segment.role);
+
+  int _completedTaskCountFor(GuidedRoundSegment segment) =>
+      completedTaskCounts[segment.role] ?? segment.tasks;
 
   @override
   Widget build(BuildContext context) {
@@ -207,11 +231,12 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
     final recoveryIncluded = recoveryRequired;
     final regularDoneTasks = plan
         .where(_isCompleted)
-        .fold<int>(0, (sum, segment) => sum + segment.tasks);
+        .fold<int>(0, (sum, segment) => sum + _completedTaskCountFor(segment));
     final doneTasks = regularDoneTasks + (stepRecoveryCompleted ? 3 : 0);
     final regularTotalTasks = plan.fold<int>(
       0,
-      (sum, segment) => sum + segment.tasks,
+      (sum, segment) =>
+          sum + (_isCompleted(segment) ? _completedTaskCountFor(segment) : segment.tasks),
     );
     final totalTasks = regularTotalTasks + (recoveryIncluded ? 3 : 0);
     final allDone =

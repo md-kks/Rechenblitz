@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../models/cube_net.dart';
 import '../models/curriculum_exercise.dart';
+import '../models/adaptive_segment.dart';
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
 import '../models/help_preferences.dart';
@@ -29,6 +30,7 @@ class CurriculumTrainingScreen extends StatefulWidget {
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
     this.scaffoldFading = false,
+    this.adaptiveLength = false,
     this.exerciseGenerator,
   });
 
@@ -39,6 +41,7 @@ class CurriculumTrainingScreen extends StatefulWidget {
   final bool reviewEmphasis;
   final bool transferEmphasis;
   final bool scaffoldFading;
+  final bool adaptiveLength;
   final CurriculumExerciseGenerator? exerciseGenerator;
 
   @override
@@ -76,6 +79,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   int wrongOnCurrent = 0;
   bool locked = false;
   bool finishing = false;
+  bool segmentUsedHelp = false;
   bool showHint = false;
   bool useTouchInput = true;
   int helpLevel = 0;
@@ -91,6 +95,30 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   bool hadCheckpointError = false;
   Future<void>? taskRememberFuture;
   String checkpointFeedback = '';
+
+  bool get _adaptiveTargetStable {
+    final id = widget.targetCompetency;
+    if (id == null) return false;
+    final progress = widget.controller.microCompetencyProgress(id);
+    final confidence = widget.controller.microEvidenceConfidence(id);
+    return (progress.state == MicroCompetencyState.secure ||
+            progress.state == MicroCompetencyState.mastered) &&
+        confidence.level == MicroEvidenceConfidenceLevel.current;
+  }
+
+  AdaptiveSegmentDecision _adaptiveSegmentDecision() =>
+      AdaptiveSegmentPolicy.evaluate(
+        enabled: widget.adaptiveLength,
+        mode: widget.mode,
+        plannedTasks: widget.targetTasks,
+        completed: completed,
+        correctFirstTry: correctFirstTry,
+        incorrectAttempts: incorrectAttempts,
+        usedHelp: segmentUsedHelp,
+        targetStable: _adaptiveTargetStable,
+        reviewEmphasis: widget.reviewEmphasis,
+        transferEmphasis: widget.transferEmphasis,
+      );
 
   @override
   void initState() {
@@ -338,6 +366,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
 
     locked = true;
     completed += 1;
+    segmentUsedHelp = segmentUsedHelp || showHint || helpLevel > 0;
     responseTimes.add(response.inMilliseconds.clamp(0, 30000).toInt());
     final firstTry = wrongOnCurrent == 0 && !hadCheckpointError;
     if (firstTry) correctFirstTry += 1;
@@ -353,8 +382,13 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         'Gut gelöst!',
       ][completed % 4];
     });
+    final adaptiveDecision = _adaptiveSegmentDecision();
     await Future<void>.delayed(const Duration(milliseconds: 550));
     if (!mounted || finishing) return;
+    if (adaptiveDecision.shouldStop) {
+      await _finish(adaptiveStopReason: adaptiveDecision.message);
+      return;
+    }
     if (completed >= widget.targetTasks) {
       await _finish();
       return;
@@ -373,7 +407,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     );
   }
 
-  Future<void> _finish() async {
+  Future<void> _finish({String? adaptiveStopReason}) async {
     if (finishing) return;
     finishing = true;
     final avg = responseTimes.isEmpty
@@ -394,6 +428,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       numberRange: widget.controller.effectiveNumberRange,
       gradeLevel: widget.controller.effectiveGradeLevel,
       starsEarned: 0,
+      plannedTotal: widget.targetTasks,
+      adaptiveStopReason: adaptiveStopReason,
     );
     final reason = widget.controller.rewardReasonForSession(result);
     result = result.copyWith(
@@ -408,6 +444,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       correctFirstTry: correctFirstTry,
       starsEarned: result.starsEarned,
       rewardReason: reason,
+      adaptiveNote: adaptiveStopReason,
       newBadges: newBadges,
     );
     if (mounted) Navigator.of(context).pop();

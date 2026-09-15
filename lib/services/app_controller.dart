@@ -2491,6 +2491,7 @@ class AppController extends ChangeNotifier {
   GuidedRoundAdaptation adaptMyRoundAfterSegment({
     required List<GuidedRoundSegment> current,
     required Set<GuidedRoundRole> completedRoles,
+    Map<GuidedRoundRole, int> completedTaskCounts = const <GuidedRoundRole, int>{},
     required GuidedRoundSegment completedSegment,
     required TrainingSessionResult result,
     DateTime? now,
@@ -2500,6 +2501,7 @@ class AppController extends ChangeNotifier {
       current: current,
       updated: updated,
       completedRoles: completedRoles,
+      completedTaskCounts: completedTaskCounts,
     );
 
     GuidedRoundSegment? nextOpen(List<GuidedRoundSegment> source) {
@@ -2513,7 +2515,11 @@ class AppController extends ChangeNotifier {
     final updatedNext = nextOpen(merged);
     final completedTasks = current
         .where((segment) => completedRoles.contains(segment.role))
-        .fold<int>(0, (sum, segment) => sum + segment.tasks);
+        .fold<int>(
+          0,
+          (sum, segment) =>
+              sum + (completedTaskCounts[segment.role] ?? segment.tasks),
+        );
     final struggling = result.total >= 2 &&
         (result.accuracy < 0.60 ||
             (result.incorrectAttempts >= 2 && result.accuracy < 0.75));
@@ -2524,6 +2530,7 @@ class AppController extends ChangeNotifier {
         current: current,
         updated: updated,
         completedRoles: completedRoles,
+        completedTaskCounts: completedTaskCounts,
         regularTaskBudget: budget,
       );
       return GuidedRoundAdaptation(

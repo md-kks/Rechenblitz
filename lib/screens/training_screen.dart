@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/adaptive_segment.dart';
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
 import '../models/help_preferences.dart';
@@ -28,6 +29,7 @@ class TrainingScreen extends StatefulWidget {
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
     this.scaffoldFading = false,
+    this.adaptiveLength = false,
   });
 
   final AppController controller;
@@ -38,6 +40,7 @@ class TrainingScreen extends StatefulWidget {
   final bool reviewEmphasis;
   final bool transferEmphasis;
   final bool scaffoldFading;
+  final bool adaptiveLength;
 
   @override
   State<TrainingScreen> createState() => _TrainingScreenState();
@@ -84,6 +87,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
   bool showHelp = false;
   bool locked = false;
   bool finishing = false;
+  bool segmentUsedHelp = false;
   bool useTouchInput = true;
   bool helpCountedForCurrent = false;
   int helpLevel = 0;
@@ -125,6 +129,30 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (average < 0.72) return 2;
     return 3;
   }
+
+  bool get _adaptiveTargetStable {
+    final id = widget.targetCompetency;
+    if (id == null) return false;
+    final progress = widget.controller.microCompetencyProgress(id);
+    final confidence = widget.controller.microEvidenceConfidence(id);
+    return (progress.state == MicroCompetencyState.secure ||
+            progress.state == MicroCompetencyState.mastered) &&
+        confidence.level == MicroEvidenceConfidenceLevel.current;
+  }
+
+  AdaptiveSegmentDecision _adaptiveSegmentDecision() =>
+      AdaptiveSegmentPolicy.evaluate(
+        enabled: widget.adaptiveLength,
+        mode: widget.mode,
+        plannedTasks: widget.targetTasks,
+        completed: completed,
+        correctFirstTry: correctFirstTry,
+        incorrectAttempts: incorrectAttempts,
+        usedHelp: segmentUsedHelp,
+        targetStable: _adaptiveTargetStable,
+        reviewEmphasis: widget.reviewEmphasis,
+        transferEmphasis: widget.transferEmphasis,
+      );
 
   @override
   void initState() {
@@ -428,6 +456,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
     locked = true;
     completed += 1;
+    segmentUsedHelp = segmentUsedHelp || usedHelp || showHelp || helpLevel > 0;
     completedResponseMs
         .add(response.inMilliseconds.clamp(0, 30000).toInt());
     final firstTry = wrongOnCurrent == 0 && !hadCheckpointError;
@@ -439,8 +468,13 @@ class _TrainingScreenState extends State<TrainingScreen> {
     }
     setState(() => feedback =
         ['Richtig!', 'Genau!', 'Stimmt!', 'Gut gerechnet!'][completed % 4]);
+    final adaptiveDecision = _adaptiveSegmentDecision();
     await Future<void>.delayed(const Duration(milliseconds: 550));
     if (!mounted || finishing) return;
+    if (adaptiveDecision.shouldStop) {
+      await _finish(adaptiveStopReason: adaptiveDecision.message);
+      return;
+    }
     if (completed >= widget.targetTasks) {
       await _finish();
       return;
@@ -486,7 +520,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     );
   }
 
-  Future<void> _finish() async {
+  Future<void> _finish({String? adaptiveStopReason}) async {
     if (finishing) return;
     finishing = true;
     timer?.cancel();
@@ -514,6 +548,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
       numberRange: widget.controller.effectiveNumberRange,
       gradeLevel: widget.controller.effectiveGradeLevel,
       starsEarned: 0,
+      plannedTotal: widget.targetTasks,
+      adaptiveStopReason: adaptiveStopReason,
     );
     final rewardReason = widget.controller.rewardReasonForSession(result);
     result = result.copyWith(
@@ -528,6 +564,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       correctFirstTry: correctFirstTry,
       starsEarned: result.starsEarned,
       rewardReason: rewardReason,
+      adaptiveNote: adaptiveStopReason,
       newBadges: newBadges,
       averageSeconds: widget.mode == TrainingMode.tempo ||
               widget.mode == TrainingMode.speed
