@@ -43,6 +43,18 @@ class LearningVisualAid extends StatelessWidget {
         taskKey.startsWith('data:') ||
         taskKey.startsWith('prob:') ||
         taskKey.startsWith('combo:') ||
+        taskKey.startsWith('wall:') ||
+        taskKey.startsWith('divide:') ||
+        taskKey.startsWith('mental:') ||
+        taskKey.startsWith('law:') ||
+        taskKey.startsWith('process:reasoning:') ||
+        taskKey.startsWith('proportion:') ||
+        taskKey.startsWith('symmetry:') ||
+        taskKey.startsWith('plan:') ||
+        taskKey.startsWith('volume:') ||
+        taskKey.startsWith('geomrel:') ||
+        taskKey.startsWith('large:') ||
+        taskKey.startsWith('body:cube-net:') ||
         (taskKey.startsWith('body:') && !taskKey.startsWith('body:cube-net:')) ||
         taskKey.startsWith('process:strategy:') ||
         taskKey.startsWith('process:error:') ||
@@ -79,7 +91,15 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.romanNumeral ||
       ErrorPattern.dataReading ||
       ErrorPattern.probabilityReasoning ||
-      ErrorPattern.combinatorics => true,
+      ErrorPattern.combinatorics ||
+      ErrorPattern.divisionFact ||
+      ErrorPattern.numberRelations ||
+      ErrorPattern.mentalStrategy ||
+      ErrorPattern.arithmeticLaw ||
+      ErrorPattern.proportionalReasoning ||
+      ErrorPattern.symmetry ||
+      ErrorPattern.planScale ||
+      ErrorPattern.volume => true,
       _ => false,
     };
   }
@@ -137,7 +157,30 @@ class LearningVisualAid extends StatelessWidget {
                             : taskKey.startsWith('process:representation:')
                                 ? _representationAid(context)
                                 : null;
-    final child = processChild ?? switch (pattern) {
+    final extendedChild = taskKey.startsWith('large:')
+        ? _largeNumberAid(context)
+        : taskKey.startsWith('body:cube-net:')
+            ? _cubeNetAid(context)
+            : taskKey.startsWith('wall:')
+        ? _numberWallAid(context)
+        : taskKey.startsWith('divide:')
+            ? _divisionFactAid(context)
+            : taskKey.startsWith('mental:')
+                ? _mentalStrategyAid(context)
+                : taskKey.startsWith('law:') || taskKey.startsWith('process:reasoning:')
+                    ? _arithmeticLawAid(context)
+                    : taskKey.startsWith('proportion:')
+                        ? _proportionAid(context)
+                        : taskKey.startsWith('symmetry:')
+                            ? _symmetryAid(context)
+                            : taskKey.startsWith('plan:')
+                                ? _planAid(context)
+                                : taskKey.startsWith('volume:')
+                                    ? _volumeAid(context)
+                                    : taskKey.startsWith('geomrel:')
+                                        ? _geometryRelationsAid(context)
+                                        : null;
+    final child = extendedChild ?? processChild ?? switch (pattern) {
       ErrorPattern.tenBridge ||
       ErrorPattern.carryOmitted ||
       ErrorPattern.borrowAvoided ||
@@ -1470,6 +1513,485 @@ class LearningVisualAid extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text('Erst danach dieselbe Verzweigung für jede weitere erste Wahl wiederholen.', style: TextStyle(fontWeight: FontWeight.w800)),
+      ],
+    );
+  }
+
+
+
+  Widget _largeNumberAid(BuildContext context) {
+    if (taskKey.startsWith('large:compare:')) {
+      return _largeNumberCompareAid(context);
+    }
+    final parts = taskKey.split(':');
+    if (parts.length < 2) return const SizedBox.shrink();
+    final family = parts[1];
+    if (family == 'word') {
+      return const Column(
+        key: ValueKey('help-large-word-structure'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(
+            title: 'Zahlwort in Stellenwertgruppen zerlegen',
+            text: 'Suche zuerst Millionen/Tausender, danach Hunderter und zuletzt Zehner/Einer. Trage jede Gruppe erst an ihren Platz, bevor du die ganze Zahl liest.',
+          ),
+          SizedBox(height: 10),
+          Wrap(spacing: 5, runSpacing: 5, children: [
+            Chip(label: Text('M')), Chip(label: Text('HT')), Chip(label: Text('ZT')),
+            Chip(label: Text('T')), Chip(label: Text('H')), Chip(label: Text('Z')), Chip(label: Text('E')),
+          ]),
+          SizedBox(height: 8),
+          Text('Beim deutschen Zahlwort werden Einer vor Zehnern gesprochen: drei-und-vierzig → E vor Z.', style: TextStyle(fontWeight: FontWeight.w700)),
+        ],
+      );
+    }
+    if (family == 'order' && parts.length >= 3) {
+      final raw = parts[2].split('-').map(int.tryParse).whereType<int>().toList(growable: false);
+      return Column(
+        key: const ValueKey('help-large-order'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AidLabel(
+            title: 'Große Zahlen spaltenweise vergleichen',
+            text: 'Richte die Zahlen gedanklich rechtsbündig aus. Vergleiche ganz links und gehe nur weiter, wenn die Ziffern gleich sind.',
+          ),
+          const SizedBox(height: 10),
+          for (final value in raw)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text(_formatNumber(value), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+            ),
+          const SizedBox(height: 6),
+          const Text('Noch nicht sortieren – zuerst die erste unterschiedliche Stelle finden.', style: TextStyle(fontWeight: FontWeight.w700)),
+        ],
+      );
+    }
+    final numbers = _numbers(taskKey);
+    final number = numbers.isEmpty ? null : numbers.first;
+    if (family == 'neighbor' && number != null) {
+      return Column(
+        key: const ValueKey('help-large-neighbor'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AidLabel(title: 'Genau einen Schritt auf der Zahlengeraden', text: 'Vorgänger bedeutet exakt 1 zurück, Nachfolger exakt 1 weiter – auch über Stellenwertwechsel hinweg.'),
+          const SizedBox(height: 10),
+          Center(child: Text('?   ←   ${_formatNumber(number)}   →   ?', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900))),
+        ],
+      );
+    }
+    if ((family == 'place' || family == 'decompose') && number != null) {
+      final raw = number.toString().padLeft(7, '0');
+      const labels = ['M', 'HT', 'ZT', 'T', 'H', 'Z', 'E'];
+      final requestedPlace = family == 'place' && numbers.length >= 2 ? numbers[1] : null;
+      const places = [1000000, 100000, 10000, 1000, 100, 10, 1];
+      return Column(
+        key: const ValueKey('help-large-place-table'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AidLabel(title: 'Jede Ziffer hat einen festen Stellenwert', text: 'Lies von links nach rechts und behalte auch Nullstellen als echte Platzhalter in der Tabelle.'),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (var i=0;i<labels.length;i++)
+                Container(
+                  width: 52,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  margin: const EdgeInsets.only(right: 3),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: requestedPlace == places[i] ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outlineVariant,
+                      width: requestedPlace == places[i] ? 3 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(children: [
+                    Text(labels[i], style: const TextStyle(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 3),
+                    Text(raw[i], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                  ]),
+                ),
+            ]),
+          ),
+        ],
+      );
+    }
+    return const _AidLabel(title: 'Große Zahl strukturieren', text: 'Gliedere die Zahl in Stellenwerte und bearbeite nur eine Stelle oder Gruppe nach der anderen.');
+  }
+
+  Widget _cubeNetAid(BuildContext context) {
+    return Column(
+      key: const ValueKey('help-cube-net-fold'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(
+          title: 'Würfelnetz gedanklich an Kanten falten',
+          text: 'Nimm eine Fläche als Boden. Klappe nur direkt benachbarte Flächen an ihrer gemeinsamen Kante hoch. Prüfe danach, ob zwei Flächen denselben Platz besetzen würden.',
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              for (var i=0;i<3;i++)
+                Container(width: 48, height: 48, alignment: Alignment.center,
+                  decoration: BoxDecoration(border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2)),
+                  child: i == 1 ? const Icon(Icons.keyboard_arrow_up_rounded) : null),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text('Das Beispiel zeigt nur das Faltprinzip – nicht die Lösung des konkreten Netzes.', style: TextStyle(fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+
+  Widget _numberWallAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    if (parts.length < 3 || parts[1] == 'fallback') {
+      return const _AidLabel(
+        title: 'Zahlenmauer: immer Nachbarsteine verbinden',
+        text: 'Nach oben werden zwei benachbarte Steine addiert. Fehlt unten ein Stein, gehe von einem bekannten oberen Stein mit Minus zurück.',
+      );
+    }
+    final values = parts[1].split('-').map(int.tryParse).toList(growable: false);
+    final hidden = int.tryParse(parts[2]);
+    if (values.length != 6 || values.any((v) => v == null) || hidden == null) {
+      return const SizedBox.shrink();
+    }
+    final wall = values.cast<int>();
+    Widget stone(int index) => Container(
+          key: ValueKey('help-wall-stone-$index'),
+          constraints: const BoxConstraints(minWidth: 54),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(index == hidden ? '?' : '${wall[index]}', textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w900)),
+        );
+    return Column(
+      key: const ValueKey('help-number-wall'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(
+          title: 'Die Mauer zeigt Rechenbeziehungen',
+          text: 'Jeder obere Stein gehört genau zu den zwei Steinen direkt darunter. Nutze nur diese Nachbarschaft; das Fragezeichen bleibt offen.',
+        ),
+        const SizedBox(height: 12),
+        Center(child: stone(5)),
+        const SizedBox(height: 6),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [stone(3), const SizedBox(width: 8), stone(4)]),
+        const SizedBox(height: 6),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [stone(0), const SizedBox(width: 8), stone(1), const SizedBox(width: 8), stone(2)]),
+      ],
+    );
+  }
+
+  Widget _divisionFactAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    final dividend = parts.length >= 3 ? int.tryParse(parts[1]) : null;
+    final divisor = parts.length >= 3 ? int.tryParse(parts[2]) : null;
+    if (dividend == null || divisor == null || divisor <= 0) return const SizedBox.shrink();
+    return Column(
+      key: const ValueKey('help-division-inverse'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(
+          title: 'Geteilt rückwärts als Malaufgabe denken',
+          text: 'Der Teiler wird zum bekannten Faktor. Gesucht ist der Faktor, der wieder genau zum Dividend führt.',
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Chip(label: Text('$divisor')),
+              const Text('×', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+              const Chip(label: Text('?')),
+              const Text('=', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+              Chip(label: Text('$dividend')),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _mentalStrategyAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    final a = parts.length >= 4 ? int.tryParse(parts[2]) : null;
+    final b = parts.length >= 4 ? int.tryParse(parts[3]) : null;
+    final op = parts.length >= 2 ? parts[1] : '';
+    if (a == null || b == null || (op != '+' && op != '-')) return const SizedBox.shrink();
+    var place = 1;
+    while (place * 10 <= b) {
+      place *= 10;
+    }
+    final chunk = (b ~/ place) * place;
+    final rest = b - chunk;
+    return Column(
+      key: const ValueKey('help-mental-chunks'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AidLabel(
+          title: 'Zweiten Operanden nach Stellenwerten zerlegen',
+          text: 'Rechne nicht alles auf einmal. Beginne mit dem größten Stellenwertblock und nimm den Rest erst danach.',
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Chip(label: Text('$a')),
+            Text(op, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+            Chip(label: Text('$chunk')),
+            const Icon(Icons.arrow_forward_rounded),
+            const Chip(label: Text('?')),
+            if (rest > 0) ...[
+              Text(op, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+              Chip(label: Text('$rest')),
+              const Icon(Icons.arrow_forward_rounded),
+              const Chip(label: Text('?')),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _arithmeticLawAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    if (taskKey.startsWith('process:reasoning:')) {
+      final family = parts.length >= 3 ? parts[2] : '';
+      final text = switch (family) {
+        'compensate' => 'Wenn ein Summand um denselben Betrag kleiner und der andere größer wird, gleichen sich beide Veränderungen aus.',
+        'commute' => 'Beim Vertauschen bleiben dieselben Faktoren erhalten; nur ihre Reihenfolge ändert sich.',
+        'distribute' => 'Wird ein Faktor auf eine Zerlegung verteilt, muss er zu jedem Teil gehören – auch zur Korrektur.',
+        _ => 'Vergleiche zuerst, was an der Rechnung verändert wurde und was dabei gleich bleibt.',
+      };
+      return Column(
+        key: const ValueKey('help-reasoning-structure'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(title: 'Veränderung und Invariante trennen', text: text),
+          const SizedBox(height: 10),
+          const Wrap(spacing: 8, runSpacing: 8, children: [
+            Chip(label: Text('Was verändert sich?')),
+            Icon(Icons.arrow_forward_rounded),
+            Chip(label: Text('Was bleibt gleich?')),
+            Icon(Icons.arrow_forward_rounded),
+            Chip(label: Text('Warum?')),
+          ]),
+        ],
+      );
+    }
+    final family = parts.length >= 2 ? parts[1] : '';
+    if (family == 'associate' && parts.length >= 5) {
+      final a = int.tryParse(parts[2]);
+      final b = int.tryParse(parts[3]);
+      final c = int.tryParse(parts[4]);
+      if (a == null || b == null || c == null) return const SizedBox.shrink();
+      return Column(
+        key: const ValueKey('help-law-associate'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AidLabel(title: 'Erst ein günstiges Paar suchen', text: 'Bei drei Summanden darfst du zuerst zwei zusammenfassen. Suche ein Paar, das eine glatte Zahl ergibt.'),
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, children: [Chip(label: Text('$a')), Chip(label: Text('$b')), Chip(label: Text('$c')), const Chip(label: Text('Ziel: glatte Summe'))]),
+        ],
+      );
+    }
+    if (family == 'commute') {
+      return const Column(
+        key: ValueKey('help-law-commute'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(title: 'Zeilen und Spalten vertauschen', text: 'Bei einer Malaufgabe kannst du die beiden Faktoren vertauschen. Die Anordnung ändert sich, die Anzahl der Elemente nicht.'),
+          SizedBox(height: 10),
+          Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [Chip(label: Text('Zeilen × Spalten')), Icon(Icons.swap_horiz_rounded), Chip(label: Text('Spalten × Zeilen'))]),
+        ],
+      );
+    }
+    if (family == 'distribute' && parts.length >= 4) {
+      final factor = int.tryParse(parts[2]);
+      final value = int.tryParse(parts[3]);
+      if (factor == null || value == null) return const SizedBox.shrink();
+      final rounded = ((value + 9) ~/ 10) * 10;
+      final gap = rounded - value;
+      return Column(
+        key: const ValueKey('help-law-distribute'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AidLabel(title: 'Über eine glatte Zahl zerlegen', text: 'Rechne zuerst mit der leichteren glatten Zahl. Die Korrektur muss anschließend ebenfalls mit dem Faktor berücksichtigt werden.'),
+          const SizedBox(height: 10),
+          Text('$factor × $value  →  $factor × $rounded  −  ($factor × $gap)', style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          const Text('Die Korrektur selbst bleibt zum Ausrechnen offen.', style: TextStyle(fontWeight: FontWeight.w700)),
+        ],
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _proportionAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    if (parts.length != 5) return const SizedBox.shrink();
+    final unit = int.tryParse(parts[2]);
+    final first = int.tryParse(parts[3]);
+    final second = int.tryParse(parts[4]);
+    if (unit == null || first == null || second == null) return const SizedBox.shrink();
+    final knownTotal = unit * first;
+    return Column(
+      key: const ValueKey('help-proportion-unit'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(title: 'Erst auf 1 Einheit zurückgehen', text: 'Teile den bekannten Gesamtwert gleichmäßig auf die bekannte Anzahl. Übertrage danach denselben Einzelwert auf die neue Anzahl.'),
+        const SizedBox(height: 12),
+        Text('$first Einheiten = $knownTotal €', style: const TextStyle(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 6),
+        Wrap(spacing: 5, runSpacing: 5, children: [for (var i=0;i<first;i++) const Chip(label: Text('? €'))]),
+        const SizedBox(height: 10),
+        Text('$second Einheiten = ? €', style: const TextStyle(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 6),
+        Wrap(spacing: 5, runSpacing: 5, children: [for (var i=0;i<second;i++) const Chip(label: Text('gleich viel'))]),
+      ],
+    );
+  }
+
+  Widget _symmetryAid(BuildContext context) {
+    return Column(
+      key: const ValueKey('help-symmetry-concept'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(title: 'Eine Achse immer einzeln prüfen', text: 'Stell dir vor, du faltest genau auf einer Linie. Nur wenn beide Hälften deckungsgleich werden, ist diese Linie eine Symmetrieachse.'),
+        const SizedBox(height: 14),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Container(width: 54, height: 70, alignment: Alignment.center, decoration: BoxDecoration(border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2), borderRadius: const BorderRadius.horizontal(left: Radius.circular(14))), child: const Icon(Icons.circle, size: 14)),
+          Container(key: const ValueKey('help-symmetry-axis'), width: 3, height: 86, color: Theme.of(context).colorScheme.outline),
+          Container(width: 54, height: 70, alignment: Alignment.center, decoration: BoxDecoration(border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2), borderRadius: const BorderRadius.horizontal(right: Radius.circular(14))), child: const Icon(Icons.circle, size: 14)),
+        ]),
+        const SizedBox(height: 8),
+        const Center(child: Text('spiegelgleich?', style: TextStyle(fontWeight: FontWeight.w800))),
+      ],
+    );
+  }
+
+  Widget _planAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    if (parts.length < 2) return const SizedBox.shrink();
+    if (parts[1] == 'scale' && parts.length >= 4) {
+      final scale = int.tryParse(parts[2]);
+      final cm = int.tryParse(parts[3]);
+      if (scale == null || cm == null) return const SizedBox.shrink();
+      return Column(
+        key: const ValueKey('help-plan-scale'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AidLabel(title: 'Maßstab als gleiche Blöcke lesen', text: 'Jeder Zentimeter im Plan steht für denselben Real-Abstand. Baue die Planlänge aus gleich großen Zuordnungsblöcken; die Gesamtsumme bleibt offen.'),
+          const SizedBox(height: 10),
+          Text('1 cm im Plan = $scale m real', style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          Wrap(spacing: 5, runSpacing: 5, children: [for (var i=0;i<cm;i++) Chip(label: Text('1 cm → $scale m'))]),
+          const SizedBox(height: 8),
+          const Text('Gesamt: ? m', style: TextStyle(fontWeight: FontWeight.w900)),
+        ],
+      );
+    }
+    if (parts[1] == 'path' && parts.length >= 4) {
+      return Column(
+        key: const ValueKey('help-plan-path'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          _AidLabel(title: 'Weg in Abschnitte zerlegen', text: 'Lies jeden Wegabschnitt getrennt mit Richtung und Länge. Erst danach werden die gegangenen Felder zusammengezählt.'),
+          SizedBox(height: 10),
+          Wrap(spacing: 8, children: [Chip(label: Text('→ erster Abschnitt')), Icon(Icons.add_rounded), Chip(label: Text('↑ zweiter Abschnitt')), Icon(Icons.arrow_forward_rounded), Chip(label: Text('gesamt ?'))]),
+        ],
+      );
+    }
+    if (parts[1] == 'route') {
+      return const Column(
+        key: ValueKey('help-plan-route'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(title: 'Pfeilplan in Reihenfolge lesen', text: 'Richtung und Länge gehören zusammen. Lies zuerst den ersten Block vollständig und erst danach den zweiten.'),
+          SizedBox(height: 10),
+          Wrap(spacing: 8, children: [Chip(label: Text('1. Richtung + Länge')), Icon(Icons.arrow_forward_rounded), Chip(label: Text('2. Richtung + Länge'))]),
+        ],
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _volumeAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    if (parts.length != 4) return const SizedBox.shrink();
+    final length = int.tryParse(parts[1]);
+    final width = int.tryParse(parts[2]);
+    final height = int.tryParse(parts[3]);
+    if (length == null || width == null || height == null) return const SizedBox.shrink();
+    return Column(
+      key: const ValueKey('help-volume-layers'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(title: 'Erst eine Schicht, dann alle Schichten', text: 'Bestimme zuerst, wie viele Einheitswürfel in genau einer waagerechten Schicht liegen. Wiederhole diese Schicht anschließend so oft wie die Höhe angibt.'),
+        const SizedBox(height: 10),
+        Text('eine Schicht: $length × $width Würfel', style: const TextStyle(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 6),
+        Wrap(spacing: 5, runSpacing: 5, children: [for (var i=0;i<height;i++) Chip(label: Text('Schicht ${i+1}'))]),
+        const SizedBox(height: 8),
+        const Text('alle Würfel zusammen: ?', style: TextStyle(fontWeight: FontWeight.w900)),
+      ],
+    );
+  }
+
+  Widget _geometryRelationsAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    final family = parts.length >= 2 ? parts[1] : '';
+    if (family == 'circle') {
+      return const Column(
+        key: ValueKey('help-geomrel-circle'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(title: 'Kreislinien vom Mittelpunkt aus unterscheiden', text: 'Ein Radius geht vom Mittelpunkt bis zum Rand. Ein Durchmesser geht durch den Mittelpunkt von Rand zu Rand.'),
+          SizedBox(height: 8),
+          Wrap(spacing: 8, children: [Chip(label: Text('Mittelpunkt → Rand = Radius')), Chip(label: Text('Rand → Mittelpunkt → Rand = Durchmesser'))]),
+        ],
+      );
+    }
+    if (family == 'angle') {
+      return const Column(
+        key: ValueKey('help-geomrel-angle'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(title: 'Rechten Winkel an einer Referenzecke prüfen', text: 'Vergleiche den Winkel mit einer Papier- oder Quadratecke. Passt die Öffnung genau, ist der Winkel recht.'),
+          SizedBox(height: 8),
+          Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [Icon(Icons.crop_square_rounded, size: 42), Text('Referenz: 90°', style: TextStyle(fontWeight: FontWeight.w900))]),
+        ],
+      );
+    }
+    if (family == 'lines') {
+      return const Column(
+        key: ValueKey('help-geomrel-lines'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(title: 'Geraden über ihre Beziehung erkennen', text: 'Parallel: der Abstand bleibt gleich. Senkrecht: beim Schneiden entsteht ein rechter Winkel. Vergleiche die Aufgabe mit beiden Referenzen.'),
+          SizedBox(height: 8),
+          Wrap(spacing: 8, children: [Chip(label: Text('∥ gleicher Abstand')), Chip(label: Text('⟂ rechter Winkel'))]),
+        ],
+      );
+    }
+    return const Column(
+      key: ValueKey('help-geomrel-figure'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AidLabel(title: 'Figur über Merkmale einordnen', text: 'Prüfe Seitenlängen, Parallelität und rechte Winkel einzeln. Der Name der Figur folgt erst aus der Kombination dieser Merkmale.'),
+        SizedBox(height: 8),
+        Wrap(spacing: 8, children: [Chip(label: Text('Seiten')), Chip(label: Text('parallel?')), Chip(label: Text('rechte Winkel?'))]),
       ],
     );
   }
