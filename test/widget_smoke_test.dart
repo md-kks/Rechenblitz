@@ -70,6 +70,17 @@ void main() {
 
     expect(find.text('Etwa 5–8 Minuten Mathe.'), findsOneWidget);
     expect(find.textContaining('von 12 Aufgaben'), findsOneWidget);
+    final roundScroll = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('round-decision-expansion')),
+      450,
+      scrollable: roundScroll,
+    );
+    expect(find.text('Warum dieser Plan?'), findsOneWidget);
+    expect(
+      find.text('Prioritäten und zurückgestellte Alternativen'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Datenschutz ist aus den Einstellungen erreichbar',
@@ -166,6 +177,10 @@ void main() {
       scrollable: parentScroll,
     );
     expect(find.text('Auswahl der nächsten Runde'), findsOneWidget);
+    expect(
+      find.text('Prioritäten und zurückgestellte Alternativen'),
+      findsOneWidget,
+    );
     expect(find.text('Warum dieser Lernstatus?'), findsOneWidget);
     expect(find.text('Worauf stützt sich das?'), findsOneWidget);
   });

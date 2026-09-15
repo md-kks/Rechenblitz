@@ -171,6 +171,7 @@ class GuidedRoundProgress {
     this.stepRecoveryAttempted = false,
     this.stepRecoveryCompleted = false,
     this.deferEmergingRecovery = false,
+    this.decisionTrace = const GuidedRoundDecisionTrace(items: <GuidedRoundDecisionItem>[]),
   });
 
   final List<GuidedRoundSegment> plan;
@@ -183,6 +184,7 @@ class GuidedRoundProgress {
   final bool stepRecoveryAttempted;
   final bool stepRecoveryCompleted;
   final bool deferEmergingRecovery;
+  final GuidedRoundDecisionTrace decisionTrace;
 
   bool get isComplete =>
       plan.every((segment) => completedRoles.contains(segment.role)) &&
@@ -217,6 +219,7 @@ class GuidedRoundProgress {
         'stepRecoveryAttempted': stepRecoveryAttempted,
         'stepRecoveryCompleted': stepRecoveryCompleted,
         'deferEmergingRecovery': deferEmergingRecovery,
+        'decisionTrace': decisionTrace.toJson(),
       };
 
   factory GuidedRoundProgress.fromJson(Map<String, dynamic> json) =>
@@ -243,6 +246,11 @@ class GuidedRoundProgress {
             json['stepRecoveryCompleted'] as bool? ?? false,
         deferEmergingRecovery:
             json['deferEmergingRecovery'] as bool? ?? false,
+        decisionTrace: json['decisionTrace'] is Map<String, dynamic>
+            ? GuidedRoundDecisionTrace.fromJson(
+                json['decisionTrace'] as Map<String, dynamic>,
+              )
+            : const GuidedRoundDecisionTrace(items: <GuidedRoundDecisionItem>[]),
       );
 }
 
@@ -363,6 +371,116 @@ class GuidedStepFocus {
   final int incorrectFirstAttempts;
   final double accuracy;
   final DateTime lastSeen;
+}
+
+enum GuidedRoundDecisionKind {
+  recovery,
+  focus,
+  prerequisite,
+  dueReview,
+  dueTransfer,
+  gradeBridge,
+  rangeBridge,
+  maintenance,
+  discovery,
+  fallback,
+}
+
+extension GuidedRoundDecisionKindX on GuidedRoundDecisionKind {
+  String get label => switch (this) {
+        GuidedRoundDecisionKind.recovery => 'Unsicherheit zuerst klären',
+        GuidedRoundDecisionKind.focus => 'Aktueller Lernfokus',
+        GuidedRoundDecisionKind.prerequisite => 'Voraussetzung zuerst',
+        GuidedRoundDecisionKind.dueReview => 'Abstandskontrolle fällig',
+        GuidedRoundDecisionKind.dueTransfer => 'Transfer fällig',
+        GuidedRoundDecisionKind.gradeBridge => 'Klassenstufen-Brücke',
+        GuidedRoundDecisionKind.rangeBridge => 'Zahlenraum-Brücke',
+        GuidedRoundDecisionKind.maintenance => 'Sichere Grundlage erhalten',
+        GuidedRoundDecisionKind.discovery => 'Neues vorsichtig entdecken',
+        GuidedRoundDecisionKind.fallback => 'Abwechslungsreich weiterüben',
+      };
+}
+
+class GuidedRoundDecisionItem {
+  const GuidedRoundDecisionItem({
+    required this.kind,
+    required this.detail,
+    required this.priority,
+    required this.selected,
+    this.competencyId,
+  });
+
+  final GuidedRoundDecisionKind kind;
+  final String detail;
+  final int priority;
+  final bool selected;
+  final MicroCompetencyId? competencyId;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'kind': kind.name,
+        'detail': detail,
+        'priority': priority,
+        'selected': selected,
+        'competencyId': competencyId?.name,
+      };
+
+  factory GuidedRoundDecisionItem.fromJson(Map<String, dynamic> json) =>
+      GuidedRoundDecisionItem(
+        kind: GuidedRoundDecisionKind.values.byName(json['kind'] as String),
+        detail: json['detail'] as String,
+        priority: json['priority'] as int,
+        selected: json['selected'] as bool,
+        competencyId: json['competencyId'] == null
+            ? null
+            : MicroCompetencyId.values.byName(json['competencyId'] as String),
+      );
+}
+
+class GuidedRoundDecisionTrace {
+  const GuidedRoundDecisionTrace({required this.items});
+
+  final List<GuidedRoundDecisionItem> items;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'items': items.map((item) => item.toJson()).toList(),
+      };
+
+  factory GuidedRoundDecisionTrace.fromJson(Map<String, dynamic> json) =>
+      GuidedRoundDecisionTrace(
+        items: (json['items'] as List<dynamic>? ?? const <dynamic>[])
+            .map((item) => GuidedRoundDecisionItem.fromJson(item as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+
+  List<GuidedRoundDecisionItem> get selected =>
+      items.where((item) => item.selected).toList(growable: false);
+
+  List<GuidedRoundDecisionItem> get deferred =>
+      items.where((item) => !item.selected).toList(growable: false);
+
+  GuidedRoundDecisionItem? get primary {
+    final chosen = selected.toList()
+      ..sort((a, b) => b.priority.compareTo(a.priority));
+    return chosen.isEmpty ? null : chosen.first;
+  }
+
+  String get summary {
+    if (items.isEmpty) {
+      return 'Für diese Runde liegen noch zu wenige Mikro-Daten für eine detaillierte Prioritätsentscheidung vor.';
+    }
+    final chosen = selected;
+    final held = deferred;
+    final chosenText = chosen.isEmpty
+        ? 'keine spezielle Priorität'
+        : chosen
+            .map((item) => '${item.kind.label}: ${item.detail}')
+            .join(' · ');
+    if (held.isEmpty) return 'Gewählt: $chosenText.';
+    final heldText = held
+        .map((item) => '${item.kind.label}: ${item.detail}')
+        .join(' · ');
+    return 'Gewählt: $chosenText. Zurückgestellt: $heldText.';
+  }
 }
 
 class ParentLearningInsight {

@@ -100,6 +100,7 @@ class _ParentScreenState extends State<ParentScreen> {
     final gradeBridge = c.gradeBridgeStatus();
     final rangeBridge = c.numberRangeBridgeStatus();
     final insight = c.parentInsight();
+    final roundDecision = c.guidedRoundDecisionTrace();
     final priority = c.parentPriorityMicroCompetency();
     final methodInsight = priority == null || priority.observations == 0
         ? null
@@ -314,6 +315,12 @@ class _ParentScreenState extends State<ParentScreen> {
                   icon: Icons.route_outlined,
                   title: 'Auswahl der nächsten Runde',
                   text: insight.selection,
+                ),
+                const SizedBox(height: 10),
+                _ExplainCard(
+                  icon: Icons.rule_folder_outlined,
+                  title: 'Prioritäten und zurückgestellte Alternativen',
+                  text: roundDecision.summary,
                 ),
                 const SizedBox(height: 10),
                 _ExplainCard(

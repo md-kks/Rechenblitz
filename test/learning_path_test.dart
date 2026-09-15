@@ -1426,6 +1426,7 @@ void main() {
     await controller.load();
     final now = DateTime(2026, 9, 15, 9);
     final plan = controller.buildMyRound();
+    final decisionTrace = controller.guidedRoundDecisionTrace(now: now);
     final progress = GuidedRoundProgress(
       plan: plan,
       completedRoles: const <GuidedRoundRole>{GuidedRoundRole.warmUp},
@@ -1434,6 +1435,7 @@ void main() {
       startedAt: now,
       updatedAt: now.add(const Duration(minutes: 4)),
       recoveryRequired: false,
+      decisionTrace: decisionTrace,
     );
     await controller.saveGuidedRoundProgress(progress);
 
@@ -1446,6 +1448,8 @@ void main() {
     expect(restored, isNotNull);
     expect(restored!.completedRoles, contains(GuidedRoundRole.warmUp));
     expect(restored.plan.map((segment) => segment.role), plan.map((segment) => segment.role));
+    expect(restored.decisionTrace.summary, decisionTrace.summary);
+    expect(restored.decisionTrace.items.length, decisionTrace.items.length);
   });
 
   test('abgeschlossene Tagesrunde wird erst am Folgetag ungültig', () {
@@ -2331,6 +2335,89 @@ void main() {
     );
     expect(confidence.level, MicroEvidenceConfidenceLevel.current);
     expect(confidence.detail, contains('Basis, Abstand und Transfer'));
+  });
+
+  test('Rundenentscheidung zeigt gewählte und zurückgestellte Prioritäten', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final old = DateTime(2026, 9, 1, 8);
+    final recent = DateTime(2026, 9, 4, 8);
+    controller.microObservations = [
+      ..._secureEvidence(
+        MicroCompetencyId.additionNoBridge,
+        old,
+        mode: TrainingMode.practice,
+        prefix: 'plus',
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        when: recent,
+        source: MicroEvidenceSource.practice,
+        taskKey: 'plus:48:7:helped',
+        usedHelp: true,
+        helpLevel: HelpLevel.visual.value,
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.subtractionNoBridge,
+        old.add(const Duration(hours: 1)),
+        mode: TrainingMode.minus,
+        prefix: 'minus',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.numberRelations,
+        old.add(const Duration(hours: 2)),
+        mode: TrainingMode.numberWall,
+        prefix: 'wall',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.moneyCalculation,
+        old.add(const Duration(hours: 3)),
+        mode: TrainingMode.money,
+        prefix: 'money',
+      ),
+    ];
+
+    final now = DateTime(2026, 9, 10, 8);
+    final plan = controller.buildMyRound(now: now);
+    final trace = controller.guidedRoundDecisionTrace(now: now);
+
+    expect(trace.primary?.priority, 100);
+    expect(trace.primary?.competencyId, plan[1].targetCompetency);
+    expect(trace.summary, contains('Gewählt:'));
+    expect(trace.summary, contains('Zurückgestellt:'));
+    expect(trace.deferred, isNotEmpty);
+    expect(trace.deferred.every((item) => !item.selected), isTrue);
+    expect(
+      trace.deferred.every((item) => item.priority < trace.primary!.priority),
+      isTrue,
+      reason: 'Zurückgestellte Alternativen dürfen den aktuellen Fokus nicht überstimmen.',
+    );
+  });
+
+  test('Decision trace priorisiert ausgewählte Einträge vor Alternativen', () {
+    const trace = GuidedRoundDecisionTrace(
+      items: <GuidedRoundDecisionItem>[
+        GuidedRoundDecisionItem(
+          kind: GuidedRoundDecisionKind.focus,
+          detail: 'Fokus',
+          priority: 100,
+          selected: true,
+        ),
+        GuidedRoundDecisionItem(
+          kind: GuidedRoundDecisionKind.discovery,
+          detail: 'Später',
+          priority: 40,
+          selected: false,
+        ),
+      ],
+    );
+
+    expect(trace.primary?.kind, GuidedRoundDecisionKind.focus);
+    expect(trace.selected, hasLength(1));
+    expect(trace.deferred, hasLength(1));
+    expect(trace.summary, contains('Aktueller Lernfokus'));
+    expect(trace.summary, contains('Neues vorsichtig entdecken'));
   });
 
 }
