@@ -3380,4 +3380,229 @@ void main() {
     }
   });
 
+
+  test('gezielte Förderaufgaben bewahren ihre Zielkompetenz durch alle Stufen', () {
+    const cases = <(ErrorPattern, TrainingMode, MicroCompetencyId)>[
+      (ErrorPattern.numberRelations, TrainingMode.numberWall, MicroCompetencyId.numberRelations),
+      (ErrorPattern.patternRule, TrainingMode.sequences, MicroCompetencyId.numberPatterns),
+      (ErrorPattern.wordProblemRelevantInformation, TrainingMode.wordProblems, MicroCompetencyId.wordProblemRelevantInformation),
+      (ErrorPattern.wordProblemModel, TrainingMode.wordProblems, MicroCompetencyId.wordProblemModel),
+      (ErrorPattern.wordProblemInterpretation, TrainingMode.wordProblems, MicroCompetencyId.wordProblemInterpretation),
+      (ErrorPattern.representationTranslation, TrainingMode.wordProblems, MicroCompetencyId.representationTranslation),
+      (ErrorPattern.moneyCalculation, TrainingMode.money, MicroCompetencyId.moneyCalculation),
+      (ErrorPattern.clockReading, TrainingMode.clock, MicroCompetencyId.clockReading),
+      (ErrorPattern.mentalStrategy, TrainingMode.mentalStrategies, MicroCompetencyId.mentalStrategy),
+      (ErrorPattern.estimation, TrainingMode.estimation, MicroCompetencyId.estimation),
+      (ErrorPattern.romanNumeral, TrainingMode.romanNumerals, MicroCompetencyId.romanNumeral),
+      (ErrorPattern.combinatorics, TrainingMode.combinatorics, MicroCompetencyId.combinatoricsSystematic),
+      (ErrorPattern.proportionalReasoning, TrainingMode.proportionality, MicroCompetencyId.proportionalUnit),
+      (ErrorPattern.symmetry, TrainingMode.symmetry, MicroCompetencyId.symmetryAxes),
+      (ErrorPattern.volume, TrainingMode.volumeCubes, MicroCompetencyId.volumeCubes),
+    ];
+
+    for (var i = 0; i < cases.length; i++) {
+      final entry = cases[i];
+      final plan = RemediationGenerator(random: Random(15000 + i)).generate(
+        pattern: entry.$1,
+        preferredMode: entry.$2,
+        grade: GradeLevel.fourth,
+        range: NumberRangeLevel.million,
+        methods: const MethodPreferences(),
+      );
+      for (final task in plan.tasks) {
+        expect(task.targetCompetency, entry.$3, reason: '${entry.$1.name}: ${task.sourceTaskKey}');
+        expect(task.effectiveTargetCompetency, entry.$3, reason: entry.$1.name);
+      }
+    }
+  });
+
+  test('Transferstufe nutzt ab Klasse 3 echte Sachaufgaben-Transfers', () {
+    final plan = RemediationGenerator(random: Random(16001)).generate(
+      pattern: ErrorPattern.wordProblem,
+      preferredMode: TrainingMode.wordProblems,
+      grade: GradeLevel.third,
+      range: NumberRangeLevel.thousand,
+      methods: const MethodPreferences(),
+    );
+    final transfer = plan.tasks.where((task) => task.stage == RemediationStage.transfer).toList();
+    expect(transfer, hasLength(2));
+    for (final task in transfer) {
+      expect(
+        task.sourceTaskKey.startsWith('story:multi:') ||
+            task.sourceTaskKey.startsWith('story:transfer:'),
+        isTrue,
+        reason: task.sourceTaskKey,
+      );
+    }
+  });
+
+  test('Zielkompetenz schaltet Touch-Förderung auf Fortsetzungsmodus', () {
+    RemediationTask? scaleTask;
+    for (var seed = 0; seed < 80 && scaleTask == null; seed++) {
+      final plan = RemediationGenerator(random: Random(17000 + seed)).generate(
+        pattern: ErrorPattern.planScale,
+        preferredMode: TrainingMode.plansAndOrientation,
+        grade: GradeLevel.fourth,
+        range: NumberRangeLevel.thousand,
+        methods: const MethodPreferences(),
+        reviewOnly: true,
+      );
+      for (final task in plan.tasks) {
+        if (task.targetCompetency == MicroCompetencyId.scale &&
+            task.sourceTaskKey.startsWith('plan:scale:')) {
+          scaleTask = task;
+          break;
+        }
+      }
+    }
+    expect(scaleTask, isNotNull);
+    final task = scaleTask!;
+    final continued = TouchInteractionPlan.forTask(
+      mode: task.mode,
+      taskKey: task.sourceTaskKey,
+      answer: task.answer,
+      maxValue: task.maxAnswerValue,
+      choices: task.choices,
+      targetCompetency: task.effectiveTargetCompetency,
+    );
+    final plain = TouchInteractionPlan.forTask(
+      mode: task.mode,
+      taskKey: task.sourceTaskKey,
+      answer: task.answer,
+      maxValue: task.maxAnswerValue,
+      choices: task.choices,
+    );
+    expect(continued?.dataOperation, 'operation-checked');
+    expect(plain?.dataOperation, 'full');
+  });
+
+  test('alle bekannten Fehlermuster haben vollständige Förder- und Bildabdeckung', () {
+    const modes = <ErrorPattern, TrainingMode>{
+      ErrorPattern.countingStep: TrainingMode.neighbors,
+      ErrorPattern.tenBridge: TrainingMode.practice,
+      ErrorPattern.carryOmitted: TrainingMode.practice,
+      ErrorPattern.borrowAvoided: TrainingMode.minus,
+      ErrorPattern.partialOperand: TrainingMode.minus,
+      ErrorPattern.numberBond: TrainingMode.numberFriends,
+      ErrorPattern.operationChoice: TrainingMode.wordProblems,
+      ErrorPattern.placeValue: TrainingMode.placeValue,
+      ErrorPattern.multiplicationFact: TrainingMode.multiply,
+      ErrorPattern.multiplicationAsAddition: TrainingMode.multiply,
+      ErrorPattern.divisionFact: TrainingMode.divide,
+      ErrorPattern.divisionAsSubtraction: TrainingMode.divide,
+      ErrorPattern.inverseOperation: TrainingMode.missingNumber,
+      ErrorPattern.numberRelations: TrainingMode.numberWall,
+      ErrorPattern.patternRule: TrainingMode.sequences,
+      ErrorPattern.wordProblem: TrainingMode.wordProblems,
+      ErrorPattern.wordProblemRelevantInformation: TrainingMode.wordProblems,
+      ErrorPattern.wordProblemModel: TrainingMode.wordProblems,
+      ErrorPattern.wordProblemInterpretation: TrainingMode.wordProblems,
+      ErrorPattern.representationTranslation: TrainingMode.wordProblems,
+      ErrorPattern.moneyCalculation: TrainingMode.money,
+      ErrorPattern.clockReading: TrainingMode.clock,
+      ErrorPattern.unitConversion: TrainingMode.measures,
+      ErrorPattern.geometryProperty: TrainingMode.geometryRelations,
+      ErrorPattern.roundingPlace: TrainingMode.rounding,
+      ErrorPattern.mentalStrategy: TrainingMode.mentalStrategies,
+      ErrorPattern.writtenRegrouping: TrainingMode.writtenAddSub,
+      ErrorPattern.writtenProcedure: TrainingMode.writtenMultiply,
+      ErrorPattern.estimation: TrainingMode.estimation,
+      ErrorPattern.arithmeticLaw: TrainingMode.arithmeticLaws,
+      ErrorPattern.romanNumeral: TrainingMode.romanNumerals,
+      ErrorPattern.fractionPart: TrainingMode.fractions,
+      ErrorPattern.timeDuration: TrainingMode.timeDurations,
+      ErrorPattern.dataReading: TrainingMode.dataCharts,
+      ErrorPattern.probabilityReasoning: TrainingMode.probability,
+      ErrorPattern.combinatorics: TrainingMode.combinatorics,
+      ErrorPattern.proportionalReasoning: TrainingMode.proportionality,
+      ErrorPattern.perimeterArea: TrainingMode.perimeterArea,
+      ErrorPattern.spatialReasoning: TrainingMode.geometryBodies,
+      ErrorPattern.symmetry: TrainingMode.symmetry,
+      ErrorPattern.planScale: TrainingMode.plansAndOrientation,
+      ErrorPattern.volume: TrainingMode.volumeCubes,
+    };
+
+    for (final pattern in ErrorPattern.values.where((value) => value != ErrorPattern.unknown)) {
+      final plan = RemediationGenerator(random: Random(18000 + pattern.index)).generate(
+        pattern: pattern,
+        preferredMode: modes[pattern]!,
+        grade: GradeLevel.fourth,
+        range: NumberRangeLevel.thousand,
+        methods: const MethodPreferences(),
+      );
+      expect(plan.tasks, hasLength(8), reason: pattern.name);
+      for (final stage in RemediationStage.values) {
+        expect(plan.tasks.where((task) => task.stage == stage), hasLength(2), reason: '${pattern.name}/${stage.name}');
+      }
+      for (final task in plan.tasks) {
+        expect(task.sourceTaskKey, isNot(startsWith('basic:')), reason: '${pattern.name}: ${task.sourceTaskKey}');
+        expect(task.answer, greaterThanOrEqualTo(0), reason: task.sourceTaskKey);
+        if (task.usesChoices) {
+          expect(task.answer, lessThan(task.choices!.length), reason: task.sourceTaskKey);
+        } else {
+          expect(task.answer, lessThanOrEqualTo(task.maxAnswerValue), reason: task.sourceTaskKey);
+        }
+        final guide = GuidedMethodFactory.forTask(
+          mode: task.mode,
+          taskKey: task.sourceTaskKey,
+          expected: task.answer,
+          preferences: const MethodPreferences(),
+          targetCompetency: task.effectiveTargetCompetency,
+        );
+        expect(
+          LearningVisualAid.canRender(
+            pattern: pattern,
+            taskKey: task.sourceTaskKey,
+            methodKey: guide.methodKey,
+          ),
+          isTrue,
+          reason: '${pattern.name}: ${task.sourceTaskKey} / ${guide.methodKey}',
+        );
+      }
+    }
+  });
+
+
+  test('jeder katalogisierte Guided-Step besitzt einen Recovery-Pfad', () {
+    expect(
+      StepRecoveryGenerator.supportedStepKeys,
+      GuidedStepCatalog.labels.keys.toSet(),
+    );
+  });
+
+  test('letzte vier Rechenweg-Lücken haben konkrete dreistufige Recovery', () {
+    const cases = <(String, MicroCompetencyId, TrainingMode, String)>[
+      ('firstPartialSubtraction', MicroCompetencyId.numberDecomposition, TrainingMode.minus, 'first-partial-subtraction:'),
+      ('firstComplementJump', MicroCompetencyId.subtractionTenBridge, TrainingMode.minus, 'first-complement-jump:'),
+      ('secondComplementJump', MicroCompetencyId.subtractionTenBridge, TrainingMode.minus, 'second-complement-jump:'),
+      ('partialGroups', MicroCompetencyId.multiplicationGroups, TrainingMode.multiply, 'partial-groups:'),
+    ];
+
+    for (var i = 0; i < cases.length; i++) {
+      final item = cases[i];
+      final focus = IndependentStepRecoveryFocus(
+        competencyId: item.$2,
+        stepKey: item.$1,
+        label: GuidedStepCatalog.labelFor(item.$1),
+        mode: item.$3,
+        lastSeen: DateTime(2026, 9, 15, 6, i),
+        sourceTaskKey: item.$3 == TrainingMode.multiply ? 'x:5:4' : '-:63:27',
+      );
+      final plan = StepRecoveryGenerator(random: Random(19000 + i)).generate(
+        focus: focus,
+        range: NumberRangeLevel.hundred,
+      );
+      expect(plan.tasks.map((task) => task.stage), [
+        RemediationStage.supported,
+        RemediationStage.transfer,
+        RemediationStage.check,
+      ]);
+      for (final task in plan.tasks) {
+        expect(task.taskKey, startsWith('step-recovery:${item.$1}:${item.$4}'));
+        expect(task.answer, greaterThanOrEqualTo(0));
+        expect(task.answer, lessThanOrEqualTo(task.maxAnswerValue));
+      }
+    }
+  });
+
 }

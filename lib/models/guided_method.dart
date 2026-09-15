@@ -250,8 +250,11 @@ class GuidedMethodFactory {
       return _representationGuide(taskKey);
     }
 
-    if (mode == TrainingMode.numberFriends && fact != null) {
-      return _numberFriendsGuide(fact);
+    if (mode == TrainingMode.numberFriends) {
+      final numberFriendFact = fact ?? _numberFriendFactFromKey(taskKey);
+      if (numberFriendFact != null) {
+        return _numberFriendsGuide(numberFriendFact);
+      }
     }
 
     if (fact != null && fact.operation == MathOperation.plus) {
@@ -2392,6 +2395,15 @@ class GuidedMethodFactory {
         ),
       ],
     );
+  }
+
+  static MathFact? _numberFriendFactFromKey(String taskKey) {
+    final parts = taskKey.split(':');
+    if (parts.length != 3 || parts[0] != 'plus') return null;
+    final a = int.tryParse(parts[1]);
+    final b = int.tryParse(parts[2]);
+    if (a == null || b == null || a < 0 || b < 0) return null;
+    return MathFact(a: a, b: b, operation: MathOperation.plus);
   }
 
   static GuidedMethodGuide _numberFriendsGuide(MathFact fact) {
