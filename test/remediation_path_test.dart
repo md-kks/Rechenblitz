@@ -8,8 +8,12 @@ import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/remediation_path.dart';
 import 'package:rechenblitz/models/training.dart';
+import 'package:rechenblitz/models/touch_interaction.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:rechenblitz/screens/my_round_screen.dart';
+import 'package:rechenblitz/screens/remediation_screen.dart';
+import 'package:rechenblitz/widgets/learning_visual_aid.dart';
+import 'package:rechenblitz/widgets/touch_answer_interaction.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -3146,5 +3150,234 @@ void main() {
     }
   });
 
+
+  test('breiter Förder-Megabatch erzeugt gezielte Aufgaben mit Evidenz-Tags', () {
+    const cases = <(ErrorPattern, TrainingMode)>[
+      (ErrorPattern.numberRelations, TrainingMode.numberWall),
+      (ErrorPattern.patternRule, TrainingMode.sequences),
+      (ErrorPattern.moneyCalculation, TrainingMode.money),
+      (ErrorPattern.clockReading, TrainingMode.clock),
+      (ErrorPattern.geometryProperty, TrainingMode.geometryRelations),
+      (ErrorPattern.mentalStrategy, TrainingMode.mentalStrategies),
+      (ErrorPattern.writtenProcedure, TrainingMode.writtenMultiply),
+      (ErrorPattern.estimation, TrainingMode.estimation),
+      (ErrorPattern.arithmeticLaw, TrainingMode.arithmeticLaws),
+      (ErrorPattern.romanNumeral, TrainingMode.romanNumerals),
+      (ErrorPattern.dataReading, TrainingMode.dataCharts),
+      (ErrorPattern.probabilityReasoning, TrainingMode.probability),
+      (ErrorPattern.combinatorics, TrainingMode.combinatorics),
+      (ErrorPattern.proportionalReasoning, TrainingMode.proportionality),
+      (ErrorPattern.spatialReasoning, TrainingMode.geometryBodies),
+      (ErrorPattern.symmetry, TrainingMode.symmetry),
+      (ErrorPattern.planScale, TrainingMode.plansAndOrientation),
+      (ErrorPattern.volume, TrainingMode.volumeCubes),
+    ];
+
+    for (var i = 0; i < cases.length; i++) {
+      final entry = cases[i];
+      final plan = RemediationGenerator(random: Random(9000 + i)).generate(
+        pattern: entry.$1,
+        preferredMode: entry.$2,
+        grade: GradeLevel.fourth,
+        range: NumberRangeLevel.million,
+        methods: const MethodPreferences(),
+      );
+      expect(plan.tasks, hasLength(8), reason: entry.$1.name);
+      for (final task in plan.tasks) {
+        expect(task.mode, entry.$2, reason: entry.$1.name);
+        expect(task.taskKey, startsWith('remediation:${entry.$1.name}:'), reason: entry.$1.name);
+        expect(task.taskKey, isNot(contains(':basic:')), reason: entry.$1.name);
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: task.mode,
+          taskKey: task.taskKey,
+        );
+        expect(tags, isNotEmpty, reason: '${entry.$1.name}: ${task.taskKey}');
+      }
+    }
+  });
+
+  test('Förder-Evidenz bewahrt Unterkompetenzen breiter Lernbereiche', () {
+    const cases = <(String, TrainingMode, MicroCompetencyId)>[
+      ('remediation:dataReading:data:tally:17', TrainingMode.dataCharts, MicroCompetencyId.tallyTableReading),
+      ('remediation:dataReading:data:representation:table', TrainingMode.dataCharts, MicroCompetencyId.dataRepresentationChoice),
+      ('remediation:probabilityReasoning:prob:experiment:compare:20:12:8', TrainingMode.probability, MicroCompetencyId.probabilityExperiment),
+      ('remediation:spatialReasoning:body:cube-net:fold:valid:local:0', TrainingMode.geometryBodies, MicroCompetencyId.cubeNetFoldability),
+      ('remediation:geometryProperty:geomrel:angle:right:paper:fourth', TrainingMode.geometryRelations, MicroCompetencyId.rightAngle),
+      ('remediation:geometryProperty:geomrel:circle:radius:fourth', TrainingMode.geometryRelations, MicroCompetencyId.circleParts),
+      ('remediation:planScale:plan:scale:5:3', TrainingMode.plansAndOrientation, MicroCompetencyId.scale),
+      ('remediation:planScale:plan:path:4:2', TrainingMode.plansAndOrientation, MicroCompetencyId.planDirections),
+      ('remediation:arithmeticLaw:process:reasoning:commute:6:8', TrainingMode.arithmeticLaws, MicroCompetencyId.reasoningJustification),
+      ('remediation:writtenProcedure:written:x:324:7', TrainingMode.writtenMultiply, MicroCompetencyId.writtenMultiplyProcedure),
+      ('remediation:writtenProcedure:written:divide:864:8', TrainingMode.writtenDivide, MicroCompetencyId.writtenDivideProcedure),
+    ];
+
+    for (final entry in cases) {
+      final tags = MicroCompetencyCatalog.tagsForTask(
+        mode: entry.$2,
+        taskKey: entry.$1,
+      );
+      expect(tags.map((tag) => tag.id), contains(entry.$3), reason: entry.$1);
+    }
+  });
+
+
+  test('RemediationTask legt den ursprünglichen Aufgabenkey frei', () {
+    const task = RemediationTask(
+      stage: RemediationStage.guided,
+      mode: TrainingMode.dataCharts,
+      taskKey: 'remediation:dataReading:data:tally:17',
+      prompt: 'Test',
+      answer: 0,
+      maxAnswerValue: 10,
+      hint: 'Hinweis',
+    );
+    expect(task.sourceTaskKey, 'data:tally:17');
+  });
+
+  test('visuelle Hilfe erkennt auch verpackte Remediation-Keys', () {
+    expect(
+      LearningVisualAid.canRender(
+        pattern: ErrorPattern.dataReading,
+        taskKey: 'remediation:dataReading:data:max:4-7-2-5',
+        methodKey: 'data:read-chart-values',
+      ),
+      isTrue,
+    );
+    expect(
+      LearningVisualAid.canRender(
+        pattern: ErrorPattern.spatialReasoning,
+        taskKey: 'remediation:spatialReasoning:body:Würfel:Kanten',
+        methodKey: 'geometryBodies:properties',
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('Förderbildschirm nutzt Touch standardmäßig und behält klassischen Fallback', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.twenty;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RemediationScreen(
+          controller: controller,
+          pattern: ErrorPattern.clockReading,
+          preferredMode: TrainingMode.clock,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.drag(
+      find.byKey(const ValueKey('remediation-scroll')),
+      const Offset(0, -900),
+    );
+    await tester.pump();
+
+    expect(find.byType(TouchAnswerInteraction), findsOneWidget);
+    expect(find.byKey(const ValueKey('remediation-touch-switch-classic')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('remediation-touch-switch-classic')));
+    await tester.pump();
+    expect(find.byType(TouchAnswerInteraction), findsNothing);
+    expect(find.byKey(const ValueKey('remediation-touch-switch-interaction')), findsOneWidget);
+  });
+
+
+  test('alte Kern-Förderpfade nutzen nach Key-Normalisierung vorhandene Touch-Pläne', () {
+    const cases = <(ErrorPattern, TrainingMode)>[
+      (ErrorPattern.numberBond, TrainingMode.numberFriends),
+      (ErrorPattern.countingStep, TrainingMode.neighbors),
+      (ErrorPattern.operationChoice, TrainingMode.wordProblems),
+      (ErrorPattern.inverseOperation, TrainingMode.missingNumber),
+      (ErrorPattern.unitConversion, TrainingMode.measures),
+      (ErrorPattern.roundingPlace, TrainingMode.rounding),
+      (ErrorPattern.writtenRegrouping, TrainingMode.writtenAddSub),
+      (ErrorPattern.fractionPart, TrainingMode.fractions),
+      (ErrorPattern.timeDuration, TrainingMode.timeDurations),
+      (ErrorPattern.perimeterArea, TrainingMode.perimeterArea),
+    ];
+
+    for (var i = 0; i < cases.length; i++) {
+      final entry = cases[i];
+      final plan = RemediationGenerator(random: Random(12000 + i)).generate(
+        pattern: entry.$1,
+        preferredMode: entry.$2,
+        grade: entry.$2.isUpperPrimary ? GradeLevel.fourth : GradeLevel.second,
+        range: entry.$2.isUpperPrimary ? NumberRangeLevel.thousand : NumberRangeLevel.twenty,
+        methods: const MethodPreferences(),
+        reviewOnly: true,
+      );
+      final task = plan.tasks.first;
+      final touch = TouchInteractionPlan.forTask(
+        mode: task.mode,
+        taskKey: task.sourceTaskKey,
+        answer: task.answer,
+        maxValue: task.maxAnswerValue,
+        wallValues: task.wallValues,
+        hiddenWallIndex: task.hiddenWallIndex,
+        choices: task.choices,
+        clockHour: task.clockHour,
+        clockMinute: task.clockMinute,
+        answerSuffix: task.answerSuffix,
+      );
+      expect(touch, isNotNull, reason: '${entry.$1.name}: ${task.sourceTaskKey}');
+    }
+  });
+
+
+  testWidgets('Touch-Förderung bleibt auf kleinem Handy bei 200 Prozent bedienbar', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.twenty;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RemediationScreen(
+          controller: controller,
+          pattern: ErrorPattern.clockReading,
+          preferredMode: TrainingMode.clock,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    final scrollableFinder = find.descendant(
+      of: find.byKey(const ValueKey('remediation-scroll')),
+      matching: find.byType(Scrollable),
+    ).first;
+    final scrollable = tester.state<ScrollableState>(scrollableFinder);
+    for (var i = 0; i < 8; i++) {
+      scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+      await tester.pump();
+    }
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TouchAnswerInteraction), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+
+  test('jedes konkrete Fehlermuster behält im Förderpfad Kompetenz-Evidenz', () {
+    for (final pattern in ErrorPattern.values) {
+      final tags = MicroCompetencyCatalog.tagsForTask(
+        mode: TrainingMode.practice,
+        taskKey: 'remediation:${pattern.name}:test',
+      );
+      if (pattern == ErrorPattern.unknown) {
+        expect(tags, isEmpty);
+      } else {
+        expect(tags, isNotEmpty, reason: pattern.name);
+      }
+    }
+  });
 
 }

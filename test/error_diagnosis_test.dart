@@ -457,4 +457,24 @@ void main() {
     );
   });
 
+  test('Geraden Winkel und Kreisaufgaben werden nicht mehr als unbekannt diagnostiziert', () {
+    for (final key in [
+      'geomrel:lines:parallel:fourth',
+      'geomrel:angle:right:paper:fourth',
+      'geomrel:figure:quadrilateral:fourth',
+      'geomrel:circle:radius:fourth',
+    ]) {
+      expect(
+        ErrorClassifier.classify(
+          mode: TrainingMode.geometryRelations,
+          taskKey: key,
+          expected: 0,
+          actual: 1,
+        ),
+        ErrorPattern.geometryProperty,
+        reason: key,
+      );
+    }
+  });
+
 }

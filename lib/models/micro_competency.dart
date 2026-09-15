@@ -954,6 +954,9 @@ class MicroCompetencyCatalog {
         'inverseOperation' => const [
             MicroCompetencyTag(MicroCompetencyId.inverseRelationship),
           ],
+        'operationChoice' => const [
+            MicroCompetencyTag(MicroCompetencyId.wordProblemOperation),
+          ],
         'wordProblem' => const [
             MicroCompetencyTag(MicroCompetencyId.wordProblemOperation),
             MicroCompetencyTag(
@@ -1012,6 +1015,107 @@ class MicroCompetencyCatalog {
                   ? MicroCompetencyId.area
                   : MicroCompetencyId.perimeter,
             ),
+          ],
+        'numberRelations' => const [
+            MicroCompetencyTag(MicroCompetencyId.numberRelations),
+          ],
+        'patternRule' => const [
+            MicroCompetencyTag(MicroCompetencyId.numberPatterns),
+          ],
+        'moneyCalculation' => const [
+            MicroCompetencyTag(MicroCompetencyId.moneyCalculation),
+          ],
+        'clockReading' => const [
+            MicroCompetencyTag(MicroCompetencyId.clockReading),
+          ],
+        'geometryProperty' => [
+            MicroCompetencyTag(
+              taskKey.contains('geomrel:lines:')
+                  ? MicroCompetencyId.lineRelations
+                  : taskKey.contains('geomrel:angle:')
+                      ? MicroCompetencyId.rightAngle
+                      : taskKey.contains('geomrel:figure:')
+                          ? MicroCompetencyId.figureClassification
+                          : taskKey.contains('geomrel:circle:')
+                              ? MicroCompetencyId.circleParts
+                              : MicroCompetencyId.shapeProperties,
+            ),
+          ],
+        'mentalStrategy' => const [
+            MicroCompetencyTag(MicroCompetencyId.mentalStrategy),
+          ],
+        'writtenProcedure' => [
+            MicroCompetencyTag(
+              taskKey.contains('written:x:')
+                  ? MicroCompetencyId.writtenMultiplyProcedure
+                  : taskKey.contains('written:divide:') ||
+                          taskKey.contains('written:divide-rest:')
+                      ? MicroCompetencyId.writtenDivideProcedure
+                      : MicroCompetencyId.writtenAlignment,
+            ),
+          ],
+        'estimation' => const [
+            MicroCompetencyTag(MicroCompetencyId.estimation),
+          ],
+        'arithmeticLaw' => [
+            MicroCompetencyTag(
+              taskKey.contains('process:reasoning:')
+                  ? MicroCompetencyId.reasoningJustification
+                  : MicroCompetencyId.arithmeticLaw,
+            ),
+          ],
+        'romanNumeral' => const [
+            MicroCompetencyTag(MicroCompetencyId.romanNumeral),
+          ],
+        'dataReading' => [
+            MicroCompetencyTag(
+              taskKey.contains('data:tally:')
+                  ? MicroCompetencyId.tallyTableReading
+                  : taskKey.contains('data:representation:')
+                      ? MicroCompetencyId.dataRepresentationChoice
+                      : MicroCompetencyId.dataReading,
+            ),
+          ],
+        'probabilityReasoning' => taskKey.contains('prob:experiment:')
+            ? const [
+                MicroCompetencyTag(MicroCompetencyId.probabilityExperiment),
+                MicroCompetencyTag(
+                  MicroCompetencyId.probabilityReasoning,
+                  weight: 0.35,
+                ),
+              ]
+            : const [
+                MicroCompetencyTag(MicroCompetencyId.probabilityReasoning),
+              ],
+        'combinatorics' => const [
+            MicroCompetencyTag(MicroCompetencyId.combinatoricsSystematic),
+          ],
+        'proportionalReasoning' => const [
+            MicroCompetencyTag(MicroCompetencyId.proportionalUnit),
+          ],
+        'spatialReasoning' => taskKey.contains('body:cube-net:fold:')
+            ? const [
+                MicroCompetencyTag(MicroCompetencyId.cubeNetFoldability),
+                MicroCompetencyTag(
+                  MicroCompetencyId.geometryBodies,
+                  weight: 0.35,
+                ),
+              ]
+            : const [
+                MicroCompetencyTag(MicroCompetencyId.geometryBodies),
+              ],
+        'symmetry' => const [
+            MicroCompetencyTag(MicroCompetencyId.symmetryAxes),
+          ],
+        'planScale' => [
+            MicroCompetencyTag(
+              taskKey.contains('plan:scale:')
+                  ? MicroCompetencyId.scale
+                  : MicroCompetencyId.planDirections,
+            ),
+          ],
+        'volume' => const [
+            MicroCompetencyTag(MicroCompetencyId.volumeCubes),
           ],
         _ => const <MicroCompetencyTag>[],
       };

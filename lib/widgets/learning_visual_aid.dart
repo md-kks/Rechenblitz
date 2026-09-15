@@ -18,11 +18,26 @@ class LearningVisualAid extends StatelessWidget {
   final int expected;
   final String? methodKey;
 
+  static String _baseTaskKey(String key) {
+    if (!key.startsWith('remediation:')) return key;
+    final first = key.indexOf(':');
+    final second = key.indexOf(':', first + 1);
+    return second < 0 || second + 1 >= key.length ? key : key.substring(second + 1);
+  }
+
   static bool canRender({
     required ErrorPattern pattern,
     required String taskKey,
     String? methodKey,
   }) {
+    final baseTaskKey = _baseTaskKey(taskKey);
+    if (baseTaskKey != taskKey) {
+      return canRender(
+        pattern: pattern,
+        taskKey: baseTaskKey,
+        methodKey: methodKey,
+      );
+    }
     if (methodKey == 'addition:toFullTen' ||
         methodKey == 'numberFriends:decomposition' ||
         taskKey.startsWith('gap:') ||
@@ -106,6 +121,15 @@ class LearningVisualAid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final baseTaskKey = _baseTaskKey(taskKey);
+    if (baseTaskKey != taskKey) {
+      return LearningVisualAid(
+        pattern: pattern,
+        taskKey: baseTaskKey,
+        expected: expected,
+        methodKey: methodKey,
+      );
+    }
     final processChild = methodKey == 'numberFriends:decomposition'
         ? _numberFriendAid()
         : methodKey == 'addition:toFullTen'

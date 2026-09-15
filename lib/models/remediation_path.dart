@@ -132,6 +132,10 @@ class RemediationTask {
     required this.hint,
     this.choices,
     this.answerSuffix,
+    this.wallValues,
+    this.hiddenWallIndex,
+    this.clockHour,
+    this.clockMinute,
   });
 
   final RemediationStage stage;
@@ -143,8 +147,21 @@ class RemediationTask {
   final String hint;
   final List<String>? choices;
   final String? answerSuffix;
+  final List<int>? wallValues;
+  final int? hiddenWallIndex;
+  final int? clockHour;
+  final int? clockMinute;
 
   bool get usesChoices => choices != null && choices!.isNotEmpty;
+
+  String get sourceTaskKey {
+    if (!taskKey.startsWith('remediation:')) return taskKey;
+    final first = taskKey.indexOf(':');
+    final second = taskKey.indexOf(':', first + 1);
+    return second < 0 || second + 1 >= taskKey.length
+        ? taskKey
+        : taskKey.substring(second + 1);
+  }
 }
 
 class RemediationPlan {
@@ -4142,6 +4159,22 @@ class RemediationGenerator {
         ErrorPattern.divisionAsSubtraction =>
           _division(stage, pattern),
         ErrorPattern.inverseOperation => _inverse(stage, range),
+        ErrorPattern.numberRelations => _targetedStructuredRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.numberWall,
+            competency: MicroCompetencyId.numberRelations,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.patternRule => _targetedStructuredRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.sequences,
+            competency: MicroCompetencyId.numberPatterns,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.wordProblem => _wordProblem(stage, grade, range),
         ErrorPattern.wordProblemRelevantInformation =>
           _targetedWordProblem(
@@ -4175,13 +4208,129 @@ class RemediationGenerator {
             pattern,
             MicroCompetencyId.representationTranslation,
           ),
+        ErrorPattern.moneyCalculation => _targetedStructuredRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.money,
+            competency: MicroCompetencyId.moneyCalculation,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.clockReading => _targetedStructuredRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.clock,
+            competency: MicroCompetencyId.clockReading,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.geometryProperty => _geometryRemediation(
+            stage: stage,
+            pattern: pattern,
+            preferredMode: preferredMode,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.unitConversion => _unitConversion(stage, grade),
         ErrorPattern.roundingPlace => _rounding(stage, range),
+        ErrorPattern.mentalStrategy => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.mentalStrategies,
+            competency: MicroCompetencyId.mentalStrategy,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.writtenRegrouping =>
           _writtenRegrouping(stage, range, methods.writtenSubtraction),
+        ErrorPattern.writtenProcedure => _writtenProcedureRemediation(
+            stage: stage,
+            pattern: pattern,
+            preferredMode: preferredMode,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.estimation => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.estimation,
+            competency: MicroCompetencyId.estimation,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.arithmeticLaw => _arithmeticLawRemediation(
+            stage: stage,
+            pattern: pattern,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.romanNumeral => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.romanNumerals,
+            competency: MicroCompetencyId.romanNumeral,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.fractionPart => _fraction(stage),
         ErrorPattern.timeDuration => _timeDuration(stage),
+        ErrorPattern.dataReading => _dataRemediation(
+            stage: stage,
+            pattern: pattern,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.probabilityReasoning => _probabilityRemediation(
+            stage: stage,
+            pattern: pattern,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.combinatorics => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.combinatorics,
+            competency: MicroCompetencyId.combinatoricsSystematic,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.proportionalReasoning => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.proportionality,
+            competency: MicroCompetencyId.proportionalUnit,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.perimeterArea => _perimeterArea(stage),
+        ErrorPattern.spatialReasoning => _spatialRemediation(
+            stage: stage,
+            pattern: pattern,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.symmetry => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.symmetry,
+            competency: MicroCompetencyId.symmetryAxes,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.planScale => _planRemediation(
+            stage: stage,
+            pattern: pattern,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.volume => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.volumeCubes,
+            competency: MicroCompetencyId.volumeCubes,
+            grade: grade,
+            range: range,
+          ),
         _ => _fallback(
             pattern: pattern,
             stage: stage,
@@ -4315,7 +4464,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.numberFriends,
-      key: 'remediation:numberBond:$a:$target',
+      key: 'remediation:numberBond:plus:$a:${target - a}',
       prompt: '$a + ? = $target',
       answer: target - a,
       max: target,
@@ -4333,7 +4482,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.neighbors,
-      key: 'remediation:count:${forward ? '+' : '-'}:$value',
+      key: 'remediation:countingStep:neighbor:$value:${forward ? 'after' : 'before'}',
       prompt: forward
           ? 'Welche Zahl kommt direkt nach $value?'
           : 'Welche Zahl kommt direkt vor $value?',
@@ -4359,8 +4508,8 @@ class RemediationGenerator {
         : const ['Plus (+)', 'Minus (−)', 'Mal (×)', 'Geteilt (÷)'];
     return RemediationTask(
       stage: stage,
-      mode: TrainingMode.mixed,
-      taskKey: 'remediation:operation:${plus ? '+' : '-'}:$a:$b',
+      mode: TrainingMode.wordProblems,
+      taskKey: 'remediation:operationChoice:story:operation:${plus ? '+' : '-'}:$a:$b',
       prompt: plus
           ? 'Eine Menge von $a wird um $b größer. Welche Rechenart passt?'
           : 'Von $a werden $b weggenommen. Welche Rechenart passt?',
@@ -4394,7 +4543,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.placeValue,
-      key: 'remediation:place:$number:$place',
+      key: 'remediation:placeValue:place-digit:$number:$place',
       prompt: 'Welche Ziffer steht bei $number an der $label?',
       answer: digit,
       max: 9,
@@ -4458,7 +4607,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.missingNumber,
-      key: 'remediation:inverse:$answer:$add',
+      key: 'remediation:inverseOperation:gap:+:$answer:$add:a',
       prompt: '? + $add = ${answer + add}',
       answer: answer,
       max: limit,
@@ -4479,7 +4628,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.wordProblems,
-      key: 'remediation:story:${minus ? '-' : '+'}:$a:$b',
+      key: 'remediation:wordProblem:story:${minus ? '-' : '+'}:$a:$b',
       prompt: minus
           ? 'In einer Kiste liegen $a Bausteine. $b werden herausgenommen. Wie viele bleiben?'
           : 'In einer Kiste liegen $a Bausteine. $b kommen dazu. Wie viele sind es jetzt?',
@@ -4531,7 +4680,7 @@ class RemediationGenerator {
       return _numeric(
         stage: stage,
         mode: TrainingMode.measures,
-        key: 'remediation:unit:m-cm:$value',
+        key: 'remediation:unitConversion:measure:convert:m-cm:$value',
         prompt: '$value m sind wie viele cm?',
         answer: value * 100,
         max: 900,
@@ -4544,7 +4693,7 @@ class RemediationGenerator {
       return _numeric(
         stage: stage,
         mode: TrainingMode.measures,
-        key: 'remediation:unit:cm-mm:$value',
+        key: 'remediation:unitConversion:measure:convert:cm-mm:$value',
         prompt: '$value cm sind wie viele mm?',
         answer: value * 10,
         max: 90,
@@ -4557,7 +4706,7 @@ class RemediationGenerator {
       return _numeric(
         stage: stage,
         mode: TrainingMode.advancedMeasures,
-        key: 'remediation:unit:kg-g:$value',
+        key: 'remediation:unitConversion:mass:kg:$value',
         prompt: '$value kg sind wie viele g?',
         answer: value * 1000,
         max: 8000,
@@ -4569,7 +4718,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.advancedMeasures,
-      key: 'remediation:unit:l-ml:$value',
+      key: 'remediation:unitConversion:volume:l:$value',
       prompt: '$value l sind wie viele ml?',
       answer: value * 1000,
       max: 8000,
@@ -4589,7 +4738,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.rounding,
-      key: 'remediation:round:$number:$place',
+      key: 'remediation:roundingPlace:round:$number:$place',
       prompt:
           'Runde $number auf den nächsten ${place == 10 ? 'Zehner' : 'Hunderter'}.',
       answer: answer,
@@ -4612,7 +4761,7 @@ class RemediationGenerator {
       return _numeric(
         stage: stage,
         mode: TrainingMode.writtenAddSub,
-        key: 'remediation:written:-:$a:$bOnes',
+        key: 'remediation:writtenRegrouping:written:-:$a:$bOnes',
         prompt: 'Rechne schriftlich:\n$a\n− $bOnes',
         answer: a - bOnes,
         max: limit,
@@ -4630,7 +4779,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.writtenAddSub,
-      key: 'remediation:written:-:$a:$b',
+      key: 'remediation:writtenRegrouping:written:-:$a:$b',
       prompt: 'Rechne schriftlich:\n$a\n− $b',
       answer: a - b,
       max: limit,
@@ -4645,7 +4794,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.fractions,
-      key: 'remediation:fraction:$denominator:$whole',
+      key: 'remediation:fractionPart:fraction:parts:1:$denominator:$whole',
       prompt: 'Wie viel ist 1/$denominator von $whole?',
       answer: part,
       max: whole,
@@ -4663,7 +4812,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.timeDurations,
-      key: 'remediation:duration:$start:$duration',
+      key: 'remediation:timeDuration:duration:$start:$duration',
       prompt:
           'Beginn: $start:00 Uhr\nEnde: $endHour:${endMinute.toString().padLeft(2, '0')} Uhr\nWie viele Minuten dauert es?',
       answer: duration,
@@ -4681,7 +4830,7 @@ class RemediationGenerator {
     return _numeric(
       stage: stage,
       mode: TrainingMode.perimeterArea,
-      key: 'remediation:rect:$width:$height:$area',
+      key: 'remediation:perimeterArea:rect:${area ? 'area' : 'perimeter'}:rectangle:$width:$height',
       prompt: area
           ? 'Rechteck: $width cm lang und $height cm breit. Wie groß ist die Fläche?'
           : 'Rechteck: $width cm lang und $height cm breit. Wie groß ist der Umfang?',
@@ -4691,6 +4840,221 @@ class RemediationGenerator {
       hint: area
           ? 'Fläche ist das Innere: Länge × Breite.'
           : 'Umfang ist der Rand: alle vier Seiten addieren.',
+    );
+  }
+
+  RemediationTask _targetedStructuredRemediation({
+    required RemediationStage stage,
+    required ErrorPattern pattern,
+    required TrainingMode mode,
+    required MicroCompetencyId competency,
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
+    final exercise = _structured.generate(
+      mode: mode,
+      maxValue: range.maxValue,
+      gradeLevel: grade,
+      targetCompetency: competency,
+    );
+    return RemediationTask(
+      stage: stage,
+      mode: mode,
+      taskKey: 'remediation:${pattern.name}:${exercise.key}',
+      prompt: exercise.prompt,
+      answer: exercise.answer,
+      maxAnswerValue: exercise.maxAnswerValue ?? range.maxValue,
+      choices: exercise.choices,
+      answerSuffix: exercise.answerSuffix,
+      wallValues: exercise.wallValues,
+      hiddenWallIndex: exercise.hiddenWallIndex,
+      clockHour: exercise.clockHour,
+      clockMinute: exercise.clockMinute,
+      hint: '${pattern.firstResponseHint} ${exercise.hint}',
+    );
+  }
+
+  RemediationTask _targetedCurriculumRemediation({
+    required RemediationStage stage,
+    required ErrorPattern pattern,
+    required TrainingMode mode,
+    required MicroCompetencyId competency,
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
+    final exercise = _curriculum.generate(
+      mode: mode,
+      gradeLevel: grade,
+      maxValue: range.maxValue,
+      targetCompetency: competency,
+    );
+    return RemediationTask(
+      stage: stage,
+      mode: mode,
+      taskKey: 'remediation:${pattern.name}:${exercise.key}',
+      prompt: exercise.prompt,
+      answer: exercise.answer,
+      maxAnswerValue: exercise.maxAnswerValue ?? range.maxValue,
+      choices: exercise.choices,
+      answerSuffix: exercise.answerSuffix,
+      hint: '${pattern.firstResponseHint} ${exercise.hint}',
+    );
+  }
+
+  RemediationTask _geometryRemediation({
+    required RemediationStage stage,
+    required ErrorPattern pattern,
+    required TrainingMode preferredMode,
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
+    if (preferredMode == TrainingMode.geometry) {
+      return _targetedStructuredRemediation(
+        stage: stage,
+        pattern: pattern,
+        mode: TrainingMode.geometry,
+        competency: MicroCompetencyId.shapeProperties,
+        grade: grade,
+        range: range,
+      );
+    }
+    const targets = <MicroCompetencyId>[
+      MicroCompetencyId.lineRelations,
+      MicroCompetencyId.rightAngle,
+      MicroCompetencyId.figureClassification,
+      MicroCompetencyId.circleParts,
+    ];
+    return _targetedCurriculumRemediation(
+      stage: stage,
+      pattern: pattern,
+      mode: TrainingMode.geometryRelations,
+      competency: targets[_random.nextInt(targets.length)],
+      grade: grade,
+      range: range,
+    );
+  }
+
+  RemediationTask _writtenProcedureRemediation({
+    required RemediationStage stage,
+    required ErrorPattern pattern,
+    required TrainingMode preferredMode,
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
+    final mode = switch (preferredMode) {
+      TrainingMode.writtenMultiply => TrainingMode.writtenMultiply,
+      TrainingMode.writtenDivide => TrainingMode.writtenDivide,
+      _ => TrainingMode.writtenAddSub,
+    };
+    final competency = switch (mode) {
+      TrainingMode.writtenMultiply => MicroCompetencyId.writtenMultiplyProcedure,
+      TrainingMode.writtenDivide => MicroCompetencyId.writtenDivideProcedure,
+      _ => MicroCompetencyId.writtenAlignment,
+    };
+    return _targetedCurriculumRemediation(
+      stage: stage,
+      pattern: pattern,
+      mode: mode,
+      competency: competency,
+      grade: grade,
+      range: range,
+    );
+  }
+
+  RemediationTask _arithmeticLawRemediation({
+    required RemediationStage stage,
+    required ErrorPattern pattern,
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
+    final competency = _random.nextBool()
+        ? MicroCompetencyId.arithmeticLaw
+        : MicroCompetencyId.reasoningJustification;
+    return _targetedCurriculumRemediation(
+      stage: stage,
+      pattern: pattern,
+      mode: TrainingMode.arithmeticLaws,
+      competency: competency,
+      grade: grade,
+      range: range,
+    );
+  }
+
+  RemediationTask _dataRemediation({
+    required RemediationStage stage,
+    required ErrorPattern pattern,
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
+    const targets = <MicroCompetencyId>[
+      MicroCompetencyId.dataReading,
+      MicroCompetencyId.tallyTableReading,
+      MicroCompetencyId.dataRepresentationChoice,
+    ];
+    return _targetedCurriculumRemediation(
+      stage: stage,
+      pattern: pattern,
+      mode: TrainingMode.dataCharts,
+      competency: targets[_random.nextInt(targets.length)],
+      grade: grade,
+      range: range,
+    );
+  }
+
+  RemediationTask _probabilityRemediation({
+    required RemediationStage stage,
+    required ErrorPattern pattern,
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
+    final competency = grade.index >= GradeLevel.fourth.index && _random.nextBool()
+        ? MicroCompetencyId.probabilityExperiment
+        : MicroCompetencyId.probabilityReasoning;
+    return _targetedCurriculumRemediation(
+      stage: stage,
+      pattern: pattern,
+      mode: TrainingMode.probability,
+      competency: competency,
+      grade: grade,
+      range: range,
+    );
+  }
+
+  RemediationTask _spatialRemediation({
+    required RemediationStage stage,
+    required ErrorPattern pattern,
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
+    final competency = _random.nextBool()
+        ? MicroCompetencyId.geometryBodies
+        : MicroCompetencyId.cubeNetFoldability;
+    return _targetedCurriculumRemediation(
+      stage: stage,
+      pattern: pattern,
+      mode: TrainingMode.geometryBodies,
+      competency: competency,
+      grade: grade,
+      range: range,
+    );
+  }
+
+  RemediationTask _planRemediation({
+    required RemediationStage stage,
+    required ErrorPattern pattern,
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
+    final competency = grade.index >= GradeLevel.fourth.index && _random.nextBool()
+        ? MicroCompetencyId.scale
+        : MicroCompetencyId.planDirections;
+    return _targetedCurriculumRemediation(
+      stage: stage,
+      pattern: pattern,
+      mode: TrainingMode.plansAndOrientation,
+      competency: competency,
+      grade: grade,
+      range: range,
     );
   }
 
@@ -4716,6 +5080,10 @@ class RemediationGenerator {
             exercise.maxAnswerValue ?? min(range.maxValue, 100),
         choices: exercise.choices,
         answerSuffix: exercise.answerSuffix,
+        wallValues: exercise.wallValues,
+        hiddenWallIndex: exercise.hiddenWallIndex,
+        clockHour: exercise.clockHour,
+        clockMinute: exercise.clockMinute,
         hint: '${pattern.action} ${exercise.hint}',
       );
     }

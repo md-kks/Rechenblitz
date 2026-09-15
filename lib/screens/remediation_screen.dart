@@ -8,9 +8,11 @@ import '../models/guided_method.dart';
 import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/training.dart';
+import '../models/touch_interaction.dart';
 import '../services/app_controller.dart';
 import '../widgets/learning_visual_aid.dart';
 import '../widgets/number_answer_pad.dart';
+import '../widgets/touch_answer_interaction.dart';
 
 class RemediationScreen extends StatefulWidget {
   const RemediationScreen({
@@ -38,13 +40,27 @@ class _RemediationScreenState extends State<RemediationScreen> {
   bool locked = false;
   bool finishing = false;
   bool showHint = false;
+  bool useTouchInput = true;
   String feedback = '';
 
   RemediationTask get current => plan.tasks[index];
 
+  TouchInteractionPlan? get _touchInteraction => TouchInteractionPlan.forTask(
+    mode: current.mode,
+    taskKey: current.sourceTaskKey,
+    answer: current.answer,
+    maxValue: current.maxAnswerValue,
+    wallValues: current.wallValues,
+    hiddenWallIndex: current.hiddenWallIndex,
+    choices: current.choices,
+    clockHour: current.clockHour,
+    clockMinute: current.clockMinute,
+    answerSuffix: current.answerSuffix,
+  );
+
   GuidedMethodGuide get _guide => GuidedMethodFactory.forTask(
     mode: current.mode,
-    taskKey: current.taskKey,
+    taskKey: current.sourceTaskKey,
     expected: current.answer,
     preferences: widget.controller.effectiveMethodPreferences,
   );
@@ -136,6 +152,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
       wrongOnCurrent = 0;
       locked = false;
       showHint = false;
+      useTouchInput = true;
       feedback = '';
     });
     WidgetsBinding.instance.addPostFrameCallback(
@@ -200,6 +217,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
       ),
       body: SafeArea(
         child: ListView(
+          key: const ValueKey('remediation-scroll'),
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: [
             LinearProgressIndicator(
@@ -247,7 +265,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
             if (autoHint || showHint) ...[
               LearningVisualAid(
                 pattern: widget.pattern,
-                taskKey: current.taskKey,
+                taskKey: current.sourceTaskKey,
                 expected: current.answer,
               ),
               const SizedBox(height: 10),
@@ -285,7 +303,29 @@ class _RemediationScreenState extends State<RemediationScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            if (current.usesChoices)
+            if (useTouchInput && _touchInteraction != null) ...[
+              TouchAnswerInteraction(
+                key: ValueKey('remediation-touch:$index:${current.taskKey}'),
+                plan: _touchInteraction!,
+                locked: locked,
+                onAnswer: _answer,
+              ),
+              const SizedBox(height: 6),
+              TextButton.icon(
+                key: const ValueKey('remediation-touch-switch-classic'),
+                onPressed: locked
+                    ? null
+                    : () => setState(() => useTouchInput = false),
+                icon: Icon(
+                  current.usesChoices
+                      ? Icons.checklist_rounded
+                      : Icons.dialpad_rounded,
+                ),
+                label: Text(
+                  current.usesChoices ? 'Lieber auswählen' : 'Lieber eintippen',
+                ),
+              ),
+            ] else if (current.usesChoices) ...[
               ...List.generate(
                 current.choices!.length,
                 (choiceIndex) => Padding(
@@ -298,13 +338,32 @@ class _RemediationScreenState extends State<RemediationScreen> {
                     ),
                   ),
                 ),
-              )
-            else
+              ),
+              if (_touchInteraction != null)
+                TextButton.icon(
+                  key: const ValueKey('remediation-touch-switch-interaction'),
+                  onPressed: locked
+                      ? null
+                      : () => setState(() => useTouchInput = true),
+                  icon: const Icon(Icons.touch_app_rounded),
+                  label: const Text('Mit Finger lösen'),
+                ),
+            ] else ...[
               NumberAnswerPad(
                 key: ValueKey('remediation:$index:${current.taskKey}'),
                 maxValue: current.maxAnswerValue,
                 onAnswer: _answer,
               ),
+              if (_touchInteraction != null)
+                TextButton.icon(
+                  key: const ValueKey('remediation-touch-switch-interaction'),
+                  onPressed: locked
+                      ? null
+                      : () => setState(() => useTouchInput = true),
+                  icon: const Icon(Icons.touch_app_rounded),
+                  label: const Text('Mit Finger lösen'),
+                ),
+            ],
           ],
         ),
       ),
