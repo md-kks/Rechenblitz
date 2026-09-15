@@ -1984,9 +1984,15 @@ class AppController extends ChangeNotifier {
       ...protectedBeforeTransfer,
       ?transferTarget,
     };
-    final bridgeMicro = rangeBridgeCandidateMicroCompetency(
+    final gradeBridgeMicro = gradeBridgeCandidateMicroCompetency(
       excludingAny: protectedBeforeWarmUp,
     );
+    final rangeBridgeMicro = gradeBridgeMicro == null
+        ? rangeBridgeCandidateMicroCompetency(
+            excludingAny: protectedBeforeWarmUp,
+          )
+        : null;
+    final bridgeMicro = gradeBridgeMicro ?? rangeBridgeMicro;
     final warmUpMicro = bridgeMicro ?? warmUpMicroCompetency(
       excluding: protectedBeforeWarmUp,
     );
@@ -2090,13 +2096,16 @@ class AppController extends ChangeNotifier {
         role: GuidedRoundRole.warmUp,
         mode: warmUpMode,
         tasks: 2,
-        reason: bridgeMicro != null
-            ? '„${bridgeMicro.definition.label}“ war im vorherigen Zahlenraum stabil. Zwei Aufgaben prüfen jetzt, ob die Grundlage auch im Zahlenraum ${numberRange.label} selbstständig trägt.'
-            : warmUpTarget == null
-                ? 'Mit vertrauten Grundlagen ruhig ankommen.'
-                : 'Mit „${warmUpMicro!.definition.label}“ ruhig ankommen; diese sichere Kompetenz war länger nicht im Mittelpunkt.',
+        reason: gradeBridgeMicro != null
+            ? '„${gradeBridgeMicro.definition.label}“ war in ${gradeBridgeStatus().previousGrade!.label} stabil. Zwei Aufgaben prüfen jetzt, ob die Grundlage auch in ${gradeLevel.label} selbstständig trägt.'
+            : rangeBridgeMicro != null
+                ? '„${rangeBridgeMicro.definition.label}“ war im vorherigen Zahlenraum stabil. Zwei Aufgaben prüfen jetzt, ob die Grundlage auch im Zahlenraum ${numberRange.label} selbstständig trägt.'
+                : warmUpTarget == null
+                    ? 'Mit vertrauten Grundlagen ruhig ankommen.'
+                    : 'Mit „${warmUpMicro!.definition.label}“ ruhig ankommen; diese sichere Kompetenz war länger nicht im Mittelpunkt.',
         targetCompetency: warmUpTarget,
-        rangeBridge: bridgeMicro != null,
+        rangeBridge: rangeBridgeMicro != null,
+        gradeBridge: gradeBridgeMicro != null,
       ),
       GuidedRoundSegment(
         role: GuidedRoundRole.focus,
@@ -2342,7 +2351,14 @@ class AppController extends ChangeNotifier {
     final guidedFocus = guidedStepFocus();
     final parts = <String>[];
 
-    if (warmUp.rangeBridge && warmUp.targetCompetency != null) {
+    if (warmUp.gradeBridge && warmUp.targetCompetency != null) {
+      final label =
+          MicroCompetencyCatalog.definition(warmUp.targetCompetency!).label;
+      final bridge = gradeBridgeStatus();
+      parts.add(
+        '${warmUp.tasks} Brückenaufgaben bestätigen „$label“ aus ${bridge.previousGrade?.label ?? 'der vorherigen Klassenstufe'} in ${gradeLevel.label}',
+      );
+    } else if (warmUp.rangeBridge && warmUp.targetCompetency != null) {
       final label =
           MicroCompetencyCatalog.definition(warmUp.targetCompetency!).label;
       final bridge = numberRangeBridgeStatus();
@@ -2746,15 +2762,16 @@ class AppController extends ChangeNotifier {
     return ranges[index - 1];
   }
 
-  bool _stableFoundationInRange(
-    MicroCompetencyId id,
-    NumberRangeLevel range,
-  ) {
+  bool _stableFoundationInContext(
+    MicroCompetencyId id, {
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
     final observations = microObservations
         .where(
           (entry) =>
               entry.id == id &&
-              entry.gradeLevel == gradeLevel &&
+              entry.gradeLevel == grade &&
               entry.numberRange == range &&
               (entry.source == MicroEvidenceSource.practice ||
                   entry.source == MicroEvidenceSource.remediation ||
@@ -2786,11 +2803,121 @@ class AppController extends ChangeNotifier {
     return true;
   }
 
+  bool _stableFoundationInRange(
+    MicroCompetencyId id,
+    NumberRangeLevel range,
+  ) =>
+      _stableFoundationInContext(
+        id,
+        grade: gradeLevel,
+        range: range,
+      );
+
+  bool _stableFoundationInGrade(
+    MicroCompetencyId id,
+    GradeLevel grade,
+  ) {
+    final all = microObservations
+        .where(
+          (entry) =>
+              entry.id == id &&
+              entry.gradeLevel == grade &&
+              (entry.source == MicroEvidenceSource.practice ||
+                  entry.source == MicroEvidenceSource.remediation ||
+                  entry.source == MicroEvidenceSource.independentStep),
+        )
+        .toList()
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    if (all.isEmpty) return false;
+
+    for (final observation in all) {
+      if (observation.source == MicroEvidenceSource.practice ||
+          observation.source == MicroEvidenceSource.remediation) {
+        if (!observation.correct || observation.usedHelp) return false;
+        break;
+      }
+    }
+
+    final ranges = all.map((entry) => entry.numberRange).toSet().toList()
+      ..sort((a, b) => b.index.compareTo(a.index));
+    for (final range in ranges) {
+      if (_stableFoundationInContext(id, grade: grade, range: range)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   bool _confirmedFoundationInCurrentRange(MicroCompetencyId id) {
     final progress = microCompetencyProgress(id);
     return _evidenceAtLeast(progress.independentEvidence, 1.5) &&
         progress.independentAccuracy >= _secureIndependentAccuracy &&
         !progress.basisNeedsReconfirmation;
+  }
+
+  GradeLevel? _previousGradeLevel() {
+    if (gradeLevel.index <= 0) return null;
+    return GradeLevel.values[gradeLevel.index - 1];
+  }
+
+  GradeBridgeStatus gradeBridgeStatus() {
+    final previous = _previousGradeLevel();
+    if (previous == null) {
+      return GradeBridgeStatus(
+        previousGrade: null,
+        currentGrade: gradeLevel,
+        foundationCompetencies: const <MicroCompetencyId>[],
+        confirmedCompetencies: const <MicroCompetencyId>[],
+        pendingCompetencies: const <MicroCompetencyId>[],
+        reason: 'In Klasse 1 gibt es keine vorherige Klassenstufe zu bestätigen.',
+      );
+    }
+
+    final foundations = MicroCompetencyCatalog.forContext(gradeLevel, numberRange)
+        .where(
+          (definition) =>
+              definition.appliesTo(previous) &&
+              (definition.domain == MicroCompetencyDomain.numberSense ||
+                  definition.domain == MicroCompetencyDomain.arithmetic) &&
+              _rangeReadinessModes.contains(definition.preferredMode) &&
+              _stableFoundationInGrade(definition.id, previous),
+        )
+        .map((definition) => definition.id)
+        .toList(growable: false);
+    final confirmed = foundations
+        .where(_confirmedFoundationInCurrentRange)
+        .toList(growable: false);
+    final confirmedSet = confirmed.toSet();
+    final pending = foundations
+        .where((id) => !confirmedSet.contains(id))
+        .toList(growable: false);
+
+    final reason = foundations.isEmpty
+        ? 'Aus ${previous.label} gibt es noch keine ausreichend stabile Kernkompetenz, die in ${gradeLevel.label} gezielt bestätigt werden sollte.'
+        : pending.isEmpty
+            ? 'Alle ${foundations.length} stabilen Grundlagen aus ${previous.label} wurden in ${gradeLevel.label} bereits selbstständig bestätigt.'
+            : '${confirmed.length} von ${foundations.length} stabilen Grundlagen aus ${previous.label} wurden in ${gradeLevel.label} bestätigt. Die übrigen werden kurz mit Aufgaben der neuen Klassenstufe überprüft.';
+    return GradeBridgeStatus(
+      previousGrade: previous,
+      currentGrade: gradeLevel,
+      foundationCompetencies: foundations,
+      confirmedCompetencies: confirmed,
+      pendingCompetencies: pending,
+      reason: reason,
+    );
+  }
+
+  MicroCompetencyProgress? gradeBridgeCandidateMicroCompetency({
+    Iterable<MicroCompetencyId> excludingAny = const <MicroCompetencyId>[],
+  }) {
+    final status = gradeBridgeStatus();
+    if (!status.isActive) return null;
+    final excluded = excludingAny.toSet();
+    for (final id in status.pendingCompetencies) {
+      if (excluded.contains(id)) continue;
+      return microCompetencyProgress(id);
+    }
+    return null;
   }
 
   NumberRangeBridgeStatus numberRangeBridgeStatus() {
@@ -2977,6 +3104,8 @@ class AppController extends ChangeNotifier {
     if (gradeChanged) {
       history = history.where((entry) => !entry.isAssessment).toList();
       await storage.saveHistory(history);
+      recentTaskKeysByMode = <String, List<String>>{};
+      await storage.saveTaskDiversity(recentTaskKeysByMode);
     }
 
     if (profiles.isNotEmpty) {
