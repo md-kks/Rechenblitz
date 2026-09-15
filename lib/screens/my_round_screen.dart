@@ -29,6 +29,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
   bool deferEmergingRecovery = false;
   bool recoveryRequired = false;
   late DateTime roundStartedAt;
+  late GuidedRoundDecisionTrace decisionTrace;
 
   @override
   void initState() {
@@ -42,6 +43,9 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
       deferEmergingRecovery = restored.deferEmergingRecovery;
       recoveryRequired = restored.recoveryRequired;
       roundStartedAt = restored.startedAt;
+      decisionTrace = restored.decisionTrace.items.isEmpty
+          ? widget.controller.guidedRoundDecisionTrace()
+          : restored.decisionTrace;
       if (recoveryRequired &&
           !stepRecoveryCompleted &&
           widget.controller.independentStepRecoveryFocus() == null) {
@@ -52,6 +56,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
       recoveryRequired =
           widget.controller.independentStepRecoveryFocus() != null;
       plan = widget.controller.buildMyRound();
+      decisionTrace = widget.controller.guidedRoundDecisionTrace();
     }
     unawaited(_persistRound());
   }
@@ -67,6 +72,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
         stepRecoveryAttempted: stepRecoveryAttempted,
         stepRecoveryCompleted: stepRecoveryCompleted,
         deferEmergingRecovery: deferEmergingRecovery,
+        decisionTrace: decisionTrace,
       );
 
   Future<void> _persistRound() =>
@@ -152,6 +158,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
       completedRoles: completedRoles,
       regularTaskBudget: compactForRecovery ? 9 : null,
     );
+    decisionTrace = widget.controller.guidedRoundDecisionTrace();
   }
 
   bool _isCompleted(GuidedRoundSegment segment) =>
@@ -391,6 +398,22 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                         '${plan[index].tasks} Aufgaben${plan[index].isBridge ? ' · Brücke' : ''} · ${plan[index].reason}',
                       ),
                     ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              child: ExpansionTile(
+                key: const ValueKey('round-decision-expansion'),
+                leading: const Icon(Icons.rule_folder_outlined),
+                title: const Text('Warum dieser Plan?'),
+                subtitle: const Text('Prioritäten und zurückgestellte Alternativen'),
+                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(decisionTrace.summary),
+                  ),
                 ],
               ),
             ),

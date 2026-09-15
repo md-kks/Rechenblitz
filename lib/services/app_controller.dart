@@ -2488,6 +2488,131 @@ class AppController extends ChangeNotifier {
     ];
   }
 
+  GuidedRoundDecisionTrace guidedRoundDecisionTrace({
+    DateTime? now,
+  }) {
+    final plan = buildMyRound(now: now);
+    final warmUp = plan.firstWhere((segment) => segment.role == GuidedRoundRole.warmUp);
+    final focus = plan.firstWhere((segment) => segment.role == GuidedRoundRole.focus);
+    final review = plan.firstWhere((segment) => segment.role == GuidedRoundRole.review);
+    final apply = plan.firstWhere((segment) => segment.role == GuidedRoundRole.apply);
+    final selectedReviewId =
+        review.reviewEmphasis ? review.targetCompetency : null;
+    final selectedTransferId =
+        apply.transferEmphasis ? apply.targetCompetency : null;
+    final selectedDiscoveryId = apply.targetCompetency != null &&
+            !apply.transferEmphasis
+        ? apply.targetCompetency
+        : null;
+    final items = <GuidedRoundDecisionItem>[];
+
+    if (focus.targetCompetency != null) {
+      final id = focus.targetCompetency!;
+      final recovery = independentStepRecoveryFocus(now: now);
+      final blockedDependent = _blockedDependentWaitingFor(id);
+      final kind = recovery != null && recovery.competencyId == id
+          ? GuidedRoundDecisionKind.recovery
+          : blockedDependent != null
+              ? GuidedRoundDecisionKind.prerequisite
+              : GuidedRoundDecisionKind.focus;
+      items.add(GuidedRoundDecisionItem(
+        kind: kind,
+        detail: focus.reason,
+        priority: 100,
+        selected: true,
+        competencyId: id,
+      ));
+    } else {
+      items.add(GuidedRoundDecisionItem(
+        kind: GuidedRoundDecisionKind.fallback,
+        detail: focus.reason,
+        priority: 100,
+        selected: true,
+      ));
+    }
+
+    if (review.targetCompetency != null) {
+      items.add(GuidedRoundDecisionItem(
+        kind: review.reviewEmphasis
+            ? GuidedRoundDecisionKind.dueReview
+            : GuidedRoundDecisionKind.maintenance,
+        detail: review.reason,
+        priority: review.reviewEmphasis ? 80 : 45,
+        selected: true,
+        competencyId: review.targetCompetency,
+      ));
+    }
+
+    if (apply.targetCompetency != null) {
+      items.add(GuidedRoundDecisionItem(
+        kind: apply.transferEmphasis
+            ? GuidedRoundDecisionKind.dueTransfer
+            : GuidedRoundDecisionKind.discovery,
+        detail: apply.reason,
+        priority: apply.transferEmphasis ? 70 : 40,
+        selected: true,
+        competencyId: apply.targetCompetency,
+      ));
+    }
+
+    if (warmUp.targetCompetency != null) {
+      items.add(GuidedRoundDecisionItem(
+        kind: warmUp.gradeBridge
+            ? GuidedRoundDecisionKind.gradeBridge
+            : warmUp.rangeBridge
+                ? GuidedRoundDecisionKind.rangeBridge
+                : GuidedRoundDecisionKind.maintenance,
+        detail: warmUp.reason,
+        priority: warmUp.gradeBridge ? 65 : warmUp.rangeBridge ? 60 : 30,
+        selected: true,
+        competencyId: warmUp.targetCompetency,
+      ));
+    }
+
+    final dueReview = dueReviewMicroCompetency(now: now);
+    if (dueReview != null && dueReview.definition.id != selectedReviewId) {
+      items.add(GuidedRoundDecisionItem(
+        kind: GuidedRoundDecisionKind.dueReview,
+        detail: '„${dueReview.definition.label}“ wäre ebenfalls für eine Abstandskontrolle fällig, wurde aber von einer höheren oder bereits belegten Rundenpriorität verdrängt.',
+        priority: 80,
+        selected: false,
+        competencyId: dueReview.definition.id,
+      ));
+    }
+
+    final dueTransfer = transferCandidateMicroCompetency(
+      now: now,
+      respectSchedule: true,
+    );
+    if (dueTransfer != null && dueTransfer.definition.id != selectedTransferId) {
+      items.add(GuidedRoundDecisionItem(
+        kind: GuidedRoundDecisionKind.dueTransfer,
+        detail: '„${dueTransfer.definition.label}“ wäre für Transfer geeignet, bleibt aber zugunsten dringenderer Evidenz in dieser Runde zurückgestellt.',
+        priority: 70,
+        selected: false,
+        competencyId: dueTransfer.definition.id,
+      ));
+    }
+
+    final discovery = nextNewMicroCompetency();
+    if (discovery != null && discovery.definition.id != selectedDiscoveryId) {
+      items.add(GuidedRoundDecisionItem(
+        kind: GuidedRoundDecisionKind.discovery,
+        detail: '„${discovery.definition.label}“ könnte als neuer Teilschritt beginnen, wartet aber bis Fokus, Erhaltung oder fällige Nachweise bedient sind.',
+        priority: 40,
+        selected: false,
+        competencyId: discovery.definition.id,
+      ));
+    }
+
+    items.sort((a, b) {
+      final selectedOrder = (b.selected ? 1 : 0).compareTo(a.selected ? 1 : 0);
+      if (selectedOrder != 0) return selectedOrder;
+      return b.priority.compareTo(a.priority);
+    });
+    return GuidedRoundDecisionTrace(items: items);
+  }
+
   MicroCompetencyProgress? parentPriorityMicroCompetency({
     DateTime? now,
   }) {
