@@ -1806,6 +1806,76 @@ class AppController extends ChangeNotifier {
     return latestTransfer.occurredAt.add(gap);
   }
 
+  MicroEvidenceConfidence microEvidenceConfidence(
+    MicroCompetencyId id, {
+    DateTime? now,
+  }) {
+    final progress = microCompetencyProgress(id);
+    final reference = now ?? DateTime.now();
+
+    if (progress.independentEvidence <= _evidenceEpsilon) {
+      final detail = progress.aidedEvidence > _evidenceEpsilon
+          ? 'Es gibt bereits Beobachtungen mit Hilfe, aber noch keinen selbstständigen Basisnachweis.'
+          : progress.evidence > _evidenceEpsilon
+              ? 'Es gibt erste Beobachtungen, aber noch keinen belastbaren selbstständigen Basisnachweis.'
+              : 'Für diesen Teilschritt liegen noch keine auswertbaren Beobachtungen vor.';
+      return MicroEvidenceConfidence(
+        level: MicroEvidenceConfidenceLevel.insufficient,
+        detail: detail,
+      );
+    }
+
+    final reconfirm = <String>[];
+    if (progress.basisNeedsReconfirmation) {
+      reconfirm.add('die letzte Basisaufgabe');
+    }
+    if (progress.reviewNeedsReconfirmation) {
+      reconfirm.add('die letzte Abstandskontrolle');
+    }
+    if (progress.transferNeedsReconfirmation) {
+      reconfirm.add('der letzte Transfer');
+    }
+    if (reconfirm.isNotEmpty) {
+      return MicroEvidenceConfidence(
+        level: MicroEvidenceConfidenceLevel.reconfirmationNeeded,
+        detail:
+            '${reconfirm.join(', ')} war falsch oder brauchte Hilfe. Der bisherige Stand bleibt sichtbar, wird aber erst nach einer neuen selbstständigen Bestätigung wieder als aktuell belastbar gewertet.',
+      );
+    }
+
+    if (progress.state != MicroCompetencyState.secure &&
+        progress.state != MicroCompetencyState.mastered) {
+      final percent = (progress.independentAccuracy * 100).round();
+      return MicroEvidenceConfidence(
+        level: MicroEvidenceConfidenceLevel.building,
+        detail:
+            'Es gibt selbstständige Evidenz ($percent % gewichtet richtig), aber noch nicht genug stabile Nachweise für eine belastbare Erhaltungsprognose.',
+      );
+    }
+
+    final reviewDueAt = nextReviewDueAt(id);
+    final transferDueAt = nextTransferDueAt(id);
+    final reviewDue = reviewDueAt != null && !reviewDueAt.isAfter(reference);
+    final transferDue = transferDueAt != null && !transferDueAt.isAfter(reference);
+    if (reviewDue || transferDue) {
+      final due = <String>[];
+      if (reviewDue) due.add('Abstandskontrolle');
+      if (transferDue) due.add('Transfer');
+      return MicroEvidenceConfidence(
+        level: MicroEvidenceConfidenceLevel.maintenanceDue,
+        detail:
+            '${due.join(' und ')} ${due.length == 1 ? 'ist' : 'sind'} jetzt fällig. Das ist kein automatischer Rückschritt, sondern eine gezielte Aktualitätsprüfung.',
+      );
+    }
+
+    return MicroEvidenceConfidence(
+      level: MicroEvidenceConfidenceLevel.current,
+      detail: progress.state == MicroCompetencyState.mastered
+          ? 'Selbstständige Basis, Abstand und Transfer sind aktuell belastbar belegt.'
+          : 'Die selbstständige Basis ist aktuell belastbar; geplante Bestätigungen sind noch nicht fällig.',
+    );
+  }
+
   String microStabilityScheduleText(
     MicroCompetencyId id, {
     DateTime? now,
@@ -2692,16 +2762,25 @@ class AppController extends ChangeNotifier {
         excluding: dueReview?.definition.id,
       );
 
+      final strongestConfidence = strongestMicro == null
+          ? null
+          : microEvidenceConfidence(strongestMicro.definition.id, now: now);
       final good = strongestMicro == null
           ? 'Noch nicht genug Daten – die ersten kurzen Runden bauen die Lernkarte auf.'
-          : switch (strongestMicro.state) {
-              MicroCompetencyState.mastered =>
-                '„${strongestMicro.definition.label}“ ist bereits gemeistert: selbstständige Basis, Abstand und Transfer sind belegt.',
-              MicroCompetencyState.secure =>
-                '„${strongestMicro.definition.label}“ ist aktuell sicher und gelingt in den bisherigen Aufgaben überwiegend selbstständig.',
-              _ =>
-                'Am stabilsten zeigt sich derzeit „${strongestMicro.definition.label}“ mit ${(strongestMicro.independentAccuracy * 100).round()} % gewichteter selbstständiger Sicherheit.',
-            };
+          : strongestConfidence!.level ==
+                  MicroEvidenceConfidenceLevel.reconfirmationNeeded
+              ? '„${strongestMicro.definition.label}“ war bisher ein starker Bereich. Die neueste Evidenz braucht aber eine erneute selbstständige Bestätigung.'
+              : strongestConfidence.level ==
+                      MicroEvidenceConfidenceLevel.maintenanceDue
+                  ? '„${strongestMicro.definition.label}“ ist bisher sicher. Eine geplante Bestätigung ist jetzt fällig, damit die Aussage aktuell bleibt.'
+                  : switch (strongestMicro.state) {
+                      MicroCompetencyState.mastered =>
+                        '„${strongestMicro.definition.label}“ ist bereits gemeistert: selbstständige Basis, Abstand und Transfer sind aktuell belegt.',
+                      MicroCompetencyState.secure =>
+                        '„${strongestMicro.definition.label}“ ist aktuell sicher und gelingt in den bisherigen Aufgaben überwiegend selbstständig.',
+                      _ =>
+                        'Am stabilsten zeigt sich derzeit „${strongestMicro.definition.label}“ mit ${(strongestMicro.independentAccuracy * 100).round()} % gewichteter selbstständiger Sicherheit.',
+                    };
 
       late final String focusText;
       if (currentFocus != null &&
@@ -2795,6 +2874,8 @@ class AppController extends ChangeNotifier {
         action: action,
         notYet: notYet,
         trend: _weeklyTrendText(),
+        confidence:
+            '${microEvidenceConfidence(priority.definition.id, now: now).level.label}: ${microEvidenceConfidence(priority.definition.id, now: now).detail}',
         stability: microStabilityScheduleText(priority.definition.id, now: now),
         mastery: _parentMasteryText(priority),
         evidence: _parentEvidenceText(priority),
@@ -2853,6 +2934,8 @@ class AppController extends ChangeNotifier {
       action: action,
       notYet: notYet,
       trend: _weeklyTrendText(),
+      confidence:
+          'Noch zu wenig Daten: Mit weiteren selbstständigen Aufgaben wird die Aussagekraft automatisch genauer.',
       stability:
           'Sobald genügend selbstständige Evidenz vorliegt, plant Rechenblitz Wiederholung und Transfer mit wachsendem Abstand.',
       mastery:

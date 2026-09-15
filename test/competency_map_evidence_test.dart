@@ -174,11 +174,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
+      find.byKey(const ValueKey('micro-confidence:additionTenBridge')),
+      findsOneWidget,
+    );
+    expect(find.text('Bestätigung ist fällig'), findsOneWidget);
+    expect(
       find.byKey(const ValueKey('micro-stability:additionTenBridge')),
       findsOneWidget,
     );
-    expect(find.textContaining('Abstandskontrolle'), findsOneWidget);
-    expect(find.textContaining('Transfer'), findsOneWidget);
+    expect(find.textContaining('Abstandskontrolle'), findsWidgets);
+    expect(find.textContaining('Transfer'), findsWidgets);
   });
 
 }

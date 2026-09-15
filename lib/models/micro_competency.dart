@@ -232,6 +232,35 @@ extension MicroCompetencyStateX on MicroCompetencyState {
       };
 }
 
+enum MicroEvidenceConfidenceLevel {
+  insufficient,
+  building,
+  current,
+  maintenanceDue,
+  reconfirmationNeeded,
+}
+
+extension MicroEvidenceConfidenceLevelX on MicroEvidenceConfidenceLevel {
+  String get label => switch (this) {
+        MicroEvidenceConfidenceLevel.insufficient => 'Noch zu wenig Daten',
+        MicroEvidenceConfidenceLevel.building => 'Aussage wird aufgebaut',
+        MicroEvidenceConfidenceLevel.current => 'Aktuell belastbar',
+        MicroEvidenceConfidenceLevel.maintenanceDue => 'Bestätigung ist fällig',
+        MicroEvidenceConfidenceLevel.reconfirmationNeeded =>
+          'Erneute Bestätigung nötig',
+      };
+}
+
+class MicroEvidenceConfidence {
+  const MicroEvidenceConfidence({
+    required this.level,
+    required this.detail,
+  });
+
+  final MicroEvidenceConfidenceLevel level;
+  final String detail;
+}
+
 class MicroCompetencyProgress {
   const MicroCompetencyProgress({
     required this.definition,

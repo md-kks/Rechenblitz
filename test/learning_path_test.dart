@@ -2184,6 +2184,155 @@ void main() {
     );
   });
 
+
+  test('Confidence trennt zu wenig Daten, Aufbau und aktuelle Evidenz', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final id = MicroCompetencyId.additionTenBridge;
+
+    expect(
+      controller.microEvidenceConfidence(id, now: DateTime(2026, 9, 1)).level,
+      MicroEvidenceConfidenceLevel.insufficient,
+    );
+
+    controller.microObservations = [
+      _microObservation(
+        id: id,
+        when: DateTime(2026, 9, 1, 8),
+        source: MicroEvidenceSource.practice,
+        taskKey: 'confidence-building',
+      ),
+    ];
+    expect(
+      controller.microEvidenceConfidence(id, now: DateTime(2026, 9, 1, 9)).level,
+      MicroEvidenceConfidenceLevel.building,
+    );
+
+    controller.microObservations = [
+      for (var index = 0; index < 6; index++)
+        _microObservation(
+          id: id,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'confidence-secure:$index',
+        ),
+      _microObservation(
+        id: id,
+        when: DateTime(2026, 9, 1, 10),
+        source: MicroEvidenceSource.transfer,
+        mode: TrainingMode.wordProblems,
+        taskKey: 'confidence-transfer',
+      ),
+    ];
+    expect(
+      controller.microEvidenceConfidence(id, now: DateTime(2026, 9, 2, 8)).level,
+      MicroEvidenceConfidenceLevel.current,
+    );
+  });
+
+  test('Confidence kennzeichnet fällige Erhaltung ohne Kompetenz zurückzustufen', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final id = MicroCompetencyId.additionTenBridge;
+    controller.microObservations = [
+      for (var index = 0; index < 6; index++)
+        _microObservation(
+          id: id,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'confidence-due:$index',
+        ),
+    ];
+
+    final progress = controller.microCompetencyProgress(id);
+    final confidence = controller.microEvidenceConfidence(
+      id,
+      now: DateTime(2026, 9, 3, 9),
+    );
+    expect(progress.state, MicroCompetencyState.secure);
+    expect(confidence.level, MicroEvidenceConfidenceLevel.maintenanceDue);
+    expect(confidence.detail, contains('Abstandskontrolle'));
+    expect(confidence.detail, contains('Transfer'));
+  });
+
+  test('Confidence priorisiert widersprüchliche neueste Evidenz', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final id = MicroCompetencyId.additionTenBridge;
+    controller.microObservations = [
+      for (var index = 0; index < 6; index++)
+        _microObservation(
+          id: id,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'confidence-base:$index',
+        ),
+      _microObservation(
+        id: id,
+        when: DateTime(2026, 9, 2, 8),
+        source: MicroEvidenceSource.practice,
+        taskKey: 'confidence-latest-fail',
+        correct: false,
+      ),
+    ];
+
+    expect(controller.microCompetencyProgress(id).state, MicroCompetencyState.secure);
+    final confidence = controller.microEvidenceConfidence(
+      id,
+      now: DateTime(2026, 9, 2, 9),
+    );
+    expect(
+      confidence.level,
+      MicroEvidenceConfidenceLevel.reconfirmationNeeded,
+    );
+    expect(confidence.detail, contains('letzte Basisaufgabe'));
+    final insight = controller.parentInsight(now: DateTime(2026, 9, 2, 9));
+    expect(insight.good, contains('erneute selbstständige Bestätigung'));
+    expect(insight.confidence, contains('Erneute Bestätigung nötig'));
+  });
+
+  test('gemeisterte frische Evidenz wird als aktuell belastbar ausgewiesen', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final id = MicroCompetencyId.additionTenBridge;
+    controller.microObservations = [
+      for (var index = 0; index < 6; index++)
+        _microObservation(
+          id: id,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'confidence-mastered-base:$index',
+        ),
+      for (var index = 0; index < 2; index++)
+        _microObservation(
+          id: id,
+          when: DateTime(2026, 9, 3, 8, index),
+          source: MicroEvidenceSource.review,
+          taskKey: 'confidence-mastered-review:$index',
+        ),
+      for (var index = 0; index < 2; index++)
+        _microObservation(
+          id: id,
+          when: DateTime(2026, 9, 4, 8, index),
+          source: MicroEvidenceSource.transfer,
+          mode: TrainingMode.wordProblems,
+          taskKey: 'confidence-mastered-transfer:$index',
+        ),
+    ];
+
+    expect(controller.microCompetencyProgress(id).state, MicroCompetencyState.mastered);
+    final confidence = controller.microEvidenceConfidence(
+      id,
+      now: DateTime(2026, 9, 5, 8),
+    );
+    expect(confidence.level, MicroEvidenceConfidenceLevel.current);
+    expect(confidence.detail, contains('Basis, Abstand und Transfer'));
+  });
+
 }
 
 

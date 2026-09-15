@@ -179,6 +179,9 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
         : !progress.hasIndependentTransferEvidence
         ? 'bisher mit Hilfe'
         : '${(progress.transferIndependentAccuracy * 100).round()} % allein richtig';
+    final confidence = widget.controller.microEvidenceConfidence(
+      progress.definition.id,
+    );
 
     await showModalBottomSheet<void>(
       context: context,
@@ -263,6 +266,34 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                 _EvidenceLine(label: 'Mit Hilfe', value: aided),
                 _EvidenceLine(label: 'Später noch einmal', value: review),
                 _EvidenceLine(label: 'Bei anderer Aufgabe', value: transfer),
+                const SizedBox(height: 10),
+                Card(
+                  key: ValueKey('micro-confidence:${progress.definition.id.name}'),
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.fact_check_outlined, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                confidence.level.label,
+                                style: const TextStyle(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(confidence.detail),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Card(
                   key: ValueKey('micro-stability:${progress.definition.id.name}'),

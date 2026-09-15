@@ -372,6 +372,7 @@ class ParentLearningInsight {
     required this.action,
     required this.notYet,
     required this.trend,
+    required this.confidence,
     required this.stability,
     required this.mastery,
     required this.evidence,
@@ -383,6 +384,7 @@ class ParentLearningInsight {
   final String action;
   final String notYet;
   final String trend;
+  final String confidence;
   final String stability;
   final String mastery;
   final String evidence;
