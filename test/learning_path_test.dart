@@ -160,7 +160,7 @@ void main() {
     );
 
     final insight = controller.parentInsight(
-      now: DateTime(2026, 9, 3, 10),
+      now: DateTime(2026, 9, 3, 10, 5),
     );
 
     expect(insight.focus, contains('zeitlichem Abstand'));
@@ -524,4 +524,451 @@ void main() {
   });
 
 
+
+  test('spätere Hilfe im Abstandstest nimmt Gemeistert zurück', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 10, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'plus:47:${3 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 3, 10, index),
+          source: MicroEvidenceSource.review,
+          taskKey: 'review:plus:47:${3 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 3, 11, index),
+          source: MicroEvidenceSource.transfer,
+          mode: TrainingMode.wordProblems,
+          taskKey:
+              'story:transfer:skill:additionTenBridge:+:books:47:${3 + index}',
+        ),
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 4, 12),
+        source: MicroEvidenceSource.review,
+        taskKey: 'review:plus:58:7',
+        usedHelp: true,
+        helpLevel: HelpLevel.visual.value,
+      ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
+    final insight = controller.parentInsight(now: DateTime(2026, 9, 4, 18));
+
+    expect(progress.state, MicroCompetencyState.secure);
+    expect(
+      insight.mastery,
+      contains('erneute selbstständige Abstandskontrolle'),
+    );
+  });
+
+  test('später Transferfehler nimmt Gemeistert zurück', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          when: DateTime(2026, 9, 1, 9, index),
+          source: MicroEvidenceSource.practice,
+          mode: TrainingMode.minus,
+          taskKey: 'minus:${40 + index}:8',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          when: DateTime(2026, 9, 3, 9, index),
+          source: MicroEvidenceSource.review,
+          mode: TrainingMode.minus,
+          taskKey: 'review:minus:${40 + index}:8',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          when: DateTime(2026, 9, 3, 10, index),
+          source: MicroEvidenceSource.transfer,
+          mode: TrainingMode.wordProblems,
+          taskKey:
+              'story:transfer:skill:subtractionTenBridge:-:books:${40 + index}:8',
+        ),
+      ),
+      _microObservation(
+        id: MicroCompetencyId.subtractionTenBridge,
+        when: DateTime(2026, 9, 4, 13),
+        source: MicroEvidenceSource.transfer,
+        mode: TrainingMode.wordProblems,
+        taskKey: 'story:transfer:skill:subtractionTenBridge:-:books:53:8',
+        correct: false,
+      ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.subtractionTenBridge,
+    );
+    final insight = controller.parentInsight(now: DateTime(2026, 9, 4, 18));
+
+    expect(progress.state, MicroCompetencyState.secure);
+    expect(
+      insight.mastery,
+      contains('erneute selbstständige Transferaufgabe'),
+    );
+  });
+
+  test('unsichere Abstandskontrolle wird nach einem Tag wieder fällig', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'plus:27:${4 + index}',
+        ),
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 4, 12),
+        source: MicroEvidenceSource.review,
+        taskKey: 'review:plus:38:5',
+        usedHelp: true,
+        helpLevel: HelpLevel.nudge.value,
+      ),
+    ];
+
+    expect(
+      controller.dueReviewMicroCompetency(now: DateTime(2026, 9, 5, 11, 59)),
+      isNull,
+    );
+    expect(
+      controller
+          .dueReviewMicroCompetency(now: DateTime(2026, 9, 5, 12))
+          ?.definition
+          .id,
+      MicroCompetencyId.additionTenBridge,
+    );
+  });
+
+  test('unsichere fällige Abstandskontrolle hat Vorrang vor normaler Wiederholung',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'plus:27:${4 + index}',
+        ),
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 4, 8),
+        source: MicroEvidenceSource.review,
+        taskKey: 'review:plus:38:5',
+        correct: false,
+      ),
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          when: DateTime(2026, 9, 1, 7, index),
+          source: MicroEvidenceSource.practice,
+          mode: TrainingMode.minus,
+          taskKey: 'minus:${40 + index}:8',
+        ),
+      ),
+    ];
+
+    final due = controller.dueReviewMicroCompetency(
+      now: DateTime(2026, 9, 6, 8),
+    );
+
+    expect(due?.definition.id, MicroCompetencyId.additionTenBridge);
+  });
+
+  test('unsicherer letzter Transfer wird vor noch ungeprüftem Transfer repariert',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'plus:27:${4 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 2, 8, index),
+          source: MicroEvidenceSource.transfer,
+          mode: TrainingMode.wordProblems,
+          taskKey:
+              'story:transfer:skill:additionTenBridge:+:books:27:${4 + index}',
+        ),
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 4, 8),
+        source: MicroEvidenceSource.transfer,
+        mode: TrainingMode.wordProblems,
+        taskKey: 'story:transfer:skill:additionTenBridge:+:books:38:5',
+        correct: false,
+      ),
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          when: DateTime(2026, 9, 1, 7, index),
+          source: MicroEvidenceSource.practice,
+          mode: TrainingMode.minus,
+          taskKey: 'minus:${40 + index}:8',
+        ),
+      ),
+    ];
+
+    final transfer = controller.transferCandidateMicroCompetency();
+
+    expect(transfer?.definition.id, MicroCompetencyId.additionTenBridge);
+  });
+
+  test('Evidenzreihenfolge im Speicher beeinflusst den neuesten Status nicht', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final newest = DateTime(2026, 9, 5, 15);
+    controller.microObservations = [
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 1, 8),
+        source: MicroEvidenceSource.practice,
+        taskKey: 'plus:17:4:oldest',
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: newest,
+        source: MicroEvidenceSource.review,
+        taskKey: 'review:plus:48:7:newest',
+        usedHelp: true,
+        helpLevel: HelpLevel.visual.value,
+      ),
+      ...List.generate(
+        5,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 9, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'plus:27:${4 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 3, 9, index),
+          source: MicroEvidenceSource.review,
+          taskKey: 'review:plus:37:${4 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 3, 10, index),
+          source: MicroEvidenceSource.transfer,
+          mode: TrainingMode.wordProblems,
+          taskKey:
+              'story:transfer:skill:additionTenBridge:+:books:37:${4 + index}',
+        ),
+      ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
+
+    expect(progress.lastSeen, newest);
+    expect(progress.state, MicroCompetencyState.secure);
+  });
+
+
+  test('später Hilfebedarf in Gesamtaufgabe nimmt Gemeistert zurück und wird Fokus',
+      () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'plus:27:${4 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 3, 8, index),
+          source: MicroEvidenceSource.review,
+          taskKey: 'review:plus:37:${4 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 3, 9, index),
+          source: MicroEvidenceSource.transfer,
+          mode: TrainingMode.wordProblems,
+          taskKey:
+              'story:transfer:skill:additionTenBridge:+:books:37:${4 + index}',
+        ),
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 5, 10),
+        source: MicroEvidenceSource.practice,
+        taskKey: 'plus:58:7',
+        usedHelp: true,
+        helpLevel: HelpLevel.visual.value,
+      ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
+    final focus = controller.currentMicroFocus();
+    final plan = controller.buildMyRound(now: DateTime(2026, 9, 5, 11));
+    final insight = controller.parentInsight(now: DateTime(2026, 9, 5, 11));
+
+    expect(progress.state, MicroCompetencyState.secure);
+    expect(focus?.definition.id, MicroCompetencyId.additionTenBridge);
+    expect(plan[1].targetCompetency, MicroCompetencyId.additionTenBridge);
+    expect(controller.microFocusReason(), contains('letzten Gesamtaufgabe'));
+    expect(insight.mastery, contains('letzten Gesamtaufgabe'));
+  });
+
+  test('neue selbstständige Gesamtaufgabe kann frische Mastery wiederherstellen', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'plus:27:${4 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 3, 8, index),
+          source: MicroEvidenceSource.review,
+          taskKey: 'review:plus:37:${4 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 3, 9, index),
+          source: MicroEvidenceSource.transfer,
+          mode: TrainingMode.wordProblems,
+          taskKey:
+              'story:transfer:skill:additionTenBridge:+:books:37:${4 + index}',
+        ),
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 4, 10),
+        source: MicroEvidenceSource.practice,
+        taskKey: 'plus:48:7:helped',
+        usedHelp: true,
+        helpLevel: HelpLevel.visual.value,
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 5, 10),
+        source: MicroEvidenceSource.practice,
+        taskKey: 'plus:58:7:independent',
+      ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
+
+    expect(progress.state, MicroCompetencyState.mastered);
+    expect(controller.currentMicroFocus(), isNull);
+  });
+
 }
+
+
+MicroCompetencyObservation _microObservation({
+  required MicroCompetencyId id,
+  required DateTime when,
+  required MicroEvidenceSource source,
+  required String taskKey,
+  TrainingMode mode = TrainingMode.practice,
+  bool correct = true,
+  bool usedHelp = false,
+  int helpLevel = 0,
+  double evidenceWeight = 1,
+}) =>
+    MicroCompetencyObservation(
+      id: id,
+      occurredAt: when,
+      correct: correct,
+      evidenceWeight: evidenceWeight,
+      source: source,
+      usedHelp: usedHelp,
+      helpLevel: helpLevel,
+      mode: mode,
+      gradeLevel: GradeLevel.second,
+      numberRange: NumberRangeLevel.hundred,
+      taskKey: taskKey,
+    );

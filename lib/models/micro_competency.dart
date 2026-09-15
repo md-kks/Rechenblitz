@@ -261,6 +261,9 @@ class MicroCompetencyProgress {
     this.transferObservations = 0,
     this.independentStepObservations = 0,
     this.guidedStepObservations = 0,
+    this.basisNeedsReconfirmation = false,
+    this.reviewNeedsReconfirmation = false,
+    this.transferNeedsReconfirmation = false,
     this.lastSeen,
     this.lastReviewSeen,
     this.lastTransferSeen,
@@ -293,6 +296,9 @@ class MicroCompetencyProgress {
   final int transferObservations;
   final int independentStepObservations;
   final int guidedStepObservations;
+  final bool basisNeedsReconfirmation;
+  final bool reviewNeedsReconfirmation;
+  final bool transferNeedsReconfirmation;
   final DateTime? lastSeen;
   final DateTime? lastReviewSeen;
   final DateTime? lastTransferSeen;

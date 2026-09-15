@@ -39,6 +39,7 @@ class AppController extends ChangeNotifier {
   static const int _guidedStepIndependentConfirmations = 2;
   static const int _stepRecoveryIndependentConfirmations = 2;
   static const Duration _stepRecoveryFreshness = Duration(days: 2);
+  static const Duration _unstableReviewRetryGap = Duration(days: 1);
 
   static bool _evidenceAtLeast(double value, double threshold) =>
       value + _evidenceEpsilon >= threshold;
@@ -129,6 +130,10 @@ class AppController extends ChangeNotifier {
     diagnostics = await storage.loadDiagnostics();
     remediationProgress = await storage.loadRemediationProgress();
     microObservations = await storage.loadMicroCompetencyObservations();
+    microObservations.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    if (microObservations.length > 1200) {
+      microObservations = microObservations.take(1200).toList();
+    }
     recentTaskKeysByMode = await storage.loadTaskDiversity();
     numberRange =
         await storage.numberRange() ?? gradeLevel.recommendedRange;
@@ -1052,11 +1057,10 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  MicroCompetencyProgress microCompetencyProgress(
+  List<MicroCompetencyObservation> _sortedMicroObservationsFor(
     MicroCompetencyId id,
   ) {
-    final definition = MicroCompetencyCatalog.definition(id);
-    final matchingObservations = microObservations
+    final matching = microObservations
         .where(
           (entry) =>
               entry.id == id &&
@@ -1064,6 +1068,63 @@ class AppController extends ChangeNotifier {
               entry.numberRange == numberRange,
         )
         .toList();
+    matching.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return matching;
+  }
+
+  MicroCompetencyObservation? _latestMicroObservationForSource(
+    MicroCompetencyId id,
+    MicroEvidenceSource source,
+  ) {
+    for (final observation in _sortedMicroObservationsFor(id)) {
+      if (observation.source == source) return observation;
+    }
+    return null;
+  }
+
+  bool _latestSourceEvidenceIsIndependentCorrect(
+    MicroCompetencyId id,
+    MicroEvidenceSource source,
+  ) {
+    final latest = _latestMicroObservationForSource(id, source);
+    return latest != null && latest.correct && !latest.usedHelp;
+  }
+
+  bool _latestSourceEvidenceIsUnstable(
+    MicroCompetencyId id,
+    MicroEvidenceSource source,
+  ) {
+    final latest = _latestMicroObservationForSource(id, source);
+    return latest != null && (!latest.correct || latest.usedHelp);
+  }
+
+  MicroCompetencyObservation? _latestBasisObservation(
+    MicroCompetencyId id,
+  ) {
+    for (final observation in _sortedMicroObservationsFor(id)) {
+      if (observation.source == MicroEvidenceSource.practice ||
+          observation.source == MicroEvidenceSource.remediation) {
+        return observation;
+      }
+    }
+    return null;
+  }
+
+  bool _latestBasisEvidenceIsIndependentCorrect(MicroCompetencyId id) {
+    final latest = _latestBasisObservation(id);
+    return latest != null && latest.correct && !latest.usedHelp;
+  }
+
+  bool _latestBasisEvidenceIsUnstable(MicroCompetencyId id) {
+    final latest = _latestBasisObservation(id);
+    return latest != null && (!latest.correct || latest.usedHelp);
+  }
+
+  MicroCompetencyProgress microCompetencyProgress(
+    MicroCompetencyId id,
+  ) {
+    final definition = MicroCompetencyCatalog.definition(id);
+    final matchingObservations = _sortedMicroObservationsFor(id);
     final observations = <MicroCompetencyObservation>[
       ...matchingObservations
           .where(
@@ -1219,6 +1280,14 @@ class AppController extends ChangeNotifier {
         ? 0.0
         : guidedStepCorrectEvidence / guidedStepEvidence;
 
+    final latestBasisStable = _latestBasisEvidenceIsIndependentCorrect(id);
+    final latestReviewStable =
+        _latestSourceEvidenceIsIndependentCorrect(id, MicroEvidenceSource.review);
+    final latestTransferStable = _latestSourceEvidenceIsIndependentCorrect(
+      id,
+      MicroEvidenceSource.transfer,
+    );
+
     final state = evidence < 1.5
         ? MicroCompetencyState.discovering
         : _evidenceAtLeast(
@@ -1226,16 +1295,19 @@ class AppController extends ChangeNotifier {
                   _masteredIndependentEvidence,
                 ) &&
                 independentAccuracy >= _masteredIndependentAccuracy &&
+                latestBasisStable &&
                 _evidenceAtLeast(
                   reviewIndependentEvidence,
                   _masteredReviewEvidence,
                 ) &&
                 reviewIndependentAccuracy >= _masteredReviewAccuracy &&
+                latestReviewStable &&
                 _evidenceAtLeast(
                   transferIndependentEvidence,
                   _masteredTransferEvidence,
                 ) &&
-                transferIndependentAccuracy >= _masteredTransferAccuracy
+                transferIndependentAccuracy >= _masteredTransferAccuracy &&
+                latestTransferStable
             ? MicroCompetencyState.mastered
             : _evidenceAtLeast(
                       independentEvidence,
@@ -1273,6 +1345,15 @@ class AppController extends ChangeNotifier {
       transferObservations: transferObservations,
       independentStepObservations: independentStepObservations,
       guidedStepObservations: guidedStepObservations,
+      basisNeedsReconfirmation: _latestBasisEvidenceIsUnstable(id),
+      reviewNeedsReconfirmation: _latestSourceEvidenceIsUnstable(
+        id,
+        MicroEvidenceSource.review,
+      ),
+      transferNeedsReconfirmation: _latestSourceEvidenceIsUnstable(
+        id,
+        MicroEvidenceSource.transfer,
+      ),
       lastSeen: matchingObservations.first.occurredAt,
       lastReviewSeen: lastReviewSeen,
       lastTransferSeen: lastTransferSeen,
@@ -1472,11 +1553,19 @@ class AppController extends ChangeNotifier {
         .where(
           (progress) =>
               progress.baseEvidence > 0 &&
-              progress.state != MicroCompetencyState.secure &&
-              progress.state != MicroCompetencyState.mastered,
+              ((progress.state != MicroCompetencyState.secure &&
+                      progress.state != MicroCompetencyState.mastered) ||
+                  _latestBasisEvidenceIsUnstable(progress.definition.id)),
         )
         .toList()
       ..sort((a, b) {
+        final aBasisUnstable =
+            _latestBasisEvidenceIsUnstable(a.definition.id);
+        final bBasisUnstable =
+            _latestBasisEvidenceIsUnstable(b.definition.id);
+        if (aBasisUnstable != bBasisUnstable) {
+          return aBasisUnstable ? -1 : 1;
+        }
         final accuracyOrder =
             a.independentAccuracy.compareTo(b.independentAccuracy);
         if (accuracyOrder != 0) return accuracyOrder;
@@ -1540,20 +1629,45 @@ class AppController extends ChangeNotifier {
                     progress.state != MicroCompetencyState.mastered)) {
               return false;
             }
+            final latestReview = _latestMicroObservationForSource(
+              progress.definition.id,
+              MicroEvidenceSource.review,
+            );
+            final latestReviewUnstable = _latestSourceEvidenceIsUnstable(
+              progress.definition.id,
+              MicroEvidenceSource.review,
+            );
             final hasStableDelayedEvidence = _evidenceAtLeast(
                   progress.reviewIndependentEvidence,
                   _masteredReviewEvidence,
                 ) &&
                 progress.reviewIndependentAccuracy >=
-                    _masteredReviewAccuracy;
-            final requiredGap = hasStableDelayedEvidence
-                ? const Duration(days: 7)
-                : const Duration(days: 2);
-            return reference.difference(progress.lastSeen!) >= requiredGap;
+                    _masteredReviewAccuracy &&
+                !latestReviewUnstable;
+            final requiredGap = latestReviewUnstable
+                ? _unstableReviewRetryGap
+                : hasStableDelayedEvidence
+                    ? const Duration(days: 7)
+                    : const Duration(days: 2);
+            final anchor = latestReviewUnstable && latestReview != null
+                ? latestReview.occurredAt
+                : progress.lastSeen!;
+            return reference.difference(anchor) >= requiredGap;
           },
         )
         .toList()
-      ..sort((a, b) => a.lastSeen!.compareTo(b.lastSeen!));
+      ..sort((a, b) {
+        final aUnstable = _latestSourceEvidenceIsUnstable(
+          a.definition.id,
+          MicroEvidenceSource.review,
+        );
+        final bUnstable = _latestSourceEvidenceIsUnstable(
+          b.definition.id,
+          MicroEvidenceSource.review,
+        );
+        if (aUnstable != bUnstable) return aUnstable ? -1 : 1;
+        return a.lastSeen!.compareTo(b.lastSeen!);
+      });
     return secure.isEmpty ? null : secure.first;
   }
 
@@ -1569,6 +1683,15 @@ class AppController extends ChangeNotifier {
         )
         .toList()
       ..sort((a, b) {
+        final aUnstable = _latestSourceEvidenceIsUnstable(
+          a.definition.id,
+          MicroEvidenceSource.transfer,
+        );
+        final bUnstable = _latestSourceEvidenceIsUnstable(
+          b.definition.id,
+          MicroEvidenceSource.transfer,
+        );
+        if (aUnstable != bUnstable) return aUnstable ? -1 : 1;
         final evidenceOrder = a.transferIndependentEvidence
             .compareTo(b.transferIndependentEvidence);
         if (evidenceOrder != 0) return evidenceOrder;
@@ -1640,6 +1763,11 @@ class AppController extends ChangeNotifier {
       return '„${focus.definition.label}“ ist aktuell der sinnvollste '
           'Teilschritt: ${focus.observations} passende Beobachtungen, '
           'aber noch keine selbstständige Basisbeobachtung.';
+    }
+    if (_latestBasisEvidenceIsUnstable(focus.definition.id)) {
+      return '„${focus.definition.label}“ war bereits weiter, brauchte aber '
+          'in der letzten Gesamtaufgabe Hilfe oder war dort noch falsch. '
+          'Deshalb prüft Rechenblitz diesen Lernschritt jetzt erneut selbstständig.';
     }
     final percentage = (focus.independentAccuracy * 100).round();
     return '„${focus.definition.label}“ ist aktuell der sinnvollste '
@@ -1873,21 +2001,43 @@ class AppController extends ChangeNotifier {
     } else if (progress.independentAccuracy < _secureIndependentAccuracy) {
       missing.add('eine stabilere selbstständige Trefferquote');
     } else {
-      if (!_evidenceAtLeast(
+      final basisUnstable =
+          _latestBasisEvidenceIsUnstable(progress.definition.id);
+      if (basisUnstable) {
+        missing.add(
+          'eine erneute selbstständige Gesamtaufgabe nach dem letzten unsicheren Versuch',
+        );
+      } else if (!_evidenceAtLeast(
             progress.independentEvidence,
             _masteredIndependentEvidence,
           ) ||
           progress.independentAccuracy < _masteredIndependentAccuracy) {
         missing.add('eine noch stärkere selbstständige Basis');
       }
-      if (!_evidenceAtLeast(
+      final reviewUnstable = _latestSourceEvidenceIsUnstable(
+        progress.definition.id,
+        MicroEvidenceSource.review,
+      );
+      if (reviewUnstable) {
+        missing.add(
+          'eine erneute selbstständige Abstandskontrolle nach dem letzten unsicheren Versuch',
+        );
+      } else if (!_evidenceAtLeast(
             progress.reviewIndependentEvidence,
             _masteredReviewEvidence,
           ) ||
           progress.reviewIndependentAccuracy < _masteredReviewAccuracy) {
         missing.add('ein stabiler Nachweis nach zeitlichem Abstand');
       }
-      if (!_evidenceAtLeast(
+      final transferUnstable = _latestSourceEvidenceIsUnstable(
+        progress.definition.id,
+        MicroEvidenceSource.transfer,
+      );
+      if (transferUnstable) {
+        missing.add(
+          'eine erneute selbstständige Transferaufgabe nach dem letzten unsicheren Versuch',
+        );
+      } else if (!_evidenceAtLeast(
             progress.transferIndependentEvidence,
             _masteredTransferEvidence,
           ) ||
@@ -1902,6 +2052,12 @@ class AppController extends ChangeNotifier {
 
   String _parentMasteryText(MicroCompetencyProgress progress) {
     final label = progress.definition.label;
+    if (progress.state == MicroCompetencyState.secure &&
+        _latestBasisEvidenceIsUnstable(progress.definition.id)) {
+      return '„$label“ war bereits „Sicher“, brauchte aber in der letzten '
+          'Gesamtaufgabe Hilfe oder war dort noch falsch. Für „Gemeistert“ '
+          'braucht es jetzt wieder eine selbstständige Bestätigung.';
+    }
     return switch (progress.state) {
       MicroCompetencyState.newSkill =>
         '„$label“ ist noch neu. Für eine belastbare Einschätzung fehlen noch passende Aufgabenbeobachtungen.',
@@ -1917,14 +2073,7 @@ class AppController extends ChangeNotifier {
   }
 
   String _parentEvidenceText(MicroCompetencyProgress progress) {
-    final matching = microObservations
-        .where(
-          (entry) =>
-              entry.id == progress.definition.id &&
-              entry.gradeLevel == gradeLevel &&
-              entry.numberRange == numberRange,
-        )
-        .toList();
+    final matching = _sortedMicroObservationsFor(progress.definition.id);
     final relevant = <MicroCompetencyObservation>[
       ...matching
           .where(
@@ -2678,14 +2827,8 @@ class AppController extends ChangeNotifier {
   }
 
   String? methodSupportInsight(MicroCompetencyId id) {
-    final observations = microObservations
-        .where(
-          (entry) =>
-              entry.id == id &&
-              entry.gradeLevel == gradeLevel &&
-              entry.numberRange == numberRange &&
-              entry.methodKey != null,
-        )
+    final observations = _sortedMicroObservationsFor(id)
+        .where((entry) => entry.methodKey != null)
         .take(80)
         .toList();
     final grouped = <String, List<MicroCompetencyObservation>>{};

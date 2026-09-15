@@ -453,13 +453,13 @@ void main() {
       isNull,
     );
     final due = controller.dueReviewMicroCompetency(
-      now: DateTime(2026, 9, 3, 10),
+      now: DateTime(2026, 9, 3, 10, 5),
     );
     expect(due, isNotNull);
     expect(due!.definition.id, MicroCompetencyId.subtractionTenBridge);
 
     final plan = controller.buildMyRound(
-      now: DateTime(2026, 9, 3, 10),
+      now: DateTime(2026, 9, 3, 10, 5),
     );
     expect(plan[2].reviewEmphasis, isTrue);
     expect(
@@ -528,7 +528,7 @@ void main() {
     );
     expect(
       controller.dueReviewMicroCompetency(
-        now: DateTime(2026, 9, 11, 10),
+        now: DateTime(2026, 9, 11, 10, 1),
       ),
       isNotNull,
     );
@@ -596,7 +596,7 @@ void main() {
     expect(progress.state, MicroCompetencyState.secure);
   });
 
-  test('unsichere Abstandskontrolle bleibt nach zwei Tagen erneut fällig', () {
+  test('unsichere Abstandskontrolle wird nach einem Tag erneut fällig', () {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
@@ -632,13 +632,13 @@ void main() {
 
     expect(
       controller.dueReviewMicroCompetency(
-        now: DateTime(2026, 9, 5, 10),
+        now: DateTime(2026, 9, 5, 9, 59),
       ),
       isNull,
     );
     expect(
       controller.dueReviewMicroCompetency(
-        now: DateTime(2026, 9, 6, 10),
+        now: DateTime(2026, 9, 5, 10),
       ),
       isNotNull,
     );
