@@ -101,6 +101,7 @@ class _ParentScreenState extends State<ParentScreen> {
     final rangeBridge = c.numberRangeBridgeStatus();
     final insight = c.parentInsight();
     final roundDecision = c.guidedRoundDecisionTrace();
+    final roundProgress = c.guidedRoundProgress;
     final priority = c.parentPriorityMicroCompetency();
     final methodInsight = priority == null || priority.observations == 0
         ? null
@@ -322,6 +323,15 @@ class _ParentScreenState extends State<ParentScreen> {
                   title: 'Prioritäten und zurückgestellte Alternativen',
                   text: roundDecision.summary,
                 ),
+                if (roundProgress?.lastAdaptationMessage != null) ...[
+                  const SizedBox(height: 10),
+                  _ExplainCard(
+                    icon: Icons.autorenew_rounded,
+                    title: roundProgress!.lastAdaptationKind?.label ??
+                        'Runde live angepasst',
+                    text: roundProgress.lastAdaptationMessage!,
+                  ),
+                ],
                 const SizedBox(height: 10),
                 _ExplainCard(
                   icon: Icons.workspace_premium_outlined,

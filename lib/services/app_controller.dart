@@ -2488,6 +2488,101 @@ class AppController extends ChangeNotifier {
     ];
   }
 
+  GuidedRoundAdaptation adaptMyRoundAfterSegment({
+    required List<GuidedRoundSegment> current,
+    required Set<GuidedRoundRole> completedRoles,
+    required GuidedRoundSegment completedSegment,
+    required TrainingSessionResult result,
+    DateTime? now,
+  }) {
+    final updated = buildMyRound(now: now);
+    var merged = GuidedRoundOrchestrator.mergeRemaining(
+      current: current,
+      updated: updated,
+      completedRoles: completedRoles,
+    );
+
+    GuidedRoundSegment? nextOpen(List<GuidedRoundSegment> source) {
+      for (final segment in source) {
+        if (!completedRoles.contains(segment.role)) return segment;
+      }
+      return null;
+    }
+
+    final previousNext = nextOpen(current);
+    final updatedNext = nextOpen(merged);
+    final completedTasks = current
+        .where((segment) => completedRoles.contains(segment.role))
+        .fold<int>(0, (sum, segment) => sum + segment.tasks);
+    final struggling = result.total >= 2 &&
+        (result.accuracy < 0.60 ||
+            (result.incorrectAttempts >= 2 && result.accuracy < 0.75));
+
+    if (struggling) {
+      final budget = completedTasks >= 9 ? completedTasks : 9;
+      merged = GuidedRoundOrchestrator.mergeRemaining(
+        current: current,
+        updated: updated,
+        completedRoles: completedRoles,
+        regularTaskBudget: budget,
+      );
+      return GuidedRoundAdaptation(
+        plan: merged,
+        kind: GuidedRoundAdaptationKind.support,
+        message:
+            'Der letzte Abschnitt war gerade anspruchsvoll (${(result.accuracy * 100).round()} % direkt richtig). Rechenblitz hält alle wichtigen Teile der Runde, verteilt die restlichen Aufgaben aber kompakter.',
+      );
+    }
+
+    final target = completedSegment.targetCompetency;
+    if (target != null &&
+        result.total >= 2 &&
+        result.accuracy >= 0.90 &&
+        result.incorrectAttempts == 0) {
+      final progress = microCompetencyProgress(target);
+      final confidence = microEvidenceConfidence(target, now: now);
+      final stableState = progress.state == MicroCompetencyState.secure ||
+          progress.state == MicroCompetencyState.mastered;
+      if (stableState &&
+          confidence.level == MicroEvidenceConfidenceLevel.current) {
+        final beforeTasks = merged.fold<int>(0, (sum, segment) => sum + segment.tasks);
+        final trimmed = GuidedRoundOrchestrator.trimOptionalRepetition(
+          plan: merged,
+          completedRoles: completedRoles,
+        );
+        final afterTasks = trimmed.fold<int>(0, (sum, segment) => sum + segment.tasks);
+        if (afterTasks < beforeTasks) {
+          return GuidedRoundAdaptation(
+            plan: trimmed,
+            kind: GuidedRoundAdaptationKind.confirmed,
+            message:
+                '„${progress.definition.label}“ wurde gerade sicher und ohne Fehlversuch bestätigt. Eine nicht fällige Wiederholungsaufgabe entfällt; Abstandskontrollen und Transfer bleiben geschützt.',
+          );
+        }
+      }
+    }
+
+    final priorityChanged = previousNext != null &&
+        updatedNext != null &&
+        (previousNext.targetCompetency != updatedNext.targetCompetency ||
+            previousNext.mode != updatedNext.mode);
+    if (priorityChanged) {
+      return GuidedRoundAdaptation(
+        plan: merged,
+        kind: GuidedRoundAdaptationKind.reprioritized,
+        message:
+            'Die neuen Antworten verändern die Priorität. Als Nächstes ist jetzt „${updatedNext.mode.title}“ sinnvoller; bereits erledigte Teile bleiben unverändert.',
+      );
+    }
+
+    return GuidedRoundAdaptation(
+      plan: merged,
+      kind: GuidedRoundAdaptationKind.steady,
+      message:
+          'Die neuen Antworten wurden eingerechnet. Der bisherige nächste Schritt bleibt weiterhin die sinnvollste Wahl.',
+    );
+  }
+
   GuidedRoundDecisionTrace guidedRoundDecisionTrace({
     DateTime? now,
   }) {

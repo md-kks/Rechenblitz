@@ -30,6 +30,8 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
   bool recoveryRequired = false;
   late DateTime roundStartedAt;
   late GuidedRoundDecisionTrace decisionTrace;
+  GuidedRoundAdaptationKind? lastAdaptationKind;
+  String? lastAdaptationMessage;
 
   @override
   void initState() {
@@ -46,6 +48,8 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
       decisionTrace = restored.decisionTrace.items.isEmpty
           ? widget.controller.guidedRoundDecisionTrace()
           : restored.decisionTrace;
+      lastAdaptationKind = restored.lastAdaptationKind;
+      lastAdaptationMessage = restored.lastAdaptationMessage;
       if (recoveryRequired &&
           !stepRecoveryCompleted &&
           widget.controller.independentStepRecoveryFocus() == null) {
@@ -57,6 +61,8 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
           widget.controller.independentStepRecoveryFocus() != null;
       plan = widget.controller.buildMyRound();
       decisionTrace = widget.controller.guidedRoundDecisionTrace();
+      lastAdaptationKind = null;
+      lastAdaptationMessage = null;
     }
     unawaited(_persistRound());
   }
@@ -73,6 +79,8 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
         stepRecoveryCompleted: stepRecoveryCompleted,
         deferEmergingRecovery: deferEmergingRecovery,
         decisionTrace: decisionTrace,
+        lastAdaptationKind: lastAdaptationKind,
+        lastAdaptationMessage: lastAdaptationMessage,
       );
 
   Future<void> _persistRound() =>
@@ -128,8 +136,20 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
 
     if (!mounted) return;
     if (widget.controller.history.length > before) {
+      final result = widget.controller.history.first;
       setState(() {
         completedRoles.add(segment.role);
+        final adaptation = widget.controller.adaptMyRoundAfterSegment(
+          current: plan,
+          completedRoles: completedRoles,
+          completedSegment: segment,
+          result: result,
+        );
+        plan = adaptation.plan;
+        decisionTrace = widget.controller.guidedRoundDecisionTrace();
+        lastAdaptationKind = adaptation.kind;
+        lastAdaptationMessage = adaptation.message;
+
         final emergingRecovery =
             widget.controller.independentStepRecoveryFocus();
         if (!recoveryRequired &&
@@ -140,9 +160,15 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
               .fold<int>(0, (sum, item) => sum + item.tasks);
           if (completedTasks > 9) {
             deferEmergingRecovery = true;
+            lastAdaptationKind = GuidedRoundAdaptationKind.support;
+            lastAdaptationMessage =
+                'Ein unsicherer Zwischenschritt ist neu aufgefallen. Weil heute schon $completedTasks reguläre Aufgaben erledigt sind, wird die kurze Recovery in die nächste Runde verschoben statt die heutige Runde zu verlängern.';
           } else {
             recoveryRequired = true;
             _replanRemaining(compactForRecovery: true);
+            lastAdaptationKind = GuidedRoundAdaptationKind.support;
+            lastAdaptationMessage =
+                'Ein unsicherer Zwischenschritt ist neu aufgefallen. Drei kurze Recovery-Aufgaben kommen jetzt zuerst; die übrige Runde wurde ausgeglichen verkürzt.';
           }
         }
       });
@@ -235,6 +261,26 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
               ),
             ),
           ),
+          if (lastAdaptationMessage != null) ...[
+            const SizedBox(height: 12),
+            Card(
+              key: const ValueKey('round-adaptation-card'),
+              child: ListTile(
+                leading: Icon(
+                  lastAdaptationKind == GuidedRoundAdaptationKind.support
+                      ? Icons.favorite_outline_rounded
+                      : lastAdaptationKind == GuidedRoundAdaptationKind.confirmed
+                          ? Icons.verified_outlined
+                          : Icons.autorenew_rounded,
+                ),
+                title: Text(
+                  lastAdaptationKind?.label ?? 'Plan aktualisiert',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(lastAdaptationMessage!),
+              ),
+            ),
+          ],
           if (stepRecovery != null) ...[
             const SizedBox(height: 14),
             Card(

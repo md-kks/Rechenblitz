@@ -136,27 +136,121 @@ class GuidedRoundOrchestrator {
         .where((segment) => completedRoles.contains(segment.role))
         .fold<int>(0, (sum, segment) => sum + segment.tasks);
     var remaining = regularTaskBudget - completedTasks;
-    final compacted = <GuidedRoundSegment>[];
-    for (final segment in merged) {
-      if (completedRoles.contains(segment.role)) {
-        compacted.add(segment);
+    final open = merged
+        .where((segment) => !completedRoles.contains(segment.role))
+        .toList(growable: false);
+    if (remaining <= 0 || open.isEmpty) {
+      return merged
+          .where((segment) => completedRoles.contains(segment.role))
+          .toList(growable: false);
+    }
+    final openTotal = open.fold<int>(0, (sum, segment) => sum + segment.tasks);
+    if (remaining >= openTotal) return merged;
+
+    final allocations = <GuidedRoundRole, int>{};
+    if (remaining >= open.length) {
+      for (final segment in open) {
+        allocations[segment.role] = 1;
+      }
+      remaining -= open.length;
+      while (remaining > 0) {
+        var changed = false;
+        for (final segment in open) {
+          final current = allocations[segment.role] ?? 0;
+          if (current >= segment.tasks || remaining <= 0) continue;
+          allocations[segment.role] = current + 1;
+          remaining -= 1;
+          changed = true;
+        }
+        if (!changed) break;
+      }
+    } else {
+      for (final segment in open.take(remaining)) {
+        allocations[segment.role] = 1;
+      }
+      remaining = 0;
+    }
+
+    return <GuidedRoundSegment>[
+      for (final segment in merged)
+        if (completedRoles.contains(segment.role))
+          segment
+        else if ((allocations[segment.role] ?? 0) > 0)
+          (allocations[segment.role] == segment.tasks
+              ? segment
+              : segment.copyWith(
+                  tasks: allocations[segment.role],
+                  reason:
+                      '${segment.reason} Die restliche Runde bleibt bewusst kompakt.',
+                )),
+    ];
+  }
+
+  static List<GuidedRoundSegment> trimOptionalRepetition({
+    required List<GuidedRoundSegment> plan,
+    required Set<GuidedRoundRole> completedRoles,
+    int reductions = 1,
+  }) {
+    if (reductions <= 0) return List<GuidedRoundSegment>.from(plan);
+    final result = List<GuidedRoundSegment>.from(plan);
+    var remaining = reductions;
+    const order = <GuidedRoundRole>[
+      GuidedRoundRole.review,
+      GuidedRoundRole.apply,
+      GuidedRoundRole.warmUp,
+      GuidedRoundRole.focus,
+    ];
+    for (final role in order) {
+      if (remaining <= 0 || completedRoles.contains(role)) continue;
+      final index = result.indexWhere((segment) => segment.role == role);
+      if (index < 0) continue;
+      final segment = result[index];
+      if (segment.tasks <= 1 ||
+          segment.reviewEmphasis ||
+          segment.transferEmphasis ||
+          segment.isBridge) {
         continue;
       }
-      if (remaining <= 0) continue;
-      final allocated = segment.tasks <= remaining ? segment.tasks : remaining;
-      compacted.add(
-        allocated == segment.tasks
-            ? segment
-            : segment.copyWith(
-                tasks: allocated,
-                reason:
-                    '${segment.reason} Die Runde bleibt trotz Kurz-Übung kompakt.',
-              ),
+      final reduction = remaining < segment.tasks - 1
+          ? remaining
+          : segment.tasks - 1;
+      result[index] = segment.copyWith(
+        tasks: segment.tasks - reduction,
+        reason:
+            '${segment.reason} Aktuelle sichere Evidenz erlaubt hier weniger Wiederholung.',
       );
-      remaining -= allocated;
+      remaining -= reduction;
     }
-    return compacted;
+    return result;
   }
+}
+
+enum GuidedRoundAdaptationKind {
+  steady,
+  reprioritized,
+  confirmed,
+  support,
+}
+
+extension GuidedRoundAdaptationKindX on GuidedRoundAdaptationKind {
+  String get label => switch (this) {
+        GuidedRoundAdaptationKind.steady => 'Plan aktualisiert',
+        GuidedRoundAdaptationKind.reprioritized => 'Priorität angepasst',
+        GuidedRoundAdaptationKind.confirmed => 'Sicher bestätigt',
+        GuidedRoundAdaptationKind.support => 'Runde entlastet',
+      };
+}
+
+class GuidedRoundAdaptation {
+  const GuidedRoundAdaptation({
+    required this.plan,
+    required this.kind,
+    required this.message,
+  });
+
+  final List<GuidedRoundSegment> plan;
+  final GuidedRoundAdaptationKind kind;
+  final String message;
 }
 
 class GuidedRoundProgress {
@@ -172,6 +266,8 @@ class GuidedRoundProgress {
     this.stepRecoveryCompleted = false,
     this.deferEmergingRecovery = false,
     this.decisionTrace = const GuidedRoundDecisionTrace(items: <GuidedRoundDecisionItem>[]),
+    this.lastAdaptationKind,
+    this.lastAdaptationMessage,
   });
 
   final List<GuidedRoundSegment> plan;
@@ -185,6 +281,8 @@ class GuidedRoundProgress {
   final bool stepRecoveryCompleted;
   final bool deferEmergingRecovery;
   final GuidedRoundDecisionTrace decisionTrace;
+  final GuidedRoundAdaptationKind? lastAdaptationKind;
+  final String? lastAdaptationMessage;
 
   bool get isComplete =>
       plan.every((segment) => completedRoles.contains(segment.role)) &&
@@ -220,6 +318,8 @@ class GuidedRoundProgress {
         'stepRecoveryCompleted': stepRecoveryCompleted,
         'deferEmergingRecovery': deferEmergingRecovery,
         'decisionTrace': decisionTrace.toJson(),
+        'lastAdaptationKind': lastAdaptationKind?.name,
+        'lastAdaptationMessage': lastAdaptationMessage,
       };
 
   factory GuidedRoundProgress.fromJson(Map<String, dynamic> json) =>
@@ -251,6 +351,12 @@ class GuidedRoundProgress {
                 json['decisionTrace'] as Map<String, dynamic>,
               )
             : const GuidedRoundDecisionTrace(items: <GuidedRoundDecisionItem>[]),
+        lastAdaptationKind: json['lastAdaptationKind'] == null
+            ? null
+            : GuidedRoundAdaptationKind.values.byName(
+                json['lastAdaptationKind'] as String,
+              ),
+        lastAdaptationMessage: json['lastAdaptationMessage'] as String?,
       );
 }
 

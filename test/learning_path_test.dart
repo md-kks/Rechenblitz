@@ -2420,6 +2420,201 @@ void main() {
     expect(trace.summary, contains('Neues vorsichtig entdecken'));
   });
 
+  test('balancierte Verdichtung erhält alle noch offenen Rundenrollen', () {
+    final current = <GuidedRoundSegment>[
+      _roundSegment(GuidedRoundRole.warmUp, TrainingMode.practice, 2, 'warm'),
+      _roundSegment(GuidedRoundRole.focus, TrainingMode.minus, 5, 'focus'),
+      _roundSegment(GuidedRoundRole.review, TrainingMode.numberWall, 3, 'review'),
+      _roundSegment(GuidedRoundRole.apply, TrainingMode.wordProblems, 2, 'apply'),
+    ];
+
+    final compacted = GuidedRoundOrchestrator.mergeRemaining(
+      current: current,
+      updated: current,
+      completedRoles: const <GuidedRoundRole>{GuidedRoundRole.warmUp},
+      regularTaskBudget: 9,
+    );
+
+    expect(compacted.fold<int>(0, (sum, segment) => sum + segment.tasks), 9);
+    expect(
+      compacted.map((segment) => segment.role),
+      containsAll(<GuidedRoundRole>[
+        GuidedRoundRole.focus,
+        GuidedRoundRole.review,
+        GuidedRoundRole.apply,
+      ]),
+    );
+    expect(
+      compacted.firstWhere((s) => s.role == GuidedRoundRole.focus).tasks,
+      3,
+    );
+    expect(
+      compacted.firstWhere((s) => s.role == GuidedRoundRole.review).tasks,
+      2,
+    );
+    expect(
+      compacted.firstWhere((s) => s.role == GuidedRoundRole.apply).tasks,
+      2,
+    );
+  });
+
+  test('optionale Kürzung schützt fällige Review- und Transfersegmente', () {
+    const plan = <GuidedRoundSegment>[
+      GuidedRoundSegment(
+        role: GuidedRoundRole.review,
+        mode: TrainingMode.numberWall,
+        tasks: 3,
+        reason: 'fällig',
+        reviewEmphasis: true,
+      ),
+      GuidedRoundSegment(
+        role: GuidedRoundRole.apply,
+        mode: TrainingMode.wordProblems,
+        tasks: 2,
+        reason: 'Transfer',
+        transferEmphasis: true,
+      ),
+    ];
+    final trimmed = GuidedRoundOrchestrator.trimOptionalRepetition(
+      plan: plan,
+      completedRoles: const <GuidedRoundRole>{},
+      reductions: 2,
+    );
+    expect(trimmed[0].tasks, 3);
+    expect(trimmed[1].tasks, 2);
+  });
+
+  test('schwacher Abschnitt entlastet die restliche Runde sofort', () async {
+    final controller = AppController();
+    await controller.load();
+    final current = controller.buildMyRound(now: DateTime(2026, 9, 15, 10));
+    final completed = current.first;
+    final adaptation = controller.adaptMyRoundAfterSegment(
+      current: current,
+      completedRoles: <GuidedRoundRole>{completed.role},
+      completedSegment: completed,
+      result: session(
+        mode: completed.mode,
+        correct: 0,
+        total: 2,
+        when: DateTime(2026, 9, 15, 10),
+      ),
+      now: DateTime(2026, 9, 15, 10, 5),
+    );
+
+    expect(adaptation.kind, GuidedRoundAdaptationKind.support);
+    expect(adaptation.message, contains('anspruchsvoll'));
+    expect(
+      adaptation.plan.fold<int>(0, (sum, segment) => sum + segment.tasks),
+      lessThanOrEqualTo(9),
+    );
+    expect(
+      adaptation.plan
+          .where((segment) => segment.role != completed.role)
+          .map((segment) => segment.role)
+          .toSet(),
+      containsAll(<GuidedRoundRole>[
+        GuidedRoundRole.focus,
+        GuidedRoundRole.review,
+        GuidedRoundRole.apply,
+      ].where((role) => role != completed.role)),
+    );
+  });
+
+  test('sichere Bestätigung kürzt nur optionale Wiederholung', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final start = DateTime(2026, 9, 15, 8);
+    controller.microObservations = <MicroCompetencyObservation>[
+      ..._secureEvidence(
+        MicroCompetencyId.subtractionNoBridge,
+        start,
+        mode: TrainingMode.minus,
+        prefix: 'minus-live',
+      ),
+      _microObservation(
+        id: MicroCompetencyId.subtractionNoBridge,
+        when: start.add(const Duration(minutes: 10)),
+        source: MicroEvidenceSource.review,
+        mode: TrainingMode.minus,
+        taskKey: 'minus-live:review:1',
+      ),
+      _microObservation(
+        id: MicroCompetencyId.subtractionNoBridge,
+        when: start.add(const Duration(minutes: 11)),
+        source: MicroEvidenceSource.review,
+        mode: TrainingMode.minus,
+        taskKey: 'minus-live:review:2',
+      ),
+      _microObservation(
+        id: MicroCompetencyId.subtractionNoBridge,
+        when: start.add(const Duration(minutes: 20)),
+        source: MicroEvidenceSource.transfer,
+        mode: TrainingMode.wordProblems,
+        taskKey: 'minus-live:transfer:1',
+      ),
+      _microObservation(
+        id: MicroCompetencyId.subtractionNoBridge,
+        when: start.add(const Duration(minutes: 21)),
+        source: MicroEvidenceSource.transfer,
+        mode: TrainingMode.wordProblems,
+        taskKey: 'minus-live:transfer:2',
+      ),
+    ];
+    final current = <GuidedRoundSegment>[
+      const GuidedRoundSegment(
+        role: GuidedRoundRole.focus,
+        mode: TrainingMode.minus,
+        tasks: 5,
+        reason: 'Fokus',
+        targetCompetency: MicroCompetencyId.subtractionNoBridge,
+      ),
+      _roundSegment(GuidedRoundRole.review, TrainingMode.numberWall, 3, 'Pflege'),
+      _roundSegment(GuidedRoundRole.apply, TrainingMode.wordProblems, 2, 'Anwenden'),
+    ];
+    final adaptation = controller.adaptMyRoundAfterSegment(
+      current: current,
+      completedRoles: const <GuidedRoundRole>{GuidedRoundRole.focus},
+      completedSegment: current.first,
+      result: session(
+        mode: TrainingMode.minus,
+        correct: 5,
+        total: 5,
+        when: start.add(const Duration(minutes: 30)),
+      ),
+      now: start.add(const Duration(hours: 1)),
+    );
+
+    expect(adaptation.kind, GuidedRoundAdaptationKind.confirmed);
+    expect(adaptation.message, contains('ohne Fehlversuch'));
+    final protected = adaptation.plan
+        .where((segment) => segment.reviewEmphasis || segment.transferEmphasis);
+    expect(protected.every((segment) => segment.tasks >= 1), isTrue);
+  });
+
+  test('Rundenanpassung wird mit dem Fortschritt persistiert', () {
+    final now = DateTime(2026, 9, 15, 12);
+    final progress = GuidedRoundProgress(
+      plan: <GuidedRoundSegment>[
+        _roundSegment(GuidedRoundRole.warmUp, TrainingMode.practice, 2, 'warm'),
+      ],
+      completedRoles: const <GuidedRoundRole>{GuidedRoundRole.warmUp},
+      gradeLevel: GradeLevel.second,
+      numberRange: NumberRangeLevel.hundred,
+      startedAt: now,
+      updatedAt: now,
+      recoveryRequired: false,
+      lastAdaptationKind: GuidedRoundAdaptationKind.support,
+      lastAdaptationMessage: 'Runde bewusst verkürzt.',
+    );
+
+    final restored = GuidedRoundProgress.fromJson(progress.toJson());
+    expect(restored.lastAdaptationKind, GuidedRoundAdaptationKind.support);
+    expect(restored.lastAdaptationMessage, 'Runde bewusst verkürzt.');
+  });
+
 }
 
 
