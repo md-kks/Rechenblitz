@@ -40,6 +40,9 @@ class LearningVisualAid extends StatelessWidget {
         taskKey.startsWith('round:') ||
         taskKey.startsWith('estimate:') ||
         taskKey.startsWith('roman:') ||
+        taskKey.startsWith('data:') ||
+        taskKey.startsWith('prob:') ||
+        taskKey.startsWith('combo:') ||
         (taskKey.startsWith('body:') && !taskKey.startsWith('body:cube-net:')) ||
         taskKey.startsWith('process:strategy:') ||
         taskKey.startsWith('process:error:') ||
@@ -73,7 +76,10 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.geometryProperty ||
       ErrorPattern.roundingPlace ||
       ErrorPattern.estimation ||
-      ErrorPattern.romanNumeral => true,
+      ErrorPattern.romanNumeral ||
+      ErrorPattern.dataReading ||
+      ErrorPattern.probabilityReasoning ||
+      ErrorPattern.combinatorics => true,
       _ => false,
     };
   }
@@ -105,7 +111,13 @@ class LearningVisualAid extends StatelessWidget {
                                                 ? _estimationAid(context)
                                                 : taskKey.startsWith('roman:')
                                                     ? _romanAid(context)
-                                                    : taskKey.startsWith('body:') &&
+                                                    : taskKey.startsWith('data:')
+                                                        ? _dataAid(context)
+                                                        : taskKey.startsWith('prob:')
+                                                            ? _probabilityAid(context)
+                                                            : taskKey.startsWith('combo:')
+                                                                ? _combinatoricsAid(context)
+                                                                : taskKey.startsWith('body:') &&
                                                             !taskKey.startsWith('body:cube-net:')
                                                         ? _geometryBodyAid(context)
                                                         : taskKey.startsWith('gap:')
@@ -1321,6 +1333,147 @@ class LearningVisualAid extends StatelessWidget {
     );
   }
 
+  Widget _dataAid(BuildContext context) {
+    if (taskKey.startsWith('data:tally:')) {
+      return const Column(
+        key: ValueKey('help-data-tally'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(
+            title: 'Strichliste in Fünferblöcken lesen',
+            text: 'Ein vollständiger Block steht für fünf. Zähle zuerst nur solche Blöcke und ergänze einzelne Reststriche erst danach.',
+          ),
+          SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('||||╱', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
+              SizedBox(width: 10),
+              Text('= ein Fünferblock', style: TextStyle(fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ],
+      );
+    }
+    if (taskKey.startsWith('data:representation:')) {
+      return const Column(
+        key: ValueKey('help-data-representation'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AidLabel(
+            title: 'Darstellungen haben verschiedene Stärken',
+            text: 'Achte zuerst darauf, was du mit den Daten tun willst. Die Situation selbst musst du danach noch passend zuordnen.',
+          ),
+          SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('Strichliste → laufend zählen')),
+              Chip(label: Text('Tabelle → Werte nachschlagen')),
+              Chip(label: Text('Balken → Größen vergleichen')),
+            ],
+          ),
+        ],
+      );
+    }
+    final parts = taskKey.split(':');
+    final values = parts.length == 3
+        ? parts[2].split('-').map(int.tryParse).whereType<int>().toList(growable: false)
+        : const <int>[];
+    if (values.length != 4) return const SizedBox.shrink();
+    final operation = parts[1];
+    return _DataChartAid(values: values, operation: operation);
+  }
+
+  Widget _probabilityAid(BuildContext context) {
+    if (taskKey.startsWith('prob:sure:') ||
+        taskKey.startsWith('prob:possible:') ||
+        taskKey.startsWith('prob:impossible:')) {
+      return Column(
+        key: const ValueKey('help-probability-sample-space'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AidLabel(
+            title: 'Ergebnisraum zuerst vollständig ansehen',
+            text: 'Ein normaler Würfel kann genau diese sechs Ergebnisse zeigen. Vergleiche das Ereignis erst danach mit dieser Menge.',
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var face = 1; face <= 6; face++)
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Text('$face', style: const TextStyle(fontWeight: FontWeight.w900)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text('Passt jedes Ergebnis, nur ein Teil oder keines?', style: TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      );
+    }
+    final numbers = _numbers(taskKey);
+    if (taskKey.startsWith('prob:bag:') && numbers.length >= 2) {
+      return _ProbabilityBagAid(red: numbers[numbers.length - 2], blue: numbers.last);
+    }
+    if (taskKey.startsWith('prob:experiment:compare:') && numbers.length >= 3) {
+      return _ObservedFrequencyAid(red: numbers[numbers.length - 2], blue: numbers.last);
+    }
+    if (taskKey.startsWith('prob:experiment:relative:') && numbers.length >= 2) {
+      return _RelativeFrequencyAid(trials: numbers[numbers.length - 2], hits: numbers.last);
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _combinatoricsAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    if (parts.length != 5) return const SizedBox.shrink();
+    final first = int.tryParse(parts[2]);
+    final second = int.tryParse(parts[3]);
+    final third = int.tryParse(parts[4]);
+    if (first == null || second == null || third == null) return const SizedBox.shrink();
+    final labels = switch (parts[1]) {
+      'clothes' => ('T-Shirt', 'Hose', 'Mütze'),
+      'icecream' => ('Eissorte', 'Soße', 'Streuselart'),
+      'symbols' => ('Symbol', 'Farbe', 'Rahmen'),
+      _ => ('erste Wahl', 'zweite Wahl', 'dritte Wahl'),
+    };
+    return Column(
+      key: const ValueKey('help-combinatorics-branch'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AidLabel(
+          title: 'Nur einen Ast zuerst vollständig machen',
+          text: 'Halte genau einen ${labels.$1} fest. Verzweige von dort systematisch, bevor du die übrigen $first Möglichkeiten der ersten Kategorie betrachtest.',
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Chip(label: Text('1 ${labels.$1} fest')),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 6),
+          child: Icon(Icons.arrow_downward_rounded),
+        ),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (var b = 1; b <= second; b++)
+              for (var c = 1; c <= third; c++)
+                Chip(label: Text(third > 1 ? '${labels.$2} $b + ${labels.$3} $c' : '${labels.$2} $b')),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const Text('Erst danach dieselbe Verzweigung für jede weitere erste Wahl wiederholen.', style: TextStyle(fontWeight: FontWeight.w800)),
+      ],
+    );
+  }
+
   Widget _plausibilityAid() {
     final numbers = _numbers(taskKey);
     if (numbers.length < 4) return const SizedBox.shrink();
@@ -1362,6 +1515,219 @@ class LearningVisualAid extends StatelessWidget {
       .allMatches(value)
       .map((match) => int.parse(match.group(0)!))
       .toList();
+}
+
+class _DataChartAid extends StatelessWidget {
+  const _DataChartAid({required this.values, required this.operation});
+
+  final List<int> values;
+  final String operation;
+
+  @override
+  Widget build(BuildContext context) {
+    final maximum = values.reduce(math.max).toDouble();
+    const labels = ['Rot', 'Blau', 'Grün', 'Gelb'];
+    final instruction = switch (operation) {
+      'max' => 'Suche den höchsten Balken. Lies noch keine fertige Antwort aus einem Text ab.',
+      'sum' => 'Lies jeden Balken einzeln an derselben Skala ab. Addiert wird erst danach.',
+      _ => 'Für die Differenz vergleichst du Rot und Blau auf derselben Skala.',
+    };
+    return Column(
+      key: const ValueKey('help-data-chart'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AidLabel(title: 'Balken an einer gemeinsamen Skala lesen', text: instruction),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 150,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (var i = 0; i < values.length; i++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: FractionallySizedBox(
+                              heightFactor: values[i] / maximum,
+                              widthFactor: 0.65,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primaryContainer,
+                                  border: Border.all(color: Theme.of(context).colorScheme.primary),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(labels[i], style: const TextStyle(fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const Divider(height: 2),
+        const SizedBox(height: 6),
+        const Text('Tipp: Eine gedachte waagerechte Linie vom Balkenkopf zur Skala hilft beim genauen Ablesen.', style: TextStyle(fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+}
+
+class _ProbabilityBagAid extends StatelessWidget {
+  const _ProbabilityBagAid({required this.red, required this.blue});
+  final int red;
+  final int blue;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        key: const ValueKey('help-probability-bag'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AidLabel(
+            title: 'Chance über Anzahlen vergleichen',
+            text: 'Jedes Teil ist gleichartig erreichbar. Vergleiche deshalb zuerst nur, von welcher Sorte mehr Teile im Beutel liegen.',
+          ),
+          const SizedBox(height: 12),
+          _TokenGroup(label: 'Rot', count: red, symbol: 'R'),
+          const SizedBox(height: 10),
+          _TokenGroup(label: 'Blau', count: blue, symbol: 'B'),
+          const SizedBox(height: 8),
+          const Text('Erst nach dem Mengenvergleich formulierst du: Rot, Blau oder beide gleich wahrscheinlich.', style: TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      );
+}
+
+class _ObservedFrequencyAid extends StatelessWidget {
+  const _ObservedFrequencyAid({required this.red, required this.blue});
+  final int red;
+  final int blue;
+
+  @override
+  Widget build(BuildContext context) {
+    final maximum = math.max(red, blue).toDouble();
+    return Column(
+      key: const ValueKey('help-probability-experiment'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(
+          title: 'Beobachtete Häufigkeiten vergleichen',
+          text: 'Die Balken beschreiben nur diese Versuchsreihe. Vergleiche ihre Höhe, ohne daraus eine sichere Vorhersage zu machen.',
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 120,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (final entry in [('Rot', red), ('Blau', blue)])
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: FractionallySizedBox(
+                            heightFactor: entry.$2 / maximum,
+                            widthFactor: 0.45,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.secondaryContainer,
+                                border: Border.all(color: Theme.of(context).colorScheme.secondary),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(entry.$1, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RelativeFrequencyAid extends StatelessWidget {
+  const _RelativeFrequencyAid({required this.trials, required this.hits});
+  final int trials;
+  final int hits;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        key: const ValueKey('help-probability-relative'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AidLabel(
+            title: 'Anteil auf 100 übertragen',
+            text: 'Behalte zuerst den beobachteten Anteil bei. Gesucht ist dieselbe Relation mit 100 als Grundmenge.',
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: Text('$hits / $trials   =   ? / 100', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            key: const ValueKey('help-relative-hundred-grid'),
+            spacing: 2,
+            runSpacing: 2,
+            children: [
+              for (var i = 0; i < 100; i++)
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text('Fülle gedanklich genau so viele von 100 Feldern, dass der Anteil gleich bleibt.', style: TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      );
+}
+
+class _TokenGroup extends StatelessWidget {
+  const _TokenGroup({required this.label, required this.count, required this.symbol});
+  final String label;
+  final int count;
+  final String symbol;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 48, child: Text(label, style: const TextStyle(fontWeight: FontWeight.w900))),
+          Expanded(
+            child: Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                for (var i = 0; i < count; i++)
+                  CircleAvatar(
+                    radius: 11,
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: Text(symbol, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      );
 }
 
 class _RoundingAnchorBar extends StatelessWidget {

@@ -595,6 +595,134 @@ void main() {
     }
   });
 
+  test('visual help covers data probability and combinatorics', () {
+    const cases = <(ErrorPattern, String, String)>[
+      (ErrorPattern.dataReading, 'data:max:4-7-3-6', 'data:read-chart-values'),
+      (ErrorPattern.dataReading, 'data:tally:17', 'data:tally-five-blocks'),
+      (ErrorPattern.probabilityReasoning, 'prob:sure:below:8', 'probability:sample-space'),
+      (ErrorPattern.probabilityReasoning, 'prob:bag:kugeln:5:3', 'probability:count-relation'),
+      (ErrorPattern.combinatorics, 'combo:clothes:3:2:2', 'combinatorics:first-branch'),
+    ];
+    for (final entry in cases) {
+      expect(
+        LearningVisualAid.canRender(
+          pattern: entry.$1,
+          taskKey: entry.$2,
+          methodKey: entry.$3,
+        ),
+        isTrue,
+        reason: entry.$2,
+      );
+    }
+  });
+
+  testWidgets('data chart visual teaches reading without printing bar values', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.dataReading,
+            taskKey: 'data:sum:4-7-3-6',
+            expected: 20,
+            methodKey: 'data:read-chart-values',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-data-chart')), findsOneWidget);
+    expect(find.text('4'), findsNothing);
+    expect(find.text('7'), findsNothing);
+    expect(find.text('20'), findsNothing);
+    expect(find.textContaining('Addiert wird erst danach'), findsOneWidget);
+  });
+
+  testWidgets('probability visuals expose structure but not the final judgement', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.probabilityReasoning,
+            taskKey: 'prob:sure:below:8',
+            expected: 0,
+            methodKey: 'probability:sample-space',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-probability-sample-space')), findsOneWidget);
+    for (var face = 1; face <= 6; face++) {
+      expect(find.text('$face'), findsOneWidget);
+    }
+    expect(find.text('sicher'), findsNothing);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.probabilityReasoning,
+            taskKey: 'prob:experiment:relative:20:7',
+            expected: 1,
+            methodKey: 'probability:relative-frequency',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-probability-relative')), findsOneWidget);
+    expect(find.text('7 / 20   =   ? / 100'), findsOneWidget);
+    expect(find.textContaining('35 %'), findsNothing);
+    expect(find.byKey(const ValueKey('help-relative-hundred-grid')), findsOneWidget);
+  });
+
+  testWidgets('combinatorics visual completes one branch without total answer', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.combinatorics,
+            taskKey: 'combo:clothes:3:2:2',
+            expected: 12,
+            methodKey: 'combinatorics:first-branch',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-combinatorics-branch')), findsOneWidget);
+    expect(find.text('1 T-Shirt fest'), findsOneWidget);
+    expect(find.textContaining('Hose 1 + Mütze 1'), findsOneWidget);
+    expect(find.text('12'), findsNothing);
+  });
+
+  testWidgets('data probability and combinatorics visuals stay stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    for (final config in <(ErrorPattern, String, int, String)>[
+      (ErrorPattern.dataReading, 'data:diff:9-5-4-7', 4, 'data:read-chart-values'),
+      (ErrorPattern.probabilityReasoning, 'prob:bag:kugeln:7:4', 0, 'probability:count-relation'),
+      (ErrorPattern.combinatorics, 'combo:icecream:3:2:2', 12, 'combinatorics:first-branch'),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: LearningVisualAid(
+                pattern: config.$1,
+                taskKey: config.$2,
+                expected: config.$3,
+                methodKey: config.$4,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: config.$2);
+    }
+  });
+
   test('generated structured and upper-primary tasks have specific help', () {
     final structured = StructuredExerciseGenerator(random: Random(17));
     final curriculum = CurriculumExerciseGenerator(random: Random(23));
