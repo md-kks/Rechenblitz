@@ -176,6 +176,156 @@ void main() {
     }
   });
 
+  test('gesperrte Folgekompetenz lenkt Fokus auf tiefste fehlende Grundlage', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    controller.microObservations.addAll(
+      List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.largeNumberOrder,
+          occurredAt: DateTime(2026, 9, 15, 10, index),
+          correct: false,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          helpLevel: 0,
+          mode: TrainingMode.largeNumbers,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey: 'locked-order-focus:$index',
+        ),
+      ),
+    );
+
+    final focus = controller.currentMicroFocus();
+    expect(focus, isNotNull);
+    expect(focus!.definition.id, MicroCompetencyId.placeValueDigits);
+    expect(controller.recommendedMode(), TrainingMode.placeValue);
+    expect(controller.microFocusReason(), contains('kommt zuerst'));
+    expect(controller.microFocusReason(), contains('Mehrere große Zahlen ordnen'));
+    final plan = controller.buildMyRound();
+    expect(plan[1].targetCompetency, MicroCompetencyId.placeValueDigits);
+    expect(plan[1].reason, contains('kommt zuerst'));
+  });
+
+  test('stabile Alt-Evidenz bestätigt noch nicht separat protokollierte Grundlagen', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    _addSecure(controller, MicroCompetencyId.largeNumberOrder);
+
+    final unlock = controller.microCompetencyUnlockStatus(
+      MicroCompetencyId.largeNumberOrder,
+    );
+    expect(unlock.isUnlocked, isTrue);
+    expect(unlock.nextRequired, isNull);
+    expect(unlock.reason, contains('noch nicht separat protokollierte'));
+    expect(
+      controller.strongestMicroCompetency()?.definition.id,
+      MicroCompetencyId.largeNumberOrder,
+    );
+  });
+
+  test('ausdrücklich schwache Grundlage sperrt trotz starker Alt-Evidenz', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    _addSecure(
+      controller,
+      MicroCompetencyId.largeNumberOrder,
+      start: DateTime(2026, 9, 1, 8),
+    );
+    controller.microObservations.addAll(
+      List.generate(
+        2,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.placeValueDigits,
+          occurredAt: DateTime(2026, 9, 2, 8, index),
+          correct: false,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          helpLevel: 0,
+          mode: TrainingMode.placeValue,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey: 'explicit-weak-place:$index',
+        ),
+      ),
+    );
+
+    final unlock = controller.microCompetencyUnlockStatus(
+      MicroCompetencyId.largeNumberOrder,
+    );
+    expect(unlock.isUnlocked, isFalse);
+    expect(unlock.nextRequired?.id, MicroCompetencyId.placeValueDigits);
+    expect(
+      controller.strongestMicroCompetency()?.definition.id,
+      isNot(MicroCompetencyId.largeNumberOrder),
+    );
+    expect(
+      controller.dueReviewMicroCompetency(now: DateTime(2026, 9, 10))
+          ?.definition
+          .id,
+      isNot(MicroCompetencyId.largeNumberOrder),
+    );
+    expect(
+      controller.transferCandidateMicroCompetency()?.definition.id,
+      isNot(MicroCompetencyId.largeNumberOrder),
+    );
+  });
+
+  test('gesperrter Oberstufenbereich wird nicht als Empfehlung gewählt', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+
+    expect(controller.recommendedMode(), isNot(TrainingMode.largeNumbers));
+  });
+
+  test('nach gesicherter Voraussetzungskette wird Folgekompetenz wieder planbar', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    _addSecure(controller, MicroCompetencyId.placeValueDigits);
+    _addSecure(
+      controller,
+      MicroCompetencyId.largeNumberCompare,
+      start: DateTime(2026, 9, 15, 11),
+    );
+    _addSecure(
+      controller,
+      MicroCompetencyId.largeNumberOrder,
+      start: DateTime(2026, 9, 1, 8),
+    );
+
+    expect(
+      controller
+          .microCompetencyUnlockStatus(MicroCompetencyId.largeNumberOrder)
+          .isUnlocked,
+      isTrue,
+    );
+    final transfer = controller.transferCandidateMicroCompetency(
+      excludingAny: const <MicroCompetencyId>[
+        MicroCompetencyId.placeValueDigits,
+        MicroCompetencyId.largeNumberCompare,
+      ],
+    );
+    expect(transfer, isNotNull);
+    expect(transfer!.definition.id, MicroCompetencyId.largeNumberOrder);
+    final review = controller.dueReviewMicroCompetency(
+      now: DateTime(2026, 9, 10),
+      excluding: const <MicroCompetencyId>[
+        MicroCompetencyId.placeValueDigits,
+        MicroCompetencyId.largeNumberCompare,
+      ],
+    );
+    expect(review, isNotNull);
+    expect(review!.definition.id, MicroCompetencyId.largeNumberOrder);
+  });
+
   testWidgets('Lernlandkarte zeigt Sperre und nächste Grundlage', (tester) async {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.third;

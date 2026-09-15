@@ -13,6 +13,34 @@ void main() {
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
     controller.microObservations = [
+      for (var index = 0; index < 6; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.numberDecomposition,
+          occurredAt: DateTime(2026, 9, 9, 8, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          helpLevel: 0,
+          mode: TrainingMode.numberFriends,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'map-prereq-decompose:$index',
+        ),
+      for (var index = 0; index < 6; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 9, 9, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          helpLevel: 0,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'map-prereq-add:$index',
+        ),
       for (var index = 0; index < 3; index++)
         MicroCompetencyObservation(
           id: MicroCompetencyId.additionTenBridge,
@@ -63,7 +91,9 @@ void main() {
     expect(find.text('Als Nächstes'), findsOneWidget);
     expect(find.text('Dein Fortschritt'), findsOneWidget);
     expect(
-      find.text('Deine Lernkarte füllt sich beim Üben Schritt für Schritt.'),
+      find.text(
+        'Erste Schritte sind schon sicher. Wir machen Schritt für Schritt weiter.',
+      ),
       findsOneWidget,
     );
     expect(find.textContaining('Teilschritten sind sicher'), findsNothing);

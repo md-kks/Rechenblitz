@@ -1604,52 +1604,75 @@ class AppController extends ChangeNotifier {
         )
         .toList()
       ..sort((a, b) {
-        final aBasisUnstable =
-            _latestBasisEvidenceIsUnstable(a.definition.id);
-        final bBasisUnstable =
-            _latestBasisEvidenceIsUnstable(b.definition.id);
-        if (aBasisUnstable != bBasisUnstable) {
-          return aBasisUnstable ? -1 : 1;
-        }
-        final accuracyOrder =
-            a.independentAccuracy.compareTo(b.independentAccuracy);
+        final aBasisUnstable = _latestBasisEvidenceIsUnstable(a.definition.id);
+        final bBasisUnstable = _latestBasisEvidenceIsUnstable(b.definition.id);
+        if (aBasisUnstable != bBasisUnstable) return aBasisUnstable ? -1 : 1;
+        final accuracyOrder = a.independentAccuracy.compareTo(b.independentAccuracy);
         if (accuracyOrder != 0) return accuracyOrder;
         return b.independentEvidence.compareTo(a.independentEvidence);
       });
 
+    MicroCompetencyProgress resolvePrerequisite(MicroCompetencyProgress progress) {
+      final unlock = microCompetencyUnlockStatus(progress.definition.id);
+      return unlock.nextRequired == null
+          ? progress
+          : microCompetencyProgress(unlock.nextRequired!.id);
+    }
+
     if (candidates.isEmpty) {
       return guidedFocus == null
           ? null
-          : microCompetencyProgress(guidedFocus.competencyId);
+          : resolvePrerequisite(microCompetencyProgress(guidedFocus.competencyId));
     }
 
-    var candidate = candidates.first;
-    for (final prerequisite in candidate.definition.prerequisites) {
-      final prerequisiteProgress = microCompetencyProgress(prerequisite);
-      final hasBaseSignal = prerequisiteProgress.baseEvidence > 0;
-      final hasWeakGuidedSignal =
-          guidedFocus?.competencyId == prerequisite;
-      if ((hasBaseSignal || hasWeakGuidedSignal) &&
-          prerequisiteProgress.state != MicroCompetencyState.secure &&
-          prerequisiteProgress.state != MicroCompetencyState.mastered) {
-        candidate = prerequisiteProgress;
-        break;
-      }
-    }
-
+    var candidate = resolvePrerequisite(candidates.first);
     if (guidedFocus != null) {
-      final guidedId = guidedFocus.competencyId;
-      if (candidate.definition.id == guidedId ||
-          candidate.definition.prerequisites.contains(guidedId)) {
-        return microCompetencyProgress(guidedId);
+      final guided = resolvePrerequisite(
+        microCompetencyProgress(guidedFocus.competencyId),
+      );
+      if (candidate.definition.id == guidedFocus.competencyId ||
+          candidate.definition.id == guided.definition.id ||
+          candidate.definition.prerequisites.contains(guidedFocus.competencyId)) {
+        candidate = guided;
       }
     }
     return candidate;
   }
 
+  MicroCompetencyProgress? _blockedDependentWaitingFor(
+    MicroCompetencyId prerequisite,
+  ) {
+    final candidates = microCompetenciesForGrade()
+        .where(
+          (progress) =>
+              progress.definition.id != prerequisite &&
+              progress.baseEvidence > 0 &&
+              microCompetencyUnlockStatus(progress.definition.id)
+                      .nextRequired
+                      ?.id ==
+                  prerequisite,
+        )
+        .toList()
+      ..sort((a, b) {
+        final unstableOrder =
+            (_latestBasisEvidenceIsUnstable(b.definition.id) ? 1 : 0) -
+                (_latestBasisEvidenceIsUnstable(a.definition.id) ? 1 : 0);
+        if (unstableOrder != 0) return unstableOrder;
+        final accuracyOrder =
+            a.independentAccuracy.compareTo(b.independentAccuracy);
+        if (accuracyOrder != 0) return accuracyOrder;
+        return b.baseEvidence.compareTo(a.baseEvidence);
+      });
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
   MicroCompetencyProgress? strongestMicroCompetency() {
     final candidates = microCompetenciesForGrade()
-        .where((progress) => progress.independentEvidence > 0)
+        .where(
+          (progress) =>
+              progress.independentEvidence > 0 &&
+              _microCompetencyIsUnlocked(progress.definition.id),
+        )
         .toList()
       ..sort((a, b) {
         final stateOrder = b.state.index.compareTo(a.state.index);
@@ -1670,6 +1693,7 @@ class AppController extends ChangeNotifier {
         .where(
           (progress) =>
               !blocked.contains(progress.definition.id) &&
+              _microCompetencyIsUnlocked(progress.definition.id) &&
               progress.independentEvidence > 0 &&
               (progress.state == MicroCompetencyState.secure ||
                   progress.state == MicroCompetencyState.mastered) &&
@@ -1698,6 +1722,7 @@ class AppController extends ChangeNotifier {
         .where(
           (progress) =>
               !blocked.contains(progress.definition.id) &&
+              _microCompetencyIsUnlocked(progress.definition.id) &&
               progress.independentEvidence > 0 &&
               (progress.state == MicroCompetencyState.secure ||
                   progress.state == MicroCompetencyState.mastered) &&
@@ -1728,6 +1753,7 @@ class AppController extends ChangeNotifier {
         .where(
           (progress) {
             if (blocked.contains(progress.definition.id) ||
+                !_microCompetencyIsUnlocked(progress.definition.id) ||
                 progress.lastSeen == null ||
                 (progress.state != MicroCompetencyState.secure &&
                     progress.state != MicroCompetencyState.mastered)) {
@@ -1785,6 +1811,7 @@ class AppController extends ChangeNotifier {
         .where(
           (progress) =>
               !blocked.contains(progress.definition.id) &&
+              _microCompetencyIsUnlocked(progress.definition.id) &&
               (progress.state == MicroCompetencyState.secure ||
                   progress.state == MicroCompetencyState.mastered),
         )
@@ -1845,20 +1872,98 @@ class AppController extends ChangeNotifier {
         !_latestBasisEvidenceIsUnstable(id);
   }
 
+  bool _hasStrongIndependentHistory(MicroCompetencyId id) {
+    final progress = microCompetencyProgress(id);
+    return _evidenceAtLeast(
+          progress.independentEvidence,
+          _secureIndependentEvidence,
+        ) &&
+        progress.independentAccuracy >= _secureIndependentAccuracy;
+  }
+
+  bool _prerequisiteTreeHasExplicitWeakEvidence(
+    MicroCompetencyId id, [
+    Set<MicroCompetencyId>? visiting,
+  ]) {
+    final path = visiting ?? <MicroCompetencyId>{};
+    if (!path.add(id)) return true;
+    final progress = microCompetencyProgress(id);
+    if (progress.evidence > _evidenceEpsilon && !_prerequisiteIsReady(id)) {
+      path.remove(id);
+      return true;
+    }
+    final definition = MicroCompetencyCatalog.definition(id);
+    for (final prerequisite in definition.prerequisites) {
+      if (_prerequisiteTreeHasExplicitWeakEvidence(prerequisite, path)) {
+        path.remove(id);
+        return true;
+      }
+    }
+    path.remove(id);
+    return false;
+  }
+
+  bool _competencyAndPrerequisitesReady(
+    MicroCompetencyId id, [
+    Set<MicroCompetencyId>? visiting,
+  ]) {
+    final path = visiting ?? <MicroCompetencyId>{};
+    if (!path.add(id)) return false;
+    if (!_prerequisiteIsReady(id)) {
+      path.remove(id);
+      return false;
+    }
+    final definition = MicroCompetencyCatalog.definition(id);
+    for (final prerequisite in definition.prerequisites) {
+      if (_competencyAndPrerequisitesReady(prerequisite, path)) continue;
+      if (_prerequisiteTreeHasExplicitWeakEvidence(prerequisite)) {
+        path.remove(id);
+        return false;
+      }
+    }
+    path.remove(id);
+    return true;
+  }
+
   bool _discoveryPrerequisitesReady(MicroCompetencyDefinition definition) =>
-      definition.prerequisites.every(_prerequisiteIsReady);
+      definition.prerequisites.every(
+        (id) => _competencyAndPrerequisitesReady(id),
+      );
+
+  bool _legacyEvidenceUnlocks(MicroCompetencyId id) {
+    final definition = MicroCompetencyCatalog.definition(id);
+    if (definition.prerequisites.isEmpty || !_hasStrongIndependentHistory(id)) {
+      return false;
+    }
+    return definition.prerequisites.every(
+      (prerequisite) =>
+          !_prerequisiteTreeHasExplicitWeakEvidence(prerequisite),
+    );
+  }
+
+  bool _microCompetencyIsUnlocked(MicroCompetencyId id) {
+    final definition = MicroCompetencyCatalog.definition(id);
+    return _discoveryPrerequisitesReady(definition) ||
+        _legacyEvidenceUnlocks(id);
+  }
 
   MicroCompetencyId? _nextUnmetPrerequisite(
     MicroCompetencyId id,
-    Set<MicroCompetencyId> visited,
+    Set<MicroCompetencyId> visiting,
   ) {
-    if (!visited.add(id)) return null;
+    if (!visiting.add(id)) return null;
     final definition = MicroCompetencyCatalog.definition(id);
     for (final prerequisite in definition.prerequisites) {
-      if (_prerequisiteIsReady(prerequisite)) continue;
-      final deeper = _nextUnmetPrerequisite(prerequisite, visited);
-      return deeper ?? prerequisite;
+      if (_competencyAndPrerequisitesReady(prerequisite)) continue;
+      final deeper = _nextUnmetPrerequisite(prerequisite, visiting);
+      if (deeper != null) {
+        visiting.remove(id);
+        return deeper;
+      }
+      visiting.remove(id);
+      return prerequisite;
     }
+    visiting.remove(id);
     return null;
   }
 
@@ -1869,24 +1974,35 @@ class AppController extends ChangeNotifier {
     final prerequisites = definition.prerequisites
         .map(MicroCompetencyCatalog.definition)
         .toList(growable: false);
-    final unmetIds = definition.prerequisites
-        .where((prerequisite) => !_prerequisiteIsReady(prerequisite))
-        .toList(growable: false);
+    final strictPrerequisitesReady = _discoveryPrerequisitesReady(definition);
+    final legacyUnlocked = !strictPrerequisitesReady && _legacyEvidenceUnlocks(id);
+    final unmetIds = legacyUnlocked
+        ? const <MicroCompetencyId>[]
+        : definition.prerequisites
+            .where(
+              (prerequisite) =>
+                  !_competencyAndPrerequisitesReady(prerequisite),
+            )
+            .toList(growable: false);
     final unmet = unmetIds
         .map(MicroCompetencyCatalog.definition)
         .toList(growable: false);
-    final nextId = _nextUnmetPrerequisite(id, <MicroCompetencyId>{});
+    final nextId = legacyUnlocked
+        ? null
+        : _nextUnmetPrerequisite(id, <MicroCompetencyId>{});
     final next = nextId == null ? null : MicroCompetencyCatalog.definition(nextId);
 
     final reason = prerequisites.isEmpty
         ? 'Dieser Lernschritt hat keine vorgelagerten Pflicht-Grundlagen.'
-        : unmet.isEmpty
-            ? 'Alle ${prerequisites.length} benötigten Grundlagen sind aktuell sicher.'
-            : next == null
-                ? 'Vor diesem Lernschritt müssen zuerst die benötigten Grundlagen sicher werden.'
-                : unmet.length == 1
-                    ? 'Vor „${definition.label}“ braucht es zuerst „${unmet.first.label}“. Als Nächstes üben wir „${next.label}“.'
-                    : 'Vor „${definition.label}“ fehlen noch ${unmet.length} Grundlagen. Als Nächstes üben wir „${next.label}“.';
+        : legacyUnlocked
+            ? 'Dieser Lernschritt wurde bereits mehrfach selbstständig sicher gezeigt. Ältere, noch nicht separat protokollierte Grundlagen gelten deshalb hier als bestätigt.'
+            : unmet.isEmpty
+                ? 'Alle ${prerequisites.length} benötigten Grundlagen sind aktuell sicher.'
+                : next == null
+                    ? 'Vor diesem Lernschritt müssen zuerst die benötigten Grundlagen sicher werden.'
+                    : unmet.length == 1
+                        ? 'Vor „${definition.label}“ braucht es zuerst „${unmet.first.label}“. Als Nächstes üben wir „${next.label}“.'
+                        : 'Vor „${definition.label}“ fehlen noch ${unmet.length} Grundlagen. Als Nächstes üben wir „${next.label}“.';
 
     return MicroCompetencyUnlockStatus(
       definition: definition,
@@ -1935,6 +2051,12 @@ class AppController extends ChangeNotifier {
           'Deshalb übt Rechenblitz gezielt „${focus.definition.label}“.';
     }
     if (!focus.hasIndependentBasisEvidence) {
+      final blockedDependent =
+          _blockedDependentWaitingFor(focus.definition.id);
+      if (blockedDependent != null) {
+        return '„${focus.definition.label}“ kommt zuerst, weil „${blockedDependent.definition.label}“ darauf aufbaut und dort bereits Unsicherheit sichtbar war. '
+            'Rechenblitz stärkt deshalb zunächst diese Voraussetzung.';
+      }
       return '„${focus.definition.label}“ ist aktuell der sinnvollste '
           'Teilschritt: ${focus.observations} passende Beobachtungen, '
           'aber noch keine selbstständige Basisbeobachtung.';
@@ -2076,7 +2198,10 @@ class AppController extends ChangeNotifier {
         focus == TrainingMode.tempo ||
         focus == TrainingMode.blitz) {
       for (final candidate in learningModesForGrade(gradeLevel)) {
-        if (candidate == genericWarmUp) continue;
+        if (candidate == genericWarmUp ||
+            !_modeHasUnlockedMicroCompetency(candidate)) {
+          continue;
+        }
         final alreadyTried = history.any(
           (entry) =>
               entry.gradeLevel == gradeLevel && entry.mode == candidate,
@@ -2109,15 +2234,21 @@ class AppController extends ChangeNotifier {
             TrainingMode.factFamilies,
           ];
 
+    final eligibleTransferCandidates = transferCandidates
+        .where(_modeHasUnlockedMicroCompetency)
+        .toList(growable: false);
+    final fallbackTransferCandidates = eligibleTransferCandidates.isEmpty
+        ? <TrainingMode>[genericWarmUp]
+        : eligibleTransferCandidates;
     final blockedFallbackModes = <TrainingMode>{
       focus,
       warmUpMode,
       reviewMode,
     };
-    TrainingMode transfer = transferCandidates.first;
+    TrainingMode transfer = fallbackTransferCandidates.first;
     var lowestScore = 2.0;
     var foundDistinctFallback = false;
-    for (final mode in transferCandidates) {
+    for (final mode in fallbackTransferCandidates) {
       if (blockedFallbackModes.contains(mode)) continue;
       final progress = competencyProgress(mode);
       final score = progress.tasks == 0 ? -1.0 : progress.accuracy;
@@ -2128,7 +2259,7 @@ class AppController extends ChangeNotifier {
       }
     }
     if (!foundDistinctFallback) {
-      for (final mode in transferCandidates) {
+      for (final mode in fallbackTransferCandidates) {
         if (mode == focus) continue;
         final progress = competencyProgress(mode);
         final score = progress.tasks == 0 ? -1.0 : progress.accuracy;
@@ -2168,7 +2299,10 @@ class AppController extends ChangeNotifier {
                 : guidedFocus != null &&
                         guidedFocus.competencyId == microFocus.definition.id
                     ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt „${microFocus.definition.label}“ und nehmen die Hilfe schrittweise zurück.'
-                    : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
+                    : _blockedDependentWaitingFor(microFocus.definition.id) !=
+                            null
+                        ? '„${microFocus.definition.label}“ kommt zuerst, weil ein bereits auffälliger nächster Lernschritt darauf aufbaut.'
+                        : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
         targetCompetency: focusTarget,
         scaffoldFading: stepRecovery == null &&
             guidedFocus != null &&
@@ -2709,10 +2843,32 @@ class AppController extends ChangeNotifier {
     return lowest < 0.80 ? focus : null;
   }
 
+  bool _modeHasUnlockedMicroCompetency(TrainingMode mode) {
+    final definitions = MicroCompetencyCatalog.forContext(
+      gradeLevel,
+      numberRange,
+    ).where((definition) => definition.preferredMode == mode).toList();
+    if (definitions.isEmpty) return true;
+    return definitions.any(
+      (definition) => _microCompetencyIsUnlocked(definition.id),
+    );
+  }
+
   TrainingMode _upperPrimaryRecommendation() {
-    final modes = curriculumModesForGrade(gradeLevel);
-    final assessmentFocus =
-        _assessmentFocusFor(learningModesForGrade(gradeLevel));
+    final allModes = curriculumModesForGrade(gradeLevel);
+    final unlockedModes = allModes
+        .where(_modeHasUnlockedMicroCompetency)
+        .toList(growable: false);
+    final modes = unlockedModes.isEmpty ? allModes : unlockedModes;
+    final allAssessmentModes = learningModesForGrade(gradeLevel);
+    final unlockedAssessmentModes = allAssessmentModes
+        .where(_modeHasUnlockedMicroCompetency)
+        .toList(growable: false);
+    final assessmentFocus = _assessmentFocusFor(
+      unlockedAssessmentModes.isEmpty
+          ? allAssessmentModes
+          : unlockedAssessmentModes,
+    );
     if (assessmentFocus != null) return assessmentFocus;
 
     for (final mode in modes) {
@@ -2783,11 +2939,20 @@ class AppController extends ChangeNotifier {
       return remediation.modes.first;
     }
 
+    final microFocus = currentMicroFocus();
+    if (microFocus != null) {
+      return microFocus.definition.preferredMode;
+    }
+
     if (gradeLevel.index >= GradeLevel.third.index) {
       return _upperPrimaryRecommendation();
     }
 
-    final modes = learningModesForGrade(gradeLevel);
+    final allModes = learningModesForGrade(gradeLevel);
+    final unlockedModes = allModes
+        .where(_modeHasUnlockedMicroCompetency)
+        .toList(growable: false);
+    final modes = unlockedModes.isEmpty ? allModes : unlockedModes;
     final assessmentFocus = _assessmentFocusFor(modes);
     if (assessmentFocus != null) return assessmentFocus;
 
@@ -2964,7 +3129,7 @@ class AppController extends ChangeNotifier {
     if (!status.isActive) return null;
     final excluded = excludingAny.toSet();
     for (final id in status.pendingCompetencies) {
-      if (excluded.contains(id)) continue;
+      if (excluded.contains(id) || !_microCompetencyIsUnlocked(id)) continue;
       return microCompetencyProgress(id);
     }
     return null;
@@ -3027,7 +3192,7 @@ class AppController extends ChangeNotifier {
     if (!status.isActive) return null;
     final excluded = excludingAny.toSet();
     for (final id in status.pendingCompetencies) {
-      if (excluded.contains(id)) continue;
+      if (excluded.contains(id) || !_microCompetencyIsUnlocked(id)) continue;
       return microCompetencyProgress(id);
     }
     return null;
@@ -3067,6 +3232,7 @@ class AppController extends ChangeNotifier {
     final secure = evidenced
         .where(
           (progress) =>
+              _microCompetencyIsUnlocked(progress.definition.id) &&
               (progress.state == MicroCompetencyState.secure ||
                   progress.state == MicroCompetencyState.mastered) &&
               !progress.basisNeedsReconfirmation,
@@ -3099,8 +3265,11 @@ class AppController extends ChangeNotifier {
     final secureRatio =
         evidenced.isEmpty ? 0.0 : secure.length / evidenced.length;
     final requiredConfirmed = evidenced.length >= 5 ? 2 : 1;
-    final hasUnstableEvidence =
-        evidenced.any((progress) => progress.basisNeedsReconfirmation);
+    final hasUnstableEvidence = evidenced.any(
+      (progress) =>
+          progress.basisNeedsReconfirmation ||
+          !_microCompetencyIsUnlocked(progress.definition.id),
+    );
 
     if (evidenced.length < requiredEvidence || requiredEvidence == 0) {
       return NumberRangeReadiness(

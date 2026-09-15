@@ -179,22 +179,36 @@ void main() {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
-    controller.microObservations = List.generate(
-      3,
-      (index) => MicroCompetencyObservation(
-        id: MicroCompetencyId.additionTenBridge,
-        occurredAt: DateTime(2026, 9, 10, 9, index),
-        correct: true,
-        evidenceWeight: 0.8,
-        source: MicroEvidenceSource.practice,
-        usedHelp: true,
-        helpLevel: 1,
-        mode: TrainingMode.practice,
-        gradeLevel: GradeLevel.second,
-        numberRange: NumberRangeLevel.hundred,
-        taskKey: 'plus:17:4:$index',
+    controller.microObservations = [
+      ...List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 10, 9, index),
+          correct: true,
+          evidenceWeight: 0.8,
+          source: MicroEvidenceSource.practice,
+          usedHelp: true,
+          helpLevel: 1,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:17:4:$index',
+        ),
       ),
-    );
+      ..._secureEvidence(
+        MicroCompetencyId.numberDecomposition,
+        DateTime(2026, 9, 9, 8),
+        mode: TrainingMode.numberFriends,
+        prefix: 'focus-prereq-decompose',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.additionNoBridge,
+        DateTime(2026, 9, 9, 9),
+        mode: TrainingMode.practice,
+        prefix: 'focus-prereq-add',
+      ),
+    ];
 
     final reason = controller.microFocusReason();
 
@@ -206,22 +220,36 @@ void main() {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
-    controller.microObservations = List.generate(
-      8,
-      (index) => MicroCompetencyObservation(
-        id: MicroCompetencyId.subtractionTenBridge,
-        occurredAt: DateTime(2026, 9, 4, 11, index),
-        correct: true,
-        evidenceWeight: 0.8,
-        source: MicroEvidenceSource.practice,
-        usedHelp: true,
-        helpLevel: 1,
-        mode: TrainingMode.minus,
-        gradeLevel: GradeLevel.second,
-        numberRange: NumberRangeLevel.hundred,
-        taskKey: 'minus:43:18:$index',
+    controller.microObservations = [
+      ...List.generate(
+        8,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          occurredAt: DateTime(2026, 9, 4, 11, index),
+          correct: true,
+          evidenceWeight: 0.8,
+          source: MicroEvidenceSource.practice,
+          usedHelp: true,
+          helpLevel: 1,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'minus:43:18:$index',
+        ),
       ),
-    );
+      ..._secureEvidence(
+        MicroCompetencyId.numberDecomposition,
+        DateTime(2026, 9, 3, 8),
+        mode: TrainingMode.numberFriends,
+        prefix: 'parent-prereq-decompose',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.subtractionNoBridge,
+        DateTime(2026, 9, 3, 9),
+        mode: TrainingMode.minus,
+        prefix: 'parent-prereq-subtract',
+      ),
+    ];
 
     final insight = controller.parentInsight(
       now: DateTime(2026, 9, 5, 11),
@@ -412,6 +440,18 @@ void main() {
           numberRange: NumberRangeLevel.hundred,
           taskKey: 'minus:13:5:$index',
         ),
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.numberDecomposition,
+        DateTime(2026, 9, 3, 8),
+        mode: TrainingMode.numberFriends,
+        prefix: 'guided-prereq-decompose',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.subtractionNoBridge,
+        DateTime(2026, 9, 3, 9),
+        mode: TrainingMode.minus,
+        prefix: 'guided-prereq-subtract',
       ),
     ];
 
