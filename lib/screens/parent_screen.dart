@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/error_diagnosis.dart';
 import '../models/help_preferences.dart';
 import '../models/learning_methods.dart';
+import '../models/learning_path.dart';
 import '../models/math_fact.dart';
 import '../models/remediation_path.dart';
 import '../models/training.dart';
@@ -94,6 +95,7 @@ class _ParentScreenState extends State<ParentScreen> {
   Widget build(BuildContext context) {
     final c = widget.controller;
     final recommendation = c.recommendationText();
+    final rangeReadiness = c.numberRangeReadiness();
     final insight = c.parentInsight();
     final priority = c.parentPriorityMicroCompetency();
     final methodInsight = priority == null || priority.observations == 0
@@ -488,14 +490,56 @@ class _ParentScreenState extends State<ParentScreen> {
           _Section(
             title: 'Zahlenraumvergleich',
             child: Column(
-              children: NumberRangeLevel.values
-                  .map(
-                    (range) => _PercentBar(
-                      label: range.label,
-                      value: c.rangeAccuracy(range),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ...NumberRangeLevel.values.map(
+                  (range) => _PercentBar(
+                    label: range.label,
+                    value: c.rangeAccuracy(range),
+                  ),
+                ),
+                const Divider(height: 28),
+                Text(
+                  switch (rangeReadiness.status) {
+                    NumberRangeReadinessStatus.maximum =>
+                      'Aktueller Zahlenraum passt',
+                    NumberRangeReadinessStatus.collecting =>
+                      'Noch Daten sammeln',
+                    NumberRangeReadinessStatus.consolidate =>
+                      'Aktuellen Zahlenraum festigen',
+                    NumberRangeReadinessStatus.ready =>
+                      'Nächster Zahlenraum ist bereit',
+                  },
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                Text(rangeReadiness.reason),
+                if (rangeReadiness.status !=
+                    NumberRangeReadinessStatus.maximum) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '${rangeReadiness.secureCore} von ${rangeReadiness.evidencedCore} beobachteten Kernkompetenzen sicher · '
+                    '${rangeReadiness.confirmedCore} mit Abstand/Transfer bestätigt · '
+                    '${(rangeReadiness.averageIndependentAccuracy * 100).round()} % eigenständig',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+                if (rangeReadiness.isReady &&
+                    rangeReadiness.nextRange != null) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    key: const ValueKey('range-readiness-advance'),
+                    onPressed: () =>
+                        c.setNumberRange(rangeReadiness.nextRange!),
+                    icon: const Icon(Icons.trending_up_rounded),
+                    label: Text(
+                      '${rangeReadiness.nextRange!.label} verwenden',
                     ),
-                  )
-                  .toList(),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 14),

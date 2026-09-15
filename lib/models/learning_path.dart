@@ -58,6 +58,33 @@ class GuidedRoundSegment {
   final bool transferEmphasis;
   final bool scaffoldFading;
 
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'role': role.name,
+        'mode': mode.name,
+        'tasks': tasks,
+        'reason': reason,
+        'targetCompetency': targetCompetency?.name,
+        'reviewEmphasis': reviewEmphasis,
+        'transferEmphasis': transferEmphasis,
+        'scaffoldFading': scaffoldFading,
+      };
+
+  factory GuidedRoundSegment.fromJson(Map<String, dynamic> json) =>
+      GuidedRoundSegment(
+        role: GuidedRoundRole.values.byName(json['role'] as String),
+        mode: TrainingMode.values.byName(json['mode'] as String),
+        tasks: json['tasks'] as int,
+        reason: json['reason'] as String,
+        targetCompetency: json['targetCompetency'] == null
+            ? null
+            : MicroCompetencyId.values.byName(
+                json['targetCompetency'] as String,
+              ),
+        reviewEmphasis: json['reviewEmphasis'] as bool? ?? false,
+        transferEmphasis: json['transferEmphasis'] as bool? ?? false,
+        scaffoldFading: json['scaffoldFading'] as bool? ?? false,
+      );
+
   GuidedRoundSegment copyWith({
     int? tasks,
     String? reason,
@@ -118,6 +145,119 @@ class GuidedRoundOrchestrator {
     }
     return compacted;
   }
+}
+
+class GuidedRoundProgress {
+  const GuidedRoundProgress({
+    required this.plan,
+    required this.completedRoles,
+    required this.gradeLevel,
+    required this.numberRange,
+    required this.startedAt,
+    required this.updatedAt,
+    required this.recoveryRequired,
+    this.stepRecoveryAttempted = false,
+    this.stepRecoveryCompleted = false,
+    this.deferEmergingRecovery = false,
+  });
+
+  final List<GuidedRoundSegment> plan;
+  final Set<GuidedRoundRole> completedRoles;
+  final GradeLevel gradeLevel;
+  final NumberRangeLevel numberRange;
+  final DateTime startedAt;
+  final DateTime updatedAt;
+  final bool recoveryRequired;
+  final bool stepRecoveryAttempted;
+  final bool stepRecoveryCompleted;
+  final bool deferEmergingRecovery;
+
+  bool get isComplete =>
+      plan.every((segment) => completedRoles.contains(segment.role)) &&
+      (!recoveryRequired || stepRecoveryCompleted);
+
+  bool isCompatible({
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+    DateTime? now,
+  }) {
+    if (grade != gradeLevel || range != numberRange) return false;
+    final reference = now ?? DateTime.now();
+    if (updatedAt.isAfter(reference.add(const Duration(minutes: 5)))) {
+      return false;
+    }
+    if (isComplete) {
+      return startedAt.year == reference.year &&
+          startedAt.month == reference.month &&
+          startedAt.day == reference.day;
+    }
+    return reference.difference(updatedAt) <= const Duration(hours: 24);
+  }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'plan': plan.map((segment) => segment.toJson()).toList(),
+        'completedRoles': completedRoles.map((role) => role.name).toList(),
+        'gradeLevel': gradeLevel.name,
+        'numberRange': numberRange.name,
+        'startedAt': startedAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+        'recoveryRequired': recoveryRequired,
+        'stepRecoveryAttempted': stepRecoveryAttempted,
+        'stepRecoveryCompleted': stepRecoveryCompleted,
+        'deferEmergingRecovery': deferEmergingRecovery,
+      };
+
+  factory GuidedRoundProgress.fromJson(Map<String, dynamic> json) =>
+      GuidedRoundProgress(
+        plan: (json['plan'] as List<dynamic>)
+            .map(
+              (entry) => GuidedRoundSegment.fromJson(
+                entry as Map<String, dynamic>,
+              ),
+            )
+            .toList(growable: false),
+        completedRoles: (json['completedRoles'] as List<dynamic>? ?? const [])
+            .map((name) => GuidedRoundRole.values.byName(name as String))
+            .toSet(),
+        gradeLevel: GradeLevel.values.byName(json['gradeLevel'] as String),
+        numberRange:
+            NumberRangeLevel.values.byName(json['numberRange'] as String),
+        startedAt: DateTime.parse(json['startedAt'] as String),
+        updatedAt: DateTime.parse(json['updatedAt'] as String),
+        recoveryRequired: json['recoveryRequired'] as bool? ?? false,
+        stepRecoveryAttempted:
+            json['stepRecoveryAttempted'] as bool? ?? false,
+        stepRecoveryCompleted:
+            json['stepRecoveryCompleted'] as bool? ?? false,
+        deferEmergingRecovery:
+            json['deferEmergingRecovery'] as bool? ?? false,
+      );
+}
+
+enum NumberRangeReadinessStatus { maximum, collecting, consolidate, ready }
+
+class NumberRangeReadiness {
+  const NumberRangeReadiness({
+    required this.status,
+    required this.currentRange,
+    required this.nextRange,
+    required this.evidencedCore,
+    required this.secureCore,
+    required this.confirmedCore,
+    required this.averageIndependentAccuracy,
+    required this.reason,
+  });
+
+  final NumberRangeReadinessStatus status;
+  final NumberRangeLevel currentRange;
+  final NumberRangeLevel? nextRange;
+  final int evidencedCore;
+  final int secureCore;
+  final int confirmedCore;
+  final double averageIndependentAccuracy;
+  final String reason;
+
+  bool get isReady => status == NumberRangeReadinessStatus.ready;
 }
 
 class GuidedStepFocus {
