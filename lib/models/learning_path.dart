@@ -326,6 +326,25 @@ class GradeBridgeStatus {
       : confirmedCompetencies.length / foundationCompetencies.length;
 }
 
+class MicroCompetencyUnlockStatus {
+  const MicroCompetencyUnlockStatus({
+    required this.definition,
+    required this.prerequisites,
+    required this.unmetPrerequisites,
+    required this.nextRequired,
+    required this.reason,
+  });
+
+  final MicroCompetencyDefinition definition;
+  final List<MicroCompetencyDefinition> prerequisites;
+  final List<MicroCompetencyDefinition> unmetPrerequisites;
+  final MicroCompetencyDefinition? nextRequired;
+  final String reason;
+
+  bool get hasPrerequisites => prerequisites.isNotEmpty;
+  bool get isUnlocked => unmetPrerequisites.isEmpty;
+}
+
 class GuidedStepFocus {
   const GuidedStepFocus({
     required this.competencyId,

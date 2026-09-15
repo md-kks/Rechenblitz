@@ -160,6 +160,9 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
   }
 
   Future<void> _showMicroDetails(MicroCompetencyProgress progress) async {
+    final unlock = widget.controller.microCompetencyUnlockStatus(
+      progress.definition.id,
+    );
     final independent = progress.hasIndependentBasisEvidence
         ? '${(progress.independentAccuracy * 100).round()} % richtig'
         : 'noch nicht allein probiert';
@@ -198,6 +201,64 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 18),
+                if (unlock.hasPrerequisites) ...[
+                  Card(
+                    key: ValueKey(
+                      'micro-unlock:${progress.definition.id.name}',
+                    ),
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                unlock.isUnlocked
+                                    ? Icons.lock_open_rounded
+                                    : Icons.lock_outline_rounded,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  unlock.isUnlocked
+                                      ? 'Freigeschaltet'
+                                      : 'Noch nicht freigeschaltet',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(unlock.reason),
+                          if (!unlock.isUnlocked &&
+                              unlock.nextRequired != null) ...[
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              key: ValueKey(
+                                'micro-unlock-practice:${progress.definition.id.name}',
+                              ),
+                              onPressed: () {
+                                final next = unlock.nextRequired!;
+                                Navigator.of(context).pop();
+                                _open(
+                                  next.preferredMode,
+                                  targetCompetency: next.id,
+                                );
+                              },
+                              icon: const Icon(Icons.arrow_back_rounded),
+                              label: Text('Zuerst „${unlock.nextRequired!.label}“ üben'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
                 _EvidenceLine(label: 'Allein', value: independent),
                 _EvidenceLine(label: 'Mit Hilfe', value: aided),
                 _EvidenceLine(label: 'Später noch einmal', value: review),
@@ -429,10 +490,19 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                             mode,
                           ),
                           onOpenMode: () => _open(mode),
+                          unlockStatus: widget.controller.microCompetencyUnlockStatus,
                           onOpenMicro: (progress) => _open(
                             mode,
                             targetCompetency: progress.definition.id,
                           ),
+                          onOpenPrerequisite: (id) {
+                            final definition =
+                                MicroCompetencyCatalog.definition(id);
+                            _open(
+                              definition.preferredMode,
+                              targetCompetency: id,
+                            );
+                          },
                           onInfo: _showMicroDetails,
                         ),
                       )
@@ -453,7 +523,9 @@ class _ModeTile extends StatelessWidget {
     required this.progress,
     required this.micro,
     required this.onOpenMode,
+    required this.unlockStatus,
     required this.onOpenMicro,
+    required this.onOpenPrerequisite,
     required this.onInfo,
   });
 
@@ -461,7 +533,9 @@ class _ModeTile extends StatelessWidget {
   final CompetencyProgress progress;
   final List<MicroCompetencyProgress> micro;
   final VoidCallback onOpenMode;
+  final MicroCompetencyUnlockStatus Function(MicroCompetencyId) unlockStatus;
   final ValueChanged<MicroCompetencyProgress> onOpenMicro;
+  final ValueChanged<MicroCompetencyId> onOpenPrerequisite;
   final ValueChanged<MicroCompetencyProgress> onInfo;
 
   @override
@@ -473,9 +547,13 @@ class _ModeTile extends StatelessWidget {
               entry.state == MicroCompetencyState.mastered,
         )
         .length;
+    final locked = micro
+        .where((entry) => !unlockStatus(entry.definition.id).isUnlocked)
+        .length;
     final summary = micro.isEmpty
         ? progress.state.label
-        : '$microSafe von ${micro.length} Schritten sicher';
+        : '$microSafe von ${micro.length} Schritten sicher'
+            '${locked == 0 ? '' : ' · $locked warten auf Grundlagen'}';
 
     return Card(
       margin: const EdgeInsets.only(top: 8),
@@ -504,11 +582,18 @@ class _ModeTile extends StatelessWidget {
             )
           else
             ...micro.map(
-              (entry) => _MicroStepTile(
-                progress: entry,
-                onTap: () => onOpenMicro(entry),
-                onInfo: () => onInfo(entry),
-              ),
+              (entry) {
+                final unlock = unlockStatus(entry.definition.id);
+                return _MicroStepTile(
+                  progress: entry,
+                  unlock: unlock,
+                  onTap: () => onOpenMicro(entry),
+                  onPrerequisite: unlock.nextRequired == null
+                      ? null
+                      : () => onOpenPrerequisite(unlock.nextRequired!.id),
+                  onInfo: () => onInfo(entry),
+                );
+              },
             ),
         ],
       ),
@@ -519,34 +604,59 @@ class _ModeTile extends StatelessWidget {
 class _MicroStepTile extends StatelessWidget {
   const _MicroStepTile({
     required this.progress,
+    required this.unlock,
     required this.onTap,
+    required this.onPrerequisite,
     required this.onInfo,
   });
 
   final MicroCompetencyProgress progress;
+  final MicroCompetencyUnlockStatus unlock;
   final VoidCallback onTap;
+  final VoidCallback? onPrerequisite;
   final VoidCallback onInfo;
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-    onTap: onTap,
-    leading: Icon(_microIcon(progress.state), size: 22),
-    title: Text(progress.definition.label),
-    subtitle: Text(progress.state.label),
-    trailing: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          key: ValueKey('micro-info:${progress.definition.id.name}'),
-          tooltip: 'Lernstand ansehen',
-          onPressed: onInfo,
-          icon: const Icon(Icons.info_outline_rounded),
-        ),
-        const Icon(Icons.play_arrow_rounded),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final locked = !unlock.isUnlocked;
+    return ListTile(
+      key: ValueKey('micro-step:${progress.definition.id.name}'),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+      onTap: locked ? onPrerequisite : onTap,
+      leading: Icon(
+        locked ? Icons.lock_outline_rounded : _microIcon(progress.state),
+        size: 22,
+      ),
+      title: Text(progress.definition.label),
+      subtitle: Text(
+        locked && unlock.nextRequired != null
+            ? 'Zuerst: ${unlock.nextRequired!.label}'
+            : progress.state.label,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            key: ValueKey('micro-info:${progress.definition.id.name}'),
+            tooltip: 'Lernstand ansehen',
+            onPressed: onInfo,
+            icon: const Icon(Icons.info_outline_rounded),
+          ),
+          if (locked)
+            IconButton(
+              key: ValueKey(
+                'micro-prerequisite:${progress.definition.id.name}',
+              ),
+              tooltip: 'Fehlende Grundlage üben',
+              onPressed: onPrerequisite,
+              icon: const Icon(Icons.arrow_back_rounded),
+            )
+          else
+            const Icon(Icons.play_arrow_rounded),
+        ],
+      ),
+    );
+  }
 }
 
 IconData _microIcon(MicroCompetencyState state) => switch (state) {
