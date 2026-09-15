@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/error_diagnosis.dart';
@@ -25,15 +27,50 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
   bool stepRecoveryAttempted = false;
   bool stepRecoveryCompleted = false;
   bool deferEmergingRecovery = false;
-  late final bool recoveryBudgetedAtStart;
+  bool recoveryRequired = false;
+  late DateTime roundStartedAt;
 
   @override
   void initState() {
     super.initState();
-    recoveryBudgetedAtStart =
-        widget.controller.independentStepRecoveryFocus() != null;
-    plan = widget.controller.buildMyRound();
+    final restored = widget.controller.resumableGuidedRound();
+    if (restored != null) {
+      plan = List<GuidedRoundSegment>.from(restored.plan);
+      completedRoles.addAll(restored.completedRoles);
+      stepRecoveryAttempted = restored.stepRecoveryAttempted;
+      stepRecoveryCompleted = restored.stepRecoveryCompleted;
+      deferEmergingRecovery = restored.deferEmergingRecovery;
+      recoveryRequired = restored.recoveryRequired;
+      roundStartedAt = restored.startedAt;
+      if (recoveryRequired &&
+          !stepRecoveryCompleted &&
+          widget.controller.independentStepRecoveryFocus() == null) {
+        recoveryRequired = false;
+      }
+    } else {
+      roundStartedAt = DateTime.now();
+      recoveryRequired =
+          widget.controller.independentStepRecoveryFocus() != null;
+      plan = widget.controller.buildMyRound();
+    }
+    unawaited(_persistRound());
   }
+
+  GuidedRoundProgress _progressSnapshot() => GuidedRoundProgress(
+        plan: List<GuidedRoundSegment>.from(plan),
+        completedRoles: Set<GuidedRoundRole>.from(completedRoles),
+        gradeLevel: widget.controller.gradeLevel,
+        numberRange: widget.controller.numberRange,
+        startedAt: roundStartedAt,
+        updatedAt: DateTime.now(),
+        recoveryRequired: recoveryRequired,
+        stepRecoveryAttempted: stepRecoveryAttempted,
+        stepRecoveryCompleted: stepRecoveryCompleted,
+        deferEmergingRecovery: deferEmergingRecovery,
+      );
+
+  Future<void> _persistRound() =>
+      widget.controller.saveGuidedRoundProgress(_progressSnapshot());
 
   Future<void> _start(int index) async {
     final segment = plan[index];
@@ -89,7 +126,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
         completedRoles.add(segment.role);
         final emergingRecovery =
             widget.controller.independentStepRecoveryFocus();
-        if (!recoveryBudgetedAtStart &&
+        if (!recoveryRequired &&
             !stepRecoveryAttempted &&
             emergingRecovery != null) {
           final completedTasks = plan
@@ -98,10 +135,12 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
           if (completedTasks > 9) {
             deferEmergingRecovery = true;
           } else {
+            recoveryRequired = true;
             _replanRemaining(compactForRecovery: true);
           }
         }
       });
+      await _persistRound();
     }
   }
 
@@ -122,16 +161,17 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
   Widget build(BuildContext context) {
     final unresolvedStepRecovery = widget.controller
         .independentStepRecoveryFocus();
-    final stepRecovery = stepRecoveryAttempted || deferEmergingRecovery
-        ? null
-        : unresolvedStepRecovery;
+    final stepRecovery =
+        !recoveryRequired || stepRecoveryAttempted || deferEmergingRecovery
+            ? null
+            : unresolvedStepRecovery;
     final remediation = unresolvedStepRecovery == null
         ? widget.controller.remediationCandidate()
         : null;
     final reviewOnly = remediation == null
         ? false
         : widget.controller.remediationReviewOnly(remediation.pattern);
-    final recoveryIncluded = stepRecovery != null || stepRecoveryCompleted;
+    final recoveryIncluded = recoveryRequired;
     final regularDoneTasks = plan
         .where(_isCompleted)
         .fold<int>(0, (sum, segment) => sum + segment.tasks);
@@ -222,6 +262,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                             stepRecoveryAttempted = true;
                             stepRecoveryCompleted = true;
                           });
+                          await _persistRound();
                         }
                       },
                       icon: const Icon(Icons.play_arrow_rounded),
@@ -264,6 +305,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                         );
                         if (mounted) {
                           setState(_replanRemaining);
+                          await _persistRound();
                         }
                       },
                       icon: const Icon(Icons.play_arrow_rounded),

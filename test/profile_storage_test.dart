@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/learner_profile.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
+import 'package:rechenblitz/models/learning_path.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/remediation_path.dart';
@@ -259,5 +260,45 @@ void main() {
     expect(first, hasLength(1));
     expect(first.single.id, MicroCompetencyId.subtractionTenBridge);
   });
+
+  test('Meine Runde bleibt profilgetrennt gespeichert', () async {
+    final storage = StorageService();
+    var profiles = await storage.initializeProfiles();
+    final progress = GuidedRoundProgress(
+      plan: const <GuidedRoundSegment>[
+        GuidedRoundSegment(
+          role: GuidedRoundRole.warmUp,
+          mode: TrainingMode.practice,
+          tasks: 2,
+          reason: 'Ankommen',
+        ),
+      ],
+      completedRoles: const <GuidedRoundRole>{GuidedRoundRole.warmUp},
+      gradeLevel: GradeLevel.second,
+      numberRange: NumberRangeLevel.hundred,
+      startedAt: DateTime(2026, 9, 15, 8),
+      updatedAt: DateTime(2026, 9, 15, 8, 5),
+      recoveryRequired: false,
+    );
+    await storage.saveGuidedRoundProgress(progress);
+
+    final second = LearnerProfile(
+      id: 'round-second',
+      name: 'Zweites Rundenprofil',
+      gradeLevel: GradeLevel.second,
+      createdAt: DateTime(2026, 9, 15),
+    );
+    profiles = <LearnerProfile>[...profiles, second];
+    await storage.saveProfiles(profiles);
+    await storage.setActiveProfileId(second.id);
+    expect(await storage.loadGuidedRoundProgress(), isNull);
+
+    await storage.setActiveProfileId('default');
+    final restored = await storage.loadGuidedRoundProgress();
+    expect(restored, isNotNull);
+    expect(restored!.completedRoles, contains(GuidedRoundRole.warmUp));
+    expect(restored.plan.single.reason, 'Ankommen');
+  });
+
 
 }

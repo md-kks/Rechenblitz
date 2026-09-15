@@ -1205,6 +1205,237 @@ void main() {
     expect(9 + 3, 12, reason: 'Mit drei Recovery-Aufgaben bleibt die Runde bei zwölf.');
   });
 
+
+  test('Rundenfortschritt bleibt am selben Tag wiederaufnehmbar', () async {
+    final controller = AppController();
+    await controller.load();
+    final now = DateTime(2026, 9, 15, 9);
+    final plan = controller.buildMyRound();
+    final progress = GuidedRoundProgress(
+      plan: plan,
+      completedRoles: const <GuidedRoundRole>{GuidedRoundRole.warmUp},
+      gradeLevel: controller.gradeLevel,
+      numberRange: controller.numberRange,
+      startedAt: now,
+      updatedAt: now.add(const Duration(minutes: 4)),
+      recoveryRequired: false,
+    );
+    await controller.saveGuidedRoundProgress(progress);
+
+    final restoredController = AppController();
+    await restoredController.load();
+    final restored = restoredController.resumableGuidedRound(
+      now: now.add(const Duration(hours: 2)),
+    );
+
+    expect(restored, isNotNull);
+    expect(restored!.completedRoles, contains(GuidedRoundRole.warmUp));
+    expect(restored.plan.map((segment) => segment.role), plan.map((segment) => segment.role));
+  });
+
+  test('abgeschlossene Tagesrunde wird erst am Folgetag ungültig', () {
+    final started = DateTime(2026, 9, 15, 8);
+    final progress = GuidedRoundProgress(
+      plan: <GuidedRoundSegment>[
+        _roundSegment(GuidedRoundRole.warmUp, TrainingMode.practice, 2, 'warm'),
+      ],
+      completedRoles: const <GuidedRoundRole>{GuidedRoundRole.warmUp},
+      gradeLevel: GradeLevel.second,
+      numberRange: NumberRangeLevel.hundred,
+      startedAt: started,
+      updatedAt: started.add(const Duration(minutes: 5)),
+      recoveryRequired: false,
+    );
+
+    expect(progress.isComplete, isTrue);
+    expect(
+      progress.isCompatible(
+        grade: GradeLevel.second,
+        range: NumberRangeLevel.hundred,
+        now: DateTime(2026, 9, 15, 20),
+      ),
+      isTrue,
+    );
+    expect(
+      progress.isCompatible(
+        grade: GradeLevel.second,
+        range: NumberRangeLevel.hundred,
+        now: DateTime(2026, 9, 16, 7),
+      ),
+      isFalse,
+    );
+  });
+
+  test('alte oder zahlenraumfremde Zwischenrunde wird nicht fortgesetzt', () {
+    final progress = GuidedRoundProgress(
+      plan: <GuidedRoundSegment>[
+        _roundSegment(GuidedRoundRole.focus, TrainingMode.minus, 5, 'focus'),
+      ],
+      completedRoles: const <GuidedRoundRole>{},
+      gradeLevel: GradeLevel.second,
+      numberRange: NumberRangeLevel.hundred,
+      startedAt: DateTime(2026, 9, 13, 8),
+      updatedAt: DateTime(2026, 9, 13, 9),
+      recoveryRequired: false,
+    );
+
+    expect(
+      progress.isCompatible(
+        grade: GradeLevel.second,
+        range: NumberRangeLevel.hundred,
+        now: DateTime(2026, 9, 15, 9),
+      ),
+      isFalse,
+    );
+    expect(
+      progress.isCompatible(
+        grade: GradeLevel.second,
+        range: NumberRangeLevel.twenty,
+        now: DateTime(2026, 9, 13, 10),
+      ),
+      isFalse,
+    );
+  });
+
+  test('Zahlenraum-Empfehlung wartet auf breite eigenständige Evidenz', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.ten;
+
+    final readiness = controller.numberRangeReadiness();
+
+    expect(readiness.status, NumberRangeReadinessStatus.collecting);
+    expect(readiness.nextRange, NumberRangeLevel.twenty);
+  });
+
+  test('stabile Kernkompetenzen schalten den nächsten Zahlenraum frei', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.ten;
+    final definitions = MicroCompetencyCatalog.forContext(
+      GradeLevel.first,
+      NumberRangeLevel.ten,
+    ).where(
+      (definition) =>
+          definition.domain == MicroCompetencyDomain.numberSense ||
+          definition.domain == MicroCompetencyDomain.arithmetic,
+    ).toList();
+    final start = DateTime(2026, 9, 10, 10);
+    for (final definition in definitions) {
+      for (var index = 0; index < 6; index++) {
+        controller.microObservations.add(
+          MicroCompetencyObservation(
+            id: definition.id,
+            occurredAt: start.add(Duration(minutes: index)),
+            correct: true,
+            evidenceWeight: 1,
+            source: MicroEvidenceSource.practice,
+            usedHelp: false,
+            helpLevel: 0,
+            mode: definition.preferredMode,
+            gradeLevel: GradeLevel.first,
+            numberRange: NumberRangeLevel.ten,
+            taskKey: 'range-ready:${definition.id.name}:$index',
+          ),
+        );
+      }
+    }
+    for (final definition in definitions.take(2)) {
+      controller.microObservations.add(
+        MicroCompetencyObservation(
+          id: definition.id,
+          occurredAt: start.add(const Duration(days: 2)),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          helpLevel: 0,
+          mode: definition.preferredMode,
+          gradeLevel: GradeLevel.first,
+          numberRange: NumberRangeLevel.ten,
+          taskKey: 'range-review:${definition.id.name}',
+        ),
+      );
+    }
+
+    final readiness = controller.numberRangeReadiness();
+
+    expect(readiness.status, NumberRangeReadinessStatus.ready);
+    expect(readiness.nextRange, NumberRangeLevel.twenty);
+    expect(readiness.secureCore, greaterThanOrEqualTo(3));
+    expect(readiness.confirmedCore, greaterThanOrEqualTo(1));
+  });
+
+  test('frische instabile Kernevidenz blockiert Zahlenraum-Aufstieg', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.ten;
+    final definitions = MicroCompetencyCatalog.forContext(
+      GradeLevel.first,
+      NumberRangeLevel.ten,
+    ).where(
+      (definition) =>
+          definition.domain == MicroCompetencyDomain.numberSense ||
+          definition.domain == MicroCompetencyDomain.arithmetic,
+    ).toList();
+    final start = DateTime(2026, 9, 10, 10);
+    for (final definition in definitions) {
+      for (var index = 0; index < 6; index++) {
+        controller.microObservations.add(
+          MicroCompetencyObservation(
+            id: definition.id,
+            occurredAt: start.add(Duration(minutes: index)),
+            correct: true,
+            evidenceWeight: 1,
+            source: MicroEvidenceSource.practice,
+            usedHelp: false,
+            helpLevel: 0,
+            mode: definition.preferredMode,
+            gradeLevel: GradeLevel.first,
+            numberRange: NumberRangeLevel.ten,
+            taskKey: 'range-stable:${definition.id.name}:$index',
+          ),
+        );
+      }
+      controller.microObservations.add(
+        MicroCompetencyObservation(
+          id: definition.id,
+          occurredAt: start.add(const Duration(days: 1)),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          helpLevel: 0,
+          mode: definition.preferredMode,
+          gradeLevel: GradeLevel.first,
+          numberRange: NumberRangeLevel.ten,
+          taskKey: 'range-confirm:${definition.id.name}',
+        ),
+      );
+    }
+    final unstable = definitions.first;
+    controller.microObservations.add(
+      MicroCompetencyObservation(
+        id: unstable.id,
+        occurredAt: start.add(const Duration(days: 3)),
+        correct: false,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        helpLevel: 0,
+        mode: unstable.preferredMode,
+        gradeLevel: GradeLevel.first,
+        numberRange: NumberRangeLevel.ten,
+        taskKey: 'range-unstable:${unstable.id.name}',
+      ),
+    );
+
+    final readiness = controller.numberRangeReadiness();
+
+    expect(readiness.status, NumberRangeReadinessStatus.consolidate);
+    expect(readiness.isReady, isFalse);
+  });
+
 }
 
 

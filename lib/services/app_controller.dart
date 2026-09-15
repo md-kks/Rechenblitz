@@ -41,6 +41,22 @@ class AppController extends ChangeNotifier {
   static const int _stepRecoveryIndependentConfirmations = 2;
   static const Duration _stepRecoveryFreshness = Duration(days: 2);
   static const Duration _unstableReviewRetryGap = Duration(days: 1);
+  static const Set<TrainingMode> _rangeReadinessModes = <TrainingMode>{
+    TrainingMode.practice,
+    TrainingMode.minus,
+    TrainingMode.numberFriends,
+    TrainingMode.multiply,
+    TrainingMode.divide,
+    TrainingMode.numberWall,
+    TrainingMode.missingNumber,
+    TrainingMode.neighbors,
+    TrainingMode.placeValue,
+    TrainingMode.doublesHalves,
+    TrainingMode.sequences,
+    TrainingMode.factFamilies,
+    TrainingMode.largeNumbers,
+    TrainingMode.mentalStrategies,
+  };
 
   static bool _evidenceAtLeast(double value, double threshold) =>
       value + _evidenceEpsilon >= threshold;
@@ -78,6 +94,7 @@ class AppController extends ChangeNotifier {
   Set<String> recoveredWeakFacts = <String>{};
   final Set<String> _pendingBadgeIds = <String>{};
   List<RewardBadge> lastSessionNewBadges = const [];
+  GuidedRoundProgress? guidedRoundProgress;
 
   int get maxValue => numberRange.maxValue;
 
@@ -93,6 +110,28 @@ class AppController extends ChangeNotifier {
   int get effectiveMaxValue => effectiveNumberRange.maxValue;
 
   bool get hasTeacherAssignment => activeTeacherAssignment != null;
+
+  GuidedRoundProgress? resumableGuidedRound({DateTime? now}) {
+    final progress = guidedRoundProgress;
+    if (progress == null) return null;
+    return progress.isCompatible(
+      grade: gradeLevel,
+      range: numberRange,
+      now: now,
+    )
+        ? progress
+        : null;
+  }
+
+  Future<void> saveGuidedRoundProgress(GuidedRoundProgress progress) async {
+    guidedRoundProgress = progress;
+    await storage.saveGuidedRoundProgress(progress);
+  }
+
+  Future<void> clearGuidedRoundProgress() async {
+    guidedRoundProgress = null;
+    await storage.clearGuidedRoundProgress();
+  }
 
   void beginTeacherAssignment(TeacherAssignment assignment) {
     activeTeacherAssignment = assignment;
@@ -139,6 +178,15 @@ class AppController extends ChangeNotifier {
     if (!availableRanges.contains(numberRange)) {
       numberRange = gradeLevel.recommendedRange;
       await storage.setNumberRange(numberRange);
+    }
+    guidedRoundProgress = await storage.loadGuidedRoundProgress();
+    if (guidedRoundProgress != null &&
+        !guidedRoundProgress!.isCompatible(
+          grade: gradeLevel,
+          range: numberRange,
+        )) {
+      guidedRoundProgress = null;
+      await storage.clearGuidedRoundProgress();
     }
     methodPreferences = await storage.methodPreferences();
     unlockedBadges = await storage.rewardBadges();
@@ -2675,8 +2723,121 @@ class AppController extends ChangeNotifier {
     return TrainingMode.practice;
   }
 
+  NumberRangeReadiness numberRangeReadiness() {
+    final ranges = availableRanges;
+    final currentIndex = ranges.indexOf(numberRange);
+    final nextRange = currentIndex >= 0 && currentIndex + 1 < ranges.length
+        ? ranges[currentIndex + 1]
+        : null;
+    if (nextRange == null) {
+      return NumberRangeReadiness(
+        status: NumberRangeReadinessStatus.maximum,
+        currentRange: numberRange,
+        nextRange: null,
+        evidencedCore: 0,
+        secureCore: 0,
+        confirmedCore: 0,
+        averageIndependentAccuracy: 0,
+        reason: 'Für ${gradeLevel.label} ist bereits der höchste verfügbare Zahlenraum eingestellt.',
+      );
+    }
+
+    final core = MicroCompetencyCatalog.forContext(gradeLevel, numberRange)
+        .where(
+          (definition) =>
+              (definition.domain == MicroCompetencyDomain.numberSense ||
+                  definition.domain == MicroCompetencyDomain.arithmetic) &&
+              _rangeReadinessModes.contains(definition.preferredMode),
+        )
+        .map((definition) => microCompetencyProgress(definition.id))
+        .toList(growable: false);
+    final evidenced = core
+        .where((progress) => progress.independentEvidence >= 1.5)
+        .toList(growable: false);
+    final secure = evidenced
+        .where(
+          (progress) =>
+              (progress.state == MicroCompetencyState.secure ||
+                  progress.state == MicroCompetencyState.mastered) &&
+              !progress.basisNeedsReconfirmation,
+        )
+        .toList(growable: false);
+    final confirmed = secure
+        .where(
+          (progress) =>
+              progress.reviewIndependentEvidence >= 0.8 ||
+              progress.transferIndependentEvidence >= 0.8,
+        )
+        .toList(growable: false);
+
+    var requiredEvidence = (core.length * 0.35).ceil();
+    if (core.isNotEmpty && requiredEvidence < 3) {
+      requiredEvidence = core.length < 3 ? core.length : 3;
+    }
+    if (requiredEvidence > 6) requiredEvidence = 6;
+    final totalWeight = evidenced.fold<double>(
+      0,
+      (sum, progress) => sum + progress.independentEvidence,
+    );
+    final weightedCorrect = evidenced.fold<double>(
+      0,
+      (sum, progress) =>
+          sum + progress.independentAccuracy * progress.independentEvidence,
+    );
+    final averageAccuracy =
+        totalWeight == 0 ? 0.0 : weightedCorrect / totalWeight;
+    final secureRatio =
+        evidenced.isEmpty ? 0.0 : secure.length / evidenced.length;
+    final requiredConfirmed = evidenced.length >= 5 ? 2 : 1;
+    final hasUnstableEvidence =
+        evidenced.any((progress) => progress.basisNeedsReconfirmation);
+
+    if (evidenced.length < requiredEvidence || requiredEvidence == 0) {
+      return NumberRangeReadiness(
+        status: NumberRangeReadinessStatus.collecting,
+        currentRange: numberRange,
+        nextRange: nextRange,
+        evidencedCore: evidenced.length,
+        secureCore: secure.length,
+        confirmedCore: confirmed.length,
+        averageIndependentAccuracy: averageAccuracy,
+        reason: 'Für eine belastbare Empfehlung fehlen noch eigenständige Beobachtungen in mehreren Kernkompetenzen.',
+      );
+    }
+
+    if (hasUnstableEvidence ||
+        secureRatio < 0.75 ||
+        averageAccuracy < 0.85 ||
+        confirmed.length < requiredConfirmed) {
+      return NumberRangeReadiness(
+        status: NumberRangeReadinessStatus.consolidate,
+        currentRange: numberRange,
+        nextRange: nextRange,
+        evidencedCore: evidenced.length,
+        secureCore: secure.length,
+        confirmedCore: confirmed.length,
+        averageIndependentAccuracy: averageAccuracy,
+        reason: hasUnstableEvidence
+            ? 'Mindestens eine Kernkompetenz war zuletzt wieder unsicher oder nur mit Hilfe lösbar. Der aktuelle Zahlenraum sollte zuerst stabilisiert werden.'
+            : 'Der aktuelle Zahlenraum ist noch nicht breit genug selbstständig, mit Abstand oder im Transfer bestätigt.',
+      );
+    }
+
+    return NumberRangeReadiness(
+      status: NumberRangeReadinessStatus.ready,
+      currentRange: numberRange,
+      nextRange: nextRange,
+      evidencedCore: evidenced.length,
+      secureCore: secure.length,
+      confirmedCore: confirmed.length,
+      averageIndependentAccuracy: averageAccuracy,
+      reason: 'Die Kernkompetenzen sind überwiegend sicher und mindestens teilweise mit Abstand oder im Transfer bestätigt. ${nextRange.label} kann sinnvoll erprobt werden.',
+    );
+  }
+
   Future<void> setGradeLevel(GradeLevel value) async {
     final gradeChanged = value != gradeLevel;
+    await clearGuidedRoundProgress();
     gradeLevel = value;
     numberRange = value.recommendedRange;
 
@@ -2801,6 +2962,7 @@ class AppController extends ChangeNotifier {
     required GradeLevel grade,
     required GermanState state,
   }) async {
+    await clearGuidedRoundProgress();
     final cleanName = name.trim().isEmpty ? 'Lernprofil' : name.trim();
     gradeLevel = grade;
     numberRange = grade.recommendedRange;
@@ -2909,6 +3071,9 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> setNumberRange(NumberRangeLevel value) async {
+    if (value != numberRange) {
+      await clearGuidedRoundProgress();
+    }
     numberRange = value;
     notifyListeners();
     await storage.setNumberRange(value);
