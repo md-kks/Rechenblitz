@@ -814,6 +814,181 @@ void main() {
     expect(transfer?.definition.id, MicroCompetencyId.additionTenBridge);
   });
 
+  test('stabile Abstandskontrolle wird nach sieben Tagen wieder fällig', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'plus:27:${4 + index}',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 3, 8, index),
+          source: MicroEvidenceSource.review,
+          taskKey: 'review:stable:$index',
+        ),
+      ),
+    ];
+
+    expect(
+      controller.dueReviewMicroCompetency(now: DateTime(2026, 9, 10, 7, 59)),
+      isNull,
+    );
+    expect(
+      controller
+          .dueReviewMicroCompetency(now: DateTime(2026, 9, 10, 8, 1))
+          ?.definition
+          .id,
+      MicroCompetencyId.additionTenBridge,
+    );
+  });
+
+  test('gemeisterte Kompetenz bekommt vierzehn Tage Abstand', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'mastered-base:$index',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 3, 8, index),
+          source: MicroEvidenceSource.review,
+          taskKey: 'mastered-review:$index',
+        ),
+      ),
+      ...List.generate(
+        2,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 4, 8, index),
+          source: MicroEvidenceSource.transfer,
+          mode: TrainingMode.wordProblems,
+          taskKey: 'mastered-transfer:$index',
+        ),
+      ),
+    ];
+
+    expect(
+      controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge).state,
+      MicroCompetencyState.mastered,
+    );
+    expect(
+      controller.dueReviewMicroCompetency(now: DateTime(2026, 9, 17, 7, 59)),
+      isNull,
+    );
+    expect(
+      controller
+          .dueReviewMicroCompetency(now: DateTime(2026, 9, 17, 8, 1))
+          ?.definition
+          .id,
+      MicroCompetencyId.additionTenBridge,
+    );
+  });
+
+  test('stabiler Transfer wird nicht in jeder Runde erneut eingeplant', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'transfer-gap-base:$index',
+        ),
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 5, 8),
+        source: MicroEvidenceSource.transfer,
+        mode: TrainingMode.wordProblems,
+        taskKey: 'transfer-gap-stable',
+      ),
+    ];
+
+    expect(
+      controller.transferCandidateMicroCompetency(
+        now: DateTime(2026, 9, 10, 7, 59),
+        respectSchedule: true,
+      ),
+      isNull,
+    );
+    expect(
+      controller
+          .transferCandidateMicroCompetency(
+            now: DateTime(2026, 9, 10, 8, 1),
+            respectSchedule: true,
+          )
+          ?.definition
+          .id,
+      MicroCompetencyId.additionTenBridge,
+    );
+  });
+
+  test('unsicherer Transfer wird bereits nach einem Tag erneut angeboten', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ...List.generate(
+        6,
+        (index) => _microObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          when: DateTime(2026, 9, 1, 8, index),
+          source: MicroEvidenceSource.practice,
+          taskKey: 'transfer-retry-base:$index',
+        ),
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        when: DateTime(2026, 9, 5, 8),
+        source: MicroEvidenceSource.transfer,
+        mode: TrainingMode.wordProblems,
+        taskKey: 'transfer-retry-unstable',
+        correct: false,
+      ),
+    ];
+
+    expect(
+      controller.transferCandidateMicroCompetency(
+        now: DateTime(2026, 9, 6, 7, 59),
+        respectSchedule: true,
+      ),
+      isNull,
+    );
+    expect(
+      controller
+          .transferCandidateMicroCompetency(
+            now: DateTime(2026, 9, 6, 8, 1),
+            respectSchedule: true,
+          )
+          ?.definition
+          .id,
+      MicroCompetencyId.additionTenBridge,
+    );
+  });
+
   test('Evidenzreihenfolge im Speicher beeinflusst den neuesten Status nicht', () {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
