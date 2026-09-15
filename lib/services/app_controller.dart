@@ -20,6 +20,7 @@ import '../models/training.dart';
 import '../models/task_diversity.dart';
 import '../models/teacher_assignment.dart';
 import 'adaptive_engine.dart';
+import 'micro_evidence_retention.dart';
 import 'speech_service.dart';
 import 'storage_service.dart';
 
@@ -129,11 +130,9 @@ class AppController extends ChangeNotifier {
     history = await storage.loadHistory();
     diagnostics = await storage.loadDiagnostics();
     remediationProgress = await storage.loadRemediationProgress();
-    microObservations = await storage.loadMicroCompetencyObservations();
-    microObservations.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-    if (microObservations.length > 1200) {
-      microObservations = microObservations.take(1200).toList();
-    }
+    microObservations = MicroEvidenceRetention.compact(
+      await storage.loadMicroCompetencyObservations(),
+    );
     recentTaskKeysByMode = await storage.loadTaskDiversity();
     numberRange =
         await storage.numberRange() ?? gradeLevel.recommendedRange;
@@ -339,9 +338,7 @@ class AppController extends ChangeNotifier {
         taskKey: 'independent:$stepKey:$taskKey',
       ),
     );
-    if (microObservations.length > 1200) {
-      microObservations = microObservations.take(1200).toList();
-    }
+    _compactMicroObservations();
     notifyListeners();
     await storage.saveMicroCompetencyObservations(microObservations);
   }
@@ -373,9 +370,7 @@ class AppController extends ChangeNotifier {
         taskKey: 'guided:$methodKey:$stepKey:$taskKey',
       ),
     );
-    if (microObservations.length > 1200) {
-      microObservations = microObservations.take(1200).toList();
-    }
+    _compactMicroObservations();
     notifyListeners();
     await storage.saveMicroCompetencyObservations(microObservations);
   }
@@ -1052,9 +1047,11 @@ class AppController extends ChangeNotifier {
         .toList();
     microObservations.insertAll(0, observations);
 
-    if (microObservations.length > 1200) {
-      microObservations = microObservations.take(1200).toList();
-    }
+    _compactMicroObservations();
+  }
+
+  void _compactMicroObservations() {
+    microObservations = MicroEvidenceRetention.compact(microObservations);
   }
 
   List<MicroCompetencyObservation> _sortedMicroObservationsFor(

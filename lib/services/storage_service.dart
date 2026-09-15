@@ -11,6 +11,7 @@ import '../models/math_fact.dart';
 import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/training.dart';
+import 'micro_evidence_retention.dart';
 
 class StorageService {
   static const _factsKey = 'facts_v1';
@@ -236,13 +237,13 @@ class StorageService {
     final raw = prefs.getString(_profileKey(_microCompetencyKey));
     if (raw == null) return [];
     try {
-      return (jsonDecode(raw) as List<dynamic>)
-          .map(
-            (entry) => MicroCompetencyObservation.fromJson(
-              entry as Map<String, dynamic>,
-            ),
-          )
-          .toList();
+      return MicroEvidenceRetention.compact(
+        (jsonDecode(raw) as List<dynamic>).map(
+          (entry) => MicroCompetencyObservation.fromJson(
+            entry as Map<String, dynamic>,
+          ),
+        ),
+      );
     } catch (_) {
       return [];
     }
@@ -255,8 +256,7 @@ class StorageService {
     await prefs.setString(
       _profileKey(_microCompetencyKey),
       jsonEncode(
-        observations
-            .take(1200)
+        MicroEvidenceRetention.compact(observations)
             .map((entry) => entry.toJson())
             .toList(),
       ),
