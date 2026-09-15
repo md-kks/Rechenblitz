@@ -213,6 +213,8 @@ class TrainingSessionResult {
     this.gradeLevel = GradeLevel.second,
     this.starsEarned = 1,
     this.isAssessment = false,
+    this.plannedTotal,
+    this.adaptiveStopReason,
   });
 
   final TrainingMode mode;
@@ -234,10 +236,18 @@ class TrainingSessionResult {
   final GradeLevel gradeLevel;
   final int starsEarned;
   final bool isAssessment;
+  final int? plannedTotal;
+  final String? adaptiveStopReason;
 
   double get accuracy => total == 0 ? 0 : correctFirstTry / total;
+  bool get endedAdaptively =>
+      adaptiveStopReason != null && plannedTotal != null && total < plannedTotal!;
 
-  TrainingSessionResult copyWith({int? starsEarned}) => TrainingSessionResult(
+  TrainingSessionResult copyWith({
+    int? starsEarned,
+    int? plannedTotal,
+    String? adaptiveStopReason,
+  }) => TrainingSessionResult(
         mode: mode,
         startedAt: startedAt,
         finishedAt: finishedAt,
@@ -257,6 +267,8 @@ class TrainingSessionResult {
         gradeLevel: gradeLevel,
         starsEarned: starsEarned ?? this.starsEarned,
         isAssessment: isAssessment,
+        plannedTotal: plannedTotal ?? this.plannedTotal,
+        adaptiveStopReason: adaptiveStopReason ?? this.adaptiveStopReason,
       );
 
   Map<String, dynamic> toJson() => {
@@ -279,6 +291,8 @@ class TrainingSessionResult {
         'gradeLevel': gradeLevel.name,
         'starsEarned': starsEarned,
         'isAssessment': isAssessment,
+        'plannedTotal': plannedTotal,
+        'adaptiveStopReason': adaptiveStopReason,
       };
 
   factory TrainingSessionResult.fromJson(Map<String, dynamic> json) =>
@@ -307,5 +321,7 @@ class TrainingSessionResult {
             : GradeLevel.values.byName(json['gradeLevel'] as String),
         starsEarned: json['starsEarned'] as int? ?? 1,
         isAssessment: json['isAssessment'] as bool? ?? false,
+        plannedTotal: json['plannedTotal'] as int?,
+        adaptiveStopReason: json['adaptiveStopReason'] as String?,
       );
 }

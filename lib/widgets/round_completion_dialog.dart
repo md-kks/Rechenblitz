@@ -10,6 +10,7 @@ Future<void> showRoundCompletionDialog(
   String? rewardReason,
   List<RewardBadge> newBadges = const <RewardBadge>[],
   double? averageSeconds,
+  String? adaptiveNote,
 }) => showDialog<void>(
   context: context,
   barrierDismissible: false,
@@ -38,15 +39,29 @@ Future<void> showRoundCompletionDialog(
               style: Theme.of(dialogContext).textTheme.bodySmall,
             ),
           ],
+          if (adaptiveNote != null && adaptiveNote.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              key: const ValueKey('round-adaptive-note'),
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Text(adaptiveNote, textAlign: TextAlign.center),
+              ),
+            ),
+          ],
           if (starsEarned > 0) ...[
             const SizedBox(height: 18),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 6,
+              runSpacing: 4,
               children: [
                 const Icon(Icons.star_rounded),
-                const SizedBox(width: 6),
                 Text(
                   '+$starsEarned Sterne',
+                  textAlign: TextAlign.center,
                   style: Theme.of(dialogContext).textTheme.titleLarge,
                 ),
               ],
