@@ -136,6 +136,7 @@ class RemediationTask {
     this.hiddenWallIndex,
     this.clockHour,
     this.clockMinute,
+    this.targetCompetency,
   });
 
   final RemediationStage stage;
@@ -151,6 +152,16 @@ class RemediationTask {
   final int? hiddenWallIndex;
   final int? clockHour;
   final int? clockMinute;
+  final MicroCompetencyId? targetCompetency;
+
+  MicroCompetencyId? get effectiveTargetCompetency {
+    if (targetCompetency != null) return targetCompetency;
+    final tags = MicroCompetencyCatalog.tagsForTask(
+      mode: mode,
+      taskKey: sourceTaskKey,
+    );
+    return tags.length == 1 ? tags.first.id : null;
+  }
 
   bool get usesChoices => choices != null && choices!.isNotEmpty;
 
@@ -215,9 +226,13 @@ class StepRecoveryGenerator {
     'onesDigit',
     'groupCount',
     'itemsPerGroup',
+    'partialGroups',
     'bridgeAmount',
     'remainingAddend',
     'remainingSubtrahend',
+    'firstPartialSubtraction',
+    'firstComplementJump',
+    'secondComplementJump',
     'onesAlignment',
     'regroupDecision',
     'carryDecision',
@@ -326,10 +341,17 @@ class StepRecoveryGenerator {
           _groups(focus, stage, range, askForGroups: true),
         'itemsPerGroup' =>
           _groups(focus, stage, range, askForGroups: false),
+        'partialGroups' => _partialGroupsStep(focus, stage, range),
         'bridgeAmount' => _bridgeAmount(focus, stage, range),
         'remainingAddend' => _remainingAddend(focus, stage, range),
         'remainingSubtrahend' =>
           _remainingSubtrahend(focus, stage, range),
+        'firstPartialSubtraction' =>
+          _firstPartialSubtractionStep(focus, stage, range),
+        'firstComplementJump' =>
+          _complementJumpStep(focus, stage, range, second: false),
+        'secondComplementJump' =>
+          _complementJumpStep(focus, stage, range, second: true),
         'onesAlignment' => _onesAlignment(focus, stage, range),
         'regroupDecision' =>
           _regroupDecision(focus, stage, range, complement: false),
@@ -440,6 +462,98 @@ class StepRecoveryGenerator {
           _areaUnitSquareStructureStep(focus, stage, range),
         _ => throw StateError('Nicht unterstützter Teilschritt: ${focus.stepKey}'),
       };
+
+  RemediationTask _firstPartialSubtractionStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(20, min(range.maxValue, 100));
+    final tensOptions = max(1, min(4, (limit - 10) ~/ 10));
+    final firstPart = (1 + _random.nextInt(tensOptions)) * 10;
+    final rest = _between(1, 9);
+    final subtrahend = firstPart + rest;
+    final minimumStart = subtrahend + 1;
+    final start = _between(
+      minimumStart,
+      max(minimumStart, min(limit, minimumStart + 30)),
+    );
+    final afterFirst = start - firstPart;
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'first-partial-subtraction:$start:$subtrahend:$firstPart',
+      prompt:
+          '$start − $subtrahend: Zerlege $subtrahend in $firstPart + $rest. Rechne nur den ersten Schritt $start − $firstPart. Wo landest du?',
+      answer: afterFirst,
+      max: limit,
+      hint:
+          'Nimm zuerst nur den gut rechenbaren ersten Teil weg. Der Rest $rest kommt erst danach.',
+    );
+  }
+
+  RemediationTask _complementJumpStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range, {
+    required bool second,
+  }) {
+    final limit = max(20, min(range.maxValue, 100));
+    if (!second) {
+      final decade = _between(1, max(1, min(8, limit ~/ 10 - 1))) * 10;
+      final ones = _between(1, 9);
+      final from = min(decade + ones, limit - 1);
+      final target = min(((from ~/ 10) + 1) * 10, limit);
+      final jump = target - from;
+      return _numeric(
+        focus: focus,
+        stage: stage,
+        key: 'first-complement-jump:$from:$target',
+        prompt: 'Ergänze von $from bis zum nächsten vollen Zehner $target. Wie groß ist der erste Sprung?',
+        answer: jump,
+        max: max(10, limit),
+        hint: 'Ergänze nur die Einer bis zum nächsten Zehner. Noch nicht bis zum Endwert springen.',
+      );
+    }
+
+    final fromDecade = _between(1, max(1, min(7, limit ~/ 10 - 1))) * 10;
+    final maxSteps = max(1, min(4, (limit - fromDecade) ~/ 10));
+    final steps = _between(1, maxSteps);
+    final target = fromDecade + steps * 10;
+    final jump = target - fromDecade;
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'second-complement-jump:$fromDecade:$target',
+      prompt:
+          'Der erste Ergänzungssprung ist geschafft und du bist bei $fromDecade. Wie groß ist der nächste Sprung bis $target?',
+      answer: jump,
+      max: max(10, limit),
+      hint: 'Jetzt springst du zwischen vollen Zehnern. Zähle die Zehnerschritte und fasse sie zusammen.',
+    );
+  }
+
+  RemediationTask _partialGroupsStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final limit = max(20, min(range.maxValue, 100));
+    final each = _between(2, min(9, max(2, limit ~/ 3)));
+    final maxGroups = max(3, min(8, limit ~/ each));
+    final groups = _between(3, maxGroups);
+    final partial = 2 * each;
+    return _numeric(
+      focus: focus,
+      stage: stage,
+      key: 'partial-groups:$groups:$each',
+      prompt:
+          '$groups gleich große Gruppen enthalten je $each Dinge. Fasse zuerst nur 2 Gruppen zusammen. Wie viele Dinge sind das?',
+      answer: partial,
+      max: limit,
+      hint: 'Für diesen Zwischenschritt zählt nur 2 × $each. Die übrigen Gruppen kommen später dazu.',
+    );
+  }
 
   RemediationTask _cubeNetLocalFaceRelationStep(
     IndependentStepRecoveryFocus focus,
@@ -4622,6 +4736,26 @@ class RemediationGenerator {
     NumberRangeLevel range,
   ) {
     final limit = min(range.maxValue, grade.index < 2 ? 100 : 1000);
+    if (stage == RemediationStage.transfer &&
+        grade.index >= GradeLevel.third.index) {
+      final exercise = _structured.generate(
+        mode: TrainingMode.wordProblems,
+        maxValue: limit,
+        gradeLevel: grade,
+        transferEmphasis: true,
+      );
+      return RemediationTask(
+        stage: stage,
+        mode: TrainingMode.wordProblems,
+        taskKey: 'remediation:wordProblem:${exercise.key}',
+        prompt: exercise.prompt,
+        answer: exercise.answer,
+        maxAnswerValue: exercise.maxAnswerValue ?? limit,
+        choices: exercise.choices,
+        answerSuffix: exercise.answerSuffix,
+        hint: '${ErrorPattern.wordProblem.firstResponseHint} ${exercise.hint}',
+      );
+    }
     final a = _between(5, max(5, min(200, limit ~/ 2)));
     final b = _between(2, max(2, min(a - 1, 50)));
     final minus = _random.nextBool();
@@ -4655,6 +4789,7 @@ class RemediationGenerator {
       maxValue: exerciseMaxValue,
       gradeLevel: grade,
       targetCompetency: competency,
+      transferEmphasis: stage == RemediationStage.transfer,
     );
     return RemediationTask(
       stage: stage,
@@ -4667,6 +4802,7 @@ class RemediationGenerator {
       choices: exercise.choices,
       answerSuffix: exercise.answerSuffix,
       hint: '${pattern.firstResponseHint} ${exercise.hint}',
+      targetCompetency: competency,
     );
   }
 
@@ -4856,6 +4992,7 @@ class RemediationGenerator {
       maxValue: range.maxValue,
       gradeLevel: grade,
       targetCompetency: competency,
+      transferEmphasis: stage == RemediationStage.transfer,
     );
     return RemediationTask(
       stage: stage,
@@ -4871,6 +5008,7 @@ class RemediationGenerator {
       clockHour: exercise.clockHour,
       clockMinute: exercise.clockMinute,
       hint: '${pattern.firstResponseHint} ${exercise.hint}',
+      targetCompetency: competency,
     );
   }
 
@@ -4898,6 +5036,7 @@ class RemediationGenerator {
       choices: exercise.choices,
       answerSuffix: exercise.answerSuffix,
       hint: '${pattern.firstResponseHint} ${exercise.hint}',
+      targetCompetency: competency,
     );
   }
 
@@ -5069,6 +5208,8 @@ class RemediationGenerator {
       final exercise = _structured.generate(
         mode: preferredMode,
         maxValue: min(range.maxValue, 100),
+        gradeLevel: grade,
+        transferEmphasis: stage == RemediationStage.transfer,
       );
       return RemediationTask(
         stage: stage,

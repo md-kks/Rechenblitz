@@ -56,6 +56,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
     clockHour: current.clockHour,
     clockMinute: current.clockMinute,
     answerSuffix: current.answerSuffix,
+    targetCompetency: current.effectiveTargetCompetency,
   );
 
   GuidedMethodGuide get _guide => GuidedMethodFactory.forTask(
@@ -63,6 +64,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
     taskKey: current.sourceTaskKey,
     expected: current.answer,
     preferences: widget.controller.effectiveMethodPreferences,
+    targetCompetency: current.effectiveTargetCompetency,
   );
 
   int get _currentHelpLevel => switch (current.stage) {
@@ -267,6 +269,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
                 pattern: widget.pattern,
                 taskKey: current.sourceTaskKey,
                 expected: current.answer,
+                methodKey: _guide.methodKey,
               ),
               const SizedBox(height: 10),
               _HintCard(text: current.hint),
