@@ -13,6 +13,51 @@ import 'package:rechenblitz/services/adaptive_engine.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+void _secureMicro(
+  AppController controller,
+  MicroCompetencyId id, {
+  GradeLevel grade = GradeLevel.second,
+  NumberRangeLevel range = NumberRangeLevel.hundred,
+  DateTime? start,
+  bool withTransferEvidence = false,
+}) {
+  final definition = MicroCompetencyCatalog.definition(id);
+  final base = start ?? DateTime(2026, 9, 1, 8);
+  controller.microObservations.addAll(
+    List.generate(
+      6,
+      (index) => MicroCompetencyObservation(
+        id: id,
+        occurredAt: base.add(Duration(minutes: index)),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: definition.preferredMode,
+        gradeLevel: grade,
+        numberRange: range,
+        taskKey: 'secure-${id.name}:$index',
+      ),
+    ),
+  );
+  if (withTransferEvidence) {
+    controller.microObservations.add(
+      MicroCompetencyObservation(
+        id: id,
+        occurredAt: base.add(const Duration(hours: 1)),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.transfer,
+        usedHelp: false,
+        mode: definition.preferredMode,
+        gradeLevel: grade,
+        numberRange: range,
+        taskKey: 'secure-transfer-${id.name}',
+      ),
+    );
+  }
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -173,6 +218,8 @@ void main() {
         taskKey: 'minus:${13 + index}:5',
       ),
     );
+    _secureMicro(controller, MicroCompetencyId.numberDecomposition);
+    _secureMicro(controller, MicroCompetencyId.subtractionNoBridge);
 
     final plan = controller.buildMyRound();
 
@@ -445,6 +492,16 @@ void main() {
         taskKey: 'minus:${30 + index}:8',
       ),
     );
+    _secureMicro(
+      controller,
+      MicroCompetencyId.numberDecomposition,
+      start: DateTime(2026, 9, 2, 11),
+    );
+    _secureMicro(
+      controller,
+      MicroCompetencyId.subtractionNoBridge,
+      start: DateTime(2026, 9, 2, 12),
+    );
 
     expect(
       controller.dueReviewMicroCompetency(
@@ -662,6 +719,18 @@ void main() {
         numberRange: NumberRangeLevel.hundred,
         taskKey: 'minus:${20 + index}:7',
       ),
+    );
+    _secureMicro(
+      controller,
+      MicroCompetencyId.numberDecomposition,
+      start: DateTime(2026, 9, 5, 10),
+      withTransferEvidence: true,
+    );
+    _secureMicro(
+      controller,
+      MicroCompetencyId.subtractionNoBridge,
+      start: DateTime(2026, 9, 5, 11),
+      withTransferEvidence: true,
     );
 
     final candidate = controller.transferCandidateMicroCompetency();
