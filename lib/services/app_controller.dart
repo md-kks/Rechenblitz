@@ -1838,13 +1838,63 @@ class AppController extends ChangeNotifier {
     return MicroCompetencyCatalog.definition(id).preferredMode;
   }
 
-  bool _discoveryPrerequisitesReady(MicroCompetencyDefinition definition) {
-    return definition.prerequisites.every((id) {
-      final progress = microCompetencyProgress(id);
-      return (progress.state == MicroCompetencyState.secure ||
-              progress.state == MicroCompetencyState.mastered) &&
-          !_latestBasisEvidenceIsUnstable(id);
-    });
+  bool _prerequisiteIsReady(MicroCompetencyId id) {
+    final progress = microCompetencyProgress(id);
+    return (progress.state == MicroCompetencyState.secure ||
+            progress.state == MicroCompetencyState.mastered) &&
+        !_latestBasisEvidenceIsUnstable(id);
+  }
+
+  bool _discoveryPrerequisitesReady(MicroCompetencyDefinition definition) =>
+      definition.prerequisites.every(_prerequisiteIsReady);
+
+  MicroCompetencyId? _nextUnmetPrerequisite(
+    MicroCompetencyId id,
+    Set<MicroCompetencyId> visited,
+  ) {
+    if (!visited.add(id)) return null;
+    final definition = MicroCompetencyCatalog.definition(id);
+    for (final prerequisite in definition.prerequisites) {
+      if (_prerequisiteIsReady(prerequisite)) continue;
+      final deeper = _nextUnmetPrerequisite(prerequisite, visited);
+      return deeper ?? prerequisite;
+    }
+    return null;
+  }
+
+  MicroCompetencyUnlockStatus microCompetencyUnlockStatus(
+    MicroCompetencyId id,
+  ) {
+    final definition = MicroCompetencyCatalog.definition(id);
+    final prerequisites = definition.prerequisites
+        .map(MicroCompetencyCatalog.definition)
+        .toList(growable: false);
+    final unmetIds = definition.prerequisites
+        .where((prerequisite) => !_prerequisiteIsReady(prerequisite))
+        .toList(growable: false);
+    final unmet = unmetIds
+        .map(MicroCompetencyCatalog.definition)
+        .toList(growable: false);
+    final nextId = _nextUnmetPrerequisite(id, <MicroCompetencyId>{});
+    final next = nextId == null ? null : MicroCompetencyCatalog.definition(nextId);
+
+    final reason = prerequisites.isEmpty
+        ? 'Dieser Lernschritt hat keine vorgelagerten Pflicht-Grundlagen.'
+        : unmet.isEmpty
+            ? 'Alle ${prerequisites.length} benötigten Grundlagen sind aktuell sicher.'
+            : next == null
+                ? 'Vor diesem Lernschritt müssen zuerst die benötigten Grundlagen sicher werden.'
+                : unmet.length == 1
+                    ? 'Vor „${definition.label}“ braucht es zuerst „${unmet.first.label}“. Als Nächstes üben wir „${next.label}“.'
+                    : 'Vor „${definition.label}“ fehlen noch ${unmet.length} Grundlagen. Als Nächstes üben wir „${next.label}“.';
+
+    return MicroCompetencyUnlockStatus(
+      definition: definition,
+      prerequisites: prerequisites,
+      unmetPrerequisites: unmet,
+      nextRequired: next,
+      reason: reason,
+    );
   }
 
   MicroCompetencyProgress? nextNewMicroCompetency({
