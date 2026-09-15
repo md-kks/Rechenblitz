@@ -220,7 +220,7 @@ void main() {
     }
   });
 
-  test('body property help has a visual without hijacking cube-net tasks', () {
+  test('body property and cube-net help use distinct visuals', () {
     const bodies = <String>[
       'Würfel',
       'Quader',
@@ -249,7 +249,7 @@ void main() {
         taskKey: 'body:cube-net:faces',
         methodKey: 'geometryBodies:cube-net-basics',
       ),
-      isFalse,
+      isTrue,
     );
   });
 
@@ -721,6 +721,183 @@ void main() {
       await tester.pump();
       expect(tester.takeException(), isNull, reason: config.$2);
     }
+  });
+
+
+  test('mega visual help batch covers remaining structural families', () {
+    const cases = <(ErrorPattern, String, String)>[
+      (ErrorPattern.numberRelations, 'wall:2-3-4-5-7-12:1', 'numberWall:relationDirection'),
+      (ErrorPattern.divisionFact, 'divide:24:6', 'division:inverseMultiplication'),
+      (ErrorPattern.mentalStrategy, 'mental:+:47:36', 'mental:placeChunks'),
+      (ErrorPattern.arithmeticLaw, 'law:distribute:7:38', 'arithmeticLaws:structure'),
+      (ErrorPattern.arithmeticLaw, 'process:reasoning:compensate:27:35:2', 'reasoning:relation'),
+      (ErrorPattern.proportionalReasoning, 'proportion:notebooks:4:3:7', 'proportion:unitValue'),
+      (ErrorPattern.symmetry, 'symmetry:Quadrat', 'symmetry:systematic-axes'),
+      (ErrorPattern.planScale, 'plan:scale:100:4', 'scale:operation-choice'),
+      (ErrorPattern.volume, 'volume:4:3:2', 'volume:single-layer'),
+      (ErrorPattern.unknown, 'geomrel:lines:parallel:fourth', 'geometry:line-relation'),
+    ];
+    for (final entry in cases) {
+      expect(
+        LearningVisualAid.canRender(
+          pattern: entry.$1,
+          taskKey: entry.$2,
+          methodKey: entry.$3,
+        ),
+        isTrue,
+        reason: entry.$2,
+      );
+    }
+  });
+
+  testWidgets('number wall visual hides exactly the missing stone', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LearningVisualAid(
+      pattern: ErrorPattern.numberRelations,
+      taskKey: 'wall:2-3-4-5-7-12:1',
+      expected: 3,
+      methodKey: 'numberWall:relationDirection',
+    ))));
+    expect(find.byKey(const ValueKey('help-number-wall')), findsOneWidget);
+    expect(find.text('?'), findsOneWidget);
+    expect(find.byKey(const ValueKey('help-wall-stone-1')), findsOneWidget);
+  });
+
+  testWidgets('division and mental visuals stop before the final result', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LearningVisualAid(
+      pattern: ErrorPattern.divisionFact,
+      taskKey: 'divide:24:6',
+      expected: 4,
+      methodKey: 'division:inverseMultiplication',
+    ))));
+    expect(find.text('6'), findsOneWidget);
+    expect(find.text('24'), findsOneWidget);
+    expect(find.text('4'), findsNothing);
+    expect(find.text('?'), findsOneWidget);
+
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LearningVisualAid(
+      pattern: ErrorPattern.mentalStrategy,
+      taskKey: 'mental:+:47:36',
+      expected: 83,
+      methodKey: 'mental:placeChunks',
+    ))));
+    expect(find.byKey(const ValueKey('help-mental-chunks')), findsOneWidget);
+    expect(find.text('30'), findsOneWidget);
+    expect(find.text('6'), findsOneWidget);
+    expect(find.text('83'), findsNothing);
+  });
+
+  testWidgets('law and reasoning visuals show structure without final answer', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LearningVisualAid(
+      pattern: ErrorPattern.arithmeticLaw,
+      taskKey: 'law:distribute:7:38',
+      expected: 14,
+      methodKey: 'arithmeticLaws:structure',
+    ))));
+    expect(find.byKey(const ValueKey('help-law-distribute')), findsOneWidget);
+    expect(find.textContaining('7 × 38'), findsOneWidget);
+    expect(find.text('14'), findsNothing);
+
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LearningVisualAid(
+      pattern: ErrorPattern.arithmeticLaw,
+      taskKey: 'process:reasoning:commute:6:8',
+      expected: 0,
+      methodKey: 'reasoning:relation',
+    ))));
+    expect(find.byKey(const ValueKey('help-reasoning-structure')), findsOneWidget);
+    expect(find.text('Was verändert sich?'), findsOneWidget);
+  });
+
+  testWidgets('proportion scale and volume keep requested totals open', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: SingleChildScrollView(child: Column(children: [
+      LearningVisualAid(pattern: ErrorPattern.proportionalReasoning, taskKey: 'proportion:notebooks:4:3:7', expected: 28, methodKey: 'proportion:unitValue'),
+      LearningVisualAid(pattern: ErrorPattern.planScale, taskKey: 'plan:scale:100:4', expected: 400, methodKey: 'scale:operation-choice'),
+      LearningVisualAid(pattern: ErrorPattern.volume, taskKey: 'volume:4:3:2', expected: 24, methodKey: 'volume:single-layer'),
+    ])))));
+    expect(find.byKey(const ValueKey('help-proportion-unit')), findsOneWidget);
+    expect(find.text('7 Einheiten = ? €'), findsOneWidget);
+    expect(find.text('28'), findsNothing);
+    expect(find.byKey(const ValueKey('help-plan-scale')), findsOneWidget);
+    expect(find.text('Gesamt: ? m'), findsOneWidget);
+    expect(find.text('400'), findsNothing);
+    expect(find.byKey(const ValueKey('help-volume-layers')), findsOneWidget);
+    expect(find.text('alle Würfel zusammen: ?'), findsOneWidget);
+    expect(find.text('24'), findsNothing);
+  });
+
+  testWidgets('symmetry and geometry relation help teach reference concepts', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: SingleChildScrollView(child: Column(children: [
+      LearningVisualAid(pattern: ErrorPattern.symmetry, taskKey: 'symmetry:Quadrat', expected: 4, methodKey: 'symmetry:systematic-axes'),
+      LearningVisualAid(pattern: ErrorPattern.unknown, taskKey: 'geomrel:lines:parallel:fourth', expected: 0, methodKey: 'geometry:line-relation'),
+      LearningVisualAid(pattern: ErrorPattern.unknown, taskKey: 'geomrel:circle:radius:fourth', expected: 0, methodKey: 'geometry:circle-parts'),
+    ])))));
+    expect(find.byKey(const ValueKey('help-symmetry-axis')), findsOneWidget);
+    expect(find.text('4'), findsNothing);
+    expect(find.byKey(const ValueKey('help-geomrel-lines')), findsOneWidget);
+    expect(find.byKey(const ValueKey('help-geomrel-circle')), findsOneWidget);
+  });
+
+  testWidgets('mega visual help batch stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const cases = <(ErrorPattern, String, int, String)>[
+      (ErrorPattern.numberRelations, 'wall:2-3-4-5-7-12:1', 3, 'numberWall:relationDirection'),
+      (ErrorPattern.divisionFact, 'divide:24:6', 4, 'division:inverseMultiplication'),
+      (ErrorPattern.mentalStrategy, 'mental:+:47:36', 83, 'mental:placeChunks'),
+      (ErrorPattern.arithmeticLaw, 'law:associate:40:27:60', 0, 'arithmeticLaws:structure'),
+      (ErrorPattern.proportionalReasoning, 'proportion:notebooks:4:3:7', 28, 'proportion:unitValue'),
+      (ErrorPattern.symmetry, 'symmetry:Quadrat', 4, 'symmetry:systematic-axes'),
+      (ErrorPattern.planScale, 'plan:scale:100:4', 400, 'scale:operation-choice'),
+      (ErrorPattern.volume, 'volume:4:3:2', 24, 'volume:single-layer'),
+      (ErrorPattern.unknown, 'geomrel:angle:right:paper:fourth', 0, 'geometry:right-angle-reference'),
+    ];
+    for (final entry in cases) {
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(child: LearningVisualAid(
+        pattern: entry.$1, taskKey: entry.$2, expected: entry.$3, methodKey: entry.$4,
+      )))));
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: entry.$2);
+    }
+  });
+
+
+  test('large-number and cube-net help use task-specific visuals', () {
+    const cases = <(ErrorPattern, String, String)>[
+      (ErrorPattern.placeValue, 'large:order:1200-1300-2200', 'largeNumbers:order'),
+      (ErrorPattern.placeValue, 'large:word:read:3047', 'largeNumbers:numberWord'),
+      (ErrorPattern.placeValue, 'large:decompose:3047', 'largeNumbers:decompose'),
+      (ErrorPattern.spatialReasoning, 'body:cube-net:faces', 'geometryBodies:cube-net-basics'),
+    ];
+    for (final entry in cases) {
+      expect(LearningVisualAid.canRender(pattern: entry.$1, taskKey: entry.$2, methodKey: entry.$3), isTrue, reason: entry.$2);
+    }
+  });
+
+  testWidgets('large-number visuals preserve unsolved ordering and word reading', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: SingleChildScrollView(child: Column(children: [
+      LearningVisualAid(pattern: ErrorPattern.placeValue, taskKey: 'large:order:1200-1300-2200', expected: 0, methodKey: 'largeNumbers:order'),
+      LearningVisualAid(pattern: ErrorPattern.placeValue, taskKey: 'large:word:read:3047', expected: 0, methodKey: 'largeNumbers:numberWord'),
+    ])))));
+    expect(find.byKey(const ValueKey('help-large-order')), findsOneWidget);
+    expect(find.textContaining('Noch nicht sortieren'), findsOneWidget);
+    expect(find.byKey(const ValueKey('help-large-word-structure')), findsOneWidget);
+    expect(find.text('3.047'), findsNothing);
+  });
+
+  testWidgets('cube-net visual teaches folding without judging the task', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LearningVisualAid(
+      pattern: ErrorPattern.spatialReasoning,
+      taskKey: 'body:cube-net:fold:yes:local:demo:net',
+      expected: 0,
+      methodKey: 'geometryBodies:cube-net-basics',
+    ))));
+    expect(find.byKey(const ValueKey('help-cube-net-fold')), findsOneWidget);
+    expect(find.textContaining('nicht die Lösung'), findsOneWidget);
+    expect(find.textContaining('Ja'), findsNothing);
+    expect(find.textContaining('Nein'), findsNothing);
   });
 
   test('generated structured and upper-primary tasks have specific help', () {
