@@ -334,9 +334,7 @@ class AppController extends ChangeNotifier {
         taskKey: 'independent:$stepKey:$taskKey',
       ),
     );
-    if (microObservations.length > 1200) {
-      microObservations = microObservations.take(1200).toList();
-    }
+    _compactMicroObservationsIfNeeded();
     notifyListeners();
     await storage.saveMicroCompetencyObservations(microObservations);
   }
@@ -368,11 +366,42 @@ class AppController extends ChangeNotifier {
         taskKey: 'guided:$methodKey:$stepKey:$taskKey',
       ),
     );
-    if (microObservations.length > 1200) {
-      microObservations = microObservations.take(1200).toList();
-    }
+    _compactMicroObservationsIfNeeded();
     notifyListeners();
     await storage.saveMicroCompetencyObservations(microObservations);
+  }
+
+  String _microObservationBucket(MicroEvidenceSource source) =>
+      switch (source) {
+        MicroEvidenceSource.practice || MicroEvidenceSource.remediation => 'base',
+        MicroEvidenceSource.review => 'review',
+        MicroEvidenceSource.transfer => 'transfer',
+        MicroEvidenceSource.independentStep => 'independentStep',
+        MicroEvidenceSource.guidedStep => 'guidedStep',
+      };
+
+  int _microObservationBucketLimit(String bucket) => switch (bucket) {
+        'base' => 32,
+        'review' || 'transfer' => 16,
+        'independentStep' || 'guidedStep' => 20,
+        _ => 12,
+      };
+
+  void _compactMicroObservationsIfNeeded() {
+    if (microObservations.length <= 2400) return;
+    final ordered = List<MicroCompetencyObservation>.from(microObservations)
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final counts = <String, int>{};
+    final retained = <MicroCompetencyObservation>[];
+    for (final observation in ordered) {
+      final bucket = _microObservationBucket(observation.source);
+      final key = '${observation.gradeLevel.name}|${observation.numberRange.name}|${observation.id.name}|$bucket';
+      final count = counts[key] ?? 0;
+      if (count >= _microObservationBucketLimit(bucket)) continue;
+      counts[key] = count + 1;
+      retained.add(observation);
+    }
+    microObservations = retained;
   }
 
   Future<void> recordAttempt(
@@ -1047,9 +1076,7 @@ class AppController extends ChangeNotifier {
         .toList();
     microObservations.insertAll(0, observations);
 
-    if (microObservations.length > 1200) {
-      microObservations = microObservations.take(1200).toList();
-    }
+    _compactMicroObservationsIfNeeded();
   }
 
   MicroCompetencyProgress microCompetencyProgress(
@@ -1068,10 +1095,16 @@ class AppController extends ChangeNotifier {
       ...matchingObservations
           .where(
             (entry) =>
-                entry.source != MicroEvidenceSource.independentStep &&
-                entry.source != MicroEvidenceSource.guidedStep,
+                entry.source == MicroEvidenceSource.practice ||
+                entry.source == MicroEvidenceSource.remediation,
           )
           .take(24),
+      ...matchingObservations
+          .where((entry) => entry.source == MicroEvidenceSource.review)
+          .take(12),
+      ...matchingObservations
+          .where((entry) => entry.source == MicroEvidenceSource.transfer)
+          .take(12),
       ...matchingObservations
           .where((entry) => entry.source == MicroEvidenceSource.independentStep)
           .take(12),
@@ -1114,8 +1147,13 @@ class AppController extends ChangeNotifier {
     var guidedStepEvidence = 0.0;
     var guidedStepCorrectEvidence = 0.0;
     var guidedStepObservations = 0;
+    DateTime? lastIndependentBaseSeen;
     DateTime? lastReviewSeen;
+    DateTime? lastIndependentReviewSeen;
+    bool? lastIndependentReviewCorrect;
     DateTime? lastTransferSeen;
+    DateTime? lastIndependentTransferSeen;
+    bool? lastIndependentTransferCorrect;
 
     for (final observation in observations) {
       evidence += observation.evidenceWeight;
@@ -1136,6 +1174,8 @@ class AppController extends ChangeNotifier {
           }
           if (!observation.usedHelp) {
             reviewIndependentEvidence += observation.evidenceWeight;
+            lastIndependentReviewSeen ??= observation.occurredAt;
+            lastIndependentReviewCorrect ??= observation.correct;
             if (observation.correct) {
               reviewIndependentCorrectEvidence += observation.evidenceWeight;
             }
@@ -1150,6 +1190,8 @@ class AppController extends ChangeNotifier {
           }
           if (!observation.usedHelp) {
             transferIndependentEvidence += observation.evidenceWeight;
+            lastIndependentTransferSeen ??= observation.occurredAt;
+            lastIndependentTransferCorrect ??= observation.correct;
             if (observation.correct) {
               transferIndependentCorrectEvidence +=
                   observation.evidenceWeight;
@@ -1167,6 +1209,7 @@ class AppController extends ChangeNotifier {
           }
           if (!observation.usedHelp) {
             independentEvidence += observation.evidenceWeight;
+            lastIndependentBaseSeen ??= observation.occurredAt;
             if (observation.correct) {
               independentCorrectEvidence += observation.evidenceWeight;
             }
@@ -1187,6 +1230,7 @@ class AppController extends ChangeNotifier {
           }
           if (!observation.usedHelp) {
             independentEvidence += observation.evidenceWeight;
+            lastIndependentBaseSeen ??= observation.occurredAt;
             if (observation.correct) {
               independentCorrectEvidence += observation.evidenceWeight;
             }
@@ -1274,8 +1318,13 @@ class AppController extends ChangeNotifier {
       independentStepObservations: independentStepObservations,
       guidedStepObservations: guidedStepObservations,
       lastSeen: matchingObservations.first.occurredAt,
+      lastIndependentBaseSeen: lastIndependentBaseSeen,
       lastReviewSeen: lastReviewSeen,
+      lastIndependentReviewSeen: lastIndependentReviewSeen,
+      lastIndependentReviewCorrect: lastIndependentReviewCorrect,
       lastTransferSeen: lastTransferSeen,
+      lastIndependentTransferSeen: lastIndependentTransferSeen,
+      lastIndependentTransferCorrect: lastIndependentTransferCorrect,
     );
   }
 
@@ -1528,64 +1577,126 @@ class AppController extends ChangeNotifier {
     return candidates.isEmpty ? null : candidates.first;
   }
 
+  Duration _reviewIntervalFor(MicroCompetencyProgress progress) {
+    if (progress.lastIndependentReviewSeen == null) {
+      return const Duration(days: 2);
+    }
+    if (progress.lastIndependentReviewCorrect == false ||
+        progress.reviewIndependentAccuracy < _masteredReviewAccuracy) {
+      return const Duration(days: 1);
+    }
+    if (progress.state == MicroCompetencyState.mastered) {
+      if (_evidenceAtLeast(progress.reviewIndependentEvidence, 4.0) &&
+          progress.reviewIndependentAccuracy >= 0.90) {
+        return const Duration(days: 30);
+      }
+      return const Duration(days: 14);
+    }
+    if (_evidenceAtLeast(
+          progress.reviewIndependentEvidence,
+          _masteredReviewEvidence,
+        ) &&
+        progress.reviewIndependentAccuracy >= _masteredReviewAccuracy) {
+      return const Duration(days: 7);
+    }
+    return const Duration(days: 2);
+  }
+
+  DateTime? _reviewAnchorFor(MicroCompetencyProgress progress) =>
+      progress.lastIndependentReviewSeen ?? progress.lastIndependentBaseSeen;
+
+  DateTime? _reviewDueAt(MicroCompetencyProgress progress) {
+    final anchor = _reviewAnchorFor(progress);
+    if (anchor == null) return null;
+    return anchor.add(_reviewIntervalFor(progress));
+  }
+
   MicroCompetencyProgress? dueReviewMicroCompetency({
     DateTime? now,
   }) {
     final reference = now ?? DateTime.now();
-    final secure = microCompetenciesForGrade()
-        .where(
-          (progress) {
-            if (progress.lastSeen == null ||
-                (progress.state != MicroCompetencyState.secure &&
-                    progress.state != MicroCompetencyState.mastered)) {
-              return false;
-            }
-            final hasStableDelayedEvidence = _evidenceAtLeast(
-                  progress.reviewIndependentEvidence,
-                  _masteredReviewEvidence,
-                ) &&
-                progress.reviewIndependentAccuracy >=
-                    _masteredReviewAccuracy;
-            final requiredGap = hasStableDelayedEvidence
-                ? const Duration(days: 7)
-                : const Duration(days: 2);
-            return reference.difference(progress.lastSeen!) >= requiredGap;
-          },
-        )
-        .toList()
-      ..sort((a, b) => a.lastSeen!.compareTo(b.lastSeen!));
-    return secure.isEmpty ? null : secure.first;
+    final due = <(MicroCompetencyProgress, DateTime)>[];
+    for (final progress in microCompetenciesForGrade()) {
+      if (progress.state != MicroCompetencyState.secure &&
+          progress.state != MicroCompetencyState.mastered) {
+        continue;
+      }
+      final dueAt = _reviewDueAt(progress);
+      if (dueAt == null || reference.isBefore(dueAt)) continue;
+      due.add((progress, dueAt));
+    }
+    due.sort((a, b) {
+      final dueOrder = a.$2.compareTo(b.$2);
+      if (dueOrder != 0) return dueOrder;
+      return a.$1.definition.id.index.compareTo(b.$1.definition.id.index);
+    });
+    return due.isEmpty ? null : due.first.$1;
+  }
+
+  Duration _transferIntervalFor(MicroCompetencyProgress progress) {
+    if (progress.lastIndependentTransferSeen == null) return Duration.zero;
+    if (progress.lastIndependentTransferCorrect == false ||
+        progress.transferIndependentAccuracy < _masteredTransferAccuracy) {
+      return const Duration(days: 2);
+    }
+    if (progress.state == MicroCompetencyState.mastered) {
+      return const Duration(days: 14);
+    }
+    if (_evidenceAtLeast(
+          progress.transferIndependentEvidence,
+          _masteredTransferEvidence,
+        ) &&
+        progress.transferIndependentAccuracy >= _masteredTransferAccuracy) {
+      return const Duration(days: 7);
+    }
+    return const Duration(days: 2);
+  }
+
+  DateTime? _transferDueAt(MicroCompetencyProgress progress) {
+    final lastTransfer = progress.lastIndependentTransferSeen;
+    if (lastTransfer == null) return null;
+    return lastTransfer.add(_transferIntervalFor(progress));
   }
 
   MicroCompetencyProgress? transferCandidateMicroCompetency({
     MicroCompetencyId? excluding,
+    DateTime? now,
   }) {
+    final reference = now ?? DateTime.now();
     final candidates = microCompetenciesForGrade()
         .where(
-          (progress) =>
-              progress.definition.id != excluding &&
-              (progress.state == MicroCompetencyState.secure ||
-                  progress.state == MicroCompetencyState.mastered),
+          (progress) {
+            if (progress.definition.id == excluding ||
+                (progress.state != MicroCompetencyState.secure &&
+                    progress.state != MicroCompetencyState.mastered)) {
+              return false;
+            }
+            final dueAt = _transferDueAt(progress);
+            return dueAt == null || !reference.isBefore(dueAt);
+          },
         )
         .toList()
       ..sort((a, b) {
+        if (a.lastIndependentTransferSeen == null &&
+            b.lastIndependentTransferSeen != null) {
+          return -1;
+        }
+        if (a.lastIndependentTransferSeen != null &&
+            b.lastIndependentTransferSeen == null) {
+          return 1;
+        }
+        final aDue = _transferDueAt(a);
+        final bDue = _transferDueAt(b);
+        if (aDue != null && bDue != null) {
+          final dueOrder = aDue.compareTo(bDue);
+          if (dueOrder != 0) return dueOrder;
+        }
         final evidenceOrder = a.transferIndependentEvidence
             .compareTo(b.transferIndependentEvidence);
         if (evidenceOrder != 0) return evidenceOrder;
         final accuracyOrder = a.transferIndependentAccuracy
             .compareTo(b.transferIndependentAccuracy);
         if (accuracyOrder != 0) return accuracyOrder;
-        if (a.lastTransferSeen == null && b.lastTransferSeen != null) {
-          return -1;
-        }
-        if (a.lastTransferSeen != null && b.lastTransferSeen == null) {
-          return 1;
-        }
-        if (a.lastTransferSeen != null && b.lastTransferSeen != null) {
-          final ageOrder =
-              a.lastTransferSeen!.compareTo(b.lastTransferSeen!);
-          if (ageOrder != 0) return ageOrder;
-        }
         return b.baseEvidence.compareTo(a.baseEvidence);
       });
     return candidates.isEmpty ? null : candidates.first;
@@ -1608,18 +1719,42 @@ class AppController extends ChangeNotifier {
     return MicroCompetencyCatalog.definition(id).preferredMode;
   }
 
+  bool _prerequisitesReadyForDiscovery(
+    MicroCompetencyDefinition definition,
+  ) {
+    for (final prerequisite in definition.prerequisites) {
+      final prerequisiteDefinition = MicroCompetencyCatalog.definition(prerequisite);
+      if (!prerequisiteDefinition.appliesTo(gradeLevel) ||
+          !prerequisiteDefinition.appliesToNumberRange(numberRange)) {
+        continue;
+      }
+      final progress = microCompetencyProgress(prerequisite);
+      if (progress.state != MicroCompetencyState.secure &&
+          progress.state != MicroCompetencyState.mastered) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   MicroCompetencyProgress? nextNewMicroCompetency() {
     final preferred = recommendedMode();
-    for (final definition in MicroCompetencyCatalog.forContext(gradeLevel, numberRange)) {
+    final definitions =
+        MicroCompetencyCatalog.forContext(gradeLevel, numberRange);
+    for (final definition in definitions) {
       final progress = microCompetencyProgress(definition.id);
       if (progress.state == MicroCompetencyState.newSkill &&
-          definition.preferredMode == preferred) {
+          definition.preferredMode == preferred &&
+          _prerequisitesReadyForDiscovery(definition)) {
         return progress;
       }
     }
-    for (final definition in MicroCompetencyCatalog.forContext(gradeLevel, numberRange)) {
+    for (final definition in definitions) {
       final progress = microCompetencyProgress(definition.id);
-      if (progress.state == MicroCompetencyState.newSkill) return progress;
+      if (progress.state == MicroCompetencyState.newSkill &&
+          _prerequisitesReadyForDiscovery(definition)) {
+        return progress;
+      }
     }
     return null;
   }
@@ -1714,6 +1849,7 @@ class AppController extends ChangeNotifier {
     final reviewMicro = dueReviewMicroCompetency(now: now);
     final transferMicro = transferCandidateMicroCompetency(
       excluding: reviewMicro?.definition.id,
+      now: now,
     );
     final newMicro = nextNewMicroCompetency();
 
@@ -1857,6 +1993,7 @@ class AppController extends ChangeNotifier {
 
     final transfer = transferCandidateMicroCompetency(
       excluding: review?.definition.id,
+      now: now,
     );
     if (transfer != null) return transfer;
 
@@ -2066,6 +2203,7 @@ class AppController extends ChangeNotifier {
       final dueReview = dueReviewMicroCompetency(now: now);
       final transfer = transferCandidateMicroCompetency(
         excluding: dueReview?.definition.id,
+        now: now,
       );
 
       final good = strongestMicro == null

@@ -163,4 +163,43 @@ void main() {
     }
     expect(engine.minusTargetShare(facts), lessThan(0.56));
   });
+  test('frisch geübte Fakten pausieren zugunsten länger nicht gesehener Fakten', () {
+    final engine = AdaptiveEngine(random: Random(20260915));
+    final now = DateTime(2026, 9, 15, 8);
+    final fresh = MathFact(
+      a: 9,
+      b: 4,
+      operation: MathOperation.minus,
+      attempts: 6,
+      correctAttempts: 6,
+      averageResponseMs: 2400,
+      lastPracticed: now.subtract(const Duration(minutes: 5)),
+    );
+    final stale = MathFact(
+      a: 8,
+      b: 3,
+      operation: MathOperation.minus,
+      attempts: 6,
+      correctAttempts: 6,
+      averageResponseMs: 2400,
+      lastPracticed: now.subtract(const Duration(days: 8)),
+    );
+
+    var freshCount = 0;
+    var staleCount = 0;
+    for (var i = 0; i < 800; i++) {
+      final selected = engine.selectNext(
+        facts: [fresh, stale],
+        mode: TrainingMode.minus,
+        maxValue: 10,
+        now: now,
+      );
+      if (selected.key == fresh.key) freshCount++;
+      if (selected.key == stale.key) staleCount++;
+    }
+
+    expect(staleCount, greaterThan(freshCount));
+    expect(staleCount, greaterThan(500));
+  });
+
 }

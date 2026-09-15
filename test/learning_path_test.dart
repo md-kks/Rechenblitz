@@ -160,7 +160,7 @@ void main() {
     );
 
     final insight = controller.parentInsight(
-      now: DateTime(2026, 9, 3, 10),
+      now: DateTime(2026, 9, 3, 10, 6),
     );
 
     expect(insight.focus, contains('zeitlichem Abstand'));
@@ -289,7 +289,7 @@ void main() {
     ];
 
     final insight = controller.parentInsight(
-      now: DateTime(2026, 9, 5, 12),
+      now: DateTime(2026, 9, 17, 12, 2),
     );
 
     expect(insight.mastery, contains('„Gemeistert“'));

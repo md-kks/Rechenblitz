@@ -120,7 +120,9 @@ class AdaptiveEngine {
     String? previousKey,
     Iterable<String> recentKeys = const <String>[],
     MicroCompetencyId? targetCompetency,
+    DateTime? now,
   }) {
+    final reference = now ?? DateTime.now();
     var candidates =
         facts.where((f) => isValid(f, maxValue: maxValue)).toList();
 
@@ -279,7 +281,9 @@ class AdaptiveEngine {
       throw StateError('Keine Aufgabe für $mode im Zahlenraum $maxValue.');
     }
 
-    final weights = candidates.map(_weightFor).toList();
+    final weights = candidates
+        .map((fact) => _weightFor(fact, reference))
+        .toList();
     final totalWeight = weights.fold<double>(0, (a, b) => a + b);
     var pick = _random.nextDouble() * totalWeight;
     for (var i = 0; i < candidates.length; i++) {
@@ -295,23 +299,32 @@ class AdaptiveEngine {
     return {10, 20, 50, 100};
   }
 
-  double _weightFor(MathFact fact) {
+  double _weightFor(MathFact fact, DateTime reference) {
     final masteryNeed = 1.15 + (1 - fact.masteryScore) * 4.2;
     final errorBoost = 1 + fact.incorrectAttempts * 0.32;
     final speedBoost = fact.averageResponseMs > 6500 ? 1.45 : 1.0;
     final helpBoost = 1 + fact.helpCount * 0.18;
     final unseenBoost = fact.attempts == 0 ? 1.55 : 1.0;
-    final recencyBoost = fact.lastPracticed == null
-        ? 1.25
-        : DateTime.now().difference(fact.lastPracticed!).inHours > 12
-            ? 1.18
-            : 1.0;
+    final recencyBoost = _recencyWeight(fact.lastPracticed, reference);
     return masteryNeed *
         errorBoost *
         speedBoost *
         helpBoost *
         unseenBoost *
         recencyBoost;
+  }
+
+  double _recencyWeight(DateTime? lastPracticed, DateTime reference) {
+    if (lastPracticed == null) return 1.30;
+    var age = reference.difference(lastPracticed);
+    if (age.isNegative) age = Duration.zero;
+    if (age < const Duration(minutes: 15)) return 0.55;
+    if (age < const Duration(hours: 2)) return 0.72;
+    if (age < const Duration(hours: 12)) return 0.88;
+    if (age < const Duration(days: 1)) return 1.00;
+    if (age < const Duration(days: 3)) return 1.12;
+    if (age < const Duration(days: 7)) return 1.20;
+    return 1.28;
   }
 
   String recommendation(Iterable<MathFact> facts, {int maxValue = 10}) {

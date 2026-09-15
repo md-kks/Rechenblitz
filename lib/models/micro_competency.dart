@@ -262,8 +262,13 @@ class MicroCompetencyProgress {
     this.independentStepObservations = 0,
     this.guidedStepObservations = 0,
     this.lastSeen,
+    this.lastIndependentBaseSeen,
     this.lastReviewSeen,
+    this.lastIndependentReviewSeen,
+    this.lastIndependentReviewCorrect,
     this.lastTransferSeen,
+    this.lastIndependentTransferSeen,
+    this.lastIndependentTransferCorrect,
   });
 
   final MicroCompetencyDefinition definition;
@@ -294,8 +299,13 @@ class MicroCompetencyProgress {
   final int independentStepObservations;
   final int guidedStepObservations;
   final DateTime? lastSeen;
+  final DateTime? lastIndependentBaseSeen;
   final DateTime? lastReviewSeen;
+  final DateTime? lastIndependentReviewSeen;
+  final bool? lastIndependentReviewCorrect;
   final DateTime? lastTransferSeen;
+  final DateTime? lastIndependentTransferSeen;
+  final bool? lastIndependentTransferCorrect;
 
   bool get hasIndependentBasisEvidence => independentEvidence > 0;
   bool get hasIndependentReviewEvidence => reviewIndependentEvidence > 0;

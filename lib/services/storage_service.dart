@@ -255,10 +255,7 @@ class StorageService {
     await prefs.setString(
       _profileKey(_microCompetencyKey),
       jsonEncode(
-        observations
-            .take(1200)
-            .map((entry) => entry.toJson())
-            .toList(),
+        observations.map((entry) => entry.toJson()).toList(),
       ),
     );
   }
