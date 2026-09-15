@@ -21,15 +21,16 @@ class MyRoundScreen extends StatefulWidget {
 
 class _MyRoundScreenState extends State<MyRoundScreen> {
   late List<GuidedRoundSegment> plan;
-  final Set<int> completed = {};
-  late final bool hadStepRecoveryAtStart;
+  final Set<GuidedRoundRole> completedRoles = <GuidedRoundRole>{};
   bool stepRecoveryAttempted = false;
   bool stepRecoveryCompleted = false;
+  bool deferEmergingRecovery = false;
+  late final bool recoveryBudgetedAtStart;
 
   @override
   void initState() {
     super.initState();
-    hadStepRecoveryAtStart =
+    recoveryBudgetedAtStart =
         widget.controller.independentStepRecoveryFocus() != null;
     plan = widget.controller.buildMyRound();
   }
@@ -84,38 +85,69 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
 
     if (!mounted) return;
     if (widget.controller.history.length > before) {
-      setState(() => completed.add(index));
+      setState(() {
+        completedRoles.add(segment.role);
+        final emergingRecovery =
+            widget.controller.independentStepRecoveryFocus();
+        if (!recoveryBudgetedAtStart &&
+            !stepRecoveryAttempted &&
+            emergingRecovery != null) {
+          final completedTasks = plan
+              .where(_isCompleted)
+              .fold<int>(0, (sum, item) => sum + item.tasks);
+          if (completedTasks > 9) {
+            deferEmergingRecovery = true;
+          } else {
+            _replanRemaining(compactForRecovery: true);
+          }
+        }
+      });
     }
   }
+
+  void _replanRemaining({bool compactForRecovery = false}) {
+    final updated = widget.controller.buildMyRound();
+    plan = GuidedRoundOrchestrator.mergeRemaining(
+      current: plan,
+      updated: updated,
+      completedRoles: completedRoles,
+      regularTaskBudget: compactForRecovery ? 9 : null,
+    );
+  }
+
+  bool _isCompleted(GuidedRoundSegment segment) =>
+      completedRoles.contains(segment.role);
 
   @override
   Widget build(BuildContext context) {
     final unresolvedStepRecovery = widget.controller
         .independentStepRecoveryFocus();
-    final stepRecovery = stepRecoveryAttempted ? null : unresolvedStepRecovery;
+    final stepRecovery = stepRecoveryAttempted || deferEmergingRecovery
+        ? null
+        : unresolvedStepRecovery;
     final remediation = unresolvedStepRecovery == null
         ? widget.controller.remediationCandidate()
         : null;
     final reviewOnly = remediation == null
         ? false
         : widget.controller.remediationReviewOnly(remediation.pattern);
-    final regularDoneTasks = [
-      for (var i = 0; i < plan.length; i++)
-        if (completed.contains(i)) plan[i].tasks,
-    ].fold<int>(0, (a, b) => a + b);
+    final recoveryIncluded = stepRecovery != null || stepRecoveryCompleted;
+    final regularDoneTasks = plan
+        .where(_isCompleted)
+        .fold<int>(0, (sum, segment) => sum + segment.tasks);
     final doneTasks = regularDoneTasks + (stepRecoveryCompleted ? 3 : 0);
     final regularTotalTasks = plan.fold<int>(
       0,
       (sum, segment) => sum + segment.tasks,
     );
-    final totalTasks = regularTotalTasks + (hadStepRecoveryAtStart ? 3 : 0);
+    final totalTasks = regularTotalTasks + (recoveryIncluded ? 3 : 0);
     final allDone =
-        completed.length == plan.length &&
-        (!hadStepRecoveryAtStart || stepRecoveryCompleted);
+        plan.every(_isCompleted) &&
+        (!recoveryIncluded || stepRecoveryCompleted);
 
     int? nextIndex;
     for (var i = 0; i < plan.length; i++) {
-      if (!completed.contains(i)) {
+      if (!_isCompleted(plan[i])) {
         nextIndex = i;
         break;
       }
@@ -231,9 +263,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                           ),
                         );
                         if (mounted) {
-                          setState(() {
-                            plan = widget.controller.buildMyRound();
-                          });
+                          setState(_replanRemaining);
                         }
                       },
                       icon: const Icon(Icons.play_arrow_rounded),
@@ -259,11 +289,13 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      nextSegment.mode.title,
+                      '${nextSegment.role.label}: ${nextSegment.mode.title}',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 6),
                     Text('${nextSegment.tasks} Aufgaben'),
+                    const SizedBox(height: 6),
+                    Text(nextSegment.reason),
                     const SizedBox(height: 14),
                     FilledButton.icon(
                       key: const ValueKey('round-next-button'),
@@ -288,12 +320,14 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                   for (var index = 0; index < plan.length; index++)
                     ListTile(
                       leading: CircleAvatar(
-                        child: completed.contains(index)
+                        child: _isCompleted(plan[index])
                             ? const Icon(Icons.check_rounded)
                             : Text('${index + 1}'),
                       ),
-                      title: Text(plan[index].mode.title),
-                      subtitle: Text('${plan[index].tasks} Aufgaben'),
+                      title: Text('${plan[index].role.label}: ${plan[index].mode.title}'),
+                      subtitle: Text(
+                        '${plan[index].tasks} Aufgaben · ${plan[index].reason}',
+                      ),
                     ),
                 ],
               ),
