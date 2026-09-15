@@ -39,6 +39,7 @@ class LearningVisualAid extends StatelessWidget {
       );
     }
     if (methodKey == 'addition:toFullTen' ||
+        methodKey == 'addition:direct' ||
         methodKey == 'numberFriends:decomposition' ||
         taskKey.startsWith('gap:') ||
         taskKey.startsWith('neighbor:') ||
@@ -74,7 +75,8 @@ class LearningVisualAid extends StatelessWidget {
         taskKey.startsWith('process:strategy:') ||
         taskKey.startsWith('process:error:') ||
         taskKey.startsWith('process:plausibility:') ||
-        taskKey.startsWith('process:representation:')) {
+        taskKey.startsWith('process:representation:') ||
+        taskKey.startsWith('story:calc:')) {
       return true;
     }
     return switch (pattern) {
@@ -132,8 +134,10 @@ class LearningVisualAid extends StatelessWidget {
     }
     final processChild = methodKey == 'numberFriends:decomposition'
         ? _numberFriendAid()
-        : methodKey == 'addition:toFullTen'
-            ? _additionToFullTenAid()
+        : methodKey == 'addition:direct'
+            ? _additionDirectAid()
+            : methodKey == 'addition:toFullTen'
+                ? _additionToFullTenAid()
             : taskKey.startsWith('double:') || taskKey.startsWith('half:')
                 ? _doubleHalfAid(context)
                 : taskKey.startsWith('family:')
@@ -164,7 +168,9 @@ class LearningVisualAid extends StatelessWidget {
                                                                 : taskKey.startsWith('body:') &&
                                                             !taskKey.startsWith('body:cube-net:')
                                                         ? _geometryBodyAid(context)
-                                                        : taskKey.startsWith('gap:')
+                                                        : taskKey.startsWith('story:calc:')
+                                    ? _wordProblemCalculationAid(context)
+                                    : taskKey.startsWith('gap:')
             ? _missingNumberAid()
             : taskKey.startsWith('neighbor:')
                 ? _neighborAid()
@@ -689,6 +695,101 @@ class LearningVisualAid extends StatelessWidget {
             ],
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _wordProblemCalculationAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    if (parts.length < 5) {
+      return const _AidLabel(
+        title: 'Rechenplan ausführen',
+        text: 'Die passende Rechnung steht fest. Rechne sie jetzt Schritt für Schritt aus.',
+      );
+    }
+    final operation = parts[2];
+    final a = int.tryParse(parts[3]);
+    final b = int.tryParse(parts[4]);
+    if (a == null || b == null) {
+      return const _AidLabel(
+        title: 'Rechenplan ausführen',
+        text: 'Die passende Rechnung steht fest. Rechne sie jetzt Schritt für Schritt aus.',
+      );
+    }
+    final symbol = switch (operation) {
+      '+' => '+',
+      '-' => '−',
+      'x' => '×',
+      'divide' => '÷',
+      _ => '?',
+    };
+    final relation = switch (operation) {
+      '+' => 'Zwei Mengen werden zusammengelegt.',
+      '-' => 'Von der vorhandenen Menge wird etwas weggenommen.',
+      'x' => 'Gleich große Gruppen werden zusammengezählt.',
+      'divide' => 'Die Gesamtmenge wird gleichmäßig auf Gruppen verteilt.',
+      _ => 'Führe die bereits gewählte Rechenart aus.',
+    };
+    return Column(
+      key: const ValueKey('help-story-calculation'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AidLabel(title: 'Rechenplan ausführen', text: relation),
+        const SizedBox(height: 12),
+        Center(
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('$a')),
+              Text(symbol, style: Theme.of(context).textTheme.headlineSmall),
+              Chip(label: Text('$b')),
+              Text('=', style: Theme.of(context).textTheme.headlineSmall),
+              const Chip(label: Text('?')),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text('Das Ergebnis bleibt offen. Rechne es selbst aus.'),
+      ],
+    );
+  }
+
+  Widget _additionDirectAid() {
+    final numbers = _numbers(taskKey);
+    if (numbers.length < 2) {
+      return const _AidLabel(
+        title: 'Direkt addieren',
+        text: 'Halte die Startzahl fest und gehe um den zweiten Summanden weiter.',
+      );
+    }
+    final a = numbers[numbers.length - 2];
+    final b = numbers.last;
+    return Column(
+      key: const ValueKey('help-addition-direct'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _AidLabel(
+          title: 'Direkt addieren',
+          text:
+              'Hier wird kein Zehner überschritten. Lies den Weg von links nach rechts und bestimme das Ziel selbst.',
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            Chip(label: Text('Start: $a')),
+            const Icon(Icons.arrow_forward_rounded),
+            Chip(label: Text('+$b')),
+            const Icon(Icons.arrow_forward_rounded),
+            const Chip(label: Text('Ziel: ?')),
+          ],
+        ),
       ],
     );
   }

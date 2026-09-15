@@ -19,6 +19,7 @@ enum TouchInteractionKind {
   calendarStepper,
   geometryRelationChoice,
   cubeNetFoldChoice,
+  cubeNetFaceCounter,
   bodyPropertySelector,
   largeNumberCompare,
   largeNumberOrder,
@@ -756,11 +757,85 @@ class TouchInteractionPlan {
       }
     }
 
+    if (mode == TrainingMode.wordProblems &&
+        taskKey.startsWith('process:representation:')) {
+      final parts = taskKey.split(':');
+      if (parts.length >= 4) {
+        final kind = parts[2];
+        if ((kind == 'place' || kind == 'decompose') && parts.length >= 4) {
+          final number = int.tryParse(parts[3]);
+          if (number != null && number >= 0) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.largeNumberDecompose,
+              instruction: kind == 'place'
+                  ? 'Übertrage die Stellenwertdarstellung vollständig in die Stellenwerttafel.'
+                  : 'Baue die Zahl Stelle für Stelle so auf, dass sie genau zur Zerlegung passt.',
+              dataValues: <int>[number],
+              dataOperation: 'representation-choice',
+              expectedAnswer: answer,
+              maxValue: max(maxValue, number),
+              answerChoices: choices ?? const <String>[],
+            );
+          }
+        }
+        if (kind == 'groups' && parts.length >= 5) {
+          final groups = int.tryParse(parts[3]);
+          final each = int.tryParse(parts[4]);
+          if (groups != null && each != null && groups > 0 && each > 0) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.storyEquationBuilder,
+              instruction:
+                  'Die Gruppenanzahl und Gruppengröße wurden geprüft. Übersetze das Punktefeld jetzt in eine Rechnung.',
+              dataValues: <int>[groups, each],
+              dataLabels: const <String>['+', 'x'],
+              dataOperation: 'x',
+              expectedAnswer: answer,
+              answerChoices: choices ?? const <String>[],
+            );
+          }
+        }
+        if (kind == 'equation' && parts.length >= 5) {
+          final groups = int.tryParse(parts[3]);
+          final each = int.tryParse(parts[4]);
+          if (groups != null && each != null && groups > 0 && each > 0) {
+            return TouchInteractionPlan(
+              taskKey: taskKey,
+              kind: TouchInteractionKind.equalGroupsBuilder,
+              instruction:
+                  'Die Faktoren wurden geprüft. Baue jetzt das passende Gruppenbild zur Rechnung.',
+              groupCount: groups,
+              itemsPerGroup: each,
+              totalItems: groups * each,
+              dataOperation: 'representation-choice',
+              expectedAnswer: answer,
+              answerChoices: choices ?? const <String>[],
+            );
+          }
+        }
+      }
+    }
+
+    if (mode == TrainingMode.geometryBodies && taskKey == 'body:cube-net:faces') {
+      return TouchInteractionPlan(
+        taskKey: taskKey,
+        kind: TouchInteractionKind.cubeNetFaceCounter,
+        instruction:
+            'Tippe jedes Quadrat des Würfelnetzes genau einmal an. So siehst du, wie viele Flächen der Würfel später hat.',
+        dataLabels: const <String>['1,0', '0,1', '1,1', '2,1', '3,1', '1,2'],
+        expectedAnswer: answer,
+        maxValue: 6,
+      );
+    }
+
     if (targetCompetency == MicroCompetencyId.multiplicationGroups) {
       final multiplication = _multiplicationGroupsSpec(mode, taskKey);
       if (multiplication != null) {
-        final groups = multiplication.$1;
-        final each = multiplication.$2;
+        final first = multiplication.$1;
+        final second = multiplication.$2;
+        final groups = first <= 6 ? first : second;
+        final each = first <= 6 ? second : first;
         final total = groups * each;
         if (groups > 0 && each > 0 && groups <= 6 && total <= 48) {
           return TouchInteractionPlan(

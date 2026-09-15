@@ -43,6 +43,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int calendarSteps = 0;
   int? selectedGeometryCandidate;
   int? selectedCubeNetChoice;
+  final Set<int> selectedCubeNetFaces = <int>{};
   int? selectedLargePlace;
   int? selectedLargeRelation;
   int? selectedLargeDigitPlace;
@@ -156,6 +157,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     calendarSteps = 0;
     selectedGeometryCandidate = null;
     selectedCubeNetChoice = null;
+    selectedCubeNetFaces.clear();
     selectedLargePlace = null;
     selectedLargeRelation = null;
     selectedLargeDigitPlace = null;
@@ -330,6 +332,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               _buildGeometryRelationChoice(context),
             TouchInteractionKind.cubeNetFoldChoice =>
               _buildCubeNetFoldChoice(context),
+            TouchInteractionKind.cubeNetFaceCounter =>
+              _buildCubeNetFaceCounter(context),
             TouchInteractionKind.bodyPropertySelector =>
               _buildBodyPropertySelector(context),
             TouchInteractionKind.largeNumberCompare =>
@@ -3071,7 +3075,20 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         const SizedBox(height: 8),
         FilledButton(
           key: const ValueKey('touch-large-decompose-submit'),
-          onPressed: widget.locked ? null : () => widget.onAnswer(built),
+          onPressed: widget.locked
+              ? null
+              : () {
+                  if (widget.plan.dataOperation == 'representation-choice') {
+                    final expected = widget.plan.expectedAnswer ?? 0;
+                    widget.onAnswer(
+                      built == number
+                          ? expected
+                          : _wrongAnswer(expected, expected),
+                    );
+                  } else {
+                    widget.onAnswer(built);
+                  }
+                },
           child: const Text('Prüfen'),
         ),
       ],
@@ -3210,6 +3227,92 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               ? null
               : () => widget.onAnswer(selectedCubeNetChoice!),
           child: const Text('Prüfen'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCubeNetFaceCounter(BuildContext context) {
+    final cells = widget.plan.dataLabels
+        .map((raw) => raw.split(','))
+        .where((parts) => parts.length == 2)
+        .map((parts) => (int.tryParse(parts[0]) ?? 0, int.tryParse(parts[1]) ?? 0))
+        .toList(growable: false);
+    if (cells.isEmpty) return const SizedBox.shrink();
+    final maxX = cells.map((cell) => cell.$1).reduce(math.max);
+    final maxY = cells.map((cell) => cell.$2).reduce(math.max);
+    final indexByCell = <(int, int), int>{
+      for (var index = 0; index < cells.length; index++) cells[index]: index,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 300),
+            child: AspectRatio(
+              aspectRatio: (maxX + 1) / math.max(1, maxY + 1),
+              child: GridView.builder(
+                key: const ValueKey('touch-cube-net-face-grid'),
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: (maxX + 1) * (maxY + 1),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: maxX + 1,
+                ),
+                itemBuilder: (context, gridIndex) {
+                  final cell = (gridIndex % (maxX + 1), gridIndex ~/ (maxX + 1));
+                  final faceIndex = indexByCell[cell];
+                  if (faceIndex == null) return const SizedBox.shrink();
+                  final selected = selectedCubeNetFaces.contains(faceIndex);
+                  return InkWell(
+                    key: ValueKey('touch-cube-net-face-$faceIndex'),
+                    onTap: widget.locked
+                        ? null
+                        : () => setState(() {
+                              if (!selectedCubeNetFaces.add(faceIndex)) {
+                                selectedCubeNetFaces.remove(faceIndex);
+                              }
+                            }),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      margin: const EdgeInsets.all(1.5),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : Theme.of(context).colorScheme.surfaceContainerHighest,
+                        border: Border.all(
+                          color: selected
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.outline,
+                          width: selected ? 3 : 1.5,
+                        ),
+                      ),
+                      child: selected
+                          ? const Icon(Icons.check_rounded)
+                          : const SizedBox.shrink(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '${selectedCubeNetFaces.length} Quadrate markiert',
+          key: const ValueKey('touch-cube-net-face-count'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          key: const ValueKey('touch-cube-net-face-submit'),
+          onPressed: widget.locked
+              ? null
+              : () => widget.onAnswer(selectedCubeNetFaces.length),
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Flächenzahl prüfen'),
         ),
       ],
     );
