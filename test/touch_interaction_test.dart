@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/cube_net.dart';
@@ -11,6 +13,7 @@ import 'package:rechenblitz/screens/curriculum_training_screen.dart';
 import 'package:rechenblitz/screens/structured_training_screen.dart';
 import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
+import 'package:rechenblitz/services/adaptive_engine.dart';
 import 'package:rechenblitz/widgets/number_answer_pad.dart';
 import 'package:rechenblitz/widgets/touch_answer_interaction.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -3585,15 +3588,14 @@ void main() {
       }
     }
 
-    expect(
-      TouchInteractionPlan.forTask(
-        mode: TrainingMode.geometryBodies,
-        taskKey: 'body:cube-net:faces',
-        answer: 6,
-        maxValue: 20,
-      ),
-      isNull,
+    final cubeNetFaces = TouchInteractionPlan.forTask(
+      mode: TrainingMode.geometryBodies,
+      taskKey: 'body:cube-net:faces',
+      answer: 6,
+      maxValue: 20,
     );
+    expect(cubeNetFaces?.kind, TouchInteractionKind.cubeNetFaceCounter);
+    expect(cubeNetFaces?.dataLabels, hasLength(6));
   });
 
   testWidgets('all body property touch diagrams expose the real feature count', (
@@ -7367,6 +7369,225 @@ void main() {
     );
   });
 
+  test('representation translation planner covers all four directions', () {
+    final place = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'process:representation:place:47',
+      answer: 2,
+      maxValue: 100,
+      choices: const ['46', '48', '47', '37'],
+      targetCompetency: MicroCompetencyId.representationTranslation,
+    );
+    final decompose = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'process:representation:decompose:47',
+      answer: 1,
+      maxValue: 100,
+      choices: const ['30 + 7', '40 + 7', '40 + 8', '4 + 7'],
+      targetCompetency: MicroCompetencyId.representationTranslation,
+    );
+    final groups = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'process:representation:groups:3:4',
+      answer: 0,
+      maxValue: 20,
+      choices: const ['3 × 4', '3 + 4', '4 × 4', '3 × 5'],
+      targetCompetency: MicroCompetencyId.representationTranslation,
+    );
+    final equation = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'process:representation:equation:3:4',
+      answer: 0,
+      maxValue: 20,
+      choices: const [
+        '3 Gruppen mit je 4 Punkten',
+        '4 Gruppen mit je 4 Punkten',
+        '3 Gruppen mit je 5 Punkten',
+        '3 Gruppen mit je 3 Punkten',
+      ],
+      targetCompetency: MicroCompetencyId.representationTranslation,
+    );
+    expect(place?.kind, TouchInteractionKind.largeNumberDecompose);
+    expect(place?.dataOperation, 'representation-choice');
+    expect(decompose?.kind, TouchInteractionKind.largeNumberDecompose);
+    expect(groups?.kind, TouchInteractionKind.storyEquationBuilder);
+    expect(groups?.dataOperation, 'x');
+    expect(equation?.kind, TouchInteractionKind.equalGroupsBuilder);
+    expect(equation?.dataOperation, 'representation-choice');
+  });
+
+  testWidgets('place-value representation submits the original choice only after exact build', (tester) async {
+    final answers = <int>[];
+    const plan = TouchInteractionPlan(
+      taskKey: 'process:representation:place:23',
+      kind: TouchInteractionKind.largeNumberDecompose,
+      instruction: 'Baue die Zahl.',
+      dataValues: <int>[23],
+      dataOperation: 'representation-choice',
+      expectedAnswer: 2,
+      maxValue: 100,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: answers.add),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('touch-large-digit-plus-10')));
+    await tester.tap(find.byKey(const ValueKey('touch-large-digit-plus-10')));
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const ValueKey('touch-large-digit-plus-1')));
+    }
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-large-decompose-submit')));
+    expect(answers.single, 2);
+  });
+
+  testWidgets('representation groups translate to equation and back to groups', (tester) async {
+    final equationAnswers = <int>[];
+    const groupsPlan = TouchInteractionPlan(
+      taskKey: 'process:representation:groups:3:4',
+      kind: TouchInteractionKind.storyEquationBuilder,
+      instruction: 'Übersetze.',
+      dataValues: <int>[3, 4],
+      dataLabels: <String>['+', 'x'],
+      dataOperation: 'x',
+      expectedAnswer: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: groupsPlan, onAnswer: equationAnswers.add),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-left-0')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-op-1')));
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-right-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-story-equation-submit')));
+    expect(equationAnswers.single, 1);
+
+    final groupAnswers = <int>[];
+    const equationPlan = TouchInteractionPlan(
+      taskKey: 'process:representation:equation:2:3',
+      kind: TouchInteractionKind.equalGroupsBuilder,
+      instruction: 'Baue das Gruppenbild.',
+      groupCount: 2,
+      itemsPerGroup: 3,
+      totalItems: 6,
+      dataOperation: 'representation-choice',
+      expectedAnswer: 3,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: equationPlan, onAnswer: groupAnswers.add),
+          ),
+        ),
+      ),
+    );
+    for (var group = 0; group < 2; group++) {
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.byKey(ValueKey('touch-equal-group-$group-add')));
+      }
+    }
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-equal-groups-submit')));
+    expect(groupAnswers.single, 3);
+  });
+
+  testWidgets('cube-net face counter needs every actual square', (tester) async {
+    final answers = <int>[];
+    const plan = TouchInteractionPlan(
+      taskKey: 'body:cube-net:faces',
+      kind: TouchInteractionKind.cubeNetFaceCounter,
+      instruction: 'Markiere die Quadrate.',
+      dataLabels: <String>['1,0', '0,1', '1,1', '2,1', '3,1', '1,2'],
+      expectedAnswer: 6,
+      maxValue: 6,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: answers.add),
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.tap(find.byKey(ValueKey('touch-cube-net-face-$i')));
+    }
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-cube-net-face-submit')));
+    expect(answers.last, 5);
+    await tester.tap(find.byKey(const ValueKey('touch-cube-net-face-5')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-cube-net-face-submit')));
+    expect(answers.last, 6);
+  });
+
+  test('targeted multiplication groups select manipulable positive facts', () {
+    final engine = AdaptiveEngine(random: Random(26091551));
+    final facts = AdaptiveEngine.buildFactPool(maxValue: 20);
+    for (var i = 0; i < 60; i++) {
+      final fact = engine.selectNext(
+        facts: facts,
+        mode: TrainingMode.multiply,
+        maxValue: 20,
+        targetCompetency: MicroCompetencyId.multiplicationGroups,
+      );
+      expect(fact.a, greaterThan(0));
+      expect(fact.b, greaterThan(0));
+      expect(min(fact.a, fact.b), lessThanOrEqualTo(6));
+      expect(fact.result, lessThanOrEqualTo(48));
+      final plan = TouchInteractionPlan.forTask(
+        mode: TrainingMode.multiply,
+        taskKey: fact.key,
+        answer: fact.result,
+        maxValue: 20,
+        targetCompetency: MicroCompetencyId.multiplicationGroups,
+      );
+      expect(plan?.kind, TouchInteractionKind.equalGroupsBuilder);
+    }
+  });
+
+  testWidgets('new representation touch stays stable at 200 percent text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    const plan = TouchInteractionPlan(
+      taskKey: 'body:cube-net:faces',
+      kind: TouchInteractionKind.cubeNetFaceCounter,
+      instruction: 'Tippe jedes Quadrat genau einmal an.',
+      dataLabels: <String>['1,0', '0,1', '1,1', '2,1', '3,1', '1,2'],
+      expectedAnswer: 6,
+      maxValue: 6,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('touch-cube-net-face-grid')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
 }
 
 void _noopAnswer(int value) {}
@@ -7401,4 +7622,6 @@ class _FixedStructuredGenerator extends StructuredExerciseGenerator {
     GradeLevel gradeLevel = GradeLevel.second,
     bool transferEmphasis = false,
   }) => exercise;
+
+
 }

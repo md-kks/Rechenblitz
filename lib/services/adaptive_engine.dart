@@ -145,6 +145,21 @@ class AdaptiveEngine {
           .toList(),
     };
 
+    if (mode == TrainingMode.multiply &&
+        targetCompetency == MicroCompetencyId.multiplicationGroups) {
+      final groupFacts = candidates
+          .where(
+            (fact) =>
+                fact.operation == MathOperation.multiply &&
+                fact.a > 0 &&
+                fact.b > 0 &&
+                min(fact.a, fact.b) <= 6 &&
+                fact.result <= 48,
+          )
+          .toList();
+      if (groupFacts.isNotEmpty) candidates = groupFacts;
+    }
+
     if (mode == TrainingMode.divide &&
         targetCompetency == MicroCompetencyId.divisionFacts) {
       final diagnosticFacts = candidates

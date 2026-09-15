@@ -260,6 +260,7 @@ class GuidedMethodFactory {
     if (fact != null && fact.operation == MathOperation.plus) {
       if (_landsOnNextTen(fact)) return _additionToFullTen(fact);
       if (_needsAdditionBridge(fact)) return _additionBridge(fact);
+      return _additionWithoutBridge(fact);
     }
 
     if (fact != null && fact.operation == MathOperation.minus) {
@@ -1474,6 +1475,28 @@ class GuidedMethodFactory {
           instruction: groups == null || each == null
               ? 'Schreibe: Anzahl der Gruppen × Anzahl je Gruppe.'
               : '$groups Gruppen mit je $each Punkten entsprechen $groups × $each.',
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _additionWithoutBridge(MathFact fact) {
+    final a = fact.a;
+    final b = fact.b;
+    return GuidedMethodGuide(
+      methodKey: 'addition:direct',
+      methodLabel: 'Direkt weiterzählen',
+      nudge:
+          'Bei $a + $b musst du keinen Zehner überschreiten. Starte bei $a und gehe $b weiter.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Startzahl festhalten',
+          instruction: 'Beginne bei $a. Die $a bleiben vollständig erhalten.',
+        ),
+        GuidedMethodStep(
+          title: 'Direkt addieren',
+          instruction:
+              'Gehe jetzt genau $b weiter. Bestimme den Zielwert selbst.',
         ),
       ],
     );

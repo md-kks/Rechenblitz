@@ -938,4 +938,54 @@ void main() {
       }
     }
   });
+
+  testWidgets('direct addition visual keeps the result unsolved', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LearningVisualAid(
+            pattern: ErrorPattern.countingStep,
+            taskKey: 'plus:3:4',
+            expected: 7,
+            methodKey: 'addition:direct',
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('help-addition-direct')), findsOneWidget);
+    expect(find.text('Start: 3'), findsOneWidget);
+    expect(find.text('+4'), findsOneWidget);
+    expect(find.text('Ziel: ?'), findsOneWidget);
+    expect(find.text('Ziel: 7'), findsNothing);
+  });
+
+  testWidgets('story calculation visual keeps all four results unsolved', (tester) async {
+    const cases = <(String, String)>[
+      ('story:calc:+:8:7', '+'),
+      ('story:calc:-:15:6', '−'),
+      ('story:calc:x:4:6', '×'),
+      ('story:calc:divide:24:4', '÷'),
+    ];
+    for (final entry in cases) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: LearningVisualAid(
+              pattern: ErrorPattern.countingStep,
+              taskKey: entry.$1,
+              expected: 999,
+              methodKey: 'wordProblem:meaning',
+            ),
+          ),
+        ),
+      );
+      expect(find.byKey(const ValueKey('help-story-calculation')), findsOneWidget);
+      expect(find.text(entry.$2), findsOneWidget);
+      expect(find.text('?'), findsOneWidget);
+      expect(find.text('999'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+
 }
