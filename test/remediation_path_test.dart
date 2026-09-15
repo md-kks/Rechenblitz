@@ -3605,4 +3605,43 @@ void main() {
     }
   });
 
+  testWidgets('Meine Runde hält Recovery im Zwölf-Aufgaben-Budget und zeigt Rollen',
+      (tester) async {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    controller.microObservations = [
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.writtenDivideProcedure,
+        occurredAt: DateTime.now(),
+        correct: false,
+        evidenceWeight: 0.35,
+        source: MicroEvidenceSource.independentStep,
+        usedHelp: false,
+        mode: TrainingMode.writtenDivide,
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        taskKey: 'independent:firstQuotientDigit:written:divide:324:6',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(home: MyRoundScreen(controller: controller)),
+    );
+    await tester.pump();
+
+    expect(find.text('0 von 12 Aufgaben'), findsOneWidget);
+    expect(find.byKey(const ValueKey('step-recovery-button')), findsOneWidget);
+
+    final expansion = find.byKey(const ValueKey('round-plan-expansion'));
+    await tester.ensureVisible(expansion);
+    await tester.tap(expansion);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Ankommen:'), findsOneWidget);
+    expect(find.textContaining('Heute wichtig:'), findsOneWidget);
+    expect(find.textContaining('Wiederholen:'), findsOneWidget);
+    expect(find.textContaining('Anwenden:'), findsOneWidget);
+  });
+
 }

@@ -1614,14 +1614,73 @@ class AppController extends ChangeNotifier {
     return candidates.isEmpty ? null : candidates.first;
   }
 
+  MicroCompetencyProgress? warmUpMicroCompetency({
+    Iterable<MicroCompetencyId> excluding = const <MicroCompetencyId>[],
+  }) {
+    final blocked = excluding.toSet();
+    final candidates = microCompetenciesForGrade()
+        .where(
+          (progress) =>
+              !blocked.contains(progress.definition.id) &&
+              progress.independentEvidence > 0 &&
+              (progress.state == MicroCompetencyState.secure ||
+                  progress.state == MicroCompetencyState.mastered) &&
+              !_latestBasisEvidenceIsUnstable(progress.definition.id),
+        )
+        .toList()
+      ..sort((a, b) {
+        if (a.lastSeen == null && b.lastSeen != null) return -1;
+        if (a.lastSeen != null && b.lastSeen == null) return 1;
+        if (a.lastSeen != null && b.lastSeen != null) {
+          final ageOrder = a.lastSeen!.compareTo(b.lastSeen!);
+          if (ageOrder != 0) return ageOrder;
+        }
+        final stateOrder = b.state.index.compareTo(a.state.index);
+        if (stateOrder != 0) return stateOrder;
+        return b.independentAccuracy.compareTo(a.independentAccuracy);
+      });
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
+  MicroCompetencyProgress? maintenanceMicroCompetency({
+    Iterable<MicroCompetencyId> excluding = const <MicroCompetencyId>[],
+  }) {
+    final blocked = excluding.toSet();
+    final candidates = microCompetenciesForGrade()
+        .where(
+          (progress) =>
+              !blocked.contains(progress.definition.id) &&
+              progress.independentEvidence > 0 &&
+              (progress.state == MicroCompetencyState.secure ||
+                  progress.state == MicroCompetencyState.mastered) &&
+              !_latestBasisEvidenceIsUnstable(progress.definition.id),
+        )
+        .toList()
+      ..sort((a, b) {
+        final aAnchor = a.lastReviewSeen ?? a.lastSeen;
+        final bAnchor = b.lastReviewSeen ?? b.lastSeen;
+        if (aAnchor == null && bAnchor != null) return -1;
+        if (aAnchor != null && bAnchor == null) return 1;
+        if (aAnchor != null && bAnchor != null) {
+          final ageOrder = aAnchor.compareTo(bAnchor);
+          if (ageOrder != 0) return ageOrder;
+        }
+        return a.reviewIndependentEvidence.compareTo(b.reviewIndependentEvidence);
+      });
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
   MicroCompetencyProgress? dueReviewMicroCompetency({
     DateTime? now,
+    Iterable<MicroCompetencyId> excluding = const <MicroCompetencyId>[],
   }) {
+    final blocked = excluding.toSet();
     final reference = now ?? DateTime.now();
     final secure = microCompetenciesForGrade()
         .where(
           (progress) {
-            if (progress.lastSeen == null ||
+            if (blocked.contains(progress.definition.id) ||
+                progress.lastSeen == null ||
                 (progress.state != MicroCompetencyState.secure &&
                     progress.state != MicroCompetencyState.mastered)) {
               return false;
@@ -1670,11 +1729,14 @@ class AppController extends ChangeNotifier {
 
   MicroCompetencyProgress? transferCandidateMicroCompetency({
     MicroCompetencyId? excluding,
+    Iterable<MicroCompetencyId> excludingAny = const <MicroCompetencyId>[],
   }) {
+    final blocked = <MicroCompetencyId>{...excludingAny};
+    if (excluding != null) blocked.add(excluding);
     final candidates = microCompetenciesForGrade()
         .where(
           (progress) =>
-              progress.definition.id != excluding &&
+              !blocked.contains(progress.definition.id) &&
               (progress.state == MicroCompetencyState.secure ||
                   progress.state == MicroCompetencyState.mastered),
         )
@@ -1728,16 +1790,34 @@ class AppController extends ChangeNotifier {
     return MicroCompetencyCatalog.definition(id).preferredMode;
   }
 
-  MicroCompetencyProgress? nextNewMicroCompetency() {
+  bool _discoveryPrerequisitesReady(MicroCompetencyDefinition definition) {
+    return definition.prerequisites.every((id) {
+      final progress = microCompetencyProgress(id);
+      return (progress.state == MicroCompetencyState.secure ||
+              progress.state == MicroCompetencyState.mastered) &&
+          !_latestBasisEvidenceIsUnstable(id);
+    });
+  }
+
+  MicroCompetencyProgress? nextNewMicroCompetency({
+    Iterable<MicroCompetencyId> excluding = const <MicroCompetencyId>[],
+  }) {
+    final blocked = excluding.toSet();
     final preferred = recommendedMode();
-    for (final definition in MicroCompetencyCatalog.forContext(gradeLevel, numberRange)) {
+    final definitions =
+        MicroCompetencyCatalog.forContext(gradeLevel, numberRange).where(
+      (definition) =>
+          !blocked.contains(definition.id) &&
+          _discoveryPrerequisitesReady(definition),
+    );
+    for (final definition in definitions) {
       final progress = microCompetencyProgress(definition.id);
       if (progress.state == MicroCompetencyState.newSkill &&
           definition.preferredMode == preferred) {
         return progress;
       }
     }
-    for (final definition in MicroCompetencyCatalog.forContext(gradeLevel, numberRange)) {
+    for (final definition in definitions) {
       final progress = microCompetencyProgress(definition.id);
       if (progress.state == MicroCompetencyState.newSkill) return progress;
     }
@@ -1835,24 +1915,61 @@ class AppController extends ChangeNotifier {
         ? currentMicroFocus()
         : microCompetencyProgress(stepRecovery.competencyId);
     final guidedFocus = guidedStepFocus();
-    final strongMicro = strongestMicroCompetency();
-    final reviewMicro = dueReviewMicroCompetency(now: now);
-    final transferMicro = transferCandidateMicroCompetency(
-      excluding: reviewMicro?.definition.id,
+    final focusTarget = microFocus?.definition.id;
+
+    final reviewMicro = dueReviewMicroCompetency(
+      now: now,
+      excluding: <MicroCompetencyId>[?focusTarget],
     );
-    final newMicro = nextNewMicroCompetency();
+    final reviewTarget = reviewMicro?.definition.id;
+
+    final protectedBeforeTransfer = <MicroCompetencyId>{
+      ?focusTarget,
+      ?reviewTarget,
+    };
+    final transferMicro = transferCandidateMicroCompetency(
+      excludingAny: protectedBeforeTransfer,
+    );
+    final transferTarget = transferMicro?.definition.id;
+
+    final protectedBeforeWarmUp = <MicroCompetencyId>{
+      ...protectedBeforeTransfer,
+      ?transferTarget,
+    };
+    final warmUpMicro = warmUpMicroCompetency(
+      excluding: protectedBeforeWarmUp,
+    );
+    final warmUpTarget = warmUpMicro?.definition.id;
+
+    final protectedBeforeMaintenance = <MicroCompetencyId>{
+      ...protectedBeforeWarmUp,
+      ?warmUpTarget,
+    };
+    final maintenanceMicro = reviewMicro == null
+        ? maintenanceMicroCompetency(excluding: protectedBeforeMaintenance)
+        : null;
+    final maintenanceTarget = maintenanceMicro?.definition.id;
+
+    final protectedBeforeDiscovery = <MicroCompetencyId>{
+      ...protectedBeforeMaintenance,
+      ?maintenanceTarget,
+    };
+    final newMicro = transferTarget == null
+        ? nextNewMicroCompetency(excluding: protectedBeforeDiscovery)
+        : null;
+    final discoveryTarget = newMicro?.definition.id;
 
     var focus =
         microFocus?.definition.preferredMode ?? recommendedMode();
-    final warmUp = gradeLevel.index >= GradeLevel.third.index
+    final genericWarmUp = gradeLevel.index >= GradeLevel.third.index
         ? TrainingMode.mixed
         : TrainingMode.practice;
-    if (focus == warmUp ||
+    if (focus == genericWarmUp ||
         focus == TrainingMode.speed ||
         focus == TrainingMode.tempo ||
         focus == TrainingMode.blitz) {
       for (final candidate in learningModesForGrade(gradeLevel)) {
-        if (candidate == warmUp) continue;
+        if (candidate == genericWarmUp) continue;
         final alreadyTried = history.any(
           (entry) =>
               entry.gradeLevel == gradeLevel && entry.mode == candidate,
@@ -1863,6 +1980,11 @@ class AppController extends ChangeNotifier {
         }
       }
     }
+
+    final warmUpMode = warmUpMicro?.definition.preferredMode ?? genericWarmUp;
+    final reviewMode = reviewMicro?.definition.preferredMode ??
+        maintenanceMicro?.definition.preferredMode ??
+        genericWarmUp;
 
     final transferCandidates = gradeLevel.index >= GradeLevel.third.index
         ? <TrainingMode>[
@@ -1880,40 +2002,50 @@ class AppController extends ChangeNotifier {
             TrainingMode.factFamilies,
           ];
 
+    final blockedFallbackModes = <TrainingMode>{
+      focus,
+      warmUpMode,
+      reviewMode,
+    };
     TrainingMode transfer = transferCandidates.first;
     var lowestScore = 2.0;
+    var foundDistinctFallback = false;
     for (final mode in transferCandidates) {
-      if (mode == focus || mode == warmUp) continue;
+      if (blockedFallbackModes.contains(mode)) continue;
       final progress = competencyProgress(mode);
       final score = progress.tasks == 0 ? -1.0 : progress.accuracy;
-      if (score < lowestScore) {
+      if (!foundDistinctFallback || score < lowestScore) {
+        foundDistinctFallback = true;
         lowestScore = score;
         transfer = mode;
       }
     }
+    if (!foundDistinctFallback) {
+      for (final mode in transferCandidates) {
+        if (mode == focus) continue;
+        final progress = competencyProgress(mode);
+        final score = progress.tasks == 0 ? -1.0 : progress.accuracy;
+        if (score < lowestScore) {
+          lowestScore = score;
+          transfer = mode;
+        }
+      }
+    }
 
-    final reviewTarget = reviewMicro?.definition.id;
-    final transferTarget = transferMicro?.definition.id;
-    final strongTarget = strongMicro?.definition.id;
-    final warmUpTarget =
-        strongTarget == transferTarget || strongTarget == reviewTarget
-            ? null
-            : strongTarget;
-    final discoveryTarget =
-        transferTarget == null ? newMicro?.definition.id : null;
+    final effectiveReviewTarget = reviewTarget ?? maintenanceTarget;
 
     return [
       GuidedRoundSegment(
-        mode: warmUpTarget == null
-            ? warmUp
-            : strongMicro!.definition.preferredMode,
+        role: GuidedRoundRole.warmUp,
+        mode: warmUpMode,
         tasks: 2,
         reason: warmUpTarget == null
             ? 'Mit vertrauten Grundlagen ruhig ankommen.'
-            : 'Mit einem bereits sicheren Lernschritt ruhig ankommen.',
+            : 'Mit „${warmUpMicro!.definition.label}“ ruhig ankommen; diese sichere Kompetenz war länger nicht im Mittelpunkt.',
         targetCompetency: warmUpTarget,
       ),
       GuidedRoundSegment(
+        role: GuidedRoundRole.focus,
         mode: focus,
         tasks: stepRecovery == null ? 5 : 2,
         reason: stepRecovery != null
@@ -1924,24 +2056,26 @@ class AppController extends ChangeNotifier {
                         guidedFocus.competencyId == microFocus.definition.id
                     ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt „${microFocus.definition.label}“ und nehmen die Hilfe schrittweise zurück.'
                     : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
-        targetCompetency: microFocus?.definition.id,
+        targetCompetency: focusTarget,
         scaffoldFading: stepRecovery == null &&
             guidedFocus != null &&
             microFocus != null &&
             guidedFocus.competencyId == microFocus.definition.id,
       ),
       GuidedRoundSegment(
-        mode: reviewTarget == null
-            ? warmUp
-            : reviewMicro!.definition.preferredMode,
+        role: GuidedRoundRole.review,
+        mode: reviewMode,
         tasks: 3,
-        reason: reviewTarget == null
-            ? 'Eine wichtige Grundlage wird wiederholt.'
-            : 'Dieser sichere Lernschritt wird nach zeitlichem Abstand erneut geprüft.',
-        targetCompetency: reviewTarget,
+        reason: reviewTarget != null
+            ? '„${reviewMicro!.definition.label}“ wird nach zeitlichem Abstand erneut geprüft.'
+            : maintenanceTarget != null
+                ? '„${maintenanceMicro!.definition.label}“ ist sicher und wird zur Erhaltung abwechslungsreich aufgefrischt.'
+                : 'Eine wichtige Grundlage wird wiederholt.',
+        targetCompetency: effectiveReviewTarget,
         reviewEmphasis: reviewTarget != null,
       ),
       GuidedRoundSegment(
+        role: GuidedRoundRole.apply,
         mode: transferTarget != null
             ? transferModeFor(transferTarget)
             : discoveryTarget != null
@@ -1951,7 +2085,7 @@ class AppController extends ChangeNotifier {
         reason: transferTarget != null
             ? 'Zum Schluss „${transferMicro!.definition.label}“ in einer veränderten Aufgabe anwenden.'
             : discoveryTarget != null
-                ? 'Zum Schluss einen neuen Lernschritt vorsichtig entdecken.'
+                ? 'Zum Schluss „${newMicro!.definition.label}“ vorsichtig entdecken; die nötigen Grundlagen sind bereits stabil.'
                 : 'Zum Schluss mit einer anderen Aufgabenart abwechslungsreich üben.',
         targetCompetency: transferTarget ?? discoveryTarget,
         transferEmphasis: transferTarget != null,

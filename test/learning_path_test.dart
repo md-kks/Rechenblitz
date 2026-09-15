@@ -76,6 +76,12 @@ void main() {
     final plan = controller.buildMyRound();
 
     expect(plan, hasLength(4));
+    expect(plan.map((segment) => segment.role), <GuidedRoundRole>[
+      GuidedRoundRole.warmUp,
+      GuidedRoundRole.focus,
+      GuidedRoundRole.review,
+      GuidedRoundRole.apply,
+    ]);
     expect(plan.fold<int>(0, (sum, item) => sum + item.tasks), 12);
     expect(plan[0].tasks, 2);
     expect(plan[1].tasks, 5);
@@ -945,7 +951,293 @@ void main() {
     expect(controller.currentMicroFocus(), isNull);
   });
 
+  test('Meine Runde verwendet dieselbe Mikro-Kompetenz nicht in mehreren Rollen', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final old = DateTime(2026, 9, 1, 8);
+    final recent = DateTime(2026, 9, 4, 8);
+    controller.microObservations = [
+      ..._secureEvidence(
+        MicroCompetencyId.additionNoBridge,
+        old,
+        mode: TrainingMode.practice,
+        prefix: 'plus',
+      ),
+      _microObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        when: recent,
+        source: MicroEvidenceSource.practice,
+        taskKey: 'plus:48:7:helped',
+        usedHelp: true,
+        helpLevel: HelpLevel.visual.value,
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.subtractionNoBridge,
+        old.add(const Duration(hours: 1)),
+        mode: TrainingMode.minus,
+        prefix: 'minus',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.numberRelations,
+        old.add(const Duration(hours: 2)),
+        mode: TrainingMode.numberWall,
+        prefix: 'wall',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.moneyCalculation,
+        old.add(const Duration(hours: 3)),
+        mode: TrainingMode.money,
+        prefix: 'money',
+      ),
+    ];
+
+    final plan = controller.buildMyRound(now: DateTime(2026, 9, 10, 8));
+    final targets = plan
+        .map((segment) => segment.targetCompetency)
+        .whereType<MicroCompetencyId>()
+        .toList();
+
+    expect(plan[1].targetCompetency, MicroCompetencyId.additionNoBridge);
+    expect(targets.toSet().length, targets.length);
+    expect(plan.map((segment) => segment.role).toSet().length, 4);
+  });
+
+  test('Warm-up rotiert zur am längsten nicht gesehenen sicheren Kompetenz', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ..._secureEvidence(
+        MicroCompetencyId.numberRelations,
+        DateTime(2026, 9, 1, 8),
+        mode: TrainingMode.numberWall,
+        prefix: 'wall',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.moneyCalculation,
+        DateTime(2026, 9, 5, 8),
+        mode: TrainingMode.money,
+        prefix: 'money',
+      ),
+    ];
+
+    final warmUp = controller.warmUpMicroCompetency();
+
+    expect(warmUp?.definition.id, MicroCompetencyId.numberRelations);
+  });
+
+  test('Review und Transfer respektieren mehrere geschützte Kompetenzen', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = [
+      ..._secureEvidence(
+        MicroCompetencyId.numberRelations,
+        DateTime(2026, 9, 1, 8),
+        mode: TrainingMode.numberWall,
+        prefix: 'wall',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.moneyCalculation,
+        DateTime(2026, 9, 1, 9),
+        mode: TrainingMode.money,
+        prefix: 'money',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.shapeProperties,
+        DateTime(2026, 9, 1, 10),
+        mode: TrainingMode.geometry,
+        prefix: 'geometry',
+      ),
+    ];
+
+    final review = controller.dueReviewMicroCompetency(
+      now: DateTime(2026, 9, 5, 12),
+      excluding: const <MicroCompetencyId>[
+        MicroCompetencyId.numberRelations,
+        MicroCompetencyId.moneyCalculation,
+      ],
+    );
+    final transfer = controller.transferCandidateMicroCompetency(
+      excludingAny: const <MicroCompetencyId>[
+        MicroCompetencyId.numberRelations,
+        MicroCompetencyId.moneyCalculation,
+      ],
+    );
+
+    expect(review?.definition.id, MicroCompetencyId.shapeProperties);
+    expect(transfer?.definition.id, MicroCompetencyId.shapeProperties);
+  });
+
+  test('Neue Kompetenz wird erst nach stabilen Voraussetzungen entdeckt', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final blocked = MicroCompetencyCatalog.forContext(
+      GradeLevel.second,
+      NumberRangeLevel.hundred,
+    )
+        .map((definition) => definition.id)
+        .where((id) => id != MicroCompetencyId.additionTenBridge)
+        .toList();
+
+    expect(
+      controller.nextNewMicroCompetency(excluding: blocked),
+      isNull,
+    );
+
+    controller.microObservations = [
+      ..._secureEvidence(
+        MicroCompetencyId.numberDecomposition,
+        DateTime(2026, 9, 1, 8),
+        mode: TrainingMode.numberFriends,
+        prefix: 'friend',
+      ),
+      ..._secureEvidence(
+        MicroCompetencyId.additionNoBridge,
+        DateTime(2026, 9, 1, 9),
+        mode: TrainingMode.practice,
+        prefix: 'plus',
+      ),
+    ];
+
+    expect(
+      controller.nextNewMicroCompetency(excluding: blocked)?.definition.id,
+      MicroCompetencyId.additionTenBridge,
+    );
+  });
+
+  test('Runden-Replan bewahrt erledigte Rollen und erneuert nur offene Teile', () {
+    final current = <GuidedRoundSegment>[
+      _roundSegment(
+        GuidedRoundRole.warmUp,
+        TrainingMode.money,
+        2,
+        'altes Ankommen',
+      ),
+      _roundSegment(
+        GuidedRoundRole.focus,
+        TrainingMode.minus,
+        5,
+        'alter Fokus',
+      ),
+      _roundSegment(
+        GuidedRoundRole.review,
+        TrainingMode.numberWall,
+        3,
+        'alte Wiederholung',
+      ),
+      _roundSegment(
+        GuidedRoundRole.apply,
+        TrainingMode.wordProblems,
+        2,
+        'alte Anwendung',
+      ),
+    ];
+    final updated = <GuidedRoundSegment>[
+      _roundSegment(
+        GuidedRoundRole.warmUp,
+        TrainingMode.geometry,
+        2,
+        'neues Ankommen',
+      ),
+      _roundSegment(
+        GuidedRoundRole.focus,
+        TrainingMode.placeValue,
+        5,
+        'neuer Fokus',
+      ),
+      _roundSegment(
+        GuidedRoundRole.review,
+        TrainingMode.factFamilies,
+        3,
+        'neue Wiederholung',
+      ),
+      _roundSegment(
+        GuidedRoundRole.apply,
+        TrainingMode.money,
+        2,
+        'neue Anwendung',
+      ),
+    ];
+
+    final merged = GuidedRoundOrchestrator.mergeRemaining(
+      current: current,
+      updated: updated,
+      completedRoles: const <GuidedRoundRole>{GuidedRoundRole.warmUp},
+    );
+
+    expect(merged.first.mode, TrainingMode.money);
+    expect(merged.first.reason, 'altes Ankommen');
+    expect(merged[1].mode, TrainingMode.placeValue);
+    expect(merged[2].mode, TrainingMode.factFamilies);
+    expect(merged[3].mode, TrainingMode.money);
+  });
+
+  test('späte Kurz-Übung verdichtet offene Runde auf neun reguläre Aufgaben', () {
+    final current = <GuidedRoundSegment>[
+      _roundSegment(GuidedRoundRole.warmUp, TrainingMode.practice, 2, 'warm'),
+      _roundSegment(GuidedRoundRole.focus, TrainingMode.minus, 5, 'focus'),
+      _roundSegment(GuidedRoundRole.review, TrainingMode.numberWall, 3, 'review'),
+      _roundSegment(GuidedRoundRole.apply, TrainingMode.wordProblems, 2, 'apply'),
+    ];
+    final updated = <GuidedRoundSegment>[
+      _roundSegment(GuidedRoundRole.warmUp, TrainingMode.money, 2, 'warm neu'),
+      _roundSegment(GuidedRoundRole.focus, TrainingMode.minus, 2, 'focus neu'),
+      _roundSegment(GuidedRoundRole.review, TrainingMode.geometry, 3, 'review neu'),
+      _roundSegment(GuidedRoundRole.apply, TrainingMode.wordProblems, 2, 'apply neu'),
+    ];
+
+    final compacted = GuidedRoundOrchestrator.mergeRemaining(
+      current: current,
+      updated: updated,
+      completedRoles: const <GuidedRoundRole>{GuidedRoundRole.warmUp},
+      regularTaskBudget: 9,
+    );
+
+    expect(
+      compacted.fold<int>(0, (sum, segment) => sum + segment.tasks),
+      9,
+    );
+    expect(compacted.first.reason, 'warm');
+    expect(compacted.map((segment) => segment.role).toSet().length, compacted.length);
+    expect(9 + 3, 12, reason: 'Mit drei Recovery-Aufgaben bleibt die Runde bei zwölf.');
+  });
+
 }
+
+
+GuidedRoundSegment _roundSegment(
+  GuidedRoundRole role,
+  TrainingMode mode,
+  int tasks,
+  String reason,
+) =>
+    GuidedRoundSegment(
+      role: role,
+      mode: mode,
+      tasks: tasks,
+      reason: reason,
+    );
+
+
+List<MicroCompetencyObservation> _secureEvidence(
+  MicroCompetencyId id,
+  DateTime start, {
+  required TrainingMode mode,
+  required String prefix,
+}) =>
+    List.generate(
+      6,
+      (index) => _microObservation(
+        id: id,
+        when: start.add(Duration(minutes: index)),
+        source: MicroEvidenceSource.practice,
+        mode: mode,
+        taskKey: '$prefix:secure:$index',
+      ),
+    );
 
 
 MicroCompetencyObservation _microObservation({
