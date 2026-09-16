@@ -143,13 +143,23 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_profileKey(_factsKey));
     if (raw == null) return {};
-    final values = jsonDecode(raw) as List<dynamic>;
-    final result = <String, MathFact>{};
-    for (final value in values) {
-      final fact = MathFact.fromJson(value as Map<String, dynamic>);
-      result[fact.key] = fact;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List<dynamic>) return {};
+      final result = <String, MathFact>{};
+      for (final value in decoded) {
+        if (value is! Map<String, dynamic>) continue;
+        try {
+          final fact = MathFact.fromJson(value);
+          result[fact.key] = fact;
+        } catch (_) {
+          // A single damaged legacy fact must not block the whole profile.
+        }
+      }
+      return result;
+    } catch (_) {
+      return {};
     }
-    return result;
   }
 
   Future<void> saveFacts(Iterable<MathFact> facts) async {
@@ -166,9 +176,18 @@ class StorageService {
     final raw = prefs.getString(_profileKey(_diagnosticsKey));
     if (raw == null) return [];
     try {
-      return (jsonDecode(raw) as List<dynamic>)
-          .map((e) => DiagnosticAttempt.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final decoded = jsonDecode(raw);
+      if (decoded is! List<dynamic>) return [];
+      final result = <DiagnosticAttempt>[];
+      for (final value in decoded) {
+        if (value is! Map<String, dynamic>) continue;
+        try {
+          result.add(DiagnosticAttempt.fromJson(value));
+        } catch (_) {
+          // Ignore only the damaged legacy record.
+        }
+      }
+      return result;
     } catch (_) {
       return [];
     }
@@ -189,9 +208,18 @@ class StorageService {
     final raw = prefs.getString(_profileKey(_remediationKey));
     if (raw == null) return [];
     try {
-      return (jsonDecode(raw) as List<dynamic>)
-          .map((e) => RemediationProgress.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final decoded = jsonDecode(raw);
+      if (decoded is! List<dynamic>) return [];
+      final result = <RemediationProgress>[];
+      for (final value in decoded) {
+        if (value is! Map<String, dynamic>) continue;
+        try {
+          result.add(RemediationProgress.fromJson(value));
+        } catch (_) {
+          // Preserve the remaining remediation history.
+        }
+      }
+      return result;
     } catch (_) {
       return [];
     }
@@ -212,13 +240,16 @@ class StorageService {
     final raw = prefs.getString(_profileKey(_taskDiversityKey));
     if (raw == null) return <String, List<String>>{};
     try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      return decoded.map(
-        (key, value) => MapEntry(
-          key,
-          (value as List<dynamic>).map((entry) => entry as String).toList(),
-        ),
-      );
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return <String, List<String>>{};
+      final result = <String, List<String>>{};
+      for (final entry in decoded.entries) {
+        final value = entry.value;
+        if (value is! List<dynamic>) continue;
+        final tasks = value.whereType<String>().toList(growable: false);
+        if (tasks.isNotEmpty) result[entry.key] = tasks;
+      }
+      return result;
     } catch (_) {
       return <String, List<String>>{};
     }
@@ -240,13 +271,18 @@ class StorageService {
     final raw = prefs.getString(_profileKey(_microCompetencyKey));
     if (raw == null) return [];
     try {
-      return MicroEvidenceRetention.compact(
-        (jsonDecode(raw) as List<dynamic>).map(
-          (entry) => MicroCompetencyObservation.fromJson(
-            entry as Map<String, dynamic>,
-          ),
-        ),
-      );
+      final decoded = jsonDecode(raw);
+      if (decoded is! List<dynamic>) return [];
+      final observations = <MicroCompetencyObservation>[];
+      for (final value in decoded) {
+        if (value is! Map<String, dynamic>) continue;
+        try {
+          observations.add(MicroCompetencyObservation.fromJson(value));
+        } catch (_) {
+          // Do not discard valid evidence because one legacy row is damaged.
+        }
+      }
+      return MicroEvidenceRetention.compact(observations);
     } catch (_) {
       return [];
     }
@@ -270,9 +306,22 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_profileKey(_historyKey));
     if (raw == null) return [];
-    return (jsonDecode(raw) as List<dynamic>)
-        .map((e) => TrainingSessionResult.fromJson(e as Map<String, dynamic>))
-        .toList();
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List<dynamic>) return [];
+      final result = <TrainingSessionResult>[];
+      for (final value in decoded) {
+        if (value is! Map<String, dynamic>) continue;
+        try {
+          result.add(TrainingSessionResult.fromJson(value));
+        } catch (_) {
+          // Keep valid sessions even if one old entry is malformed.
+        }
+      }
+      return result;
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> saveHistory(List<TrainingSessionResult> history) async {
@@ -440,9 +489,20 @@ class StorageService {
 
   List<LearnerProfile> _decodeProfiles(String raw) {
     try {
-      return (jsonDecode(raw) as List<dynamic>)
-          .map((e) => LearnerProfile.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final decoded = jsonDecode(raw);
+      if (decoded is! List<dynamic>) return [];
+      final result = <LearnerProfile>[];
+      final ids = <String>{};
+      for (final value in decoded) {
+        if (value is! Map<String, dynamic>) continue;
+        try {
+          final profile = LearnerProfile.fromJson(value);
+          if (ids.add(profile.id)) result.add(profile);
+        } catch (_) {
+          // Salvage the remaining profiles instead of resetting all children.
+        }
+      }
+      return result;
     } catch (_) {
       return [];
     }

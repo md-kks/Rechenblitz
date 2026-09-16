@@ -4090,6 +4090,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> setGradeLevel(GradeLevel value) async {
     final gradeChanged = value != gradeLevel;
+    if (gradeChanged) activeTeacherAssignment = null;
     await clearGuidedRoundProgress();
     gradeLevel = value;
     numberRange = value.recommendedRange;
@@ -4159,6 +4160,7 @@ class AppController extends ChangeNotifier {
     if (id == activeProfileId && profiles.isNotEmpty) return;
     final matches = profiles.where((profile) => profile.id == id).toList();
     if (matches.isEmpty) return;
+    activeTeacherAssignment = null;
     activeProfileId = id;
     gradeLevel = matches.first.gradeLevel;
     await storage.setActiveProfileId(id);
@@ -4174,6 +4176,7 @@ class AppController extends ChangeNotifier {
     await storage.saveProfiles(profiles);
     await storage.deleteProfileData(id);
     if (wasActive) {
+      activeTeacherAssignment = null;
       activeProfileId = remaining.first.id;
       gradeLevel = remaining.first.gradeLevel;
       await storage.setActiveProfileId(activeProfileId);
@@ -4351,6 +4354,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> setNumberRange(NumberRangeLevel value) async {
     if (value != numberRange) {
+      activeTeacherAssignment = null;
       await clearGuidedRoundProgress();
       recentTaskKeysByMode = <String, List<String>>{};
       await storage.saveTaskDiversity(recentTaskKeysByMode);
@@ -4457,8 +4461,20 @@ class AppController extends ChangeNotifier {
     recentTaskKeysByMode = <String, List<String>>{};
     unlockedBadges = <String>{};
     recoveredWeakFacts = <String>{};
+    guidedRoundProgress = null;
+    activeTeacherAssignment = null;
     _pendingBadgeIds.clear();
     lastSessionNewBadges = const [];
+    if (profiles.isNotEmpty) {
+      profiles = profiles
+          .map(
+            (profile) => profile.id == activeProfileId
+                ? profile.copyWith(clearAssessment: true)
+                : profile,
+          )
+          .toList();
+      await storage.saveProfiles(profiles);
+    }
     notifyListeners();
   }
 }
