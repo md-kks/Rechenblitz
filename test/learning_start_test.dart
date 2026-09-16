@@ -562,8 +562,28 @@ void main() {
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
 
+    final compactTasks = List<AssessmentTask>.generate(12, (index) {
+      final fact = MathFact(
+        a: index + 1,
+        b: 1,
+        operation: MathOperation.plus,
+      );
+      return AssessmentTask(
+        mode: TrainingMode.practice,
+        taskKey: fact.key,
+        prompt: '${index + 1} + 1 = ?',
+        answer: fact.result,
+        maxAnswerValue: 20,
+        fact: fact,
+        targetCompetency: MicroCompetencyId.additionNoBridge,
+      );
+    });
+    final generator = _FixedAssessmentGenerator(compactTasks);
+
     await tester.pumpWidget(
-      MaterialApp(home: AssessmentScreen(controller: controller)),
+      MaterialApp(
+        home: AssessmentScreen(controller: controller, generator: generator),
+      ),
     );
 
     expect(find.text('Lerncheck'), findsOneWidget);
@@ -572,12 +592,10 @@ void main() {
 
     for (var task = 0; task < 12; task += 1) {
       final dontKnow = find.byKey(const ValueKey('assessment-dont-know'));
-      await tester.scrollUntilVisible(
-        dontKnow,
-        180,
-        scrollable: find.byType(Scrollable).last,
-      );
-      await tester.pump();
+      await tester.drag(find.byType(ListView).first, const Offset(0, -520));
+      await tester.pumpAndSettle();
+      expect(dontKnow, findsOneWidget);
+      await tester.ensureVisible(dontKnow);
       await tester.tap(dontKnow);
       await tester.pumpAndSettle();
     }
