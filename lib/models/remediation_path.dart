@@ -160,7 +160,12 @@ class RemediationTask {
       mode: mode,
       taskKey: sourceTaskKey,
     );
-    return tags.length == 1 ? tags.first.id : null;
+    if (tags.isEmpty) return null;
+    var strongest = tags.first;
+    for (final tag in tags.skip(1)) {
+      if (tag.weight > strongest.weight) strongest = tag;
+    }
+    return strongest.id;
   }
 
   bool get usesChoices => choices != null && choices!.isNotEmpty;

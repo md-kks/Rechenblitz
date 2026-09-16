@@ -203,7 +203,10 @@ class CurriculumExerciseGenerator {
                   targetedReasoning:
                       targetCompetency == MicroCompetencyId.probabilityReasoning,
                 ),
-        TrainingMode.combinatorics => _combinatorics(gradeLevel),
+        TrainingMode.combinatorics => _combinatorics(
+            gradeLevel,
+            targeted: targetCompetency == MicroCompetencyId.combinatoricsSystematic,
+          ),
         TrainingMode.proportionality => _proportionality(gradeLevel, maxValue),
         TrainingMode.perimeterArea => _perimeterArea(
             gradeLevel,
@@ -216,7 +219,10 @@ class CurriculumExerciseGenerator {
         TrainingMode.geometryBodies =>
           targetCompetency == MicroCompetencyId.cubeNetFoldability
               ? _cubeNetFoldability()
-              : _geometryBodies(),
+              : _geometryBodies(
+                  targetedProperties:
+                      targetCompetency == MicroCompetencyId.geometryBodies,
+                ),
         TrainingMode.symmetry => _symmetry(
             targetedAxis:
                 targetCompetency == MicroCompetencyId.symmetryAxes,
@@ -838,7 +844,10 @@ class CurriculumExerciseGenerator {
     }
     if (kind == 0) {
       final a = _between(2, 9);
-      final b = _between(11, grade == GradeLevel.third ? 49 : 99);
+      var b = _between(11, grade == GradeLevel.third ? 49 : 99);
+      if (b % 10 == 0) {
+        b += b + 1 <= (grade == GradeLevel.third ? 49 : 99) ? 1 : -1;
+      }
       final rounded = ((b + 9) ~/ 10) * 10;
       final diff = rounded - b;
       return CurriculumExercise(
@@ -1792,11 +1801,23 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _combinatorics(GradeLevel grade) {
-    final first = _between(2, grade == GradeLevel.third ? 4 : 6);
-    final second = _between(2, grade == GradeLevel.third ? 4 : 5);
-    final third =
+  CurriculumExercise _combinatorics(
+    GradeLevel grade, {
+    bool targeted = false,
+  }) {
+    var first = _between(2, grade == GradeLevel.third ? 4 : 6);
+    var second = _between(2, grade == GradeLevel.third ? 4 : 5);
+    var third =
         grade == GradeLevel.fourth && _random.nextBool() ? _between(2, 3) : 1;
+    if (targeted) {
+      for (var attempt = 0; attempt < 24 && first * second * third > 24; attempt++) {
+        first = _between(2, 4);
+        second = _between(2, 4);
+        third = grade == GradeLevel.fourth && _random.nextBool()
+            ? _between(2, 3)
+            : 1;
+      }
+    }
     final kind = _random.nextInt(3);
 
     final prompt = switch (kind) {
@@ -2006,11 +2027,11 @@ class CurriculumExerciseGenerator {
     );
   }
 
-  CurriculumExercise _geometryBodies() {
-    if (_random.nextDouble() < 0.35) {
+  CurriculumExercise _geometryBodies({bool targetedProperties = false}) {
+    if (!targetedProperties && _random.nextDouble() < 0.35) {
       return _cubeNetFoldability();
     }
-    if (_random.nextDouble() < 0.25) {
+    if (!targetedProperties && _random.nextDouble() < 0.25) {
       if (_random.nextBool()) {
         return const CurriculumExercise(
           mode: TrainingMode.geometryBodies,

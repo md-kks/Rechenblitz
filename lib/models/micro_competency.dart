@@ -979,6 +979,8 @@ class MicroCompetencyCatalog {
     MathFact? fact,
   }) {
     if (fact != null) return _factTags(mode, fact);
+    final encodedFact = _factFromTaskKey(taskKey);
+    if (encodedFact != null) return _factTags(mode, encodedFact);
 
     if (taskKey.startsWith('remediation:')) {
       final parts = taskKey.split(':');
@@ -1219,7 +1221,7 @@ class MicroCompetencyCatalog {
         MicroCompetencyTag(MicroCompetencyId.countingNeighbors),
       ];
     }
-    if (taskKey.startsWith('place:')) {
+    if (taskKey.startsWith('place:') || taskKey.startsWith('place-digit:')) {
       return const [
         MicroCompetencyTag(MicroCompetencyId.placeValueDigits),
       ];
@@ -1305,6 +1307,22 @@ class MicroCompetencyCatalog {
     }
 
     return _upperPrimaryTags(mode, taskKey);
+  }
+
+  static MathFact? _factFromTaskKey(String taskKey) {
+    final parts = taskKey.split(':');
+    if (parts.length != 3) return null;
+    final a = int.tryParse(parts[1]);
+    final b = int.tryParse(parts[2]);
+    if (a == null || b == null) return null;
+    final operation = switch (parts[0]) {
+      'plus' || '+' => MathOperation.plus,
+      'minus' || '-' => MathOperation.minus,
+      'multiply' || 'x' => MathOperation.multiply,
+      'divide' || '/' => MathOperation.divide,
+      _ => null,
+    };
+    return operation == null ? null : MathFact(a: a, b: b, operation: operation);
   }
 
   static List<MicroCompetencyTag> _factTags(
