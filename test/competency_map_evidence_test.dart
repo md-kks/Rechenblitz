@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rechenblitz/models/accessibility_preferences.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/screens/competency_map_screen.dart';
@@ -233,6 +234,61 @@ void main() {
     expect(find.text('Automatisierung'), findsOneWidget);
     expect(
       find.textContaining('im Aufbau · 100 % richtig · 4 Aufgaben · typisch 8.0 s'),
+      findsOneWidget,
+    );
+    expect(find.text('Sicher'), findsWidgets);
+  });
+
+
+  testWidgets('Lernlandkarte kennzeichnet pausierte Zeitmessung bei Vorlesen', (
+    tester,
+  ) async {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.accessibilityPreferences =
+        const AccessibilityPreferences(readAloud: true);
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (var index = 0; index < 4; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 17, 15, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:${30 + index}:4',
+          responseMs: 8000,
+        ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(home: CompetencyMapScreen(controller: controller)),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('learning-group:Zahlen & Rechnen')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('learning-mode:practice')));
+    await tester.pumpAndSettle();
+    final info = find.byKey(const ValueKey('micro-info:additionNoBridge'));
+    await tester.scrollUntilVisible(
+      info,
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(info);
+    await tester.pumpAndSettle();
+    await tester.tap(info);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Zeitmessung pausiert, solange Vorlesen aktiv ist'),
       findsOneWidget,
     );
     expect(find.text('Sicher'), findsWidgets);

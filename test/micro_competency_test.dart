@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rechenblitz/models/accessibility_preferences.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/math_fact.dart';
@@ -2340,6 +2341,127 @@ void main() {
     expect(progress.fluencyAccuracy, closeTo(0.75, 0.001));
     expect(progress.typicalFluencyResponseMs, closeTo(2800, 0.001));
     expect(progress.fluencyState, MicroFluencyState.building);
+  });
+
+
+  test('Vorlesen pausiert nur die Fluency-Zeitmessung', () async {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred
+      ..accessibilityPreferences = const AccessibilityPreferences(readAloud: true);
+    await controller.recordDiagnosticAttempt(
+      mode: TrainingMode.practice,
+      taskKey: 'plus:14:3',
+      expected: 17,
+      actual: 17,
+      fact: MathFact(a: 14, b: 3, operation: MathOperation.plus),
+      responseTime: const Duration(milliseconds: 2100),
+    );
+
+    final observation = controller.microObservations.firstWhere(
+      (entry) => entry.id == MicroCompetencyId.additionNoBridge,
+    );
+    expect(observation.correct, isTrue);
+    expect(observation.responseMs, isNull);
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionNoBridge,
+    );
+    expect(progress.independentEvidence, greaterThan(0));
+    expect(progress.fluencyAttempts, 0);
+  });
+
+  test('lange Unterbrechung wird nicht als langsame Fluency gewertet', () async {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    await controller.recordDiagnosticAttempt(
+      mode: TrainingMode.minus,
+      taskKey: 'minus:18:3',
+      expected: 15,
+      actual: 15,
+      fact: MathFact(a: 18, b: 3, operation: MathOperation.minus),
+      responseTime: const Duration(seconds: 31),
+    );
+
+    final observation = controller.microObservations.firstWhere(
+      (entry) => entry.id == MicroCompetencyId.subtractionNoBridge,
+    );
+    expect(observation.correct, isTrue);
+    expect(observation.responseMs, isNull);
+    expect(
+      controller.microCompetencyProgress(MicroCompetencyId.subtractionNoBridge)
+          .independentEvidence,
+      greaterThan(0),
+    );
+  });
+
+  test('Remediation-Zeiten sind kein Fluency-Nachweis', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      5,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.multiplicationFacts,
+        occurredAt: DateTime(2026, 9, 17, 12, index),
+        correct: true,
+        evidenceWeight: 0.65,
+        source: MicroEvidenceSource.remediation,
+        usedHelp: false,
+        mode: TrainingMode.multiply,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'multiply:${3 + index}:4:remediation',
+        responseMs: 1800,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.multiplicationFacts,
+    );
+    expect(progress.independentEvidence, greaterThan(0));
+    expect(progress.fluencyAttempts, 0);
+    expect(progress.fluencySamples, 0);
+    expect(progress.fluencyState, MicroFluencyState.notMeasured);
+  });
+
+  test('Vorlesen unterdrueckt Fluency-Fokus ohne Lernfortschritt zu loeschen', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      5,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 17, 13, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:${20 + index}:3',
+        responseMs: 8200,
+      ),
+    );
+    expect(
+      controller.microCompetencyProgress(MicroCompetencyId.additionNoBridge)
+          .fluencyState,
+      MicroFluencyState.building,
+    );
+    expect(controller.fluencyFocusMicroCompetency(), isNotNull);
+
+    controller.accessibilityPreferences =
+        const AccessibilityPreferences(readAloud: true);
+    expect(controller.fluencyFocusMicroCompetency(), isNull);
+    final plan = controller.buildMyRound(now: DateTime(2026, 9, 17, 14));
+    expect(plan.any((segment) => segment.fluencyEmphasis), isFalse);
+    expect(
+      controller.microCompetencyProgress(MicroCompetencyId.additionNoBridge)
+          .state,
+      MicroCompetencyState.secure,
+    );
   });
 
 }

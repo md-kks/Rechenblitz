@@ -296,6 +296,13 @@ class AppController extends ChangeNotifier {
     );
   }
 
+  int? _fairFluencyResponseMs(Duration? responseTime) {
+    if (responseTime == null || accessibilityPreferences.readAloud) return null;
+    final milliseconds = responseTime.inMilliseconds;
+    if (milliseconds <= 0 || milliseconds > 30000) return null;
+    return milliseconds;
+  }
+
   Future<void> recordDiagnosticAttempt({
     required TrainingMode mode,
     required String taskKey,
@@ -324,7 +331,7 @@ class AppController extends ChangeNotifier {
       helpLevel: helpLevel,
       methodKey: methodKey,
       source: source,
-      responseMs: responseTime?.inMilliseconds.clamp(0, 30000).toInt(),
+      responseMs: _fairFluencyResponseMs(responseTime),
     );
     diagnostics.insert(
       0,
@@ -1293,7 +1300,8 @@ class AppController extends ChangeNotifier {
           observation.responseMs != null &&
           observation.responseMs! > 0 &&
           observation.source != MicroEvidenceSource.guidedStep &&
-          observation.source != MicroEvidenceSource.independentStep) {
+          observation.source != MicroEvidenceSource.independentStep &&
+          observation.source != MicroEvidenceSource.remediation) {
         fluencyAttempts.add(observation);
         if (observation.correct) {
           fluencyResponseMs.add(observation.responseMs!);
@@ -1868,6 +1876,7 @@ class AppController extends ChangeNotifier {
   MicroCompetencyProgress? fluencyFocusMicroCompetency({
     Iterable<MicroCompetencyId> excluding = const <MicroCompetencyId>[],
   }) {
+    if (accessibilityPreferences.readAloud) return null;
     final blocked = excluding.toSet();
     final candidates = microCompetenciesForGrade()
         .where(
@@ -3117,15 +3126,19 @@ class AppController extends ChangeNotifier {
     final independentDetail = progress.independentEvidence <= _evidenceEpsilon
         ? 'Für selbstständige Basisaufgaben liegt noch keine auswertbare Beobachtung vor.'
         : 'Bei selbstständigen Basisaufgaben liegt die gewichtete Sicherheit bei $independentPercent %.';
-    final fluencyDetail = switch (progress.fluencyState) {
-      MicroFluencyState.notApplicable => '',
-      MicroFluencyState.notMeasured =>
-        ' Für die Automatisierung fehlen noch genug unverzerrte Versuche auf unterschiedlichen Grundaufgaben.',
-      MicroFluencyState.building =>
-        ' Die Grundaufgaben sind inhaltlich getrennt bewertet; im aktuellen Automatisierungsfenster sind ${(progress.fluencyAccuracy * 100).round()} % richtig bei ${progress.fluencyTaskVariety} unterschiedlichen Aufgaben, typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s.',
-      MicroFluencyState.fluent =>
-        ' Die Grundaufgaben werden zusätzlich flüssig abgerufen: ${(progress.fluencyAccuracy * 100).round()} % richtig bei ${progress.fluencyTaskVariety} unterschiedlichen Aufgaben, typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s.',
-    };
+    final fluencyDetail = progress.fluencyState == MicroFluencyState.notApplicable
+        ? ''
+        : accessibilityPreferences.readAloud
+            ? ' Die Automatisierungsmessung ist pausiert, solange Vorlesen aktiviert ist. Die fachliche Sicherheit wird davon unabhängig weiter bewertet.'
+            : switch (progress.fluencyState) {
+                MicroFluencyState.notApplicable => '',
+                MicroFluencyState.notMeasured =>
+                  ' Für die Automatisierung fehlen noch genug unverzerrte Versuche auf unterschiedlichen Grundaufgaben.',
+                MicroFluencyState.building =>
+                  ' Die Grundaufgaben sind inhaltlich getrennt bewertet; im aktuellen Automatisierungsfenster sind ${(progress.fluencyAccuracy * 100).round()} % richtig bei ${progress.fluencyTaskVariety} unterschiedlichen Aufgaben, typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s.',
+                MicroFluencyState.fluent =>
+                  ' Die Grundaufgaben werden zusätzlich flüssig abgerufen: ${(progress.fluencyAccuracy * 100).round()} % richtig bei ${progress.fluencyTaskVariety} unterschiedlichen Aufgaben, typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s.',
+              };
 
     return '${parts.join(' · ')}. '
         '$independentDetail$guidedDetail$fluencyDetail '
