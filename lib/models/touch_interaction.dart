@@ -853,7 +853,9 @@ class TouchInteractionPlan {
     }
 
     if (mode == TrainingMode.wordProblems &&
-        targetCompetency == MicroCompetencyId.divisionSharing) {
+        (targetCompetency == MicroCompetencyId.divisionSharing ||
+            taskKey.startsWith('story:sharing:') ||
+            taskKey.startsWith('story:grouping:'))) {
       final division = _divisionGroupsSpec(taskKey, answer);
       if (division != null && division.$1 <= 48) {
         return TouchInteractionPlan(
