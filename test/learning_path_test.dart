@@ -1421,11 +1421,10 @@ void main() {
   });
 
 
-  test('Rundenfortschritt bleibt am selben Tag wiederaufnehmbar', () async {
+  test('Rundenfortschritt bleibt im gültigen Zeitfenster wiederaufnehmbar', () async {
     final controller = AppController();
     await controller.load();
-    final today = DateTime.now();
-    final now = DateTime(today.year, today.month, today.day, 9);
+    final now = DateTime.now();
     final plan = controller.buildMyRound();
     final decisionTrace = controller.guidedRoundDecisionTrace(now: now);
     final progress = GuidedRoundProgress(
@@ -1434,7 +1433,7 @@ void main() {
       gradeLevel: controller.gradeLevel,
       numberRange: controller.numberRange,
       startedAt: now,
-      updatedAt: now.add(const Duration(minutes: 4)),
+      updatedAt: now,
       recoveryRequired: false,
       decisionTrace: decisionTrace,
     );
