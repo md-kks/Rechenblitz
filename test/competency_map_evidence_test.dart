@@ -231,7 +231,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Automatisierung'), findsOneWidget);
-    expect(find.textContaining('im Aufbau · Ø 8.0 s'), findsOneWidget);
+    expect(
+      find.textContaining('im Aufbau · 100 % richtig · 4 Aufgaben · typisch 8.0 s'),
+      findsOneWidget,
+    );
     expect(find.text('Sicher'), findsWidgets);
   });
 
