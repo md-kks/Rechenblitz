@@ -28,6 +28,7 @@ class StructuredTrainingScreen extends StatefulWidget {
     this.targetCompetency,
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
+    this.fluencyEmphasis = false,
     this.scaffoldFading = false,
     this.adaptiveLength = false,
     this.exerciseGenerator,
@@ -39,6 +40,7 @@ class StructuredTrainingScreen extends StatefulWidget {
   final MicroCompetencyId? targetCompetency;
   final bool reviewEmphasis;
   final bool transferEmphasis;
+  final bool fluencyEmphasis;
   final bool scaffoldFading;
   final bool adaptiveLength;
   final StructuredExerciseGenerator? exerciseGenerator;
@@ -123,6 +125,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         targetStable: _adaptiveTargetStable,
         reviewEmphasis: widget.reviewEmphasis,
         transferEmphasis: widget.transferEmphasis,
+        fluencyEmphasis: widget.fluencyEmphasis,
       );
 
   @override
@@ -332,6 +335,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
         source: _evidenceSource,
+        responseTime: response,
       );
     }
     if (answer != current.answer) {

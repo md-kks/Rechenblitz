@@ -266,6 +266,19 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                 _EvidenceLine(label: 'Mit Hilfe', value: aided),
                 _EvidenceLine(label: 'Später noch einmal', value: review),
                 _EvidenceLine(label: 'Bei anderer Aufgabe', value: transfer),
+                if (progress.fluencyState != MicroFluencyState.notApplicable)
+                  _EvidenceLine(
+                    label: 'Automatisierung',
+                    value: switch (progress.fluencyState) {
+                      MicroFluencyState.notMeasured =>
+                        'noch nicht genug Zeitmessungen',
+                      MicroFluencyState.building =>
+                        'im Aufbau · Ø ${(progress.averageFluencyResponseMs / 1000).toStringAsFixed(1)} s',
+                      MicroFluencyState.fluent =>
+                        'flüssig · Ø ${(progress.averageFluencyResponseMs / 1000).toStringAsFixed(1)} s',
+                      MicroFluencyState.notApplicable => '',
+                    },
+                  ),
                 const SizedBox(height: 10),
                 Card(
                   key: ValueKey('micro-confidence:${progress.definition.id.name}'),
