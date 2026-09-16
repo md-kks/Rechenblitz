@@ -14,6 +14,10 @@ class AssessmentTask {
     required this.answer,
     required this.maxAnswerValue,
     this.choices,
+    this.wallValues,
+    this.hiddenWallIndex,
+    this.clockHour,
+    this.clockMinute,
     this.answerSuffix,
     this.fact,
     this.targetCompetency,
@@ -25,6 +29,10 @@ class AssessmentTask {
   final int answer;
   final int maxAnswerValue;
   final List<String>? choices;
+  final List<int>? wallValues;
+  final int? hiddenWallIndex;
+  final int? clockHour;
+  final int? clockMinute;
   final String? answerSuffix;
   final MathFact? fact;
   final MicroCompetencyId? targetCompetency;
@@ -66,7 +74,7 @@ class AssessmentGenerator {
     required GradeLevel grade,
     required NumberRangeLevel range,
   }) {
-    final modes = _modesFor(grade);
+    final modes = _modesFor(grade, range);
     final tasks = <AssessmentTask>[];
     for (final mode in modes) {
       final targets = _targetsForMode(mode, grade, range);
@@ -143,40 +151,66 @@ class AssessmentGenerator {
     return <MicroCompetencyId?>[sampled[0], sampled[1]];
   }
 
-  List<TrainingMode> _modesFor(GradeLevel grade) => switch (grade) {
-        GradeLevel.first => const [
-            TrainingMode.practice,
-            TrainingMode.minus,
-            TrainingMode.numberFriends,
-            TrainingMode.missingNumber,
-            TrainingMode.neighbors,
-            TrainingMode.doublesHalves,
-          ],
-        GradeLevel.second => const [
-            TrainingMode.practice,
-            TrainingMode.minus,
-            TrainingMode.multiply,
-            TrainingMode.divide,
-            TrainingMode.placeValue,
-            TrainingMode.wordProblems,
-          ],
-        GradeLevel.third => const [
-            TrainingMode.multiply,
-            TrainingMode.divide,
-            TrainingMode.largeNumbers,
-            TrainingMode.rounding,
-            TrainingMode.writtenAddSub,
-            TrainingMode.advancedMeasures,
-          ],
-        GradeLevel.fourth => const [
-            TrainingMode.largeNumbers,
-            TrainingMode.rounding,
-            TrainingMode.writtenAddSub,
-            TrainingMode.writtenMultiply,
-            TrainingMode.fractions,
-            TrainingMode.probability,
-          ],
-      };
+  List<TrainingMode> _modesFor(
+    GradeLevel grade,
+    NumberRangeLevel range,
+  ) {
+    final core = switch (grade) {
+      GradeLevel.first => const <TrainingMode>[
+          TrainingMode.practice,
+          TrainingMode.minus,
+          TrainingMode.numberFriends,
+        ],
+      GradeLevel.second => const <TrainingMode>[
+          TrainingMode.practice,
+          TrainingMode.minus,
+          TrainingMode.multiply,
+          TrainingMode.divide,
+        ],
+      GradeLevel.third => const <TrainingMode>[
+          TrainingMode.multiply,
+          TrainingMode.divide,
+          TrainingMode.largeNumbers,
+          TrainingMode.writtenAddSub,
+        ],
+      GradeLevel.fourth => const <TrainingMode>[
+          TrainingMode.largeNumbers,
+          TrainingMode.writtenAddSub,
+          TrainingMode.writtenMultiply,
+          TrainingMode.writtenDivide,
+        ],
+    };
+
+    final recentGradeFloor = max(0, grade.index - 1);
+    final contextModes = MicroCompetencyCatalog.forContext(grade, range)
+        .where((definition) => definition.minGrade.index >= recentGradeFloor)
+        .map((definition) => definition.preferredMode)
+        .toSet();
+    final rotating = contextModes.where((mode) => !core.contains(mode)).toList()
+      ..shuffle(_random);
+
+    final selected = <TrainingMode>[...core];
+    for (final mode in rotating) {
+      if (selected.length >= 6) break;
+      selected.add(mode);
+    }
+
+    if (selected.length < 6) {
+      final fallback = MicroCompetencyCatalog.forContext(grade, range)
+          .map((definition) => definition.preferredMode)
+          .where((mode) => !selected.contains(mode))
+          .toSet()
+          .toList()
+        ..shuffle(_random);
+      for (final mode in fallback) {
+        if (selected.length >= 6) break;
+        selected.add(mode);
+      }
+    }
+
+    return selected.take(6).toList(growable: false);
+  }
+
 
   AssessmentTask _task(
     TrainingMode mode,
@@ -247,9 +281,14 @@ class AssessmentGenerator {
     }
 
     if (mode.isStructured) {
+      final assessmentMaxValue = switch (mode) {
+        TrainingMode.doublesHalves => min(maxValue, 24),
+        TrainingMode.measures => min(maxValue, 30),
+        _ => min(maxValue, 100),
+      };
       final exercise = _structured.generate(
         mode: mode,
-        maxValue: min(maxValue, 100),
+        maxValue: assessmentMaxValue,
         gradeLevel: grade,
         targetCompetency: targetCompetency,
         recentKeys: recentKeys,
@@ -260,8 +299,12 @@ class AssessmentGenerator {
         prompt: exercise.prompt,
         answer: exercise.answer,
         maxAnswerValue:
-            exercise.maxAnswerValue ?? max(10, min(maxValue, 100)),
+            exercise.maxAnswerValue ?? max(10, assessmentMaxValue),
         choices: exercise.choices,
+        wallValues: exercise.wallValues,
+        hiddenWallIndex: exercise.hiddenWallIndex,
+        clockHour: exercise.clockHour,
+        clockMinute: exercise.clockMinute,
         answerSuffix: exercise.answerSuffix,
         targetCompetency: _resolvedTarget(
           mode: mode,

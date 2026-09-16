@@ -6537,6 +6537,19 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           ),
         ),
         const SizedBox(height: 8),
+        OutlinedButton.icon(
+          key: const ValueKey('touch-sharing-round-add'),
+          onPressed: widget.locked || groupCounters.isEmpty || remaining < groupCounters.length
+              ? null
+              : () => setState(() {
+                    for (var index = 0; index < groupCounters.length; index++) {
+                      groupCounters[index] += 1;
+                    }
+                  }),
+          icon: const Icon(Icons.all_inclusive_rounded),
+          label: const Text('Eine Runde verteilen (+1 je Gruppe)'),
+        ),
+        const SizedBox(height: 8),
         const Text(
           'Verteile alle Dinge so, dass jede Gruppe gleich viel bekommt.',
           textAlign: TextAlign.center,

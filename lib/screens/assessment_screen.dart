@@ -50,7 +50,11 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         taskKey: current.taskKey,
         answer: current.answer,
         maxValue: current.maxAnswerValue,
+        wallValues: current.wallValues,
+        hiddenWallIndex: current.hiddenWallIndex,
         choices: current.choices,
+        clockHour: current.clockHour,
+        clockMinute: current.clockMinute,
         answerSuffix: current.answerSuffix,
         targetCompetency: null,
       );

@@ -7607,6 +7607,52 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('large sharing uses round distribution instead of dozens of taps', () {
+    final plan = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:sharing:children:64:8',
+      answer: 8,
+      maxValue: 100,
+    );
+    expect(plan, isNotNull);
+    expect(plan!.kind, TouchInteractionKind.divisionGroupsBuilder);
+    expect(plan.totalItems, 64);
+    expect(plan.groupCount, 8);
+    expect(plan.itemsPerGroup, 8);
+  });
+
+  testWidgets('sharing round distributes one item to every group', (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'story:sharing:children:64:8',
+      kind: TouchInteractionKind.divisionGroupsBuilder,
+      instruction: 'Verteile 64 Dinge auf 8 Gruppen.',
+      totalItems: 64,
+      groupCount: 8,
+      itemsPerGroup: 8,
+      expectedAnswer: 8,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    for (var round = 0; round < 8; round++) {
+      await tester.tap(find.byKey(const ValueKey('touch-sharing-round-add')));
+      await tester.pump();
+    }
+    expect(find.text('Noch zu verteilen: 0 von 64'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('touch-sharing-submit')));
+    expect(answer, 8);
+  });
+
 }
 
 void _noopAnswer(int value) {}

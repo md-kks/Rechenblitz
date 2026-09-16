@@ -857,7 +857,7 @@ class TouchInteractionPlan {
             taskKey.startsWith('story:sharing:') ||
             taskKey.startsWith('story:grouping:'))) {
       final division = _divisionGroupsSpec(taskKey, answer);
-      if (division != null && division.$1 <= 48) {
+      if (division != null && division.$1 <= 100 && (division.$2 ?? 0) <= 10) {
         return TouchInteractionPlan(
           taskKey: taskKey,
           kind: TouchInteractionKind.divisionGroupsBuilder,

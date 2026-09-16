@@ -656,7 +656,11 @@ void main() {
             taskKey: task.taskKey,
             answer: task.answer,
             maxValue: task.maxAnswerValue,
+            wallValues: task.wallValues,
+            hiddenWallIndex: task.hiddenWallIndex,
             choices: task.choices,
+            clockHour: task.clockHour,
+            clockMinute: task.clockMinute,
             answerSuffix: task.answerSuffix,
             targetCompetency: null,
           );
