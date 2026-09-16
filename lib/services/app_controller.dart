@@ -1272,6 +1272,9 @@ class AppController extends ChangeNotifier {
         accuracy: 0,
         evidence: 0,
         observations: 0,
+        fluencyState: _fluencyCompetencies.contains(id)
+            ? MicroFluencyState.notMeasured
+            : MicroFluencyState.notApplicable,
       );
     }
 
