@@ -271,11 +271,11 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                     label: 'Automatisierung',
                     value: switch (progress.fluencyState) {
                       MicroFluencyState.notMeasured =>
-                        'noch nicht genug Zeitmessungen',
+                        '${progress.fluencyAttempts} Versuche · ${progress.fluencyTaskVariety} unterschiedliche Aufgaben · noch nicht belastbar',
                       MicroFluencyState.building =>
-                        'im Aufbau · Ø ${(progress.averageFluencyResponseMs / 1000).toStringAsFixed(1)} s',
+                        'im Aufbau · ${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} Aufgaben · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
                       MicroFluencyState.fluent =>
-                        'flüssig · Ø ${(progress.averageFluencyResponseMs / 1000).toStringAsFixed(1)} s',
+                        'flüssig · ${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} Aufgaben · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
                       MicroFluencyState.notApplicable => '',
                     },
                   ),

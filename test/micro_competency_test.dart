@@ -2204,4 +2204,142 @@ void main() {
     expect(plan[1].fluencyEmphasis, isFalse);
   });
 
+
+  test('wiederholte identische Aufgabe reicht nicht fuer Fluency', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      4,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 16, 23, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:14:3',
+        responseMs: 2400,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionNoBridge,
+    );
+    expect(progress.fluencyAttempts, 4);
+    expect(progress.fluencySamples, 4);
+    expect(progress.fluencyTaskVariety, 1);
+    expect(progress.fluencyState, MicroFluencyState.notMeasured);
+  });
+
+  test('schnelle Treffer reichen bei zu vielen Fehlern nicht fuer Fluency', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      8,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.subtractionNoBridge,
+        occurredAt: DateTime(2026, 9, 17, 8, index),
+        correct: index >= 2,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.minus,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'minus:${30 + index}:4',
+        responseMs: 2300 + index * 50,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.subtractionNoBridge,
+    );
+    expect(progress.fluencyAttempts, 8);
+    expect(progress.fluencyCorrectAttempts, 6);
+    expect(progress.fluencyAccuracy, closeTo(0.75, 0.001));
+    expect(progress.fluencyTaskVariety, 6);
+    expect(progress.fluencyState, MicroFluencyState.building);
+  });
+
+  test('ein einzelner langsamer Ausreisser verzerrt typische Fluency nicht', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    const times = <int>[2500, 2600, 2700, 15000];
+    controller.microObservations = List.generate(
+      times.length,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.multiplicationFacts,
+        occurredAt: DateTime(2026, 9, 17, 9, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.multiply,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'multiply:${3 + index}:4',
+        responseMs: times[index],
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.multiplicationFacts,
+    );
+    expect(progress.averageFluencyResponseMs, greaterThan(5000));
+    expect(progress.typicalFluencyResponseMs, closeTo(2650, 0.001));
+    expect(progress.fluencyAccuracy, 1);
+    expect(progress.fluencyState, MicroFluencyState.fluent);
+  });
+
+  test('neue Fehler koennen zuvor fluessigen Abruf wieder herabstufen', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (var index = 0; index < 8; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.divisionFacts,
+          occurredAt: DateTime(2026, 9, 17, 10, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.divide,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'divide:${24 + index * 4}:4',
+          responseMs: 2800,
+        ),
+      for (var index = 0; index < 2; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.divisionFacts,
+          occurredAt: DateTime(2026, 9, 17, 11, index),
+          correct: false,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.divide,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'divide:${64 + index * 4}:4',
+          responseMs: 2500,
+        ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.divisionFacts,
+    );
+    expect(progress.fluencyAttempts, 8);
+    expect(progress.fluencyCorrectAttempts, 6);
+    expect(progress.fluencyAccuracy, closeTo(0.75, 0.001));
+    expect(progress.typicalFluencyResponseMs, closeTo(2800, 0.001));
+    expect(progress.fluencyState, MicroFluencyState.building);
+  });
+
 }

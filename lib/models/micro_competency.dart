@@ -314,8 +314,13 @@ class MicroCompetencyProgress {
     this.reviewIndependentTaskVariety = 0,
     this.transferIndependentTaskVariety = 0,
     this.fluencyState = MicroFluencyState.notApplicable,
+    this.fluencyAttempts = 0,
     this.fluencySamples = 0,
+    this.fluencyCorrectAttempts = 0,
+    this.fluencyTaskVariety = 0,
+    this.fluencyAccuracy = 0,
     this.averageFluencyResponseMs = 0,
+    this.typicalFluencyResponseMs = 0,
     this.basisNeedsReconfirmation = false,
     this.reviewNeedsReconfirmation = false,
     this.transferNeedsReconfirmation = false,
@@ -355,8 +360,13 @@ class MicroCompetencyProgress {
   final int reviewIndependentTaskVariety;
   final int transferIndependentTaskVariety;
   final MicroFluencyState fluencyState;
+  final int fluencyAttempts;
   final int fluencySamples;
+  final int fluencyCorrectAttempts;
+  final int fluencyTaskVariety;
+  final double fluencyAccuracy;
   final double averageFluencyResponseMs;
+  final double typicalFluencyResponseMs;
   final bool basisNeedsReconfirmation;
   final bool reviewNeedsReconfirmation;
   final bool transferNeedsReconfirmation;

@@ -38,7 +38,10 @@ class AppController extends ChangeNotifier {
   static const int _masteredReviewTaskVariety = 2;
   static const int _masteredTransferTaskVariety = 2;
   static const double _evidenceEpsilon = 1e-9;
+  static const int _fluencyMinimumAttempts = 4;
   static const int _fluencyMinimumSamples = 3;
+  static const int _fluencyMinimumTaskVariety = 3;
+  static const double _fluencyMinimumAccuracy = 0.85;
   static const int _fluencyWindow = 8;
   static const int _fluencyTargetMs = 5000;
   static const Set<TrainingMode> _fluencyModes = <TrainingMode>{
@@ -1269,7 +1272,9 @@ class AppController extends ChangeNotifier {
     final independentTaskKeys = <String>{};
     final reviewIndependentTaskKeys = <String>{};
     final transferIndependentTaskKeys = <String>{};
+    final fluencyAttempts = <MicroCompetencyObservation>[];
     final fluencyResponseMs = <int>[];
+    final fluencyTaskKeys = <String>{};
 
     for (final observation in observations) {
       evidence += observation.evidenceWeight;
@@ -1283,14 +1288,17 @@ class AppController extends ChangeNotifier {
 
       if (_fluencyCompetencies.contains(id) &&
           _fluencyModes.contains(observation.mode) &&
-          fluencyResponseMs.length < _fluencyWindow &&
-          observation.correct &&
+          fluencyAttempts.length < _fluencyWindow &&
           !observation.usedHelp &&
           observation.responseMs != null &&
           observation.responseMs! > 0 &&
           observation.source != MicroEvidenceSource.guidedStep &&
           observation.source != MicroEvidenceSource.independentStep) {
-        fluencyResponseMs.add(observation.responseMs!);
+        fluencyAttempts.add(observation);
+        if (observation.correct) {
+          fluencyResponseMs.add(observation.responseMs!);
+          fluencyTaskKeys.add(_microEvidenceTaskKey(observation));
+        }
       }
 
       switch (observation.source) {
@@ -1389,14 +1397,32 @@ class AppController extends ChangeNotifier {
         ? 0.0
         : guidedStepCorrectEvidence / guidedStepEvidence;
 
+    final fluencyCorrectAttempts =
+        fluencyAttempts.where((observation) => observation.correct).length;
+    final fluencyAccuracy = fluencyAttempts.isEmpty
+        ? 0.0
+        : fluencyCorrectAttempts / fluencyAttempts.length;
     final averageFluencyResponseMs = fluencyResponseMs.isEmpty
         ? 0.0
         : fluencyResponseMs.reduce((a, b) => a + b) / fluencyResponseMs.length;
+    final sortedFluencyResponseMs = [...fluencyResponseMs]..sort();
+    final typicalFluencyResponseMs = sortedFluencyResponseMs.isEmpty
+        ? 0.0
+        : sortedFluencyResponseMs.length.isOdd
+            ? sortedFluencyResponseMs[sortedFluencyResponseMs.length ~/ 2].toDouble()
+            : (sortedFluencyResponseMs[sortedFluencyResponseMs.length ~/ 2 - 1] +
+                    sortedFluencyResponseMs[sortedFluencyResponseMs.length ~/ 2]) /
+                2;
+    final fluencyMeasurementReady =
+        fluencyAttempts.length >= _fluencyMinimumAttempts &&
+            fluencyResponseMs.length >= _fluencyMinimumSamples &&
+            fluencyTaskKeys.length >= _fluencyMinimumTaskVariety;
     final fluencyState = !_fluencyCompetencies.contains(id)
         ? MicroFluencyState.notApplicable
-        : fluencyResponseMs.length < _fluencyMinimumSamples
+        : !fluencyMeasurementReady
             ? MicroFluencyState.notMeasured
-            : averageFluencyResponseMs <= _fluencyTargetMs
+            : fluencyAccuracy >= _fluencyMinimumAccuracy &&
+                    typicalFluencyResponseMs <= _fluencyTargetMs
                 ? MicroFluencyState.fluent
                 : MicroFluencyState.building;
 
@@ -1473,8 +1499,13 @@ class AppController extends ChangeNotifier {
       reviewIndependentTaskVariety: reviewIndependentTaskKeys.length,
       transferIndependentTaskVariety: transferIndependentTaskKeys.length,
       fluencyState: fluencyState,
+      fluencyAttempts: fluencyAttempts.length,
       fluencySamples: fluencyResponseMs.length,
+      fluencyCorrectAttempts: fluencyCorrectAttempts,
+      fluencyTaskVariety: fluencyTaskKeys.length,
+      fluencyAccuracy: fluencyAccuracy,
       averageFluencyResponseMs: averageFluencyResponseMs,
+      typicalFluencyResponseMs: typicalFluencyResponseMs,
       basisNeedsReconfirmation: _latestBasisEvidenceIsUnstable(id),
       reviewNeedsReconfirmation: _latestSourceEvidenceIsUnstable(
         id,
@@ -1855,12 +1886,16 @@ class AppController extends ChangeNotifier {
         final bBuilding = b.fluencyState == MicroFluencyState.building;
         if (aBuilding != bBuilding) return aBuilding ? -1 : 1;
         if (aBuilding && bBuilding) {
-          final speedOrder = b.averageFluencyResponseMs
-              .compareTo(a.averageFluencyResponseMs);
+          final accuracyOrder = a.fluencyAccuracy.compareTo(b.fluencyAccuracy);
+          if (accuracyOrder != 0) return accuracyOrder;
+          final speedOrder = b.typicalFluencyResponseMs
+              .compareTo(a.typicalFluencyResponseMs);
           if (speedOrder != 0) return speedOrder;
         } else {
-          final sampleOrder = b.fluencySamples.compareTo(a.fluencySamples);
-          if (sampleOrder != 0) return sampleOrder;
+          final attemptOrder = b.fluencyAttempts.compareTo(a.fluencyAttempts);
+          if (attemptOrder != 0) return attemptOrder;
+          final varietyOrder = b.fluencyTaskVariety.compareTo(a.fluencyTaskVariety);
+          if (varietyOrder != 0) return varietyOrder;
         }
         if (a.lastSeen == null && b.lastSeen != null) return -1;
         if (a.lastSeen != null && b.lastSeen == null) return 1;
@@ -3085,11 +3120,11 @@ class AppController extends ChangeNotifier {
     final fluencyDetail = switch (progress.fluencyState) {
       MicroFluencyState.notApplicable => '',
       MicroFluencyState.notMeasured =>
-        ' Für die Automatisierung liegen noch nicht genug selbstständige Zeitmessungen vor.',
+        ' Für die Automatisierung fehlen noch genug unverzerrte Versuche auf unterschiedlichen Grundaufgaben.',
       MicroFluencyState.building =>
-        ' Die Grundaufgaben sind inhaltlich getrennt bewertet; die Automatisierung ist mit durchschnittlich ${(progress.averageFluencyResponseMs / 1000).toStringAsFixed(1)} s noch im Aufbau.',
+        ' Die Grundaufgaben sind inhaltlich getrennt bewertet; im aktuellen Automatisierungsfenster sind ${(progress.fluencyAccuracy * 100).round()} % richtig bei ${progress.fluencyTaskVariety} unterschiedlichen Aufgaben, typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s.',
       MicroFluencyState.fluent =>
-        ' Die Grundaufgaben werden zusätzlich flüssig abgerufen (Ø ${(progress.averageFluencyResponseMs / 1000).toStringAsFixed(1)} s).',
+        ' Die Grundaufgaben werden zusätzlich flüssig abgerufen: ${(progress.fluencyAccuracy * 100).round()} % richtig bei ${progress.fluencyTaskVariety} unterschiedlichen Aufgaben, typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s.',
     };
 
     return '${parts.join(' · ')}. '
@@ -3248,8 +3283,8 @@ class AppController extends ChangeNotifier {
             ? 'bereits gemeistert'
             : 'fachlich sicher';
         focusText = priority.fluencyState == MicroFluencyState.building
-            ? '„${priority.definition.label}“ ist $statusText. Der Abruf ist mit durchschnittlich ${(priority.averageFluencyResponseMs / 1000).toStringAsFixed(1)} s noch nicht flüssig genug und wird deshalb kurz automatisiert.'
-            : '„${priority.definition.label}“ ist $statusText. Für die Automatisierung fehlen noch einige unverzerrte Zeitmessungen; die Zeitmessung läuft dabei nur im Hintergrund.';
+            ? '„${priority.definition.label}“ ist $statusText. Im aktuellen Automatisierungsfenster sind ${(priority.fluencyAccuracy * 100).round()} % richtig bei ${priority.fluencyTaskVariety} unterschiedlichen Aufgaben; typisch braucht der Abruf ${(priority.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s. Deshalb wird kurz ohne Zeitdruck automatisiert.'
+            : '„${priority.definition.label}“ ist $statusText. Für eine belastbare Automatisierungsmessung fehlen noch unterschiedliche, unverzerrte Grundaufgaben; die Zeitmessung läuft dabei nur im Hintergrund.';
       } else {
         focusText =
             '„${priority.definition.label}“ ist der nächste sinnvolle Teilschritt in der Lernkarte.';
