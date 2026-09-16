@@ -269,15 +269,19 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                 if (progress.fluencyState != MicroFluencyState.notApplicable)
                   _EvidenceLine(
                     label: 'Automatisierung',
-                    value: switch (progress.fluencyState) {
-                      MicroFluencyState.notMeasured =>
-                        '${progress.fluencyAttempts} Versuche · ${progress.fluencyTaskVariety} unterschiedliche Aufgaben · noch nicht belastbar',
-                      MicroFluencyState.building =>
-                        'im Aufbau · ${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} Aufgaben · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
-                      MicroFluencyState.fluent =>
-                        'flüssig · ${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} Aufgaben · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
-                      MicroFluencyState.notApplicable => '',
-                    },
+                    value: widget.controller.accessibilityPreferences.readAloud
+                        ? progress.fluencyState == MicroFluencyState.fluent
+                            ? 'flüssig belegt · neue Zeitmessung bei Vorlesen pausiert'
+                            : 'Zeitmessung pausiert, solange Vorlesen aktiv ist'
+                        : switch (progress.fluencyState) {
+                            MicroFluencyState.notMeasured =>
+                              '${progress.fluencyAttempts} Versuche · ${progress.fluencyTaskVariety} unterschiedliche Aufgaben · noch nicht belastbar',
+                            MicroFluencyState.building =>
+                              'im Aufbau · ${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} Aufgaben · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
+                            MicroFluencyState.fluent =>
+                              'flüssig · ${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} Aufgaben · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
+                            MicroFluencyState.notApplicable => '',
+                          },
                   ),
                 const SizedBox(height: 10),
                 Card(
