@@ -290,6 +290,9 @@ class MicroCompetencyProgress {
     this.transferObservations = 0,
     this.independentStepObservations = 0,
     this.guidedStepObservations = 0,
+    this.independentTaskVariety = 0,
+    this.reviewIndependentTaskVariety = 0,
+    this.transferIndependentTaskVariety = 0,
     this.basisNeedsReconfirmation = false,
     this.reviewNeedsReconfirmation = false,
     this.transferNeedsReconfirmation = false,
@@ -325,6 +328,9 @@ class MicroCompetencyProgress {
   final int transferObservations;
   final int independentStepObservations;
   final int guidedStepObservations;
+  final int independentTaskVariety;
+  final int reviewIndependentTaskVariety;
+  final int transferIndependentTaskVariety;
   final bool basisNeedsReconfirmation;
   final bool reviewNeedsReconfirmation;
   final bool transferNeedsReconfirmation;
