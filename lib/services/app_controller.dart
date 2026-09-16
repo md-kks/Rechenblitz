@@ -3242,6 +3242,84 @@ class AppController extends ChangeNotifier {
         'So übt Rechenblitz nicht einfach den Bereich mit der niedrigsten Gesamtquote, sondern den konkreten Teilschritt und die noch fehlende Evidenzart.';
   }
 
+  LearningCompletionInsight? learningCompletionInsight({
+    required MicroCompetencyId? targetCompetency,
+    bool reviewEmphasis = false,
+    bool transferEmphasis = false,
+    bool fluencyEmphasis = false,
+  }) {
+    if (targetCompetency == null) return null;
+    final progress = microCompetencyProgress(targetCompetency);
+    final label = progress.definition.label;
+
+    final title = switch (progress.state) {
+      MicroCompetencyState.mastered => 'Schon richtig stabil',
+      MicroCompetencyState.secure => 'Das klappt schon sicher',
+      MicroCompetencyState.practicing => 'Das wird gerade sicherer',
+      MicroCompetencyState.discovering => 'Heute weiter verstanden',
+      MicroCompetencyState.newSkill => 'Heute kennengelernt',
+    };
+
+    late final String detail;
+    if (fluencyEmphasis) {
+      detail = switch (progress.fluencyState) {
+        MicroFluencyState.fluent =>
+          '„$label“ ist fachlich sicher und die passenden Grundaufgaben sind inzwischen flüssig abrufbar.',
+        MicroFluencyState.building =>
+          '„$label“ ist fachlich sicher. Heute wurde der flüssige Abruf ohne Countdown weiter aufgebaut.',
+        MicroFluencyState.notMeasured =>
+          '„$label“ ist fachlich sicher. Rechenblitz sammelt dafür jetzt unterschiedliche Grundaufgaben zur Automatisierung – ohne Zeitdruck.',
+        MicroFluencyState.notApplicable =>
+          '„$label“ wurde heute weiter gefestigt.',
+      };
+    } else if (transferEmphasis) {
+      detail = progress.hasIndependentTransferEvidence
+          ? '„$label“ wurde heute auch in einer veränderten Aufgabe selbstständig angewendet.'
+          : '„$label“ wurde heute in einer veränderten Aufgabe ausprobiert. Rechenblitz prüft den Transfer später erneut.';
+    } else if (reviewEmphasis) {
+      detail = progress.hasIndependentReviewEvidence
+          ? '„$label“ wurde heute nach zeitlichem Abstand wieder selbstständig abgerufen.'
+          : '„$label“ wurde heute nach zeitlichem Abstand wiederholt. Für eine stabile Bestätigung braucht es noch eine selbstständige Lösung.';
+    } else {
+      detail = switch (progress.state) {
+        MicroCompetencyState.mastered =>
+          '„$label“ ist mit selbstständiger Basis, Wiederholung und Transfer belegt.',
+        MicroCompetencyState.secure =>
+          '„$label“ gelingt in den bisherigen Aufgaben überwiegend selbstständig.',
+        MicroCompetencyState.practicing =>
+          '„$label“ wurde heute gezielt geübt. Rechenblitz greift den Schritt wieder auf, bis er selbstständig sicher ist.',
+        MicroCompetencyState.discovering =>
+          '„$label“ wird gerade aufgebaut. Hilfe und selbstständige Versuche werden dabei getrennt bewertet.',
+        MicroCompetencyState.newSkill =>
+          '„$label“ hat heute erste passende Aufgaben bekommen. Daraus entsteht jetzt die Lernspur.',
+      };
+    }
+
+    final nextStep = switch (progress.state) {
+      MicroCompetencyState.mastered =>
+        'Als Nächstes reicht eine kurze Erhaltung, wenn sie wieder fällig ist.',
+      MicroCompetencyState.secure =>
+        progress.hasIndependentReviewEvidence && progress.hasIndependentTransferEvidence
+            ? 'Als Nächstes hält Rechenblitz den Schritt mit kurzen Abständen stabil.'
+            : !progress.hasIndependentReviewEvidence
+                ? 'Später prüft Rechenblitz, ob der Schritt auch nach einer Pause noch sitzt.'
+                : 'Als Nächstes kommt derselbe Gedanke in einer etwas anderen Aufgabe.',
+      MicroCompetencyState.practicing =>
+        'Meine Runde übt den Schritt weiter, bis er ohne Hilfe zuverlässig klappt.',
+      MicroCompetencyState.discovering =>
+        'Der nächste passende Schritt bleibt klein und baut direkt darauf auf.',
+      MicroCompetencyState.newSkill =>
+        'Ein paar passende Aufgaben zeigen als Nächstes, wie selbstständig der Schritt schon gelingt.',
+    };
+
+    return LearningCompletionInsight(
+      title: title,
+      detail: detail,
+      nextStep: nextStep,
+      fluency: fluencyEmphasis,
+    );
+  }
+
   ParentLearningInsight parentInsight({
     DateTime? now,
   }) {

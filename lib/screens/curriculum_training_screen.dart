@@ -441,6 +441,14 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     );
     if (completed > 0) await widget.controller.addSession(result);
     final newBadges = widget.controller.lastSessionNewBadges;
+    final learningInsight = completed == 0
+        ? null
+        : widget.controller.learningCompletionInsight(
+            targetCompetency: widget.targetCompetency,
+            reviewEmphasis: widget.reviewEmphasis,
+            transferEmphasis: widget.transferEmphasis,
+            fluencyEmphasis: widget.fluencyEmphasis,
+          );
     if (!mounted) return;
     await showRoundCompletionDialog(
       context,
@@ -449,6 +457,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       starsEarned: result.starsEarned,
       rewardReason: reason,
       adaptiveNote: adaptiveStopReason,
+      learningInsight: learningInsight,
       newBadges: newBadges,
     );
     if (mounted) Navigator.of(context).pop();
