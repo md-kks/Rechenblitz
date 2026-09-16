@@ -44,12 +44,12 @@ class AppController extends ChangeNotifier {
   static const double _fluencyMinimumAccuracy = 0.85;
   static const int _fluencyWindow = 8;
   static const int _fluencyTargetMs = 5000;
+  // Fluency wird nur im normalen Übungsfluss im Hintergrund bewertet.
+  // Explizite Zeitdruck-Modi bleiben Training, aber keine diagnostische
+  // Zeitmessung, damit Countdown/Stress die Lernlandkarte nicht verzerren.
   static const Set<TrainingMode> _fluencyModes = <TrainingMode>{
     TrainingMode.practice,
     TrainingMode.minus,
-    TrainingMode.speed,
-    TrainingMode.tempo,
-    TrainingMode.blitz,
     TrainingMode.multiply,
     TrainingMode.divide,
     TrainingMode.mixed,
@@ -1171,6 +1171,31 @@ class AppController extends ChangeNotifier {
     return key;
   }
 
+
+  MathFact? _basicFluencyFactFor(MicroCompetencyObservation observation) {
+    final parts = _microEvidenceTaskKey(observation).split(':');
+    if (parts.length != 3) return null;
+    final a = int.tryParse(parts[1]);
+    final b = int.tryParse(parts[2]);
+    if (a == null || b == null) return null;
+    final operation = switch (parts[0]) {
+      'plus' => MathOperation.plus,
+      'minus' => MathOperation.minus,
+      'multiply' => MathOperation.multiply,
+      'divide' => MathOperation.divide,
+      _ => null,
+    };
+    if (operation == null) return null;
+    final fact = MathFact(a: a, b: b, operation: operation);
+    if (!fact.isBasicFluencyFact) return null;
+    final matchesCompetency = MicroCompetencyCatalog.tagsForTask(
+      mode: observation.mode,
+      taskKey: fact.key,
+      fact: fact,
+    ).any((tag) => tag.id == observation.id);
+    return matchesCompetency ? fact : null;
+  }
+
   MicroCompetencyObservation? _latestMicroObservationForSource(
     MicroCompetencyId id,
     MicroEvidenceSource source,
@@ -1295,6 +1320,7 @@ class AppController extends ChangeNotifier {
 
       if (_fluencyCompetencies.contains(id) &&
           _fluencyModes.contains(observation.mode) &&
+          _basicFluencyFactFor(observation) != null &&
           fluencyAttempts.length < _fluencyWindow &&
           !observation.usedHelp &&
           observation.responseMs != null &&
@@ -2646,8 +2672,8 @@ class AppController extends ChangeNotifier {
             ? 'Nach der kurzen Arbeit an „${stepRecovery.label}“ reichen zwei passende Gesamtaufgaben, damit die Runde kompakt bleibt.'
             : isFluencyFocus
                 ? fluencyFocus.fluencyState == MicroFluencyState.building
-                    ? '„${fluencyFocus.definition.label}“ ist fachlich sicher. Jetzt folgen kurze Abrufaufgaben ohne Zeitdruck, damit die Automatisierung weiterwächst.'
-                    : '„${fluencyFocus.definition.label}“ ist fachlich sicher. Einige kurze Aufgaben erfassen jetzt erstmals die Automatisierung; die Zeit läuft nur im Hintergrund.'
+                    ? '„${fluencyFocus.definition.label}“ ist fachlich sicher. Jetzt folgen echte Grundaufgaben ohne Zeitdruck, damit die Automatisierung weiterwächst.'
+                    : '„${fluencyFocus.definition.label}“ ist fachlich sicher. Einige Grundaufgaben erfassen jetzt erstmals die Automatisierung; die Zeit läuft nur im Hintergrund.'
                 : microFocus == null
                     ? 'Das ist heute das wichtigste Lernziel.'
                     : guidedFocus != null &&
@@ -2910,8 +2936,8 @@ class AppController extends ChangeNotifier {
       items.add(GuidedRoundDecisionItem(
         kind: GuidedRoundDecisionKind.fluency,
         detail: fluency.fluencyState == MicroFluencyState.building
-            ? '„${fluency.definition.label}“ ist fachlich sicher, braucht aber noch flüssigeren Abruf. Die Automatisierung wartet hinter dringenderem Verständnis, fälliger Wiederholung oder Transfer.'
-            : '„${fluency.definition.label}“ ist fachlich sicher, hat aber noch zu wenige unverzerrte Zeitmessungen. Die Automatisierung wird später im Hintergrund ergänzt.',
+            ? '„${fluency.definition.label}“ ist fachlich sicher, braucht aber noch flüssigeren Abruf bei Grundaufgaben. Die Automatisierung wartet hinter dringenderem Verständnis, fälliger Wiederholung oder Transfer.'
+            : '„${fluency.definition.label}“ ist fachlich sicher, hat aber noch zu wenige unverzerrte Grundaufgaben aus normalen Übungsrunden. Die Automatisierung wird später im Hintergrund ergänzt.',
         priority: 50,
         selected: false,
         competencyId: fluency.definition.id,
@@ -3133,7 +3159,7 @@ class AppController extends ChangeNotifier {
             : switch (progress.fluencyState) {
                 MicroFluencyState.notApplicable => '',
                 MicroFluencyState.notMeasured =>
-                  ' Für die Automatisierung fehlen noch genug unverzerrte Versuche auf unterschiedlichen Grundaufgaben.',
+                  ' Für die Automatisierung fehlen noch genug unverzerrte Grundaufgaben aus normalen Übungsrunden ohne Countdown.',
                 MicroFluencyState.building =>
                   ' Die Grundaufgaben sind inhaltlich getrennt bewertet; im aktuellen Automatisierungsfenster sind ${(progress.fluencyAccuracy * 100).round()} % richtig bei ${progress.fluencyTaskVariety} unterschiedlichen Aufgaben, typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s.',
                 MicroFluencyState.fluent =>
@@ -3297,7 +3323,7 @@ class AppController extends ChangeNotifier {
             : 'fachlich sicher';
         focusText = priority.fluencyState == MicroFluencyState.building
             ? '„${priority.definition.label}“ ist $statusText. Im aktuellen Automatisierungsfenster sind ${(priority.fluencyAccuracy * 100).round()} % richtig bei ${priority.fluencyTaskVariety} unterschiedlichen Aufgaben; typisch braucht der Abruf ${(priority.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s. Deshalb wird kurz ohne Zeitdruck automatisiert.'
-            : '„${priority.definition.label}“ ist $statusText. Für eine belastbare Automatisierungsmessung fehlen noch unterschiedliche, unverzerrte Grundaufgaben; die Zeitmessung läuft dabei nur im Hintergrund.';
+            : '„${priority.definition.label}“ ist $statusText. Für eine belastbare Automatisierungsmessung fehlen noch unterschiedliche Grundaufgaben aus normalen Übungsrunden; Blitz und Rechencheck zählen dafür nicht. Die Zeitmessung läuft nur im Hintergrund.';
       } else {
         focusText =
             '„${priority.definition.label}“ ist der nächste sinnvolle Teilschritt in der Lernkarte.';

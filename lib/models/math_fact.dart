@@ -74,23 +74,37 @@ class MathFact {
 
   double get accuracy => attempts == 0 ? 0.5 : correctAttempts / attempts;
 
-  /// 0 = noch unsicher, 1 = sehr sicher. Sicherheit zählt stärker als Tempo.
+  /// 0 = noch unsicher, 1 = sehr sicher.
+  /// Fachliche Sicherheit einer einzelnen Aufgabe. Tempo wird bewusst nicht
+  /// eingerechnet: Automatisierung wird separat auf Mikro-Kompetenzebene
+  /// bewertet, damit langsam aber sicher nicht als fachlich schwach gilt.
   double get masteryScore {
     if (attempts == 0) return 0.18;
     final accuracyScore = accuracy;
-    final speedScore =
-        (1 - ((averageResponseMs - 1800) / 8200)).clamp(0.0, 1.0).toDouble();
     final repetitionScore =
         (correctAttempts / 6).clamp(0.0, 1.0).toDouble();
     final helpPenalty =
         (helpCount / max(1, attempts)).clamp(0.0, 1.0).toDouble();
-    return (accuracyScore * 0.58 +
-            speedScore * 0.18 +
-            repetitionScore * 0.24 -
-            helpPenalty * 0.16)
+    return (accuracyScore * 0.72 +
+            repetitionScore * 0.28 -
+            helpPenalty * 0.18)
         .clamp(0.0, 1.0)
         .toDouble();
   }
+
+  /// Nur echte Grundaufgaben dürfen eine allgemeine Fluency-Aussage tragen.
+  /// Mehrstellige Plus-/Minusaufgaben messen weiterhin fachliche Sicherheit,
+  /// aber nicht denselben automatischen Abruf wie Aufgaben im Zahlenraum 20.
+  bool get isBasicFluencyFact => switch (operation) {
+        MathOperation.plus =>
+          a >= 0 && b >= 0 && result >= 0 && result <= 20,
+        MathOperation.minus =>
+          a >= 0 && b >= 0 && a >= b && a <= 20 && result <= 20,
+        MathOperation.multiply =>
+          a >= 0 && a <= 10 && b >= 0 && b <= 10 && result <= 100,
+        MathOperation.divide =>
+          a >= 0 && a <= 100 && b > 0 && b <= 10 && a % b == 0 && result <= 10,
+      };
 
   void registerAttempt({
     required bool correct,

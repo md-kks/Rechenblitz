@@ -298,7 +298,6 @@ class AdaptiveEngine {
   double _weightFor(MathFact fact) {
     final masteryNeed = 1.15 + (1 - fact.masteryScore) * 4.2;
     final errorBoost = 1 + fact.incorrectAttempts * 0.32;
-    final speedBoost = fact.averageResponseMs > 6500 ? 1.45 : 1.0;
     final helpBoost = 1 + fact.helpCount * 0.18;
     final unseenBoost = fact.attempts == 0 ? 1.55 : 1.0;
     final recencyBoost = fact.lastPracticed == null
@@ -308,7 +307,6 @@ class AdaptiveEngine {
             : 1.0;
     return masteryNeed *
         errorBoost *
-        speedBoost *
         helpBoost *
         unseenBoost *
         recencyBoost;
@@ -341,15 +339,18 @@ class AdaptiveEngine {
       return 'Minus ist aktuell noch unsicherer. Eine Minus-Runde passt gut${labels.isEmpty ? '' : ', besonders zu $labels'}.';
     }
 
-    final avg = tried
-            .map((e) => e.averageResponseMs)
-            .fold<double>(0, (a, b) => a + b) /
-        tried.length;
-    if (mastery(tried) > 0.76 && avg > 4500) {
-      return 'Die Grundlagen sind schon recht sicher. Eine kurze Runde „Schnell rechnen“ kann die Automatisierung stärken.';
+    final fluencyFacts = tried.where((fact) => fact.isBasicFluencyFact).toList();
+    final avg = fluencyFacts.isEmpty
+        ? 0.0
+        : fluencyFacts
+                .map((e) => e.averageResponseMs)
+                .fold<double>(0, (a, b) => a + b) /
+            fluencyFacts.length;
+    if (fluencyFacts.length >= 4 && mastery(tried) > 0.76 && avg > 4500) {
+      return 'Die Grundlagen sind schon recht sicher. Eine kurze Runde „Schnell rechnen“ kann die Automatisierung der Grundaufgaben stärken.';
     }
-    if (mastery(tried) > 0.78 && avg <= 4500) {
-      return 'Sicherheit und Tempo passen gut zusammen. Ein kurzer Rechencheck ist jetzt sinnvoll.';
+    if (fluencyFacts.length >= 4 && mastery(tried) > 0.78 && avg <= 4500) {
+      return 'Sicherheit und Tempo der Grundaufgaben passen gut zusammen. Ein kurzer Rechencheck ist jetzt sinnvoll.';
     }
     return 'Eine weitere sichere Übungsrunde ist aktuell sinnvoller als zusätzlicher Zeitdruck.';
   }

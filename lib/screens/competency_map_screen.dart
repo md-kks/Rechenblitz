@@ -275,11 +275,11 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
                             : 'Zeitmessung pausiert, solange Vorlesen aktiv ist'
                         : switch (progress.fluencyState) {
                             MicroFluencyState.notMeasured =>
-                              '${progress.fluencyAttempts} Versuche · ${progress.fluencyTaskVariety} unterschiedliche Aufgaben · noch nicht belastbar',
+                              '${progress.fluencyAttempts} gewertete Grundaufgaben · ${progress.fluencyTaskVariety} unterschiedliche · noch nicht belastbar',
                             MicroFluencyState.building =>
-                              'im Aufbau · ${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} Aufgaben · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
+                              'Grundaufgaben im Aufbau · ${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} Aufgaben · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
                             MicroFluencyState.fluent =>
-                              'flüssig · ${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} Aufgaben · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
+                              'Grundaufgaben flüssig · ${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} Aufgaben · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
                             MicroFluencyState.notApplicable => '',
                           },
                   ),
