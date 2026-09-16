@@ -662,6 +662,33 @@ class _TrainingScreenState extends State<TrainingScreen> {
                     'Aufgabe ${completed < widget.targetTasks ? completed + 1 : widget.targetTasks} von ${widget.targetTasks}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
+                  if (widget.fluencyEmphasis) ...[
+                    const SizedBox(height: 8),
+                    Card(
+                      key: const ValueKey('fluency-no-pressure'),
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.self_improvement_rounded, size: 20),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Kein Countdown – rechne in deinem Tempo. Die Zeitmessung läuft nur im Hintergrund.',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   SizedBox(height: largeGap),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

@@ -46,14 +46,14 @@ class _ParentScreenState extends State<ParentScreen> {
   }
 
   String _percent(double value) => '${(value * 100).round()} %';
-  String _seconds(double ms) =>
-      ms == 0 ? '–' : '${(ms / 1000).toStringAsFixed(1)} s';
-
   Future<void> _startRecommended() async {
     final priority = widget.controller.parentPriorityMicroCompetency();
     final mode = priority?.definition.preferredMode ??
         widget.controller.recommendedMode();
     final targetCompetency = priority?.definition.id;
+    final decision = widget.controller.guidedRoundDecisionTrace().primary;
+    final fluencyEmphasis = decision?.kind == GuidedRoundDecisionKind.fluency &&
+        decision?.competencyId == targetCompetency;
     if (mode.isUpperPrimary) {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -87,6 +87,7 @@ class _ParentScreenState extends State<ParentScreen> {
           timeLimit:
               mode == TrainingMode.tempo ? const Duration(minutes: 2) : null,
           targetCompetency: targetCompetency,
+          fluencyEmphasis: fluencyEmphasis,
         ),
       ),
     );
@@ -122,10 +123,27 @@ class _ParentScreenState extends State<ParentScreen> {
         today.fold<int>(0, (s, e) => s + e.incorrectAttempts);
     final todayTasks = today.fold<int>(0, (s, e) => s + e.total);
     final todayAccuracy = todayTasks == 0 ? 0.0 : todayCorrect / todayTasks;
-    final todayAvg = today.isEmpty
-        ? 0.0
-        : today.map((e) => e.averageResponseMs).fold<double>(0, (a, b) => a + b) /
-            today.length;
+    final fluencyProgress = MicroCompetencyCatalog.forGrade(c.gradeLevel)
+        .map((definition) => c.microCompetencyProgress(definition.id))
+        .where(
+          (progress) =>
+              progress.fluencyState != MicroFluencyState.notApplicable,
+        )
+        .toList(growable: false);
+    final fluentCount = fluencyProgress
+        .where((progress) => progress.fluencyState == MicroFluencyState.fluent)
+        .length;
+    final buildingCount = fluencyProgress
+        .where((progress) => progress.fluencyState == MicroFluencyState.building)
+        .length;
+    final notMeasuredCount = fluencyProgress
+        .where((progress) => progress.fluencyState == MicroFluencyState.notMeasured)
+        .length;
+    final fluencyFocus = c.fluencyFocusMicroCompetency();
+    final fluencyPaused = c.accessibilityPreferences.readAloud;
+    final fluencyIsPriority = fluencyFocus != null &&
+        roundDecision.primary?.kind == GuidedRoundDecisionKind.fluency &&
+        roundDecision.primary?.competencyId == fluencyFocus.definition.id;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Elternbereich')),
@@ -134,19 +152,38 @@ class _ParentScreenState extends State<ParentScreen> {
         children: [
           _Section(
             title: 'Aktueller Lernrahmen',
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${c.activeProfileName} · ${c.gradeLevel.label} · Zahlenraum ${c.numberRange.label}',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                ),
-                Text('${c.stars} ★ · ${c.badges.length} Abzeichen'),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked = constraints.maxWidth < 420 ||
+                    MediaQuery.textScalerOf(context).scale(1) > 1.4;
+                final frame = Text(
+                  '${c.activeProfileName} · ${c.gradeLevel.label} · Zahlenraum ${c.numberRange.label}',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                );
+                final rewards = Text(
+                  '${c.stars} ★ · ${c.badges.length} Abzeichen',
+                );
+                if (stacked) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      frame,
+                      const SizedBox(height: 8),
+                      rewards,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: frame),
+                    const SizedBox(width: 12),
+                    Flexible(child: rewards),
+                  ],
+                );
+              },
             ),
           ),
           const SizedBox(height: 14),
@@ -161,6 +198,7 @@ class _ParentScreenState extends State<ParentScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<HelpAccess>(
                   key: const ValueKey('parent-help-access'),
+                  isExpanded: true,
                   initialValue: c.helpPreferences.access,
                   decoration: const InputDecoration(
                     labelText: 'Verfügbare Hilfen',
@@ -169,7 +207,11 @@ class _ParentScreenState extends State<ParentScreen> {
                       .map(
                         (value) => DropdownMenuItem(
                           value: value,
-                          child: Text(value.label),
+                          child: Text(
+                            value.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       )
                       .toList(),
@@ -183,6 +225,7 @@ class _ParentScreenState extends State<ParentScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<HelpPresentation>(
                   key: const ValueKey('parent-help-presentation'),
+                  isExpanded: true,
                   initialValue: c.helpPreferences.presentation,
                   decoration: const InputDecoration(
                     labelText: 'Hilfe öffnen',
@@ -191,7 +234,11 @@ class _ParentScreenState extends State<ParentScreen> {
                       .map(
                         (value) => DropdownMenuItem(
                           value: value,
-                          child: Text(value.label),
+                          child: Text(
+                            value.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       )
                       .toList(),
@@ -222,7 +269,96 @@ class _ParentScreenState extends State<ParentScreen> {
                 _Metric('direkt richtig',
                     todayTasks == 0 ? '–' : _percent(todayAccuracy)),
                 _Metric('Fehlversuche', '$todayErrors'),
-                _Metric('Ø Antwort', _seconds(todayAvg)),
+                _Metric('Runden', '${today.length}'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
+            title: 'Automatisierung',
+            child: Column(
+              key: const ValueKey('parent-fluency-overview'),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Rechenblitz trennt fachliche Sicherheit von flüssigem Abruf. Gewertet werden nur selbstständige Grundaufgaben aus normalen Übungsrunden ohne Countdown.',
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 18,
+                  runSpacing: 12,
+                  children: [
+                    _Metric('flüssig', '$fluentCount'),
+                    _Metric('im Aufbau', '$buildingCount'),
+                    _Metric('noch offen', '$notMeasuredCount'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (fluencyPaused)
+                  const _ExplainCard(
+                    icon: Icons.record_voice_over_outlined,
+                    title: 'Messung pausiert',
+                    text:
+                        'Solange Vorlesen aktiviert ist, bewertet Rechenblitz keine Antwortzeiten. Der fachliche Lernstand läuft davon unabhängig weiter.',
+                  )
+                else if (fluencyFocus != null)
+                  _ExplainCard(
+                    icon: Icons.autorenew_rounded,
+                    title: fluencyFocus.definition.label,
+                    text: fluencyFocus.fluencyState == MicroFluencyState.building
+                        ? '${(fluencyFocus.fluencyAccuracy * 100).round()} % richtig bei ${fluencyFocus.fluencyTaskVariety} unterschiedlichen Grundaufgaben; typisch ${(fluencyFocus.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s. Der Bereich ist fachlich bereits sicher und wird jetzt kurz ohne Countdown automatisiert.'
+                        : 'Der Bereich ist fachlich bereits sicher. Für eine belastbare Automatisierungsmessung fehlen noch genügend unterschiedliche, unverzerrte Grundaufgaben.',
+                  )
+                else if (fluencyProgress.every(
+                  (progress) => progress.fluencyState == MicroFluencyState.fluent,
+                ))
+                  const _ExplainCard(
+                    icon: Icons.check_circle_outline_rounded,
+                    title: 'Grundaufgaben flüssig abrufbar',
+                    text:
+                        'Alle aktuell relevanten Grundrechen-Kompetenzen mit Automatisierungsbewertung sind im aktuellen Lernrahmen flüssig abrufbar.',
+                  )
+                else
+                  const _ExplainCard(
+                    icon: Icons.hourglass_empty_rounded,
+                    title: 'Noch keine Automatisierungspriorität',
+                    text:
+                        'Tempo wird erst bewertet, wenn der jeweilige Rechenweg fachlich sicher ist. Bis dahin zählt Verstehen vor Geschwindigkeit.',
+                  ),
+                if (fluencyIsPriority) ...[
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    key: const ValueKey('parent-fluency-start'),
+                    onPressed: _startRecommended,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Ohne Zeitdruck automatisieren'),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                const Divider(),
+                const SizedBox(height: 4),
+                ...fluencyProgress.map(
+                  (progress) => _FluencyProgressRow(
+                    progress: progress,
+                    measurementPaused: fluencyPaused,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Explizite Tempo- und Schnellrechen-Modi beeinflussen diese Diagnose nicht. Sie bleiben separates Training.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  key: const ValueKey('parent-fluency-open-map'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CompetencyMapScreen(controller: c),
+                    ),
+                  ),
+                  icon: const Icon(Icons.route_outlined),
+                  label: const Text('Automatisierung in der Lernlandkarte'),
+                ),
               ],
             ),
           ),
@@ -926,6 +1062,76 @@ class _ExplainCard extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _FluencyProgressRow extends StatelessWidget {
+  const _FluencyProgressRow({
+    required this.progress,
+    required this.measurementPaused,
+  });
+
+  final MicroCompetencyProgress progress;
+  final bool measurementPaused;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = progress.fluencyState;
+    final status = measurementPaused
+        ? 'Messung pausiert'
+        : switch (state) {
+            MicroFluencyState.notApplicable => 'nicht bewertet',
+            MicroFluencyState.notMeasured => 'noch nicht gemessen',
+            MicroFluencyState.building => 'im Aufbau',
+            MicroFluencyState.fluent => 'flüssig abrufbar',
+          };
+    final detail = measurementPaused
+        ? 'Vorlesen ist aktiv; fachliche Sicherheit wird weiter bewertet.'
+        : switch (state) {
+            MicroFluencyState.notApplicable => '',
+            MicroFluencyState.notMeasured => progress.fluencyAttempts == 0
+                ? 'Noch keine unverzerrte Grundaufgabe im aktuellen Lernrahmen.'
+                : '${progress.fluencyAttempts} gewertete Grundaufgaben · ${progress.fluencyTaskVariety} unterschiedliche · noch nicht belastbar',
+            MicroFluencyState.building || MicroFluencyState.fluent =>
+              '${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} unterschiedliche · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
+          };
+
+    return Padding(
+      key: ValueKey('parent-fluency-${progress.definition.id.name}'),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            state == MicroFluencyState.fluent
+                ? Icons.check_circle_outline_rounded
+                : Icons.timelapse_rounded,
+            size: 20,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  progress.definition.label,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  status,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                if (detail.isNotEmpty)
+                  Text(
+                    detail,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Metric extends StatelessWidget {

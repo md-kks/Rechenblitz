@@ -1424,7 +1424,8 @@ void main() {
   test('Rundenfortschritt bleibt am selben Tag wiederaufnehmbar', () async {
     final controller = AppController();
     await controller.load();
-    final now = DateTime(2026, 9, 15, 9);
+    final today = DateTime.now();
+    final now = DateTime(today.year, today.month, today.day, 9);
     final plan = controller.buildMyRound();
     final decisionTrace = controller.guidedRoundDecisionTrace(now: now);
     final progress = GuidedRoundProgress(
