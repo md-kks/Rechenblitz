@@ -27,6 +27,7 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
     nameController.text = profile.name == 'Lernprofil' ? '' : profile.name;
     grade = profile.gradeLevel;
     state = profile.state;
+    if (widget.controller.resumableAssessment() != null) step = 1;
   }
 
   @override
@@ -229,7 +230,11 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
         key: const ValueKey('learning-start-assessment-start'),
         onPressed: _startAssessment,
         icon: const Icon(Icons.play_arrow_rounded),
-        label: const Text('Lerncheck starten'),
+        label: Text(
+          widget.controller.resumableAssessment() == null
+              ? 'Lerncheck starten'
+              : 'Lerncheck fortsetzen',
+        ),
       ),
       const SizedBox(height: 8),
       TextButton(

@@ -38,6 +38,49 @@ class AssessmentTask {
   final MicroCompetencyId? targetCompetency;
 
   bool get usesChoices => choices != null && choices!.isNotEmpty;
+
+  Map<String, dynamic> toJson() => {
+        'mode': mode.name,
+        'taskKey': taskKey,
+        'prompt': prompt,
+        'answer': answer,
+        'maxAnswerValue': maxAnswerValue,
+        'choices': choices,
+        'wallValues': wallValues,
+        'hiddenWallIndex': hiddenWallIndex,
+        'clockHour': clockHour,
+        'clockMinute': clockMinute,
+        'answerSuffix': answerSuffix,
+        'fact': fact?.toJson(),
+        'targetCompetency': targetCompetency?.name,
+      };
+
+  factory AssessmentTask.fromJson(Map<String, dynamic> json) => AssessmentTask(
+        mode: TrainingMode.values.byName(json['mode'] as String),
+        taskKey: json['taskKey'] as String,
+        prompt: json['prompt'] as String,
+        answer: json['answer'] as int,
+        maxAnswerValue: json['maxAnswerValue'] as int,
+        choices: (json['choices'] as List<dynamic>?)
+            ?.whereType<String>()
+            .toList(growable: false),
+        wallValues: (json['wallValues'] as List<dynamic>?)
+            ?.whereType<num>()
+            .map((value) => value.toInt())
+            .toList(growable: false),
+        hiddenWallIndex: (json['hiddenWallIndex'] as num?)?.toInt(),
+        clockHour: (json['clockHour'] as num?)?.toInt(),
+        clockMinute: (json['clockMinute'] as num?)?.toInt(),
+        answerSuffix: json['answerSuffix'] as String?,
+        fact: json['fact'] is Map<String, dynamic>
+            ? MathFact.fromJson(json['fact'] as Map<String, dynamic>)
+            : null,
+        targetCompetency: json['targetCompetency'] == null
+            ? null
+            : MicroCompetencyId.values.byName(
+                json['targetCompetency'] as String,
+              ),
+      );
 }
 
 class AssessmentTaskResult {
@@ -54,6 +97,106 @@ class AssessmentTaskResult {
   final bool correct;
   final MathFact? fact;
   final MicroCompetencyId? targetCompetency;
+
+  Map<String, dynamic> toJson() => {
+        'mode': mode.name,
+        'taskKey': taskKey,
+        'correct': correct,
+        'fact': fact?.toJson(),
+        'targetCompetency': targetCompetency?.name,
+      };
+
+  factory AssessmentTaskResult.fromJson(Map<String, dynamic> json) =>
+      AssessmentTaskResult(
+        mode: TrainingMode.values.byName(json['mode'] as String),
+        taskKey: json['taskKey'] as String,
+        correct: json['correct'] as bool,
+        fact: json['fact'] is Map<String, dynamic>
+            ? MathFact.fromJson(json['fact'] as Map<String, dynamic>)
+            : null,
+        targetCompetency: json['targetCompetency'] == null
+            ? null
+            : MicroCompetencyId.values.byName(
+                json['targetCompetency'] as String,
+              ),
+      );
+}
+
+class AssessmentProgress {
+  const AssessmentProgress({
+    required this.gradeLevel,
+    required this.numberRange,
+    required this.tasks,
+    required this.taskResults,
+    required this.nextIndex,
+    required this.startedAt,
+    required this.updatedAt,
+  });
+
+  final GradeLevel gradeLevel;
+  final NumberRangeLevel numberRange;
+  final List<AssessmentTask> tasks;
+  final List<AssessmentTaskResult> taskResults;
+  final int nextIndex;
+  final DateTime startedAt;
+  final DateTime updatedAt;
+
+  bool isCompatible({
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+    DateTime? now,
+  }) {
+    if (grade != gradeLevel || range != numberRange) return false;
+    if (tasks.isEmpty || nextIndex <= 0 || nextIndex >= tasks.length) {
+      return false;
+    }
+    if (taskResults.length != nextIndex) return false;
+    for (var i = 0; i < taskResults.length; i++) {
+      if (taskResults[i].taskKey != tasks[i].taskKey ||
+          taskResults[i].mode != tasks[i].mode) {
+        return false;
+      }
+    }
+    final reference = now ?? DateTime.now();
+    if (updatedAt.isAfter(reference.add(const Duration(minutes: 5)))) {
+      return false;
+    }
+    return reference.difference(updatedAt) <= const Duration(hours: 24);
+  }
+
+  Map<String, dynamic> toJson() => {
+        'gradeLevel': gradeLevel.name,
+        'numberRange': numberRange.name,
+        'tasks': tasks.map((task) => task.toJson()).toList(),
+        'taskResults': taskResults.map((result) => result.toJson()).toList(),
+        'nextIndex': nextIndex,
+        'startedAt': startedAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory AssessmentProgress.fromJson(Map<String, dynamic> json) =>
+      AssessmentProgress(
+        gradeLevel: GradeLevel.values.byName(json['gradeLevel'] as String),
+        numberRange:
+            NumberRangeLevel.values.byName(json['numberRange'] as String),
+        tasks: (json['tasks'] as List<dynamic>)
+            .map(
+              (entry) => AssessmentTask.fromJson(
+                entry as Map<String, dynamic>,
+              ),
+            )
+            .toList(growable: false),
+        taskResults: (json['taskResults'] as List<dynamic>)
+            .map(
+              (entry) => AssessmentTaskResult.fromJson(
+                entry as Map<String, dynamic>,
+              ),
+            )
+            .toList(growable: false),
+        nextIndex: (json['nextIndex'] as num).toInt(),
+        startedAt: DateTime.parse(json['startedAt'] as String),
+        updatedAt: DateTime.parse(json['updatedAt'] as String),
+      );
 }
 
 class AssessmentGenerator {
