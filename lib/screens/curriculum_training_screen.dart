@@ -490,8 +490,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         ],
       ),
       body: SafeArea(
-        child: ListView(
-          key: const ValueKey('curriculum-training-scroll'),
+        child: KeyedSubtree(
+          key: ValueKey('curriculum-training-task:$completed:${current.key}'),
+          child: ListView(
+            key: const ValueKey('curriculum-training-scroll'),
           padding: pagePadding,
           children: [
             LinearProgressIndicator(
@@ -715,6 +717,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

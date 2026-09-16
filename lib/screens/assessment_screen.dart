@@ -125,7 +125,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
+          key: ValueKey('assessment-scroll-$index'),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
           children: [
             LinearProgressIndicator(
               value: progress,
@@ -221,14 +222,16 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                   label: const Text('Mit Finger lösen'),
                 ),
             ],
-            const SizedBox(height: 14),
-            TextButton.icon(
-              key: const ValueKey('assessment-dont-know'),
-              onPressed: locked ? null : () => _answer(null),
-              icon: const Icon(Icons.help_outline_rounded),
-              label: const Text('Weiß ich noch nicht'),
-            ),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        child: TextButton.icon(
+          key: const ValueKey('assessment-dont-know'),
+          onPressed: locked ? null : () => _answer(null),
+          icon: const Icon(Icons.help_outline_rounded),
+          label: const Text('Weiß ich noch nicht'),
         ),
       ),
     );

@@ -887,6 +887,72 @@ void main() {
     expect(evidence.single.correct, isFalse);
   });
 
+
+  testWidgets('Lerncheck hält Weiß ich noch nicht sichtbar und startet jede Aufgabe oben', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.twenty;
+    final generator = _FixedAssessmentGenerator(const [
+      AssessmentTask(
+        mode: TrainingMode.numberFriends,
+        taskKey: 'plus:6:4',
+        prompt: 'Erste lange Lerncheck-Aufgabe: Ergänze die Zahl so, dass zusammen genau zehn entsteht.',
+        answer: 4,
+        maxAnswerValue: 10,
+        targetCompetency: MicroCompetencyId.numberDecomposition,
+      ),
+      AssessmentTask(
+        mode: TrainingMode.numberFriends,
+        taskKey: 'plus:7:3',
+        prompt: 'Zweite lange Lerncheck-Aufgabe: Ergänze wieder bis genau zehn.',
+        answer: 3,
+        maxAnswerValue: 10,
+        targetCompetency: MicroCompetencyId.numberDecomposition,
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssessmentScreen(controller: controller, generator: generator),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final list = find.byKey(const ValueKey('assessment-scroll-0'));
+    final firstScroll = tester.state<ScrollableState>(
+      find.descendant(of: list, matching: find.byType(Scrollable)).first,
+    );
+    if (firstScroll.position.maxScrollExtent > 0) {
+      firstScroll.position.jumpTo(firstScroll.position.maxScrollExtent);
+      await tester.pump();
+    }
+    final dontKnow = find.byKey(const ValueKey('assessment-dont-know'));
+    expect(dontKnow, findsOneWidget);
+    expect(tester.getRect(dontKnow).bottom, lessThanOrEqualTo(640));
+    await tester.tap(dontKnow);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('assessment-scroll-1')), findsOneWidget);
+    final secondScroll = tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byKey(const ValueKey('assessment-scroll-1')),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    expect(secondScroll.position.pixels, 0);
+    expect(find.text('Aufgabe 2 von 2'), findsOneWidget);
+    expect(tester.getRect(find.byKey(const ValueKey('assessment-dont-know'))).bottom,
+        lessThanOrEqualTo(640));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Lerncheck-Touch bleibt bei 200 Prozent Text stabil', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 640));
     tester.platformDispatcher.textScaleFactorTestValue = 2.0;
@@ -898,21 +964,26 @@ void main() {
     await controller.load();
     controller.gradeLevel = GradeLevel.first;
     controller.numberRange = NumberRangeLevel.twenty;
+    final generator = _FixedAssessmentGenerator(const [
+      AssessmentTask(
+        mode: TrainingMode.numberFriends,
+        taskKey: 'plus:6:4',
+        prompt: '6 + ? = 10',
+        answer: 4,
+        maxAnswerValue: 10,
+        targetCompetency: MicroCompetencyId.numberDecomposition,
+      ),
+    ]);
 
     await tester.pumpWidget(
-      MaterialApp(home: AssessmentScreen(controller: controller)),
+      MaterialApp(
+        home: AssessmentScreen(controller: controller, generator: generator),
+      ),
     );
-    for (var task = 0; task < 4; task++) {
-      final list = find.byType(ListView).first;
-      await tester.drag(list, const Offset(0, -520));
-      await tester.pumpAndSettle();
-      final dontKnow = find.byKey(const ValueKey('assessment-dont-know'));
-      expect(dontKnow, findsOneWidget);
-      await tester.tap(dontKnow);
-      await tester.pumpAndSettle();
-    }
+    await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('assessment-touch-4')), findsOneWidget);
+    expect(find.byKey(const ValueKey('assessment-touch-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('assessment-dont-know')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

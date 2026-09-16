@@ -649,8 +649,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
       ),
       body: SafeArea(
         child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            key: const ValueKey('training-scroll'),
+          builder: (context, constraints) => KeyedSubtree(
+            key: ValueKey('training-task:$completed:${current.key}'),
+            child: SingleChildScrollView(
+              key: const ValueKey('training-scroll'),
             padding: pagePadding,
             child: ConstrainedBox(
               constraints:
@@ -851,6 +853,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

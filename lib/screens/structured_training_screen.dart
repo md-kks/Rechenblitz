@@ -491,8 +491,10 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         ],
       ),
       body: SafeArea(
-        child: ListView(
-          key: const ValueKey('structured-training-scroll'),
+        child: KeyedSubtree(
+          key: ValueKey('structured-training-task:$completed:${current.key}'),
+          child: ListView(
+            key: const ValueKey('structured-training-scroll'),
           padding: pagePadding,
             children: [
               LinearProgressIndicator(
@@ -737,7 +739,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
             ],
           ),
         ),
-      );
+      ),
+    );
   }
 }
 
