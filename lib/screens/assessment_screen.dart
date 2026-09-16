@@ -24,6 +24,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   late final List<AssessmentTask> tasks;
   final Map<String, int> correctByMode = {};
   final Map<String, int> totalByMode = {};
+  final List<AssessmentTaskResult> taskResults = <AssessmentTaskResult>[];
   int index = 0;
   bool locked = false;
   bool finished = false;
@@ -44,10 +45,20 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     locked = true;
 
     final key = current.mode.name;
+    final correct = value != null && value == current.answer;
     totalByMode[key] = (totalByMode[key] ?? 0) + 1;
-    if (value != null && value == current.answer) {
+    if (correct) {
       correctByMode[key] = (correctByMode[key] ?? 0) + 1;
     }
+    taskResults.add(
+      AssessmentTaskResult(
+        mode: current.mode,
+        taskKey: current.taskKey,
+        correct: correct,
+        fact: current.fact,
+        targetCompetency: current.targetCompetency,
+      ),
+    );
 
     if (index + 1 >= tasks.length) {
       final results = <AssessmentModeResult>[];
@@ -62,7 +73,10 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           ),
         );
       }
-      await widget.controller.completeAssessment(results);
+      await widget.controller.completeAssessment(
+        results,
+        taskResults: taskResults,
+      );
       if (!mounted) return;
       setState(() {
         finished = true;
@@ -161,6 +175,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
   Widget _buildResult(BuildContext context) {
     final focus = widget.controller.recommendedMode();
+    final microFocus = widget.controller.currentMicroFocus();
+    final focusLabel = microFocus?.definition.label ?? focus.title;
 
     return Scaffold(
       appBar: AppBar(
@@ -205,10 +221,19 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      focus.title,
+                      focusLabel,
+                      key: const ValueKey('assessment-next-focus'),
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
+                    if (microFocus != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        microFocus.definition.preferredMode.title,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                     const SizedBox(height: 5),
                     const Text(
                       'Damit starten wir in deiner ersten Runde.',

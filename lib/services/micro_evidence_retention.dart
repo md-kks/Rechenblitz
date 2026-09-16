@@ -19,6 +19,7 @@ class MicroEvidenceRetention {
       final key = '${observation.id.name}|${observation.gradeLevel.name}|${observation.numberRange.name}';
       final bucket = buckets.putIfAbsent(key, _RetentionBucket.new);
       switch (observation.source) {
+        case MicroEvidenceSource.assessment:
         case MicroEvidenceSource.practice:
         case MicroEvidenceSource.remediation:
           bucket.basis.add(observation);

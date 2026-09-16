@@ -1096,8 +1096,10 @@ class AppController extends ChangeNotifier {
     required MicroEvidenceSource source,
     MathFact? fact,
     int? responseMs,
+    MicroCompetencyId? onlyCompetency,
   }) {
     final sourceWeight = switch (source) {
+      MicroEvidenceSource.assessment => 0.75,
       MicroEvidenceSource.remediation => 0.65,
       MicroEvidenceSource.independentStep => 0.45,
       MicroEvidenceSource.guidedStep => 0.35,
@@ -1115,11 +1117,15 @@ class AppController extends ChangeNotifier {
           };
     final now = DateTime.now();
 
-    final observations = MicroCompetencyCatalog.tagsForTask(
+    final tags = MicroCompetencyCatalog.tagsForTask(
       mode: mode,
       taskKey: taskKey,
       fact: fact,
-    )
+    );
+    final selectedTags = onlyCompetency == null
+        ? tags
+        : tags.where((tag) => tag.id == onlyCompetency).toList(growable: false);
+    final observations = selectedTags
         .map(
           (tag) => MicroCompetencyObservation(
             id: tag.id,
@@ -1226,7 +1232,8 @@ class AppController extends ChangeNotifier {
     MicroCompetencyId id,
   ) {
     for (final observation in _sortedMicroObservationsFor(id)) {
-      if (observation.source == MicroEvidenceSource.practice ||
+      if (observation.source == MicroEvidenceSource.assessment ||
+          observation.source == MicroEvidenceSource.practice ||
           observation.source == MicroEvidenceSource.remediation) {
         return observation;
       }
@@ -1330,7 +1337,8 @@ class AppController extends ChangeNotifier {
           observation.responseMs! > 0 &&
           observation.source != MicroEvidenceSource.guidedStep &&
           observation.source != MicroEvidenceSource.independentStep &&
-          observation.source != MicroEvidenceSource.remediation) {
+          observation.source != MicroEvidenceSource.remediation &&
+          observation.source != MicroEvidenceSource.assessment) {
         fluencyAttempts.add(observation);
         if (observation.correct) {
           fluencyResponseMs.add(observation.responseMs!);
@@ -1393,6 +1401,7 @@ class AppController extends ChangeNotifier {
             guidedStepCorrectEvidence += observation.evidenceWeight;
           }
           break;
+        case MicroEvidenceSource.assessment:
         case MicroEvidenceSource.practice:
         case MicroEvidenceSource.remediation:
           baseEvidence += observation.evidenceWeight;
@@ -4236,10 +4245,33 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> completeAssessment(
-    List<AssessmentModeResult> results,
-  ) async {
+    List<AssessmentModeResult> results, {
+    List<AssessmentTaskResult> taskResults = const <AssessmentTaskResult>[],
+  }) async {
     final now = DateTime.now();
     history = history.where((entry) => !entry.isAssessment).toList();
+    microObservations = microObservations
+        .where(
+          (entry) =>
+              entry.source != MicroEvidenceSource.assessment ||
+              entry.gradeLevel != gradeLevel ||
+              entry.numberRange != numberRange,
+        )
+        .toList();
+
+    for (final task in taskResults) {
+      _recordMicroCompetencies(
+        mode: task.mode,
+        taskKey: task.taskKey,
+        correct: task.correct,
+        fact: task.fact,
+        usedHelp: false,
+        helpLevel: 0,
+        methodKey: null,
+        source: MicroEvidenceSource.assessment,
+        onlyCompetency: task.targetCompetency,
+      );
+    }
 
     for (final result in results.reversed) {
       history.insert(
@@ -4267,6 +4299,7 @@ class AppController extends ChangeNotifier {
     if (history.length > 300) history = history.take(300).toList();
     _markOnboardingComplete(assessmentCompletedAt: now);
     await storage.saveHistory(history);
+    await storage.saveMicroCompetencyObservations(microObservations);
     await storage.saveProfiles(profiles);
     notifyListeners();
   }
