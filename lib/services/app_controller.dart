@@ -128,6 +128,7 @@ class AppController extends ChangeNotifier {
   final Set<String> _pendingBadgeIds = <String>{};
   List<RewardBadge> lastSessionNewBadges = const [];
   GuidedRoundProgress? guidedRoundProgress;
+  AssessmentProgress? assessmentProgress;
 
   int get maxValue => numberRange.maxValue;
 
@@ -164,6 +165,28 @@ class AppController extends ChangeNotifier {
   Future<void> clearGuidedRoundProgress() async {
     guidedRoundProgress = null;
     await storage.clearGuidedRoundProgress();
+  }
+
+  AssessmentProgress? resumableAssessment({DateTime? now}) {
+    final progress = assessmentProgress;
+    if (progress == null) return null;
+    return progress.isCompatible(
+      grade: gradeLevel,
+      range: numberRange,
+      now: now,
+    )
+        ? progress
+        : null;
+  }
+
+  Future<void> saveAssessmentProgress(AssessmentProgress progress) async {
+    assessmentProgress = progress;
+    await storage.saveAssessmentProgress(progress);
+  }
+
+  Future<void> clearAssessmentProgress() async {
+    assessmentProgress = null;
+    await storage.clearAssessmentProgress();
   }
 
   void beginTeacherAssignment(TeacherAssignment assignment) {
@@ -220,6 +243,15 @@ class AppController extends ChangeNotifier {
         )) {
       guidedRoundProgress = null;
       await storage.clearGuidedRoundProgress();
+    }
+    assessmentProgress = await storage.loadAssessmentProgress();
+    if (assessmentProgress != null &&
+        !assessmentProgress!.isCompatible(
+          grade: gradeLevel,
+          range: numberRange,
+        )) {
+      assessmentProgress = null;
+      await storage.clearAssessmentProgress();
     }
     methodPreferences = await storage.methodPreferences();
     unlockedBadges = await storage.rewardBadges();
@@ -4090,7 +4122,10 @@ class AppController extends ChangeNotifier {
 
   Future<void> setGradeLevel(GradeLevel value) async {
     final gradeChanged = value != gradeLevel;
-    if (gradeChanged) activeTeacherAssignment = null;
+    if (gradeChanged) {
+      activeTeacherAssignment = null;
+      await clearAssessmentProgress();
+    }
     await clearGuidedRoundProgress();
     gradeLevel = value;
     numberRange = value.recommendedRange;
@@ -4221,9 +4256,13 @@ class AppController extends ChangeNotifier {
     required GermanState state,
   }) async {
     await clearGuidedRoundProgress();
+    final nextRange = grade.recommendedRange;
+    final assessmentContextChanged =
+        grade != gradeLevel || nextRange != numberRange;
+    if (assessmentContextChanged) await clearAssessmentProgress();
     final cleanName = name.trim().isEmpty ? 'Lernprofil' : name.trim();
     gradeLevel = grade;
-    numberRange = grade.recommendedRange;
+    numberRange = nextRange;
     methodPreferences = methodPreferences.copyWith(
       selectionPreference: MethodSelectionPreference.automatic,
     );
@@ -4304,10 +4343,12 @@ class AppController extends ChangeNotifier {
     await storage.saveHistory(history);
     await storage.saveMicroCompetencyObservations(microObservations);
     await storage.saveProfiles(profiles);
+    await clearAssessmentProgress();
     notifyListeners();
   }
 
   Future<void> completeOnboardingWithoutAssessment() async {
+    await clearAssessmentProgress();
     _markOnboardingComplete();
     await storage.saveProfiles(profiles);
     notifyListeners();
@@ -4356,6 +4397,7 @@ class AppController extends ChangeNotifier {
     if (value != numberRange) {
       activeTeacherAssignment = null;
       await clearGuidedRoundProgress();
+      await clearAssessmentProgress();
       recentTaskKeysByMode = <String, List<String>>{};
       await storage.saveTaskDiversity(recentTaskKeysByMode);
     }
@@ -4462,6 +4504,7 @@ class AppController extends ChangeNotifier {
     unlockedBadges = <String>{};
     recoveredWeakFacts = <String>{};
     guidedRoundProgress = null;
+    assessmentProgress = null;
     activeTeacherAssignment = null;
     _pendingBadgeIds.clear();
     lastSessionNewBadges = const [];

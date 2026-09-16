@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/accessibility_preferences.dart';
+import '../models/assessment.dart';
 import '../models/beta_feedback.dart';
 import '../models/error_diagnosis.dart';
 import '../models/learner_profile.dart';
@@ -29,6 +30,7 @@ class StorageService {
   static const _taskDiversityKey = 'task_diversity_v1';
   static const _microCompetencyKey = 'micro_competency_v1';
   static const _guidedRoundKey = 'guided_round_v1';
+  static const _assessmentProgressKey = 'assessment_progress_v1';
   static const _accessibilityKey = 'accessibility_preferences_v1';
   static const _betaFeedbackKey = 'beta_feedback_v1';
 
@@ -134,6 +136,7 @@ class StorageService {
       _taskDiversityKey,
       _microCompetencyKey,
       _guidedRoundKey,
+      _assessmentProgressKey,
     ]) {
       await prefs.remove('profile:$id:$key');
     }
@@ -367,6 +370,29 @@ class StorageService {
       (await SharedPreferences.getInstance())
           .remove(_profileKey(_guidedRoundKey));
 
+  Future<AssessmentProgress?> loadAssessmentProgress() async {
+    final raw = (await SharedPreferences.getInstance())
+        .getString(_profileKey(_assessmentProgressKey));
+    if (raw == null) return null;
+    try {
+      return AssessmentProgress.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveAssessmentProgress(AssessmentProgress progress) async =>
+      (await SharedPreferences.getInstance()).setString(
+        _profileKey(_assessmentProgressKey),
+        jsonEncode(progress.toJson()),
+      );
+
+  Future<void> clearAssessmentProgress() async =>
+      (await SharedPreferences.getInstance())
+          .remove(_profileKey(_assessmentProgressKey));
+
   Future<GradeLevel?> storedGradeLevel() async {
     final raw = (await SharedPreferences.getInstance())
         .getString(_profileKey(_gradeLevelKey));
@@ -485,6 +511,7 @@ class StorageService {
     await prefs.remove(_profileKey(_taskDiversityKey));
     await prefs.remove(_profileKey(_microCompetencyKey));
     await prefs.remove(_profileKey(_guidedRoundKey));
+    await prefs.remove(_profileKey(_assessmentProgressKey));
   }
 
   List<LearnerProfile> _decodeProfiles(String raw) {

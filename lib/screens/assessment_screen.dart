@@ -25,7 +25,8 @@ class AssessmentScreen extends StatefulWidget {
 }
 
 class _AssessmentScreenState extends State<AssessmentScreen> {
-  late final List<AssessmentTask> tasks;
+  late List<AssessmentTask> tasks;
+  late DateTime assessmentStartedAt;
   final Map<String, int> correctByMode = {};
   final Map<String, int> totalByMode = {};
   final List<AssessmentTaskResult> taskResults = <AssessmentTaskResult>[];
@@ -33,17 +34,76 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   bool locked = false;
   bool finished = false;
   bool useTouchInput = true;
+  bool resumedFromDraft = false;
 
   @override
   void initState() {
     super.initState();
-    tasks = (widget.generator ?? AssessmentGenerator()).generate(
-      grade: widget.controller.gradeLevel,
-      range: widget.controller.numberRange,
-    );
+    final saved = widget.controller.resumableAssessment();
+    if (saved != null) {
+      tasks = List<AssessmentTask>.from(saved.tasks);
+      taskResults.addAll(saved.taskResults);
+      index = saved.nextIndex;
+      assessmentStartedAt = saved.startedAt;
+      resumedFromDraft = true;
+      for (final result in taskResults) {
+        final key = result.mode.name;
+        totalByMode[key] = (totalByMode[key] ?? 0) + 1;
+        if (result.correct) {
+          correctByMode[key] = (correctByMode[key] ?? 0) + 1;
+        }
+      }
+    } else {
+      tasks = (widget.generator ?? AssessmentGenerator()).generate(
+        grade: widget.controller.gradeLevel,
+        range: widget.controller.numberRange,
+      );
+      assessmentStartedAt = DateTime.now();
+    }
   }
 
   AssessmentTask get current => tasks[index];
+
+  Future<void> _restartAssessment() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Lerncheck neu starten?'),
+        content: const Text(
+          'Die bisher beantworteten Aufgaben dieses Lernchecks werden verworfen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            key: const ValueKey('assessment-restart-confirm'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Neu starten'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.controller.clearAssessmentProgress();
+    if (!mounted) return;
+    setState(() {
+      tasks = (widget.generator ?? AssessmentGenerator()).generate(
+        grade: widget.controller.gradeLevel,
+        range: widget.controller.numberRange,
+      );
+      correctByMode.clear();
+      totalByMode.clear();
+      taskResults.clear();
+      index = 0;
+      locked = false;
+      finished = false;
+      useTouchInput = true;
+      resumedFromDraft = false;
+      assessmentStartedAt = DateTime.now();
+    });
+  }
 
   TouchInteractionPlan? get _touchInteraction => TouchInteractionPlan.forTask(
         mode: current.mode,
@@ -104,10 +164,23 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       return;
     }
 
+    final nextIndex = index + 1;
+    await widget.controller.saveAssessmentProgress(
+      AssessmentProgress(
+        gradeLevel: widget.controller.gradeLevel,
+        numberRange: widget.controller.numberRange,
+        tasks: List<AssessmentTask>.unmodifiable(tasks),
+        taskResults: List<AssessmentTaskResult>.unmodifiable(taskResults),
+        nextIndex: nextIndex,
+        startedAt: assessmentStartedAt,
+        updatedAt: DateTime.now(),
+      ),
+    );
+
     await Future<void>.delayed(const Duration(milliseconds: 220));
     if (!mounted) return;
     setState(() {
-      index += 1;
+      index = nextIndex;
       locked = false;
       useTouchInput = true;
     });
@@ -122,6 +195,15 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: !widget.fromOnboarding,
         title: const Text('Lerncheck'),
+        actions: [
+          if (resumedFromDraft)
+            IconButton(
+              key: const ValueKey('assessment-restart'),
+              onPressed: locked ? null : _restartAssessment,
+              tooltip: 'Lerncheck neu starten',
+              icon: const Icon(Icons.restart_alt_rounded),
+            ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
@@ -145,6 +227,17 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (resumedFromDraft) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Fortgesetzt · $index Aufgaben schon beantwortet',
+                key: const ValueKey('assessment-resumed'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
             const SizedBox(height: 34),
             Text(
               current.prompt,

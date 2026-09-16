@@ -40,6 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
+    final assessmentDraft = controller.resumableAssessment();
     return Scaffold(
       appBar: AppBar(title: const Text('Einstellungen')),
       body: ListView(
@@ -83,11 +84,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.route_rounded),
-              title: const Text('Lerncheck wiederholen'),
+              title: Text(
+                assessmentDraft == null
+                    ? 'Lerncheck wiederholen'
+                    : 'Lerncheck fortsetzen',
+              ),
               subtitle: Text(
-                controller.activeProfile.assessmentCompletedAt == null
-                    ? 'Noch kein Einstufungscheck gespeichert'
-                    : 'Lernlandkarte mit 12 kurzen Aufgaben neu einordnen',
+                assessmentDraft != null
+                    ? '${assessmentDraft.nextIndex} von ${assessmentDraft.tasks.length} Aufgaben beantwortet'
+                    : controller.activeProfile.assessmentCompletedAt == null
+                        ? 'Noch kein Einstufungscheck gespeichert'
+                        : 'Lernlandkarte mit 12 kurzen Aufgaben neu einordnen',
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => Navigator.of(context).push(
