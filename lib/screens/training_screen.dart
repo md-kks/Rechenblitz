@@ -62,11 +62,27 @@ class _TrainingScreenState extends State<TrainingScreen> {
           current.isMinus ||
           current.isMultiply ||
           current.isDivide);
+
+
+  int get _selectionMaxValue {
+    final currentMax = widget.controller.effectiveMaxValue;
+    if (!widget.fluencyEmphasis) return currentMax;
+    final cap = switch (widget.targetCompetency) {
+      MicroCompetencyId.additionNoBridge ||
+      MicroCompetencyId.additionTenBridge ||
+      MicroCompetencyId.subtractionNoBridge ||
+      MicroCompetencyId.subtractionTenBridge => 20,
+      MicroCompetencyId.multiplicationFacts ||
+      MicroCompetencyId.divisionFacts => 100,
+      _ => currentMax,
+    };
+    return currentMax < cap ? currentMax : cap;
+  }
   TouchInteractionPlan? get _touchInteraction => TouchInteractionPlan.forTask(
         mode: widget.mode,
         taskKey: current.key,
         answer: _expectedAnswer,
-        maxValue: widget.controller.effectiveMaxValue,
+        maxValue: _selectionMaxValue,
         targetCompetency: widget.targetCompetency,
       );
 
@@ -119,8 +135,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
         .where((f) =>
             f.isMinus &&
             f.attempts > 0 &&
-            f.a <= widget.controller.effectiveMaxValue &&
-            f.b <= widget.controller.effectiveMaxValue)
+            f.a <= _selectionMaxValue &&
+            f.b <= _selectionMaxValue)
         .toList();
     if (tried.length < 8) return 1;
     final average = tried
@@ -209,6 +225,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
       return;
     }
 
+    if (widget.fluencyEmphasis) {
+      usedHelp = false;
+      showHelp = false;
+      helpLevel = HelpLevel.none.value;
+      activeMethodKey = null;
+      return;
+    }
+
     final starter = _helpPreferences.clamp(HelpLevel.nudge);
     usedHelp =
         widget.mode == TrainingMode.minus && _minusStage == 1 && starter != null;
@@ -220,7 +244,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
   MathFact _next() => widget.controller.engine.selectNext(
         facts: widget.controller.facts,
         mode: widget.mode,
-        maxValue: widget.controller.effectiveMaxValue,
+        maxValue: _selectionMaxValue,
         previousKey: completed == 0 ? null : current.key,
         recentKeys: widget.controller.recentTaskKeys(widget.mode),
         targetCompetency: widget.targetCompetency,
@@ -772,7 +796,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                   ] else if (_checkpointsComplete) ...[
                     NumberAnswerPad(
                       key: ValueKey('${current.key}:$completed'),
-                      maxValue: widget.controller.effectiveMaxValue,
+                      maxValue: _selectionMaxValue,
                       onAnswer: _answer,
                     ),
                     if (_touchInteraction != null)

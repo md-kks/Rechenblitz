@@ -10,8 +10,10 @@ import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/screens/structured_training_screen.dart';
+import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/services/adaptive_engine.dart';
 import 'package:rechenblitz/services/app_controller.dart';
+import 'package:rechenblitz/widgets/guided_method_panel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void _secureMicro(
@@ -1919,7 +1921,7 @@ void main() {
         mode: TrainingMode.minus,
         gradeLevel: GradeLevel.second,
         numberRange: NumberRangeLevel.hundred,
-        taskKey: 'minus:${18 + index}:3',
+        taskKey: 'minus:${18 - index}:3',
         responseMs: 3000 + index * 100,
       ),
     );
@@ -2050,7 +2052,7 @@ void main() {
         mode: TrainingMode.practice,
         gradeLevel: GradeLevel.second,
         numberRange: NumberRangeLevel.hundred,
-        taskKey: 'plus:${10 + index}:2',
+        taskKey: 'plus:$index:1',
         responseMs: index < 4 ? 9000 : 3000,
       ),
     );
@@ -2107,7 +2109,7 @@ void main() {
           mode: TrainingMode.practice,
           gradeLevel: GradeLevel.second,
           numberRange: NumberRangeLevel.hundred,
-          taskKey: 'plus:${20 + index}:3',
+          taskKey: 'plus:${12 + index}:3',
           responseMs: 8000,
         ),
       MicroCompetencyObservation(
@@ -2177,7 +2179,7 @@ void main() {
           mode: TrainingMode.practice,
           gradeLevel: GradeLevel.second,
           numberRange: NumberRangeLevel.hundred,
-          taskKey: 'plus:${20 + index}:3',
+          taskKey: 'plus:${12 + index}:3',
           responseMs: 8000,
         ),
       for (var index = 0; index < 3; index++)
@@ -2191,7 +2193,7 @@ void main() {
           mode: TrainingMode.minus,
           gradeLevel: GradeLevel.second,
           numberRange: NumberRangeLevel.hundred,
-          taskKey: 'minus:${18 + index}:3',
+          taskKey: 'minus:${18 - index}:3',
           responseMs: 2500,
         ),
     ];
@@ -2252,7 +2254,7 @@ void main() {
         mode: TrainingMode.minus,
         gradeLevel: GradeLevel.second,
         numberRange: NumberRangeLevel.hundred,
-        taskKey: 'minus:${30 + index}:4',
+        taskKey: 'minus:${10 + index}:1',
         responseMs: 2300 + index * 50,
       ),
     );
@@ -2314,7 +2316,7 @@ void main() {
           mode: TrainingMode.divide,
           gradeLevel: GradeLevel.second,
           numberRange: NumberRangeLevel.hundred,
-          taskKey: 'divide:${24 + index * 4}:4',
+          taskKey: 'divide:${12 + index * 4}:4',
           responseMs: 2800,
         ),
       for (var index = 0; index < 2; index++)
@@ -2328,7 +2330,7 @@ void main() {
           mode: TrainingMode.divide,
           gradeLevel: GradeLevel.second,
           numberRange: NumberRangeLevel.hundred,
-          taskKey: 'divide:${64 + index * 4}:4',
+          taskKey: 'divide:${8 - index * 4}:4',
           responseMs: 2500,
         ),
     ];
@@ -2441,7 +2443,7 @@ void main() {
         mode: TrainingMode.practice,
         gradeLevel: GradeLevel.second,
         numberRange: NumberRangeLevel.hundred,
-        taskKey: 'plus:${20 + index}:3',
+        taskKey: 'plus:${12 + index}:3',
         responseMs: 8200,
       ),
     );
@@ -2462,6 +2464,213 @@ void main() {
           .state,
       MicroCompetencyState.secure,
     );
+  });
+
+
+  test('mehrstellige Plusaufgaben liefern keine Fluency-Evidenz', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.fourth
+      ..numberRange = NumberRangeLevel.million;
+    controller.microObservations = List.generate(
+      5,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 18, 8, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.fourth,
+        numberRange: NumberRangeLevel.million,
+        taskKey: 'plus:${1200 + index * 100}:300',
+        responseMs: 2200,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionNoBridge,
+    );
+    expect(progress.independentEvidence, greaterThan(0));
+    expect(progress.fluencyAttempts, 0);
+    expect(progress.fluencyState, MicroFluencyState.notMeasured);
+  });
+
+  test('explizite Zeitdruckmodi zaehlen nicht fuer die Lernlandkarten-Fluency', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    const modes = <TrainingMode>[
+      TrainingMode.speed,
+      TrainingMode.tempo,
+      TrainingMode.blitz,
+      TrainingMode.speed,
+    ];
+    controller.microObservations = List.generate(
+      modes.length,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 18, 9, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: modes[index],
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:${12 + index}:3',
+        responseMs: 1600,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionNoBridge,
+    );
+    expect(progress.state, MicroCompetencyState.secure);
+    expect(progress.fluencyAttempts, 0);
+    expect(progress.fluencyState, MicroFluencyState.notMeasured);
+  });
+
+  test('normale gemischte Grundaufgaben duerfen Fluency belegen', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      4,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 18, 10, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.mixed,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:${11 + index}:3',
+        responseMs: 2600 + index * 100,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionNoBridge,
+    );
+    expect(progress.fluencyAttempts, 4);
+    expect(progress.fluencyTaskVariety, 4);
+    expect(progress.fluencyState, MicroFluencyState.fluent);
+  });
+
+  test('Mal-und-Geteilt-Fluency bleibt auf dem Einmaleinsfeld', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.third
+      ..numberRange = NumberRangeLevel.thousand;
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (var index = 0; index < 4; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationFacts,
+          occurredAt: DateTime(2026, 9, 18, 11, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey: 'multiply:${11 + index}:4',
+          responseMs: 1800,
+        ),
+      for (var index = 0; index < 4; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.divisionFacts,
+          occurredAt: DateTime(2026, 9, 18, 12, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.divide,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey: 'divide:${44 + index * 4}:4',
+          responseMs: 1800,
+        ),
+    ];
+
+    expect(
+      controller.microCompetencyProgress(MicroCompetencyId.multiplicationFacts)
+          .fluencyAttempts,
+      0,
+    );
+    expect(
+      controller.microCompetencyProgress(MicroCompetencyId.divisionFacts)
+          .fluencyAttempts,
+      0,
+    );
+  });
+
+
+  testWidgets('Fluency-Fokus erzeugt auch im grossen Zahlenraum nur Grundaufgaben', (tester) async {
+    for (var seed = 0; seed < 12; seed++) {
+      final controller = AppController(engine: AdaptiveEngine(random: Random(seed)))
+        ..gradeLevel = GradeLevel.fourth
+        ..numberRange = NumberRangeLevel.million
+        ..facts = AdaptiveEngine.buildFactPool(maxValue: 100);
+      for (final fact in controller.facts.take(40)) {
+        fact.attempts = 6;
+        fact.correctAttempts = 6;
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainingScreen(
+            controller: controller,
+            mode: TrainingMode.practice,
+            targetTasks: 1,
+            targetCompetency: MicroCompetencyId.additionNoBridge,
+            fluencyEmphasis: true,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final taskTexts = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((widget) => widget.data ?? '')
+          .where((text) => RegExp(r'^\d+ [＋+−-] \d+ = \?$').hasMatch(text))
+          .toList();
+      expect(taskTexts, isNotEmpty, reason: 'seed $seed');
+      final numbers = RegExp(r'\d+')
+          .allMatches(taskTexts.first)
+          .map((match) => int.parse(match.group(0)!))
+          .toList();
+      expect(numbers, hasLength(2));
+      expect(numbers[0] + numbers[1], lessThanOrEqualTo(20), reason: taskTexts.first);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }
+  });
+
+  testWidgets('Fluency-Fokus startet Minus nicht automatisch mit Hilfe', (tester) async {
+    final controller = AppController(engine: AdaptiveEngine(random: Random(44)))
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred
+      ..facts = AdaptiveEngine.buildFactPool(maxValue: 100);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainingScreen(
+          controller: controller,
+          mode: TrainingMode.minus,
+          targetTasks: 1,
+          targetCompetency: MicroCompetencyId.subtractionNoBridge,
+          fluencyEmphasis: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(GuidedMethodPanel), findsNothing);
+    expect(find.text('Ich brauche Hilfe'), findsOneWidget);
   });
 
 }

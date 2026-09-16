@@ -163,4 +163,59 @@ void main() {
     }
     expect(engine.minusTargetShare(facts), lessThan(0.56));
   });
+
+  test('fachliche Mastery ist unabhaengig von der Antwortgeschwindigkeit', () {
+    MathFact practiced(Duration response) {
+      final fact = MathFact(a: 8, b: 3, operation: MathOperation.minus);
+      for (var i = 0; i < 6; i++) {
+        fact.registerAttempt(
+          correct: true,
+          responseTime: response,
+          usedHelp: false,
+        );
+      }
+      return fact;
+    }
+
+    final fast = practiced(const Duration(milliseconds: 1600));
+    final slow = practiced(const Duration(seconds: 12));
+    expect(fast.masteryScore, closeTo(slow.masteryScore, 1e-12));
+    expect(fast.averageResponseMs, lessThan(slow.averageResponseMs));
+  });
+
+  test('nur echte Grundaufgaben sind fuer Fluency geeignet', () {
+    expect(
+      MathFact(a: 14, b: 3, operation: MathOperation.plus).isBasicFluencyFact,
+      isTrue,
+    );
+    expect(
+      MathFact(a: 28, b: 4, operation: MathOperation.plus).isBasicFluencyFact,
+      isFalse,
+    );
+    expect(
+      MathFact(a: 18, b: 7, operation: MathOperation.minus).isBasicFluencyFact,
+      isTrue,
+    );
+    expect(
+      MathFact(a: 42, b: 7, operation: MathOperation.minus).isBasicFluencyFact,
+      isFalse,
+    );
+    expect(
+      MathFact(a: 9, b: 8, operation: MathOperation.multiply).isBasicFluencyFact,
+      isTrue,
+    );
+    expect(
+      MathFact(a: 11, b: 4, operation: MathOperation.multiply).isBasicFluencyFact,
+      isFalse,
+    );
+    expect(
+      MathFact(a: 72, b: 8, operation: MathOperation.divide).isBasicFluencyFact,
+      isTrue,
+    );
+    expect(
+      MathFact(a: 84, b: 4, operation: MathOperation.divide).isBasicFluencyFact,
+      isFalse,
+    );
+  });
+
 }

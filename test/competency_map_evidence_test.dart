@@ -206,7 +206,7 @@ void main() {
           mode: TrainingMode.practice,
           gradeLevel: GradeLevel.second,
           numberRange: NumberRangeLevel.hundred,
-          taskKey: 'plus:${20 + index}:3',
+          taskKey: 'plus:${12 + index}:3',
           responseMs: 8000,
         ),
     ];
@@ -233,7 +233,7 @@ void main() {
 
     expect(find.text('Automatisierung'), findsOneWidget);
     expect(
-      find.textContaining('im Aufbau · 100 % richtig · 4 Aufgaben · typisch 8.0 s'),
+      find.textContaining('Grundaufgaben im Aufbau · 100 % richtig · 4 Aufgaben · typisch 8.0 s'),
       findsOneWidget,
     );
     expect(find.text('Sicher'), findsWidgets);
