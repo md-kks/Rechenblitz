@@ -153,6 +153,7 @@ class MicroCompetencyObservation {
     required this.gradeLevel,
     required this.numberRange,
     required this.taskKey,
+    this.responseMs,
   });
 
   final MicroCompetencyId id;
@@ -167,6 +168,7 @@ class MicroCompetencyObservation {
   final GradeLevel gradeLevel;
   final NumberRangeLevel numberRange;
   final String taskKey;
+  final int? responseMs;
 
   Map<String, dynamic> toJson() => {
         'id': id.name,
@@ -181,6 +183,7 @@ class MicroCompetencyObservation {
         'gradeLevel': gradeLevel.name,
         'numberRange': numberRange.name,
         'taskKey': taskKey,
+        'responseMs': responseMs,
       };
 
   factory MicroCompetencyObservation.fromJson(
@@ -211,6 +214,7 @@ class MicroCompetencyObservation {
           json['numberRange'] as String,
         ),
         taskKey: json['taskKey'] as String? ?? '',
+        responseMs: (json['responseMs'] as num?)?.toInt(),
       );
 }
 
@@ -261,6 +265,22 @@ class MicroEvidenceConfidence {
   final String detail;
 }
 
+enum MicroFluencyState {
+  notApplicable,
+  notMeasured,
+  building,
+  fluent,
+}
+
+extension MicroFluencyStateX on MicroFluencyState {
+  String get label => switch (this) {
+        MicroFluencyState.notApplicable => 'Tempo hier nicht bewertet',
+        MicroFluencyState.notMeasured => 'Automatisierung noch nicht gemessen',
+        MicroFluencyState.building => 'Automatisierung im Aufbau',
+        MicroFluencyState.fluent => 'Flüssig abrufbar',
+      };
+}
+
 class MicroCompetencyProgress {
   const MicroCompetencyProgress({
     required this.definition,
@@ -293,6 +313,9 @@ class MicroCompetencyProgress {
     this.independentTaskVariety = 0,
     this.reviewIndependentTaskVariety = 0,
     this.transferIndependentTaskVariety = 0,
+    this.fluencyState = MicroFluencyState.notApplicable,
+    this.fluencySamples = 0,
+    this.averageFluencyResponseMs = 0,
     this.basisNeedsReconfirmation = false,
     this.reviewNeedsReconfirmation = false,
     this.transferNeedsReconfirmation = false,
@@ -331,6 +354,9 @@ class MicroCompetencyProgress {
   final int independentTaskVariety;
   final int reviewIndependentTaskVariety;
   final int transferIndependentTaskVariety;
+  final MicroFluencyState fluencyState;
+  final int fluencySamples;
+  final double averageFluencyResponseMs;
   final bool basisNeedsReconfirmation;
   final bool reviewNeedsReconfirmation;
   final bool transferNeedsReconfirmation;

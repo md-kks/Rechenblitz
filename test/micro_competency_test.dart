@@ -1849,4 +1849,359 @@ void main() {
     );
   });
 
+  test('Mikro-Beobachtung speichert Antwortzeit rueckwaertskompatibel', () {
+    final observation = MicroCompetencyObservation(
+      id: MicroCompetencyId.additionNoBridge,
+      occurredAt: DateTime(2026, 9, 16, 14),
+      correct: true,
+      evidenceWeight: 1,
+      source: MicroEvidenceSource.practice,
+      usedHelp: false,
+      mode: TrainingMode.practice,
+      gradeLevel: GradeLevel.second,
+      numberRange: NumberRangeLevel.hundred,
+      taskKey: 'plus:14:3',
+      responseMs: 3200,
+    );
+
+    final restored = MicroCompetencyObservation.fromJson(observation.toJson());
+    expect(restored.responseMs, 3200);
+
+    final legacy = Map<String, dynamic>.from(observation.toJson())
+      ..remove('responseMs');
+    expect(MicroCompetencyObservation.fromJson(legacy).responseMs, isNull);
+  });
+
+  test('langsame richtige Antworten bleiben fachlich Sicher', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      4,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 16, 15, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:${12 + index}:3',
+        responseMs: 9000,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionNoBridge,
+    );
+    expect(progress.state, MicroCompetencyState.secure);
+    expect(progress.fluencySamples, 4);
+    expect(progress.fluencyState, MicroFluencyState.building);
+    expect(progress.averageFluencyResponseMs, closeTo(9000, 0.001));
+  });
+
+  test('schnelle selbststaendige Grundaufgaben belegen fluessigen Abruf', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      4,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.subtractionNoBridge,
+        occurredAt: DateTime(2026, 9, 16, 16, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.minus,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'minus:${18 + index}:3',
+        responseMs: 3000 + index * 100,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.subtractionNoBridge,
+    );
+    expect(progress.state, MicroCompetencyState.secure);
+    expect(progress.fluencyState, MicroFluencyState.fluent);
+    expect(progress.fluencySamples, 4);
+  });
+
+  test('Hilfe und falsche Antworten zaehlen nicht als Automatisierung', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (var index = 0; index < 2; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationFacts,
+          occurredAt: DateTime(2026, 9, 16, 17, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'multiply:${3 + index}:4',
+          responseMs: 2800,
+        ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.multiplicationFacts,
+        occurredAt: DateTime(2026, 9, 16, 17, 2),
+        correct: true,
+        evidenceWeight: 0.8,
+        source: MicroEvidenceSource.practice,
+        usedHelp: true,
+        helpLevel: 1,
+        mode: TrainingMode.multiply,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'multiply:5:4',
+        responseMs: 1000,
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.multiplicationFacts,
+        occurredAt: DateTime(2026, 9, 16, 17, 3),
+        correct: false,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.multiply,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'multiply:6:4',
+        responseMs: 1000,
+      ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.multiplicationFacts,
+    );
+    expect(progress.fluencySamples, 2);
+    expect(progress.fluencyState, MicroFluencyState.notMeasured);
+  });
+
+  test('komplexe Kompetenzen bekommen keine pauschale Tempowertung', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      4,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.wordProblemModel,
+        occurredAt: DateTime(2026, 9, 16, 18, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.wordProblems,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'story:model:+:books:${20 + index}:5',
+        responseMs: 12000,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.wordProblemModel,
+    );
+    expect(progress.fluencyState, MicroFluencyState.notApplicable);
+    expect(progress.fluencySamples, 0);
+  });
+
+  test('recordDiagnosticAttempt uebernimmt die erste Antwortzeit', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    await controller.recordDiagnosticAttempt(
+      mode: TrainingMode.practice,
+      taskKey: 'plus:14:3',
+      expected: 17,
+      actual: 17,
+      fact: MathFact(a: 14, b: 3, operation: MathOperation.plus),
+      responseTime: const Duration(milliseconds: 3456),
+    );
+
+    expect(controller.microObservations, isNotEmpty);
+    expect(controller.microObservations.first.responseMs, 3456);
+  });
+
+
+  test('Automatisierung bewertet nur das aktuelle Zeitfenster', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List<MicroCompetencyObservation>.generate(
+      12,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 16, 8).add(Duration(minutes: index)),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:${10 + index}:2',
+        responseMs: index < 4 ? 9000 : 3000,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionNoBridge,
+    );
+    expect(progress.fluencySamples, 8);
+    expect(progress.averageFluencyResponseMs, closeTo(3000, 0.001));
+    expect(progress.fluencyState, MicroFluencyState.fluent);
+  });
+
+  test('Sachaufgabenzeit wird nicht als Kopfrechen-Automatisierung gewertet', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List<MicroCompetencyObservation>.generate(
+      4,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 16, 20, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.transfer,
+        usedHelp: false,
+        mode: TrainingMode.wordProblems,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'story:+:books:${14 + index}:3',
+        responseMs: 12000,
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionNoBridge,
+    );
+    expect(progress.fluencySamples, 0);
+    expect(progress.fluencyState, MicroFluencyState.notMeasured);
+  });
+
+  test('Meine Runde nutzt Automatisierung erst nach fachlicher Sicherheit', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (var index = 0; index < 4; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 16, 21, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:${20 + index}:3',
+          responseMs: 8000,
+        ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 16, 21, 4),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.review,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:31:4:review',
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: DateTime(2026, 9, 16, 21, 5),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.transfer,
+        usedHelp: false,
+        mode: TrainingMode.wordProblems,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'story:+:books:24:3:transfer',
+      ),
+    ];
+
+    final fluency = controller.fluencyFocusMicroCompetency();
+    expect(fluency?.definition.id, MicroCompetencyId.additionNoBridge);
+    expect(fluency?.fluencyState, MicroFluencyState.building);
+
+    final plan = controller.buildMyRound(now: DateTime(2026, 9, 16, 21, 10));
+    final focus = plan[1];
+    expect(focus.targetCompetency, MicroCompetencyId.additionNoBridge);
+    expect(focus.fluencyEmphasis, isTrue);
+    expect(focus.reason, contains('Automatisierung'));
+    expect(plan.fold<int>(0, (sum, segment) => sum + segment.tasks), 12);
+
+    final trace = controller.guidedRoundDecisionTrace(
+      now: DateTime(2026, 9, 16, 21, 10),
+    );
+    expect(trace.primary?.kind.name, 'fluency');
+    expect(trace.primary?.competencyId, MicroCompetencyId.additionNoBridge);
+
+    final insight = controller.parentInsight(
+      now: DateTime(2026, 9, 16, 21, 10),
+    );
+    expect(insight.focus, contains('fachlich sicher'));
+    expect(insight.action, contains('ohne Countdown'));
+    expect(insight.notYet, contains('Automatisierung wird davon getrennt'));
+  });
+
+  test('fachliche Unsicherheit verdraengt einen moeglichen Fluency-Fokus', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (var index = 0; index < 4; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 16, 21, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:${20 + index}:3',
+          responseMs: 8000,
+        ),
+      for (var index = 0; index < 3; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.subtractionNoBridge,
+          occurredAt: DateTime(2026, 9, 16, 22, index),
+          correct: false,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'minus:${18 + index}:3',
+          responseMs: 2500,
+        ),
+    ];
+
+    expect(
+      controller.currentMicroFocus()?.definition.id,
+      MicroCompetencyId.subtractionNoBridge,
+    );
+    final plan = controller.buildMyRound(now: DateTime(2026, 9, 16, 22, 10));
+    expect(plan[1].targetCompetency, MicroCompetencyId.subtractionNoBridge);
+    expect(plan[1].fluencyEmphasis, isFalse);
+  });
+
 }

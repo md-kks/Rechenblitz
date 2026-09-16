@@ -39,6 +39,7 @@ class AdaptiveSegmentPolicy {
     required bool targetStable,
     required bool reviewEmphasis,
     required bool transferEmphasis,
+    bool fluencyEmphasis = false,
   }) {
     if (!enabled || completed >= plannedTasks || plannedTasks < 5) {
       return const AdaptiveSegmentDecision.continueSegment();
@@ -63,6 +64,7 @@ class AdaptiveSegmentPolicy {
 
     if (!reviewEmphasis &&
         !transferEmphasis &&
+        !fluencyEmphasis &&
         targetStable &&
         !usedHelp &&
         incorrectAttempts == 0 &&

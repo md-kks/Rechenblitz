@@ -28,6 +28,7 @@ class TrainingScreen extends StatefulWidget {
     this.targetCompetency,
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
+    this.fluencyEmphasis = false,
     this.scaffoldFading = false,
     this.adaptiveLength = false,
   });
@@ -39,6 +40,7 @@ class TrainingScreen extends StatefulWidget {
   final MicroCompetencyId? targetCompetency;
   final bool reviewEmphasis;
   final bool transferEmphasis;
+  final bool fluencyEmphasis;
   final bool scaffoldFading;
   final bool adaptiveLength;
 
@@ -152,6 +154,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         targetStable: _adaptiveTargetStable,
         reviewEmphasis: widget.reviewEmphasis,
         transferEmphasis: widget.transferEmphasis,
+        fluencyEmphasis: widget.fluencyEmphasis,
       );
 
   @override
@@ -390,6 +393,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
         source: _evidenceSource,
+        responseTime: _independentArithmeticSteps.isEmpty ? response : null,
       );
     }
     await widget.controller.recordAttempt(

@@ -46,6 +46,7 @@ class GuidedRoundSegment {
     this.targetCompetency,
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
+    this.fluencyEmphasis = false,
     this.scaffoldFading = false,
     this.rangeBridge = false,
     this.gradeBridge = false,
@@ -58,6 +59,7 @@ class GuidedRoundSegment {
   final MicroCompetencyId? targetCompetency;
   final bool reviewEmphasis;
   final bool transferEmphasis;
+  final bool fluencyEmphasis;
   final bool scaffoldFading;
   final bool rangeBridge;
   final bool gradeBridge;
@@ -72,6 +74,7 @@ class GuidedRoundSegment {
         'targetCompetency': targetCompetency?.name,
         'reviewEmphasis': reviewEmphasis,
         'transferEmphasis': transferEmphasis,
+        'fluencyEmphasis': fluencyEmphasis,
         'scaffoldFading': scaffoldFading,
         'rangeBridge': rangeBridge,
         'gradeBridge': gradeBridge,
@@ -90,6 +93,7 @@ class GuidedRoundSegment {
               ),
         reviewEmphasis: json['reviewEmphasis'] as bool? ?? false,
         transferEmphasis: json['transferEmphasis'] as bool? ?? false,
+        fluencyEmphasis: json['fluencyEmphasis'] as bool? ?? false,
         scaffoldFading: json['scaffoldFading'] as bool? ?? false,
         rangeBridge: json['rangeBridge'] as bool? ?? false,
         gradeBridge: json['gradeBridge'] as bool? ?? false,
@@ -107,6 +111,7 @@ class GuidedRoundSegment {
         targetCompetency: targetCompetency,
         reviewEmphasis: reviewEmphasis,
         transferEmphasis: transferEmphasis,
+        fluencyEmphasis: fluencyEmphasis,
         scaffoldFading: scaffoldFading,
         rangeBridge: rangeBridge,
         gradeBridge: gradeBridge,
@@ -213,6 +218,7 @@ class GuidedRoundOrchestrator {
       if (segment.tasks <= 1 ||
           segment.reviewEmphasis ||
           segment.transferEmphasis ||
+          segment.fluencyEmphasis ||
           segment.isBridge) {
         continue;
       }
@@ -526,6 +532,7 @@ enum GuidedRoundDecisionKind {
   gradeBridge,
   rangeBridge,
   maintenance,
+  fluency,
   discovery,
   fallback,
 }
@@ -540,6 +547,7 @@ extension GuidedRoundDecisionKindX on GuidedRoundDecisionKind {
         GuidedRoundDecisionKind.gradeBridge => 'Klassenstufen-Brücke',
         GuidedRoundDecisionKind.rangeBridge => 'Zahlenraum-Brücke',
         GuidedRoundDecisionKind.maintenance => 'Sichere Grundlage erhalten',
+        GuidedRoundDecisionKind.fluency => 'Automatisierung aufbauen',
         GuidedRoundDecisionKind.discovery => 'Neues vorsichtig entdecken',
         GuidedRoundDecisionKind.fallback => 'Abwechslungsreich weiterüben',
       };

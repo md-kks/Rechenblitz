@@ -16,6 +16,7 @@ void main() {
       bool targetStable = true,
       bool reviewEmphasis = false,
       bool transferEmphasis = false,
+      bool fluencyEmphasis = false,
     }) => AdaptiveSegmentPolicy.evaluate(
       enabled: enabled,
       mode: mode,
@@ -27,6 +28,7 @@ void main() {
       targetStable: targetStable,
       reviewEmphasis: reviewEmphasis,
       transferEmphasis: transferEmphasis,
+      fluencyEmphasis: fluencyEmphasis,
     );
 
     test(
@@ -69,6 +71,11 @@ void main() {
         expect(decide(transferEmphasis: true).shouldStop, isFalse);
       },
     );
+
+    test('protects an explicit fluency block from confirmation shortening', () {
+      final result = decide(fluencyEmphasis: true);
+      expect(result.shouldStop, isFalse);
+    });
 
     test('stops an overloaded segment instead of drilling on', () {
       final result = decide(
@@ -168,6 +175,47 @@ void main() {
       expect(legacy.effectiveRegularTaskTotal, 10);
     },
   );
+
+  test('guided-round fluency emphasis survives JSON and legacy defaults false', () {
+    const segment = GuidedRoundSegment(
+      role: GuidedRoundRole.focus,
+      mode: TrainingMode.multiply,
+      tasks: 5,
+      reason: 'Automatisieren',
+      fluencyEmphasis: true,
+    );
+    final restored = GuidedRoundSegment.fromJson(segment.toJson());
+    expect(restored.fluencyEmphasis, isTrue);
+
+    final legacyJson = Map<String, dynamic>.from(segment.toJson())
+      ..remove('fluencyEmphasis');
+    expect(GuidedRoundSegment.fromJson(legacyJson).fluencyEmphasis, isFalse);
+  });
+
+  test('optional trimming preserves a fluency focus block', () {
+    const plan = <GuidedRoundSegment>[
+      GuidedRoundSegment(
+        role: GuidedRoundRole.focus,
+        mode: TrainingMode.multiply,
+        tasks: 5,
+        reason: 'Automatisieren',
+        fluencyEmphasis: true,
+      ),
+      GuidedRoundSegment(
+        role: GuidedRoundRole.review,
+        mode: TrainingMode.money,
+        tasks: 3,
+        reason: 'Optional',
+      ),
+    ];
+    final trimmed = GuidedRoundOrchestrator.trimOptionalRepetition(
+      plan: plan,
+      completedRoles: const <GuidedRoundRole>{},
+      reductions: 2,
+    );
+    expect(trimmed.first.tasks, 5);
+    expect(trimmed.last.tasks, 1);
+  });
 
   test('round compaction budgets use actual completed tasks', () {
     const current = <GuidedRoundSegment>[

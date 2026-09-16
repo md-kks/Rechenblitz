@@ -186,4 +186,53 @@ void main() {
     expect(find.textContaining('Transfer'), findsWidgets);
   });
 
+
+  testWidgets('Lernlandkarte trennt fachliche Sicherheit von Automatisierung', (
+    tester,
+  ) async {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (var index = 0; index < 4; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 16, 8, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:${20 + index}:3',
+          responseMs: 8000,
+        ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(home: CompetencyMapScreen(controller: controller)),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('learning-group:Zahlen & Rechnen')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('learning-mode:practice')));
+    await tester.pumpAndSettle();
+    final info = find.byKey(const ValueKey('micro-info:additionNoBridge'));
+    await tester.scrollUntilVisible(
+      info,
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(info);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Automatisierung'), findsOneWidget);
+    expect(find.textContaining('im Aufbau · Ø 8.0 s'), findsOneWidget);
+    expect(find.text('Sicher'), findsWidgets);
+  });
+
 }

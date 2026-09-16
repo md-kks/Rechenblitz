@@ -38,6 +38,27 @@ class AppController extends ChangeNotifier {
   static const int _masteredReviewTaskVariety = 2;
   static const int _masteredTransferTaskVariety = 2;
   static const double _evidenceEpsilon = 1e-9;
+  static const int _fluencyMinimumSamples = 3;
+  static const int _fluencyWindow = 8;
+  static const int _fluencyTargetMs = 5000;
+  static const Set<TrainingMode> _fluencyModes = <TrainingMode>{
+    TrainingMode.practice,
+    TrainingMode.minus,
+    TrainingMode.speed,
+    TrainingMode.tempo,
+    TrainingMode.blitz,
+    TrainingMode.multiply,
+    TrainingMode.divide,
+    TrainingMode.mixed,
+  };
+  static const Set<MicroCompetencyId> _fluencyCompetencies = <MicroCompetencyId>{
+    MicroCompetencyId.additionNoBridge,
+    MicroCompetencyId.additionTenBridge,
+    MicroCompetencyId.subtractionNoBridge,
+    MicroCompetencyId.subtractionTenBridge,
+    MicroCompetencyId.multiplicationFacts,
+    MicroCompetencyId.divisionFacts,
+  };
   static const int _guidedStepWindow = 8;
   static const int _guidedStepMinIncorrect = 2;
   static const double _guidedStepFocusMaxAccuracy = 0.60;
@@ -282,6 +303,7 @@ class AppController extends ChangeNotifier {
     int helpLevel = 0,
     String? methodKey,
     MicroEvidenceSource source = MicroEvidenceSource.practice,
+    Duration? responseTime,
   }) async {
     final pattern = ErrorClassifier.classify(
       mode: mode,
@@ -299,6 +321,7 @@ class AppController extends ChangeNotifier {
       helpLevel: helpLevel,
       methodKey: methodKey,
       source: source,
+      responseMs: responseTime?.inMilliseconds.clamp(0, 30000).toInt(),
     );
     diagnostics.insert(
       0,
@@ -352,6 +375,7 @@ class AppController extends ChangeNotifier {
       helpLevel: helpLevel,
       methodKey: methodKey,
       source: source,
+      responseMs: null,
     );
     notifyListeners();
     await storage.saveMicroCompetencyObservations(microObservations);
@@ -1061,6 +1085,7 @@ class AppController extends ChangeNotifier {
     required String? methodKey,
     required MicroEvidenceSource source,
     MathFact? fact,
+    int? responseMs,
   }) {
     final sourceWeight = switch (source) {
       MicroEvidenceSource.remediation => 0.65,
@@ -1099,6 +1124,7 @@ class AppController extends ChangeNotifier {
             gradeLevel: gradeLevel,
             numberRange: numberRange,
             taskKey: taskKey,
+            responseMs: responseMs,
           ),
         )
         .toList();
@@ -1243,6 +1269,7 @@ class AppController extends ChangeNotifier {
     final independentTaskKeys = <String>{};
     final reviewIndependentTaskKeys = <String>{};
     final transferIndependentTaskKeys = <String>{};
+    final fluencyResponseMs = <int>[];
 
     for (final observation in observations) {
       evidence += observation.evidenceWeight;
@@ -1252,6 +1279,18 @@ class AppController extends ChangeNotifier {
       if (observation.usedHelp) {
         aidedEvidence += observation.evidenceWeight;
         aidedObservations += 1;
+      }
+
+      if (_fluencyCompetencies.contains(id) &&
+          _fluencyModes.contains(observation.mode) &&
+          fluencyResponseMs.length < _fluencyWindow &&
+          observation.correct &&
+          !observation.usedHelp &&
+          observation.responseMs != null &&
+          observation.responseMs! > 0 &&
+          observation.source != MicroEvidenceSource.guidedStep &&
+          observation.source != MicroEvidenceSource.independentStep) {
+        fluencyResponseMs.add(observation.responseMs!);
       }
 
       switch (observation.source) {
@@ -1350,6 +1389,17 @@ class AppController extends ChangeNotifier {
         ? 0.0
         : guidedStepCorrectEvidence / guidedStepEvidence;
 
+    final averageFluencyResponseMs = fluencyResponseMs.isEmpty
+        ? 0.0
+        : fluencyResponseMs.reduce((a, b) => a + b) / fluencyResponseMs.length;
+    final fluencyState = !_fluencyCompetencies.contains(id)
+        ? MicroFluencyState.notApplicable
+        : fluencyResponseMs.length < _fluencyMinimumSamples
+            ? MicroFluencyState.notMeasured
+            : averageFluencyResponseMs <= _fluencyTargetMs
+                ? MicroFluencyState.fluent
+                : MicroFluencyState.building;
+
     final latestBasisStable = _latestBasisEvidenceIsIndependentCorrect(id);
     final latestReviewStable =
         _latestSourceEvidenceIsIndependentCorrect(id, MicroEvidenceSource.review);
@@ -1422,6 +1472,9 @@ class AppController extends ChangeNotifier {
       independentTaskVariety: independentTaskKeys.length,
       reviewIndependentTaskVariety: reviewIndependentTaskKeys.length,
       transferIndependentTaskVariety: transferIndependentTaskKeys.length,
+      fluencyState: fluencyState,
+      fluencySamples: fluencyResponseMs.length,
+      averageFluencyResponseMs: averageFluencyResponseMs,
       basisNeedsReconfirmation: _latestBasisEvidenceIsUnstable(id),
       reviewNeedsReconfirmation: _latestSourceEvidenceIsUnstable(
         id,
@@ -1777,6 +1830,45 @@ class AppController extends ChangeNotifier {
           if (ageOrder != 0) return ageOrder;
         }
         return a.reviewIndependentEvidence.compareTo(b.reviewIndependentEvidence);
+      });
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
+  MicroCompetencyProgress? fluencyFocusMicroCompetency({
+    Iterable<MicroCompetencyId> excluding = const <MicroCompetencyId>[],
+  }) {
+    final blocked = excluding.toSet();
+    final candidates = microCompetenciesForGrade()
+        .where(
+          (progress) =>
+              !blocked.contains(progress.definition.id) &&
+              _microCompetencyIsUnlocked(progress.definition.id) &&
+              (progress.state == MicroCompetencyState.secure ||
+                  progress.state == MicroCompetencyState.mastered) &&
+              !progress.basisNeedsReconfirmation &&
+              (progress.fluencyState == MicroFluencyState.building ||
+                  progress.fluencyState == MicroFluencyState.notMeasured),
+        )
+        .toList()
+      ..sort((a, b) {
+        final aBuilding = a.fluencyState == MicroFluencyState.building;
+        final bBuilding = b.fluencyState == MicroFluencyState.building;
+        if (aBuilding != bBuilding) return aBuilding ? -1 : 1;
+        if (aBuilding && bBuilding) {
+          final speedOrder = b.averageFluencyResponseMs
+              .compareTo(a.averageFluencyResponseMs);
+          if (speedOrder != 0) return speedOrder;
+        } else {
+          final sampleOrder = b.fluencySamples.compareTo(a.fluencySamples);
+          if (sampleOrder != 0) return sampleOrder;
+        }
+        if (a.lastSeen == null && b.lastSeen != null) return -1;
+        if (a.lastSeen != null && b.lastSeen == null) return 1;
+        if (a.lastSeen != null && b.lastSeen != null) {
+          final ageOrder = a.lastSeen!.compareTo(b.lastSeen!);
+          if (ageOrder != 0) return ageOrder;
+        }
+        return a.definition.id.index.compareTo(b.definition.id.index);
       });
     return candidates.isEmpty ? null : candidates.first;
   }
@@ -2226,6 +2318,12 @@ class AppController extends ChangeNotifier {
   String microFocusReason() {
     final focus = currentMicroFocus();
     if (focus == null) {
+      final fluency = fluencyFocusMicroCompetency();
+      if (fluency != null) {
+        return fluency.fluencyState == MicroFluencyState.building
+            ? '„${fluency.definition.label}“ ist fachlich bereits sicher. Als nächstes lohnt sich kurze Automatisierung ohne Zeitdruck; die Zeitmessung läuft nur im Hintergrund.'
+            : '„${fluency.definition.label}“ ist fachlich bereits sicher. Für die Automatisierung fehlen noch einige unverzerrte Zeitmessungen.';
+      }
       return 'Noch keine einzelne Teilkompetenz ist klar auffällig. '
           'Weitere abwechslungsreiche Aufgaben machen die Lernkarte genauer.';
     }
@@ -2316,9 +2414,29 @@ class AppController extends ChangeNotifier {
     DateTime? now,
   }) {
     final stepRecovery = independentStepRecoveryFocus(now: now);
-    final microFocus = stepRecovery == null
+    final learningFocus = stepRecovery == null
         ? currentMicroFocus()
         : microCompetencyProgress(stepRecovery.competencyId);
+    final preFocusReview = learningFocus == null
+        ? dueReviewMicroCompetency(now: now)
+        : null;
+    final preFocusTransfer = learningFocus == null
+        ? transferCandidateMicroCompetency(
+            now: now,
+            respectSchedule: true,
+            excluding: preFocusReview?.definition.id,
+          )
+        : null;
+    final fluencyFocus = stepRecovery == null && learningFocus == null
+        ? fluencyFocusMicroCompetency(
+            excluding: <MicroCompetencyId>[
+              ?preFocusReview?.definition.id,
+              ?preFocusTransfer?.definition.id,
+            ],
+          )
+        : null;
+    final microFocus = learningFocus ?? fluencyFocus;
+    final isFluencyFocus = learningFocus == null && fluencyFocus != null;
     final guidedFocus = guidedStepFocus();
     final focusTarget = microFocus?.definition.id;
 
@@ -2380,10 +2498,11 @@ class AppController extends ChangeNotifier {
     final genericWarmUp = gradeLevel.index >= GradeLevel.third.index
         ? TrainingMode.mixed
         : TrainingMode.practice;
-    if (focus == genericWarmUp ||
-        focus == TrainingMode.speed ||
-        focus == TrainingMode.tempo ||
-        focus == TrainingMode.blitz) {
+    if (!isFluencyFocus &&
+        (focus == genericWarmUp ||
+            focus == TrainingMode.speed ||
+            focus == TrainingMode.tempo ||
+            focus == TrainingMode.blitz)) {
       for (final candidate in learningModesForGrade(gradeLevel)) {
         if (candidate == genericWarmUp ||
             !_modeHasUnlockedMicroCompetency(candidate)) {
@@ -2481,9 +2600,13 @@ class AppController extends ChangeNotifier {
         tasks: stepRecovery == null ? 5 : 2,
         reason: stepRecovery != null
             ? 'Nach der kurzen Arbeit an „${stepRecovery.label}“ reichen zwei passende Gesamtaufgaben, damit die Runde kompakt bleibt.'
-            : microFocus == null
-                ? 'Das ist heute das wichtigste Lernziel.'
-                : guidedFocus != null &&
+            : isFluencyFocus
+                ? fluencyFocus.fluencyState == MicroFluencyState.building
+                    ? '„${fluencyFocus.definition.label}“ ist fachlich sicher. Jetzt folgen kurze Abrufaufgaben ohne Zeitdruck, damit die Automatisierung weiterwächst.'
+                    : '„${fluencyFocus.definition.label}“ ist fachlich sicher. Einige kurze Aufgaben erfassen jetzt erstmals die Automatisierung; die Zeit läuft nur im Hintergrund.'
+                : microFocus == null
+                    ? 'Das ist heute das wichtigste Lernziel.'
+                    : guidedFocus != null &&
                         guidedFocus.competencyId == microFocus.definition.id
                     ? 'In der Hilfe war „${guidedFocus.label}“ wiederholt unsicher. Deshalb üben wir gezielt „${microFocus.definition.label}“ und nehmen die Hilfe schrittweise zurück.'
                     : _blockedDependentWaitingFor(microFocus.definition.id) !=
@@ -2491,6 +2614,7 @@ class AppController extends ChangeNotifier {
                         ? '„${microFocus.definition.label}“ kommt zuerst, weil ein bereits auffälliger nächster Lernschritt darauf aufbaut.'
                         : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
         targetCompetency: focusTarget,
+        fluencyEmphasis: isFluencyFocus,
         scaffoldFading: stepRecovery == null &&
             guidedFocus != null &&
             microFocus != null &&
@@ -2655,7 +2779,9 @@ class AppController extends ChangeNotifier {
           ? GuidedRoundDecisionKind.recovery
           : blockedDependent != null
               ? GuidedRoundDecisionKind.prerequisite
-              : GuidedRoundDecisionKind.focus;
+              : focus.fluencyEmphasis
+                  ? GuidedRoundDecisionKind.fluency
+                  : GuidedRoundDecisionKind.focus;
       items.add(GuidedRoundDecisionItem(
         kind: kind,
         detail: focus.reason,
@@ -2735,6 +2861,19 @@ class AppController extends ChangeNotifier {
       ));
     }
 
+    final fluency = fluencyFocusMicroCompetency();
+    if (fluency != null && fluency.definition.id != focus.targetCompetency) {
+      items.add(GuidedRoundDecisionItem(
+        kind: GuidedRoundDecisionKind.fluency,
+        detail: fluency.fluencyState == MicroFluencyState.building
+            ? '„${fluency.definition.label}“ ist fachlich sicher, braucht aber noch flüssigeren Abruf. Die Automatisierung wartet hinter dringenderem Verständnis, fälliger Wiederholung oder Transfer.'
+            : '„${fluency.definition.label}“ ist fachlich sicher, hat aber noch zu wenige unverzerrte Zeitmessungen. Die Automatisierung wird später im Hintergrund ergänzt.',
+        priority: 50,
+        selected: false,
+        competencyId: fluency.definition.id,
+      ));
+    }
+
     final discovery = nextNewMicroCompetency();
     if (discovery != null && discovery.definition.id != selectedDiscoveryId) {
       items.add(GuidedRoundDecisionItem(
@@ -2777,9 +2916,13 @@ class AppController extends ChangeNotifier {
 
     final transfer = transferCandidateMicroCompetency(
       now: now,
+      respectSchedule: true,
       excluding: review?.definition.id,
     );
     if (transfer != null) return transfer;
+
+    final fluency = fluencyFocusMicroCompetency();
+    if (fluency != null) return fluency;
 
     return nextNewMicroCompetency() ?? strongestMicroCompetency();
   }
@@ -2939,9 +3082,18 @@ class AppController extends ChangeNotifier {
     final independentDetail = progress.independentEvidence <= _evidenceEpsilon
         ? 'Für selbstständige Basisaufgaben liegt noch keine auswertbare Beobachtung vor.'
         : 'Bei selbstständigen Basisaufgaben liegt die gewichtete Sicherheit bei $independentPercent %.';
+    final fluencyDetail = switch (progress.fluencyState) {
+      MicroFluencyState.notApplicable => '',
+      MicroFluencyState.notMeasured =>
+        ' Für die Automatisierung liegen noch nicht genug selbstständige Zeitmessungen vor.',
+      MicroFluencyState.building =>
+        ' Die Grundaufgaben sind inhaltlich getrennt bewertet; die Automatisierung ist mit durchschnittlich ${(progress.averageFluencyResponseMs / 1000).toStringAsFixed(1)} s noch im Aufbau.',
+      MicroFluencyState.fluent =>
+        ' Die Grundaufgaben werden zusätzlich flüssig abgerufen (Ø ${(progress.averageFluencyResponseMs / 1000).toStringAsFixed(1)} s).',
+    };
 
     return '${parts.join(' · ')}. '
-        '$independentDetail$guidedDetail '
+        '$independentDetail$guidedDetail$fluencyDetail '
         'Die Einschätzung bezieht sich nur auf die in Rechenblitz bearbeiteten Aufgaben im aktuellen Profil, in ${gradeLevel.label} und im Zahlenraum ${numberRange.label}.';
   }
 
@@ -3031,8 +3183,14 @@ class AppController extends ChangeNotifier {
       final dueReview = dueReviewMicroCompetency(now: now);
       final transfer = transferCandidateMicroCompetency(
         now: now,
+        respectSchedule: true,
         excluding: dueReview?.definition.id,
       );
+      final fluency = currentFocus == null
+          ? fluencyFocusMicroCompetency()
+          : null;
+      final isFluencyPriority =
+          fluency?.definition.id == priority.definition.id;
 
       final strongestConfidence = strongestMicro == null
           ? null
@@ -3085,6 +3243,13 @@ class AppController extends ChangeNotifier {
             : 'bereits sicher';
         focusText =
             '„${priority.definition.label}“ ist $statusText. Als Nächstes wird die Anwendung in einer veränderten Aufgabe geprüft.';
+      } else if (isFluencyPriority) {
+        final statusText = priority.state == MicroCompetencyState.mastered
+            ? 'bereits gemeistert'
+            : 'fachlich sicher';
+        focusText = priority.fluencyState == MicroFluencyState.building
+            ? '„${priority.definition.label}“ ist $statusText. Der Abruf ist mit durchschnittlich ${(priority.averageFluencyResponseMs / 1000).toStringAsFixed(1)} s noch nicht flüssig genug und wird deshalb kurz automatisiert.'
+            : '„${priority.definition.label}“ ist $statusText. Für die Automatisierung fehlen noch einige unverzerrte Zeitmessungen; die Zeitmessung läuft dabei nur im Hintergrund.';
       } else {
         focusText =
             '„${priority.definition.label}“ ist der nächste sinnvolle Teilschritt in der Lernkarte.';
@@ -3121,6 +3286,10 @@ class AppController extends ChangeNotifier {
         action = priority.state == MicroCompetencyState.mastered
             ? 'Zwei kurze Aufgaben in veränderter Form halten die Anwendung flexibel. Sie dienen hier dem Erhalt, nicht einem noch fehlenden Nachweis.'
             : 'Zwei kurze Aufgaben in veränderter Form prüfen, ob dieselbe mathematische Idee übertragen werden kann.';
+      } else if (isFluencyPriority) {
+        action = priority.state == MicroCompetencyState.mastered
+            ? 'Kurze bekannte Grundaufgaben ohne Countdown lösen. Das dient der Automatisierung und dem Erhalt; Rechenblitz misst die Antwortzeit nur im Hintergrund.'
+            : 'Kurze bekannte Grundaufgaben ohne Countdown lösen. Rechenblitz misst die Antwortzeit nur im Hintergrund; Verständnis und richtige Rechenwege bleiben wichtiger als Tempo.';
       } else if (priority.state == MicroCompetencyState.newSkill) {
         action =
             'Den Teilschritt zunächst mit wenigen Aufgaben vorsichtig kennenlernen; daraus entsteht erst die Beobachtungsbasis.';
@@ -3129,7 +3298,7 @@ class AppController extends ChangeNotifier {
             '3–5 Minuten gezielt „${priority.definition.label}“ üben und dabei den gewählten Schul-Rechenweg nutzen.';
       }
 
-      final notYet = switch (priority.state) {
+      final masteryStatus = switch (priority.state) {
         MicroCompetencyState.mastered =>
           'Für „Gemeistert“ fehlt bei diesem Teilschritt aktuell kein weiterer Nachweis. Wiederholungen dienen dem langfristigen Erhalt.',
         MicroCompetencyState.secure =>
@@ -3139,6 +3308,9 @@ class AppController extends ChangeNotifier {
         _ =>
           'Noch nicht „Sicher“: Es fehlt ${_masteryMissingText(priority)}. Tempo ist deshalb noch zweitrangig.',
       };
+      final notYet = isFluencyPriority
+          ? '$masteryStatus Automatisierung wird davon getrennt bewertet und kann noch im Aufbau sein, obwohl der fachliche Stand bereits sicher oder gemeistert ist.'
+          : masteryStatus;
 
       return ParentLearningInsight(
         good: good,
