@@ -164,7 +164,7 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
       progress.definition.id,
     );
     final independent = progress.hasIndependentBasisEvidence
-        ? '${(progress.independentAccuracy * 100).round()} % richtig'
+        ? '${(progress.independentAccuracy * 100).round()} % richtig · ${progress.independentTaskVariety} verschiedene Aufgaben'
         : 'noch nicht allein probiert';
     final aided = progress.aidedObservations == 0
         ? 'noch keine Hilfe gebraucht'
@@ -173,12 +173,12 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
         ? 'noch nicht wiederholt'
         : !progress.hasIndependentReviewEvidence
         ? 'bisher mit Hilfe'
-        : '${(progress.reviewIndependentAccuracy * 100).round()} % allein richtig';
+        : '${(progress.reviewIndependentAccuracy * 100).round()} % allein richtig · ${progress.reviewIndependentTaskVariety} verschiedene Aufgaben';
     final transfer = progress.transferObservations == 0
         ? 'noch nicht in anderer Aufgabe probiert'
         : !progress.hasIndependentTransferEvidence
         ? 'bisher mit Hilfe'
-        : '${(progress.transferIndependentAccuracy * 100).round()} % allein richtig';
+        : '${(progress.transferIndependentAccuracy * 100).round()} % allein richtig · ${progress.transferIndependentTaskVariety} verschiedene Aufgaben';
     final confidence = widget.controller.microEvidenceConfidence(
       progress.definition.id,
     );

@@ -33,6 +33,10 @@ class AppController extends ChangeNotifier {
   static const double _masteredReviewAccuracy = 0.80;
   static const double _masteredTransferEvidence = 1.5;
   static const double _masteredTransferAccuracy = 0.80;
+  static const int _secureIndependentTaskVariety = 3;
+  static const int _masteredIndependentTaskVariety = 4;
+  static const int _masteredReviewTaskVariety = 2;
+  static const int _masteredTransferTaskVariety = 2;
   static const double _evidenceEpsilon = 1e-9;
   static const int _guidedStepWindow = 8;
   static const int _guidedStepMinIncorrect = 2;
@@ -1122,6 +1126,15 @@ class AppController extends ChangeNotifier {
     return matching;
   }
 
+  String _microEvidenceTaskKey(MicroCompetencyObservation observation) {
+    final key = observation.taskKey;
+    if (key.startsWith('independent:')) {
+      final parts = key.split(':');
+      if (parts.length >= 3) return parts.sublist(2).join(':');
+    }
+    return key;
+  }
+
   MicroCompetencyObservation? _latestMicroObservationForSource(
     MicroCompetencyId id,
     MicroEvidenceSource source,
@@ -1227,6 +1240,9 @@ class AppController extends ChangeNotifier {
     var guidedStepObservations = 0;
     DateTime? lastReviewSeen;
     DateTime? lastTransferSeen;
+    final independentTaskKeys = <String>{};
+    final reviewIndependentTaskKeys = <String>{};
+    final transferIndependentTaskKeys = <String>{};
 
     for (final observation in observations) {
       evidence += observation.evidenceWeight;
@@ -1246,6 +1262,7 @@ class AppController extends ChangeNotifier {
             reviewCorrectEvidence += observation.evidenceWeight;
           }
           if (!observation.usedHelp) {
+            reviewIndependentTaskKeys.add(_microEvidenceTaskKey(observation));
             reviewIndependentEvidence += observation.evidenceWeight;
             if (observation.correct) {
               reviewIndependentCorrectEvidence += observation.evidenceWeight;
@@ -1260,6 +1277,7 @@ class AppController extends ChangeNotifier {
             transferCorrectEvidence += observation.evidenceWeight;
           }
           if (!observation.usedHelp) {
+            transferIndependentTaskKeys.add(_microEvidenceTaskKey(observation));
             transferIndependentEvidence += observation.evidenceWeight;
             if (observation.correct) {
               transferIndependentCorrectEvidence +=
@@ -1277,6 +1295,7 @@ class AppController extends ChangeNotifier {
             baseCorrectEvidence += observation.evidenceWeight;
           }
           if (!observation.usedHelp) {
+            independentTaskKeys.add(_microEvidenceTaskKey(observation));
             independentEvidence += observation.evidenceWeight;
             if (observation.correct) {
               independentCorrectEvidence += observation.evidenceWeight;
@@ -1297,6 +1316,7 @@ class AppController extends ChangeNotifier {
             baseCorrectEvidence += observation.evidenceWeight;
           }
           if (!observation.usedHelp) {
+            independentTaskKeys.add(_microEvidenceTaskKey(observation));
             independentEvidence += observation.evidenceWeight;
             if (observation.correct) {
               independentCorrectEvidence += observation.evidenceWeight;
@@ -1345,25 +1365,29 @@ class AppController extends ChangeNotifier {
                   _masteredIndependentEvidence,
                 ) &&
                 independentAccuracy >= _masteredIndependentAccuracy &&
+                independentTaskKeys.length >= _masteredIndependentTaskVariety &&
                 latestBasisStable &&
                 _evidenceAtLeast(
                   reviewIndependentEvidence,
                   _masteredReviewEvidence,
                 ) &&
                 reviewIndependentAccuracy >= _masteredReviewAccuracy &&
+                reviewIndependentTaskKeys.length >= _masteredReviewTaskVariety &&
                 latestReviewStable &&
                 _evidenceAtLeast(
                   transferIndependentEvidence,
                   _masteredTransferEvidence,
                 ) &&
                 transferIndependentAccuracy >= _masteredTransferAccuracy &&
+                transferIndependentTaskKeys.length >= _masteredTransferTaskVariety &&
                 latestTransferStable
             ? MicroCompetencyState.mastered
             : _evidenceAtLeast(
                       independentEvidence,
                       _secureIndependentEvidence,
                     ) &&
-                    independentAccuracy >= _secureIndependentAccuracy
+                    independentAccuracy >= _secureIndependentAccuracy &&
+                    independentTaskKeys.length >= _secureIndependentTaskVariety
                 ? MicroCompetencyState.secure
                 : MicroCompetencyState.practicing;
 
@@ -1395,6 +1419,9 @@ class AppController extends ChangeNotifier {
       transferObservations: transferObservations,
       independentStepObservations: independentStepObservations,
       guidedStepObservations: guidedStepObservations,
+      independentTaskVariety: independentTaskKeys.length,
+      reviewIndependentTaskVariety: reviewIndependentTaskKeys.length,
+      transferIndependentTaskVariety: transferIndependentTaskKeys.length,
       basisNeedsReconfirmation: _latestBasisEvidenceIsUnstable(id),
       reviewNeedsReconfirmation: _latestSourceEvidenceIsUnstable(
         id,
@@ -1614,6 +1641,9 @@ class AppController extends ChangeNotifier {
         if (aBasisUnstable != bBasisUnstable) return aBasisUnstable ? -1 : 1;
         final accuracyOrder = a.independentAccuracy.compareTo(b.independentAccuracy);
         if (accuracyOrder != 0) return accuracyOrder;
+        final varietyOrder =
+            a.independentTaskVariety.compareTo(b.independentTaskVariety);
+        if (varietyOrder != 0) return varietyOrder;
         return b.independentEvidence.compareTo(a.independentEvidence);
       });
 
@@ -1685,6 +1715,9 @@ class AppController extends ChangeNotifier {
         final accuracyOrder =
             b.independentAccuracy.compareTo(a.independentAccuracy);
         if (accuracyOrder != 0) return accuracyOrder;
+        final varietyOrder =
+            b.independentTaskVariety.compareTo(a.independentTaskVariety);
+        if (varietyOrder != 0) return varietyOrder;
         return b.independentEvidence.compareTo(a.independentEvidence);
       });
     return candidates.isEmpty ? null : candidates.first;
@@ -1849,7 +1882,7 @@ class AppController extends ChangeNotifier {
       return MicroEvidenceConfidence(
         level: MicroEvidenceConfidenceLevel.building,
         detail:
-            'Es gibt selbstständige Evidenz ($percent % gewichtet richtig), aber noch nicht genug stabile Nachweise für eine belastbare Erhaltungsprognose.',
+            'Es gibt selbstständige Evidenz ($percent % gewichtet richtig, ${progress.independentTaskVariety} unterschiedliche Aufgaben), aber noch nicht genug stabile und vielfältige Nachweise für eine belastbare Erhaltungsprognose.',
       );
     }
 
@@ -1933,6 +1966,9 @@ class AppController extends ChangeNotifier {
           MicroEvidenceSource.review,
         );
         if (aUnstable != bUnstable) return aUnstable ? -1 : 1;
+        final varietyOrder = a.reviewIndependentTaskVariety
+            .compareTo(b.reviewIndependentTaskVariety);
+        if (varietyOrder != 0) return varietyOrder;
         return a.lastSeen!.compareTo(b.lastSeen!);
       });
     return secure.isEmpty ? null : secure.first;
@@ -1972,6 +2008,9 @@ class AppController extends ChangeNotifier {
           MicroEvidenceSource.transfer,
         );
         if (aUnstable != bUnstable) return aUnstable ? -1 : 1;
+        final varietyOrder = a.transferIndependentTaskVariety
+            .compareTo(b.transferIndependentTaskVariety);
+        if (varietyOrder != 0) return varietyOrder;
         final evidenceOrder = a.transferIndependentEvidence
             .compareTo(b.transferIndependentEvidence);
         if (evidenceOrder != 0) return evidenceOrder;
@@ -2752,6 +2791,8 @@ class AppController extends ChangeNotifier {
       _secureIndependentEvidence,
     )) {
       missing.add('mehr selbstständige Lösungen');
+    } else if (progress.independentTaskVariety < _secureIndependentTaskVariety) {
+      missing.add('mindestens $_secureIndependentTaskVariety unterschiedliche selbstständige Aufgaben');
     } else if (progress.independentAccuracy < _secureIndependentAccuracy) {
       missing.add('eine stabilere selbstständige Trefferquote');
     } else {
@@ -2765,8 +2806,9 @@ class AppController extends ChangeNotifier {
             progress.independentEvidence,
             _masteredIndependentEvidence,
           ) ||
-          progress.independentAccuracy < _masteredIndependentAccuracy) {
-        missing.add('eine noch stärkere selbstständige Basis');
+          progress.independentAccuracy < _masteredIndependentAccuracy ||
+          progress.independentTaskVariety < _masteredIndependentTaskVariety) {
+        missing.add('eine noch stärkere und vielfältigere selbstständige Basis');
       }
       final reviewUnstable = _latestSourceEvidenceIsUnstable(
         progress.definition.id,
@@ -2780,8 +2822,9 @@ class AppController extends ChangeNotifier {
             progress.reviewIndependentEvidence,
             _masteredReviewEvidence,
           ) ||
-          progress.reviewIndependentAccuracy < _masteredReviewAccuracy) {
-        missing.add('ein stabiler Nachweis nach zeitlichem Abstand');
+          progress.reviewIndependentAccuracy < _masteredReviewAccuracy ||
+          progress.reviewIndependentTaskVariety < _masteredReviewTaskVariety) {
+        missing.add('ein stabiler Nachweis nach zeitlichem Abstand mit unterschiedlichen Aufgaben');
       }
       final transferUnstable = _latestSourceEvidenceIsUnstable(
         progress.definition.id,
@@ -2795,8 +2838,9 @@ class AppController extends ChangeNotifier {
             progress.transferIndependentEvidence,
             _masteredTransferEvidence,
           ) ||
-          progress.transferIndependentAccuracy < _masteredTransferAccuracy) {
-        missing.add('ein stabiler selbstständiger Transfer');
+          progress.transferIndependentAccuracy < _masteredTransferAccuracy ||
+          progress.transferIndependentTaskVariety < _masteredTransferTaskVariety) {
+        missing.add('ein stabiler selbstständiger Transfer in unterschiedlichen Aufgaben');
       }
     }
     if (missing.isEmpty) return 'kein weiterer Mastery-Nachweis';
@@ -2822,7 +2866,7 @@ class AppController extends ChangeNotifier {
       MicroCompetencyState.secure =>
         '„$label“ ist „Sicher“: die Kompetenz gelingt in den bisherigen Aufgaben ausreichend selbstständig. Für „Gemeistert“ fehlt noch ${_masteryMissingText(progress)}.',
       MicroCompetencyState.mastered =>
-        '„$label“ ist „Gemeistert“: selbstständige Basis, erneutes Können nach Abstand und selbstständiger Transfer sind im aktuellen Zahlenraum belegt.',
+        '„$label“ ist „Gemeistert“: eine vielfältige selbstständige Basis, erneutes Können mit unterschiedlichen Aufgaben nach Abstand und selbstständiger Transfer sind im aktuellen Zahlenraum belegt.',
     };
   }
 
@@ -2869,6 +2913,7 @@ class AppController extends ChangeNotifier {
     final parts = <String>[
       '${relevant.length} passende Beobachtungen',
       '$independentCount ohne Hilfe',
+      '${progress.independentTaskVariety} unterschiedliche Basisaufgaben',
     ];
     if (aidedCount > 0) {
       parts.add('$aidedCount mit Hilfe');
@@ -3021,7 +3066,7 @@ class AppController extends ChangeNotifier {
         } else {
           final independentStatus = priority.independentEvidence <= _evidenceEpsilon
               ? 'Es liegen noch keine selbstständigen Basislösungen vor.'
-              : 'Selbstständig ${(priority.independentAccuracy * 100).round()} %.';
+              : 'Selbstständig ${(priority.independentAccuracy * 100).round()} % bei ${priority.independentTaskVariety} unterschiedlichen Aufgaben.';
           focusText =
               'Der konkrete Teilschritt „${priority.definition.label}“ braucht aktuell am meisten Übung. '
               'Status: ${priority.state.label}. $independentStatus';

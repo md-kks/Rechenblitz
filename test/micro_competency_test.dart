@@ -1620,4 +1620,233 @@ void main() {
   });
 
 
+  test('identische Aufgaben koennen Sicherheit nicht kuenstlich aufblasen', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = List.generate(
+      8,
+      (index) => MicroCompetencyObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        occurredAt: DateTime(2026, 9, 16, 10, index),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'plus:47:8',
+      ),
+    );
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
+
+    expect(progress.independentEvidence, closeTo(8, 0.001));
+    expect(progress.independentAccuracy, closeTo(1, 0.001));
+    expect(progress.independentTaskVariety, 1);
+    expect(progress.state, MicroCompetencyState.practicing);
+    expect(
+      controller.microEvidenceConfidence(MicroCompetencyId.additionTenBridge).detail,
+      contains('1 unterschiedliche Aufgaben'),
+    );
+  });
+
+  test('drei unterschiedliche selbststaendige Aufgaben ermoeglichen Sicher', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (var index = 0; index < 4; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: DateTime(2026, 9, 16, 11, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: index == 3 ? 'plus:47:8' : 'plus:4${index + 4}:${8 - index}',
+        ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
+
+    expect(progress.independentTaskVariety, 4);
+    expect(progress.state, MicroCompetencyState.secure);
+  });
+
+  test('Gemeistert verlangt Vielfalt auch in Review und Transfer', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    final base = DateTime(2026, 9, 1, 9);
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (var index = 0; index < 6; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: base.add(Duration(minutes: index)),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:${41 + index}:${9 - index}',
+        ),
+      for (var index = 0; index < 2; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: base.add(Duration(days: 3, minutes: index)),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'review:plus:47:8',
+        ),
+      for (var index = 0; index < 2; index++)
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionTenBridge,
+          occurredAt: base.add(Duration(days: 4, minutes: index)),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.transfer,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'story:transfer:skill:additionTenBridge:+:books:47:8',
+        ),
+    ];
+
+    var progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
+    expect(progress.reviewIndependentTaskVariety, 1);
+    expect(progress.transferIndependentTaskVariety, 1);
+    expect(progress.state, MicroCompetencyState.secure);
+
+    controller.microObservations.insertAll(0, <MicroCompetencyObservation>[
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        occurredAt: base.add(const Duration(days: 3, hours: 1)),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.review,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'review:plus:46:9',
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.additionTenBridge,
+        occurredAt: base.add(const Duration(days: 4, hours: 1)),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.transfer,
+        usedHelp: false,
+        mode: TrainingMode.wordProblems,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: 'story:transfer:skill:additionTenBridge:+:stickers:46:9',
+      ),
+    ]);
+
+    progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
+    expect(progress.reviewIndependentTaskVariety, 2);
+    expect(progress.transferIndependentTaskVariety, 2);
+    expect(progress.state, MicroCompetencyState.mastered);
+  });
+
+  test('Teilfragen derselben Aufgabe zaehlen fuer Vielfalt nur einmal', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (final step in <String>['groupCount', 'groupSize', 'groupCount'])
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 16, 12).add(
+            Duration(minutes: step == 'groupSize' ? 1 : 0),
+          ),
+          correct: true,
+          evidenceWeight: 0.5,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'independent:$step:process:representation:groups:3:4',
+        ),
+    ];
+
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.multiplicationGroups,
+    );
+    expect(progress.independentTaskVariety, 1);
+  });
+
+  test('Mikro-Fokus bevorzugt bei gleicher Quote die geringere Aufgabenvielfalt', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.hundred;
+
+    MicroCompetencyObservation observation(
+      MicroCompetencyId id,
+      String key,
+      int minute,
+    ) => MicroCompetencyObservation(
+      id: id,
+      occurredAt: DateTime(2026, 9, 16, 13, minute),
+      correct: true,
+      evidenceWeight: 1,
+      source: MicroEvidenceSource.practice,
+      usedHelp: false,
+      mode: id == MicroCompetencyId.additionNoBridge
+          ? TrainingMode.practice
+          : TrainingMode.minus,
+      gradeLevel: GradeLevel.second,
+      numberRange: NumberRangeLevel.hundred,
+      taskKey: key,
+    );
+
+    controller.microObservations = <MicroCompetencyObservation>[
+      observation(MicroCompetencyId.additionNoBridge, 'plus:14:3', 0),
+      observation(MicroCompetencyId.additionNoBridge, 'plus:14:3', 1),
+      observation(MicroCompetencyId.additionNoBridge, 'plus:15:2', 2),
+      observation(MicroCompetencyId.additionNoBridge, 'plus:15:2', 3),
+      observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 4),
+      observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 5),
+      observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 6),
+      observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 7),
+    ];
+
+    final addition = controller.microCompetencyProgress(
+      MicroCompetencyId.additionNoBridge,
+    );
+    final subtraction = controller.microCompetencyProgress(
+      MicroCompetencyId.subtractionNoBridge,
+    );
+    expect(addition.independentTaskVariety, 2);
+    expect(subtraction.independentTaskVariety, 1);
+    expect(addition.independentAccuracy, subtraction.independentAccuracy);
+    expect(
+      controller.currentMicroFocus()?.definition.id,
+      MicroCompetencyId.subtractionNoBridge,
+    );
+  });
+
 }
