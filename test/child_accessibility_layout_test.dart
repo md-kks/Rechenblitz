@@ -34,6 +34,32 @@ Future<AppController> _controllerWithFacts() async {
   return controller;
 }
 
+
+Future<void> _submitNumber(WidgetTester tester, String digits) async {
+  final grid = find.byKey(const ValueKey('number-pad-grid'));
+  for (final digit in digits.split('')) {
+    final buttonLabel = find.descendant(of: grid, matching: find.text(digit));
+    expect(buttonLabel, findsOneWidget);
+    final button = find.ancestor(
+      of: buttonLabel,
+      matching: find.byType(FilledButton),
+    ).first;
+    tester.widget<FilledButton>(button).onPressed!.call();
+    await tester.pump();
+  }
+  final submit = find.byKey(const ValueKey('number-pad-submit'));
+  tester.widget<FilledButton>(submit).onPressed!.call();
+  await tester.pump(const Duration(milliseconds: 650));
+}
+
+ScrollableState _scrollState(WidgetTester tester, Key key) =>
+    tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byKey(key),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -287,6 +313,153 @@ void main() {
     },
   );
 
+
+  testWidgets(
+    'Aufgabenwechsel setzt den Scrollbereich in normalen Rechenrunden zurück',
+    (tester) async {
+      _compactLargeText(tester);
+      final controller = await _controllerWithFacts();
+      controller.numberRange = NumberRangeLevel.twenty;
+      controller.facts = [
+        MathFact(a: 7, b: 5, operation: MathOperation.plus),
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainingScreen(
+            controller: controller,
+            mode: TrainingMode.practice,
+            targetTasks: 2,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final first = _scrollState(tester, const ValueKey('training-scroll'));
+      expect(first.position.maxScrollExtent, greaterThan(0));
+      first.position.jumpTo(first.position.maxScrollExtent);
+      await tester.pump();
+      expect(first.position.pixels, greaterThan(0));
+
+      await _submitNumber(tester, '12');
+      final next = _scrollState(tester, const ValueKey('training-scroll'));
+      expect(next.position.pixels, 0);
+      expect(find.byKey(const ValueKey('training-task:1:plus:7:5')), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Aufgabenwechsel setzt den Scrollbereich in strukturierten Aufgaben zurück',
+    (tester) async {
+      _compactLargeText(tester);
+      final controller = await _controllerWithFacts();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.twenty;
+      const exercise = StructuredExercise(
+        mode: TrainingMode.missingNumber,
+        prompt: 'Eine bewusst lange Aufgabe zum Scrolltest: 12 + ? = 20. Finde die fehlende Zahl.',
+        answer: 8,
+        hint: 'Ergänze bis 20.',
+        key: 'layout:scroll-structured',
+        maxAnswerValue: 20,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StructuredTrainingScreen(
+            controller: controller,
+            mode: TrainingMode.missingNumber,
+            targetTasks: 2,
+            exerciseGenerator: _LayoutStructuredGenerator(exercise),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final first = _scrollState(
+        tester,
+        const ValueKey('structured-training-scroll'),
+      );
+      expect(first.position.maxScrollExtent, greaterThan(0));
+      first.position.jumpTo(first.position.maxScrollExtent);
+      await tester.pump();
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('number-pad-grid')),
+        -180,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey('structured-training-scroll')),
+          matching: find.byType(Scrollable),
+        ).first,
+      );
+      expect(first.position.pixels, greaterThan(0));
+      await _submitNumber(tester, '8');
+
+      final next = _scrollState(
+        tester,
+        const ValueKey('structured-training-scroll'),
+      );
+      expect(next.position.pixels, 0);
+      expect(
+        find.byKey(const ValueKey('structured-training-task:1:layout:scroll-structured')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'Aufgabenwechsel setzt den Scrollbereich in Lehrplanaufgaben zurück',
+    (tester) async {
+      _compactLargeText(tester);
+      final controller = await _controllerWithFacts();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      const exercise = CurriculumExercise(
+        mode: TrainingMode.largeNumbers,
+        prompt: 'Eine bewusst lange Lehrplanaufgabe zum Scrolltest: Wie viel ist 120 + 30?',
+        answer: 150,
+        hint: 'Addiere drei Zehner.',
+        key: 'layout:scroll-curriculum',
+        maxAnswerValue: 1000,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CurriculumTrainingScreen(
+            controller: controller,
+            mode: TrainingMode.largeNumbers,
+            targetTasks: 2,
+            exerciseGenerator: _LayoutCurriculumGenerator(exercise),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final first = _scrollState(
+        tester,
+        const ValueKey('curriculum-training-scroll'),
+      );
+      expect(first.position.maxScrollExtent, greaterThan(0));
+      first.position.jumpTo(first.position.maxScrollExtent);
+      await tester.pump();
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('number-pad-grid')),
+        -180,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey('curriculum-training-scroll')),
+          matching: find.byType(Scrollable),
+        ).first,
+      );
+      expect(first.position.pixels, greaterThan(0));
+      await _submitNumber(tester, '150');
+
+      final next = _scrollState(
+        tester,
+        const ValueKey('curriculum-training-scroll'),
+      );
+      expect(next.position.pixels, 0);
+      expect(
+        find.byKey(const ValueKey('curriculum-training-task:1:layout:scroll-curriculum')),
+        findsOneWidget,
+      );
+    },
+  );
 }
 
 
