@@ -131,6 +131,7 @@ class MicroCompetencyTag {
 }
 
 enum MicroEvidenceSource {
+  assessment,
   practice,
   remediation,
   review,

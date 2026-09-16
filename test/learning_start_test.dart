@@ -6,6 +6,8 @@ import 'package:rechenblitz/main.dart';
 import 'package:rechenblitz/models/assessment.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/learning_path.dart';
+import 'package:rechenblitz/models/math_fact.dart';
+import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/screens/assessment_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
@@ -43,6 +45,343 @@ void main() {
       expect(counts, hasLength(6));
       expect(counts.values.every((value) => value == 2), isTrue);
     }
+  });
+
+  test('Lerncheck streut Aufgaben gezielt über Mikro-Kompetenzen', () {
+    for (final grade in GradeLevel.values) {
+      final range = grade.recommendedRange;
+      final tasks = AssessmentGenerator(random: Random(9100 + grade.index)).generate(
+        grade: grade,
+        range: range,
+      );
+
+      for (final task in tasks) {
+        expect(task.taskKey, isNotEmpty, reason: '${grade.label} · ${task.mode.name}');
+        final target = task.targetCompetency;
+        if (target == null) continue;
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: task.mode,
+          taskKey: task.taskKey,
+          fact: task.fact,
+        );
+        expect(
+          tags.any((tag) => tag.id == target),
+          isTrue,
+          reason: '${grade.label} · ${task.mode.name} · ${task.taskKey}',
+        );
+      }
+
+      for (final mode in tasks.map((task) => task.mode).toSet()) {
+        if (mode == TrainingMode.multiply || mode == TrainingMode.divide) continue;
+        final available = MicroCompetencyCatalog.forContext(grade, range)
+            .where((definition) => definition.preferredMode == mode)
+            .map((definition) => definition.id)
+            .toSet();
+        if (available.length < 2) continue;
+        final sampled = tasks
+            .where((task) => task.mode == mode)
+            .map((task) => task.targetCompetency)
+            .whereType<MicroCompetencyId>()
+            .toSet();
+        expect(sampled, hasLength(2), reason: '${grade.label} · ${mode.name}');
+      }
+    }
+  });
+
+  test('Lerncheck schreibt gewichtete Mikro-Evidenz statt nur Bereichswerte', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+
+    final weakFact = MathFact(a: 7, b: 5, operation: MathOperation.plus);
+    final stableFact = MathFact(a: 3, b: 4, operation: MathOperation.plus);
+    await controller.completeAssessment(
+      const [
+        AssessmentModeResult(mode: TrainingMode.practice, correct: 1, total: 2),
+      ],
+      taskResults: [
+        AssessmentTaskResult(
+          mode: TrainingMode.practice,
+          taskKey: 'plus:7:5',
+          correct: false,
+          fact: weakFact,
+          targetCompetency: MicroCompetencyId.additionTenBridge,
+        ),
+        AssessmentTaskResult(
+          mode: TrainingMode.practice,
+          taskKey: 'plus:3:4',
+          correct: true,
+          fact: stableFact,
+          targetCompetency: MicroCompetencyId.additionNoBridge,
+        ),
+      ],
+    );
+
+    final assessment = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.assessment)
+        .toList();
+    expect(assessment, isNotEmpty);
+    expect(
+      assessment.any(
+        (entry) =>
+            entry.id == MicroCompetencyId.additionTenBridge && !entry.correct,
+      ),
+      isTrue,
+    );
+    expect(
+      assessment.any(
+        (entry) =>
+            entry.id == MicroCompetencyId.additionNoBridge && entry.correct,
+      ),
+      isTrue,
+    );
+    expect(
+      controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge)
+          .basisNeedsReconfirmation,
+      isTrue,
+    );
+  });
+
+  test('wiederholter Lerncheck ersetzt Assessment-Evidenz statt sie aufzublähen', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final fact = MathFact(a: 3, b: 4, operation: MathOperation.plus);
+    final taskResults = [
+      AssessmentTaskResult(
+        mode: TrainingMode.practice,
+        taskKey: 'plus:3:4',
+        correct: true,
+        fact: fact,
+        targetCompetency: MicroCompetencyId.additionNoBridge,
+      ),
+    ];
+    const modeResults = [
+      AssessmentModeResult(mode: TrainingMode.practice, correct: 1, total: 1),
+    ];
+
+    await controller.completeAssessment(modeResults, taskResults: taskResults);
+    final firstCount = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.assessment)
+        .length;
+    await controller.completeAssessment(modeResults, taskResults: taskResults);
+    final secondCount = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.assessment)
+        .length;
+
+    expect(firstCount, greaterThan(0));
+    expect(secondCount, firstCount);
+  });
+
+  test('zwei richtige Lerncheck-Aufgaben machen eine Kompetenz noch nicht sicher', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final first = MathFact(a: 3, b: 4, operation: MathOperation.plus);
+    final second = MathFact(a: 4, b: 3, operation: MathOperation.plus);
+
+    await controller.completeAssessment(
+      const [
+        AssessmentModeResult(mode: TrainingMode.practice, correct: 2, total: 2),
+      ],
+      taskResults: [
+        AssessmentTaskResult(
+          mode: TrainingMode.practice,
+          taskKey: 'plus:3:4',
+          correct: true,
+          fact: first,
+          targetCompetency: MicroCompetencyId.additionNoBridge,
+        ),
+        AssessmentTaskResult(
+          mode: TrainingMode.practice,
+          taskKey: 'plus:4:3',
+          correct: true,
+          fact: second,
+          targetCompetency: MicroCompetencyId.additionNoBridge,
+        ),
+      ],
+    );
+
+    final progress =
+        controller.microCompetencyProgress(MicroCompetencyId.additionNoBridge);
+    expect(progress.independentEvidence, closeTo(1.5, 0.001));
+    expect(progress.state, MicroCompetencyState.practicing);
+    expect(progress.fluencyState, MicroFluencyState.notMeasured);
+  });
+
+  test('Assessment-Mikroevidenz bleibt nach Neustart erhalten', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final fact = MathFact(a: 3, b: 4, operation: MathOperation.plus);
+    await controller.completeAssessment(
+      const [
+        AssessmentModeResult(mode: TrainingMode.practice, correct: 1, total: 1),
+      ],
+      taskResults: [
+        AssessmentTaskResult(
+          mode: TrainingMode.practice,
+          taskKey: 'plus:3:4',
+          correct: true,
+          fact: fact,
+          targetCompetency: MicroCompetencyId.additionNoBridge,
+        ),
+      ],
+    );
+
+    final reloaded = AppController();
+    await reloaded.load();
+    expect(
+      reloaded.microObservations.any(
+        (entry) => entry.source == MicroEvidenceSource.assessment,
+      ),
+      isTrue,
+    );
+  });
+
+  test('wiederholte Lernchecks streuen breite Bereiche über weitere Mikro-Ziele', () {
+    for (final grade in GradeLevel.values) {
+      final range = grade.recommendedRange;
+      final sampledByMode = <TrainingMode, Set<MicroCompetencyId>>{};
+      Set<TrainingMode>? assessedModes;
+      for (var seed = 0; seed < 40; seed++) {
+        final tasks = AssessmentGenerator(random: Random(15000 + seed + grade.index * 100)).generate(
+          grade: grade,
+          range: range,
+        );
+        assessedModes ??= tasks.map((task) => task.mode).toSet();
+        for (final task in tasks) {
+          final target = task.targetCompetency;
+          if (target != null) {
+            sampledByMode.putIfAbsent(task.mode, () => <MicroCompetencyId>{}).add(target);
+          }
+        }
+      }
+
+      for (final mode in assessedModes ?? const <TrainingMode>{}) {
+        if (mode == TrainingMode.practice ||
+            mode == TrainingMode.minus ||
+            mode == TrainingMode.multiply ||
+            mode == TrainingMode.divide) {
+          continue;
+        }
+        final available = MicroCompetencyCatalog.forContext(grade, range)
+            .where((definition) => definition.preferredMode == mode)
+            .map((definition) => definition.id)
+            .toSet();
+        if (available.length <= 2) continue;
+        expect(
+          sampledByMode[mode]!.length,
+          greaterThanOrEqualTo(3),
+          reason: '${grade.label} · ${mode.name}',
+        );
+      }
+    }
+  });
+
+  test('Lerncheck vermeidet doppelte Aufgaben innerhalb einer Runde', () {
+    for (final grade in GradeLevel.values) {
+      for (var seed = 0; seed < 24; seed++) {
+        final tasks = AssessmentGenerator(random: Random(12000 + seed + grade.index * 100)).generate(
+          grade: grade,
+          range: grade.recommendedRange,
+        );
+        expect(
+          tasks.map((task) => task.taskKey).toSet(),
+          hasLength(tasks.length),
+          reason: '${grade.label} · seed $seed',
+        );
+      }
+    }
+  });
+
+  test('Lerncheck schreibt nur Evidenz für die gezielt geprüfte Mikro-Kompetenz', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final bridge = MathFact(a: 7, b: 5, operation: MathOperation.plus);
+    final multiply = MathFact(a: 6, b: 7, operation: MathOperation.multiply);
+
+    await controller.completeAssessment(
+      const [
+        AssessmentModeResult(mode: TrainingMode.practice, correct: 1, total: 1),
+        AssessmentModeResult(mode: TrainingMode.multiply, correct: 1, total: 1),
+      ],
+      taskResults: [
+        AssessmentTaskResult(
+          mode: TrainingMode.practice,
+          taskKey: bridge.key,
+          correct: true,
+          fact: bridge,
+          targetCompetency: MicroCompetencyId.additionTenBridge,
+        ),
+        AssessmentTaskResult(
+          mode: TrainingMode.multiply,
+          taskKey: multiply.key,
+          correct: true,
+          fact: multiply,
+          targetCompetency: MicroCompetencyId.multiplicationFacts,
+        ),
+      ],
+    );
+
+    final assessmentIds = controller.microObservations
+        .where((entry) => entry.source == MicroEvidenceSource.assessment)
+        .map((entry) => entry.id)
+        .toSet();
+    expect(
+      assessmentIds,
+      equals({
+        MicroCompetencyId.additionTenBridge,
+        MicroCompetencyId.multiplicationFacts,
+      }),
+    );
+    expect(assessmentIds, isNot(contains(MicroCompetencyId.numberDecomposition)));
+    expect(assessmentIds, isNot(contains(MicroCompetencyId.multiplicationGroups)));
+  });
+
+  test('wiederholte Lernchecks ersetzen nur Evidenz im aktuellen Zahlenraum', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    final fact = MathFact(a: 3, b: 4, operation: MathOperation.plus);
+    final task = AssessmentTaskResult(
+      mode: TrainingMode.practice,
+      taskKey: fact.key,
+      correct: true,
+      fact: fact,
+      targetCompetency: MicroCompetencyId.additionNoBridge,
+    );
+    const result = [
+      AssessmentModeResult(mode: TrainingMode.practice, correct: 1, total: 1),
+    ];
+
+    controller.numberRange = NumberRangeLevel.hundred;
+    await controller.completeAssessment(result, taskResults: [task]);
+    controller.numberRange = NumberRangeLevel.twenty;
+    await controller.completeAssessment(result, taskResults: [task]);
+
+    int countFor(NumberRangeLevel range) => controller.microObservations
+        .where(
+          (entry) =>
+              entry.source == MicroEvidenceSource.assessment &&
+              entry.gradeLevel == GradeLevel.second &&
+              entry.numberRange == range,
+        )
+        .length;
+
+    expect(countFor(NumberRangeLevel.hundred), 1);
+    expect(countFor(NumberRangeLevel.twenty), 1);
+
+    controller.numberRange = NumberRangeLevel.hundred;
+    await controller.completeAssessment(result, taskResults: [task]);
+    expect(countFor(NumberRangeLevel.hundred), 1);
+    expect(countFor(NumberRangeLevel.twenty), 1);
   });
 
   test('Startempfehlung bleibt kindlich kurz', () async {
@@ -253,6 +592,8 @@ void main() {
       find.byKey(const ValueKey('assessment-start-my-round')),
       findsOneWidget,
     );
+    expect(find.byKey(const ValueKey('assessment-next-focus')), findsOneWidget);
+    expect(controller.currentMicroFocus(), isNotNull);
   });
 
   test('Klassenwechsel verwirft nur die alte Einstufungs-Baseline', () async {
