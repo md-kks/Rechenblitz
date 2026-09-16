@@ -9,6 +9,7 @@ import 'package:rechenblitz/models/learning_path.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
+import 'package:rechenblitz/models/touch_interaction.dart';
 import 'package:rechenblitz/screens/assessment_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -596,6 +597,303 @@ void main() {
     expect(controller.currentMicroFocus(), isNotNull);
   });
 
+  testWidgets('Lerncheck nutzt Touch-Diagnose und behält klassische Eingabe', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.twenty;
+
+    await tester.pumpWidget(
+      MaterialApp(home: AssessmentScreen(controller: controller)),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('assessment-answer-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('assessment-touch-0')), findsNothing);
+
+    for (var task = 0; task < 4; task++) {
+      final dontKnow = find.byKey(const ValueKey('assessment-dont-know'));
+      await tester.scrollUntilVisible(
+        dontKnow,
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(dontKnow);
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.byKey(const ValueKey('assessment-touch-4')), findsOneWidget);
+    final switchClassic =
+        find.byKey(const ValueKey('assessment-touch-switch-classic'));
+    await tester.scrollUntilVisible(
+      switchClassic,
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(switchClassic);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('assessment-answer-4')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('assessment-touch-switch-interaction')),
+      findsOneWidget,
+    );
+  });
+
+  test('Lerncheck-Touchpläne verwenden keine Förder-Shortcuts', () {
+    for (final grade in GradeLevel.values) {
+      var minimumTouchCount = 999;
+      for (var seed = 0; seed < 24; seed++) {
+        final tasks = AssessmentGenerator(
+          random: Random(24000 + grade.index * 100 + seed),
+        ).generate(
+          grade: grade,
+          range: grade.recommendedRange,
+        );
+        var touchCount = 0;
+        for (final task in tasks) {
+          final plan = TouchInteractionPlan.forTask(
+            mode: task.mode,
+            taskKey: task.taskKey,
+            answer: task.answer,
+            maxValue: task.maxAnswerValue,
+            choices: task.choices,
+            answerSuffix: task.answerSuffix,
+            targetCompetency: null,
+          );
+          if (plan == null) continue;
+          touchCount += 1;
+          final operation = plan.dataOperation ?? '';
+          expect(
+            operation.contains('skip') ||
+                operation == 'relation-only' ||
+                operation == 'operation-checked',
+            isFalse,
+            reason: '${grade.label} · ${task.taskKey} · $operation',
+          );
+        }
+        if (touchCount < minimumTouchCount) minimumTouchCount = touchCount;
+      }
+      expect(
+        minimumTouchCount,
+        greaterThanOrEqualTo(2),
+        reason: '${grade.label} soll direkte Diagnoseformen nutzen, ohne Rechenaufgaben künstlich auf Touch umzustellen',
+      );
+    }
+  });
+
+  testWidgets('Lerncheck nutzt bei großen Zahlen den vollständigen Vergleich', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    final generator = _FixedAssessmentGenerator(const [
+      AssessmentTask(
+        mode: TrainingMode.largeNumbers,
+        taskKey: 'large:compare:5432:5342',
+        prompt: 'Welche Zahl ist größer?',
+        answer: 1,
+        maxAnswerValue: 2,
+        choices: ['5432 < 5342', '5432 > 5342', '5432 = 5342'],
+        targetCompetency: MicroCompetencyId.largeNumberCompare,
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssessmentScreen(controller: controller, generator: generator),
+      ),
+    );
+    await tester.pump();
+
+    final place = find.byKey(const ValueKey('touch-large-compare-place-100'));
+    expect(place, findsOneWidget);
+    expect(tester.widget<InkWell>(place).onTap, isNotNull);
+    expect(find.byKey(const ValueKey('assessment-touch-0')), findsOneWidget);
+  });
+
+  testWidgets('Lerncheck nutzt Teil-Sachaufgaben als echte Gruppenmanipulation', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final generator = _FixedAssessmentGenerator(const [
+      AssessmentTask(
+        mode: TrainingMode.wordProblems,
+        taskKey: 'story:sharing:children:12:3',
+        prompt: '12 Bausteine werden gleichmäßig auf 3 Kinder verteilt.',
+        answer: 4,
+        maxAnswerValue: 20,
+        targetCompetency: MicroCompetencyId.divisionSharing,
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssessmentScreen(controller: controller, generator: generator),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('assessment-touch-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-sharing-group-0-add')), findsOneWidget);
+    expect(find.byKey(const ValueKey('assessment-answer-0')), findsNothing);
+  });
+
+  testWidgets('Lerncheck lässt reine Einmaleins-Fakten bewusst klassisch', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final fact = MathFact(a: 3, b: 4, operation: MathOperation.multiply);
+    final generator = _FixedAssessmentGenerator([
+      AssessmentTask(
+        mode: TrainingMode.multiply,
+        taskKey: fact.key,
+        prompt: '3 × 4 = ?',
+        answer: 12,
+        maxAnswerValue: 100,
+        fact: fact,
+        targetCompetency: MicroCompetencyId.multiplicationFacts,
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssessmentScreen(controller: controller, generator: generator),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('assessment-touch-0')), findsNothing);
+    expect(find.byKey(const ValueKey('assessment-answer-0')), findsOneWidget);
+  });
+
+  testWidgets('Lerncheck setzt die bevorzugte Touch-Eingabe pro Aufgabe zurück', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.twenty;
+    final generator = _FixedAssessmentGenerator(const [
+      AssessmentTask(
+        mode: TrainingMode.numberFriends,
+        taskKey: 'plus:6:4',
+        prompt: '6 + ? = 10',
+        answer: 4,
+        maxAnswerValue: 10,
+        targetCompetency: MicroCompetencyId.numberDecomposition,
+      ),
+      AssessmentTask(
+        mode: TrainingMode.numberFriends,
+        taskKey: 'plus:7:3',
+        prompt: '7 + ? = 10',
+        answer: 3,
+        maxAnswerValue: 10,
+        targetCompetency: MicroCompetencyId.numberDecomposition,
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssessmentScreen(controller: controller, generator: generator),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('assessment-touch-0')), findsOneWidget);
+
+    final switchClassic =
+        find.byKey(const ValueKey('assessment-touch-switch-classic'));
+    await tester.scrollUntilVisible(
+      switchClassic,
+      140,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(switchClassic);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('assessment-answer-0')), findsOneWidget);
+
+    final dontKnow = find.byKey(const ValueKey('assessment-dont-know'));
+    await tester.scrollUntilVisible(
+      dontKnow,
+      140,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(dontKnow);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('assessment-touch-1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('assessment-answer-1')), findsNothing);
+  });
+
+  testWidgets('Weiß ich nicht bleibt gezielte unabhängige Assessment-Evidenz', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.twenty;
+    final generator = _FixedAssessmentGenerator(const [
+      AssessmentTask(
+        mode: TrainingMode.numberFriends,
+        taskKey: 'plus:6:4',
+        prompt: '6 + ? = 10',
+        answer: 4,
+        maxAnswerValue: 10,
+        targetCompetency: MicroCompetencyId.numberDecomposition,
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssessmentScreen(controller: controller, generator: generator),
+      ),
+    );
+    await tester.pump();
+    final dontKnow = find.byKey(const ValueKey('assessment-dont-know'));
+    await tester.scrollUntilVisible(
+      dontKnow,
+      140,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(dontKnow);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lerncheck geschafft!'), findsOneWidget);
+    final evidence = controller.microObservations.where(
+      (entry) =>
+          entry.source == MicroEvidenceSource.assessment &&
+          entry.id == MicroCompetencyId.numberDecomposition,
+    );
+    expect(evidence, hasLength(1));
+    expect(evidence.single.correct, isFalse);
+  });
+
+  testWidgets('Lerncheck-Touch bleibt bei 200 Prozent Text stabil', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.first;
+    controller.numberRange = NumberRangeLevel.twenty;
+
+    await tester.pumpWidget(
+      MaterialApp(home: AssessmentScreen(controller: controller)),
+    );
+    for (var task = 0; task < 4; task++) {
+      final list = find.byType(ListView).first;
+      await tester.drag(list, const Offset(0, -520));
+      await tester.pumpAndSettle();
+      final dontKnow = find.byKey(const ValueKey('assessment-dont-know'));
+      expect(dontKnow, findsOneWidget);
+      await tester.tap(dontKnow);
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.byKey(const ValueKey('assessment-touch-4')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   test('Klassenwechsel verwirft nur die alte Einstufungs-Baseline', () async {
     final controller = AppController();
     await controller.load();
@@ -639,4 +937,17 @@ void main() {
     expect(controller.activeProfile.assessmentCompletedAt, isNull);
   });
 
+}
+
+
+class _FixedAssessmentGenerator extends AssessmentGenerator {
+  _FixedAssessmentGenerator(this.tasks);
+
+  final List<AssessmentTask> tasks;
+
+  @override
+  List<AssessmentTask> generate({
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) => tasks;
 }

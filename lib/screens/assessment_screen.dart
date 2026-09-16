@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../models/assessment.dart';
+import '../models/touch_interaction.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../widgets/number_answer_pad.dart';
+import '../widgets/touch_answer_interaction.dart';
 import 'my_round_screen.dart';
 
 class AssessmentScreen extends StatefulWidget {
@@ -11,10 +13,12 @@ class AssessmentScreen extends StatefulWidget {
     super.key,
     required this.controller,
     this.fromOnboarding = false,
+    this.generator,
   });
 
   final AppController controller;
   final bool fromOnboarding;
+  final AssessmentGenerator? generator;
 
   @override
   State<AssessmentScreen> createState() => _AssessmentScreenState();
@@ -28,17 +32,28 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   int index = 0;
   bool locked = false;
   bool finished = false;
+  bool useTouchInput = true;
 
   @override
   void initState() {
     super.initState();
-    tasks = AssessmentGenerator().generate(
+    tasks = (widget.generator ?? AssessmentGenerator()).generate(
       grade: widget.controller.gradeLevel,
       range: widget.controller.numberRange,
     );
   }
 
   AssessmentTask get current => tasks[index];
+
+  TouchInteractionPlan? get _touchInteraction => TouchInteractionPlan.forTask(
+        mode: current.mode,
+        taskKey: current.taskKey,
+        answer: current.answer,
+        maxValue: current.maxAnswerValue,
+        choices: current.choices,
+        answerSuffix: current.answerSuffix,
+        targetCompetency: null,
+      );
 
   Future<void> _answer(int? value) async {
     if (locked || finished) return;
@@ -90,6 +105,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     setState(() {
       index += 1;
       locked = false;
+      useTouchInput = true;
     });
   }
 
@@ -139,7 +155,29 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               ),
             ],
             const SizedBox(height: 30),
-            if (current.usesChoices)
+            if (useTouchInput && _touchInteraction != null) ...[
+              TouchAnswerInteraction(
+                key: ValueKey('assessment-touch-$index'),
+                plan: _touchInteraction!,
+                locked: locked,
+                onAnswer: _answer,
+              ),
+              const SizedBox(height: 6),
+              TextButton.icon(
+                key: const ValueKey('assessment-touch-switch-classic'),
+                onPressed: locked
+                    ? null
+                    : () => setState(() => useTouchInput = false),
+                icon: Icon(
+                  current.usesChoices
+                      ? Icons.checklist_rounded
+                      : Icons.dialpad_rounded,
+                ),
+                label: Text(
+                  current.usesChoices ? 'Lieber auswählen' : 'Lieber eintippen',
+                ),
+              ),
+            ] else if (current.usesChoices) ...[
               ...List.generate(
                 current.choices!.length,
                 (choiceIndex) => Padding(
@@ -153,13 +191,32 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                     ),
                   ),
                 ),
-              )
-            else
+              ),
+              if (_touchInteraction != null)
+                TextButton.icon(
+                  key: const ValueKey('assessment-touch-switch-interaction'),
+                  onPressed: locked
+                      ? null
+                      : () => setState(() => useTouchInput = true),
+                  icon: const Icon(Icons.touch_app_rounded),
+                  label: const Text('Mit Finger lösen'),
+                ),
+            ] else ...[
               NumberAnswerPad(
                 key: ValueKey('assessment-answer-$index'),
                 maxValue: current.maxAnswerValue,
                 onAnswer: _answer,
               ),
+              if (_touchInteraction != null)
+                TextButton.icon(
+                  key: const ValueKey('assessment-touch-switch-interaction'),
+                  onPressed: locked
+                      ? null
+                      : () => setState(() => useTouchInput = true),
+                  icon: const Icon(Icons.touch_app_rounded),
+                  label: const Text('Mit Finger lösen'),
+                ),
+            ],
             const SizedBox(height: 14),
             TextButton.icon(
               key: const ValueKey('assessment-dont-know'),

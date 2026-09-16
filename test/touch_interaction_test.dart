@@ -2702,6 +2702,19 @@ void main() {
       targetCompetency: MicroCompetencyId.divisionSharing,
     );
 
+    final independentSharing = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:sharing:children:12:3',
+      answer: 4,
+      maxValue: 20,
+    );
+    final independentGrouping = TouchInteractionPlan.forTask(
+      mode: TrainingMode.wordProblems,
+      taskKey: 'story:grouping:blocks:12:4',
+      answer: 3,
+      maxValue: 20,
+    );
+
     final transferGrouping = TouchInteractionPlan.forTask(
       mode: TrainingMode.wordProblems,
       taskKey: 'story:transfer:skill:divisionSharing:divide:packs:12:4',
@@ -2747,6 +2760,12 @@ void main() {
     expect(grouping?.kind, TouchInteractionKind.divisionGroupsBuilder);
     expect(grouping?.divisionGrouping, isTrue);
     expect((grouping?.groupCount, grouping?.itemsPerGroup), (3, 4));
+    expect(independentSharing?.kind, TouchInteractionKind.divisionGroupsBuilder);
+    expect(independentSharing?.divisionGrouping, isFalse);
+    expect((independentSharing?.groupCount, independentSharing?.itemsPerGroup), (3, 4));
+    expect(independentGrouping?.kind, TouchInteractionKind.divisionGroupsBuilder);
+    expect(independentGrouping?.divisionGrouping, isTrue);
+    expect((independentGrouping?.groupCount, independentGrouping?.itemsPerGroup), (3, 4));
     expect(transferGrouping?.kind, TouchInteractionKind.divisionGroupsBuilder);
     expect(transferGrouping?.divisionGrouping, isTrue);
     expect(
