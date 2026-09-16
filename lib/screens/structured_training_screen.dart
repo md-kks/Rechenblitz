@@ -437,6 +437,14 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     );
     if (completed > 0) await widget.controller.addSession(result);
     final newBadges = widget.controller.lastSessionNewBadges;
+    final learningInsight = completed == 0
+        ? null
+        : widget.controller.learningCompletionInsight(
+            targetCompetency: widget.targetCompetency,
+            reviewEmphasis: widget.reviewEmphasis,
+            transferEmphasis: widget.transferEmphasis,
+            fluencyEmphasis: widget.fluencyEmphasis,
+          );
     if (!mounted) return;
     await showRoundCompletionDialog(
       context,
@@ -445,6 +453,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       starsEarned: result.starsEarned,
       rewardReason: rewardReason,
       adaptiveNote: adaptiveStopReason,
+      learningInsight: learningInsight,
       newBadges: newBadges,
     );
     if (mounted) Navigator.of(context).pop();

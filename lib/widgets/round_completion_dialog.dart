@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/learning_path.dart';
 import '../models/reward_badge.dart';
 
 Future<void> showRoundCompletionDialog(
@@ -11,6 +12,7 @@ Future<void> showRoundCompletionDialog(
   List<RewardBadge> newBadges = const <RewardBadge>[],
   double? averageSeconds,
   String? adaptiveNote,
+  LearningCompletionInsight? learningInsight,
 }) => showDialog<void>(
   context: context,
   barrierDismissible: false,
@@ -37,6 +39,46 @@ Future<void> showRoundCompletionDialog(
               'Im Schnitt ${averageSeconds.toStringAsFixed(1)} Sekunden',
               textAlign: TextAlign.center,
               style: Theme.of(dialogContext).textTheme.bodySmall,
+            ),
+          ],
+          if (learningInsight != null) ...[
+            const SizedBox(height: 12),
+            Card(
+              key: const ValueKey('round-learning-insight'),
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          learningInsight.fluency
+                              ? Icons.autorenew_rounded
+                              : Icons.insights_rounded,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            learningInsight.title,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(learningInsight.detail),
+                    const SizedBox(height: 6),
+                    Text(
+                      learningInsight.nextStep,
+                      style: Theme.of(dialogContext).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
           if (adaptiveNote != null && adaptiveNote.trim().isNotEmpty) ...[

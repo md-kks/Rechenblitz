@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/error_diagnosis.dart';
 import '../models/learning_path.dart';
+import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'curriculum_training_screen.dart';
@@ -254,6 +255,17 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
       }
     }
     final nextSegment = nextIndex == null ? null : plan[nextIndex];
+    final completedCompetencyLabels = <String>{
+      for (final segment in plan)
+        if (_isCompleted(segment) && segment.targetCompetency != null)
+          MicroCompetencyCatalog.definition(segment.targetCompetency!).label,
+    }.toList(growable: false);
+    final completionDecisionTrace =
+        allDone ? widget.controller.guidedRoundDecisionTrace() : decisionTrace;
+    final nextDecision = allDone ? completionDecisionTrace.primary : null;
+    final nextDecisionCompetency = nextDecision?.competencyId == null
+        ? null
+        : MicroCompetencyCatalog.definition(nextDecision!.competencyId!).label;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Meine Runde')),
@@ -289,6 +301,49 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
               ),
             ),
           ),
+          if (allDone) ...[
+            const SizedBox(height: 12),
+            Card(
+              key: const ValueKey('round-learning-summary'),
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Das hast du heute gestärkt',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$doneTasks Aufgaben sind genug für heute. Rechenblitz hat Verstehen, Wiederholung, Anwendung und Automatisierung getrennt ausgewertet.',
+                    ),
+                    if (completedCompetencyLabels.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final label in completedCompetencyLabels)
+                            Chip(label: Text(label)),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Text(
+                      nextDecision == null
+                          ? 'Die nächste Runde wird aus deinem aktuellen Lernstand neu geplant.'
+                          : nextDecisionCompetency == null
+                              ? 'Nächstes Mal plant Rechenblitz neu: ${nextDecision.kind.label}.'
+                              : 'Nächstes Mal ist voraussichtlich „$nextDecisionCompetency“ dran: ${nextDecision.kind.label}.',
+                      key: const ValueKey('round-next-learning-step'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (lastAdaptationMessage != null) ...[
             const SizedBox(height: 12),
             Card(

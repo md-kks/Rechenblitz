@@ -635,6 +635,20 @@ class GuidedRoundDecisionTrace {
   }
 }
 
+class LearningCompletionInsight {
+  const LearningCompletionInsight({
+    required this.title,
+    required this.detail,
+    required this.nextStep,
+    this.fluency = false,
+  });
+
+  final String title;
+  final String detail;
+  final String nextStep;
+  final bool fluency;
+}
+
 class ParentLearningInsight {
   const ParentLearningInsight({
     required this.good,

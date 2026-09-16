@@ -2616,6 +2616,111 @@ void main() {
     expect(restored.lastAdaptationMessage, 'Runde bewusst verkürzt.');
   });
 
+
+  test('Lernabschluss bleibt ohne Zielkompetenz bewusst leer', () {
+    final controller = AppController();
+    expect(
+      controller.learningCompletionInsight(targetCompetency: null),
+      isNull,
+    );
+  });
+
+  test('Lernabschluss erklärt sicheren Stand und fehlende Abstandskontrolle', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final id = MicroCompetencyId.additionTenBridge;
+    controller.microObservations = _secureEvidence(
+      id,
+      DateTime(2026, 9, 16, 8),
+      mode: TrainingMode.practice,
+      prefix: 'completion-secure',
+    );
+
+    final insight = controller.learningCompletionInsight(targetCompetency: id)!;
+    expect(insight.title, 'Das klappt schon sicher');
+    expect(insight.detail, contains('überwiegend selbstständig'));
+    expect(insight.nextStep, contains('nach einer Pause'));
+    expect(insight.fluency, isFalse);
+  });
+
+  test('Review- und Transferabschluss benennen die jeweilige Evidenzart', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final id = MicroCompetencyId.additionTenBridge;
+    controller.microObservations = <MicroCompetencyObservation>[
+      ..._secureEvidence(
+        id,
+        DateTime(2026, 9, 10, 8),
+        mode: TrainingMode.practice,
+        prefix: 'completion-base',
+      ),
+      _microObservation(
+        id: id,
+        when: DateTime(2026, 9, 12, 8),
+        source: MicroEvidenceSource.review,
+        taskKey: 'completion-review',
+      ),
+      _microObservation(
+        id: id,
+        when: DateTime(2026, 9, 13, 8),
+        source: MicroEvidenceSource.transfer,
+        mode: TrainingMode.wordProblems,
+        taskKey: 'completion-transfer',
+      ),
+    ];
+
+    final review = controller.learningCompletionInsight(
+      targetCompetency: id,
+      reviewEmphasis: true,
+    )!;
+    final transfer = controller.learningCompletionInsight(
+      targetCompetency: id,
+      transferEmphasis: true,
+    )!;
+
+    expect(review.detail, contains('zeitlichem Abstand'));
+    expect(review.detail, contains('selbstständig'));
+    expect(transfer.detail, contains('veränderten Aufgabe'));
+    expect(transfer.detail, contains('selbstständig'));
+  });
+
+  test('Automatisierungsabschluss trennt Fluency vom fachlichen Lernstand', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    final id = MicroCompetencyId.additionNoBridge;
+    controller.microObservations = <MicroCompetencyObservation>[
+      for (var index = 0; index < 4; index++)
+        MicroCompetencyObservation(
+          id: id,
+          occurredAt: DateTime(2026, 9, 16, 9, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:${12 + index}:3',
+          responseMs: 9000,
+        ),
+    ];
+
+    final progress = controller.microCompetencyProgress(id);
+    expect(progress.state, MicroCompetencyState.secure);
+    expect(progress.fluencyState, MicroFluencyState.building);
+
+    final insight = controller.learningCompletionInsight(
+      targetCompetency: id,
+      fluencyEmphasis: true,
+    )!;
+    expect(insight.fluency, isTrue);
+    expect(insight.detail, contains('fachlich sicher'));
+    expect(insight.detail, contains('ohne Countdown'));
+  });
+
 }
 
 

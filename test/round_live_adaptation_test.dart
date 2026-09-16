@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/learning_path.dart';
+import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/screens/my_round_screen.dart';
 import 'package:rechenblitz/screens/parent_screen.dart';
@@ -114,4 +115,200 @@ void main() {
 
     expect(find.text('3 von 8 Aufgaben'), findsOneWidget);
   });
+
+  testWidgets('abgeschlossene Meine Runde zeigt Lernbilanz und nächsten Fokus', (
+    tester,
+  ) async {
+    final controller = _FreshDecisionController(
+      const GuidedRoundDecisionTrace(
+        items: <GuidedRoundDecisionItem>[
+          GuidedRoundDecisionItem(
+            kind: GuidedRoundDecisionKind.dueReview,
+            detail: 'nach Abstand wieder prüfen',
+            priority: 90,
+            selected: true,
+            competencyId: MicroCompetencyId.additionNoBridge,
+          ),
+        ],
+      ),
+    );
+    await controller.load();
+    final now = DateTime.now();
+    const warmUp = GuidedRoundSegment(
+      role: GuidedRoundRole.warmUp,
+      mode: TrainingMode.practice,
+      tasks: 2,
+      reason: 'Sicher starten',
+      targetCompetency: MicroCompetencyId.additionNoBridge,
+    );
+    const focus = GuidedRoundSegment(
+      role: GuidedRoundRole.focus,
+      mode: TrainingMode.minus,
+      tasks: 3,
+      reason: 'Fokus festigen',
+      targetCompetency: MicroCompetencyId.subtractionTenBridge,
+    );
+    controller.guidedRoundProgress = GuidedRoundProgress(
+      plan: const <GuidedRoundSegment>[warmUp, focus],
+      completedRoles: const <GuidedRoundRole>{
+        GuidedRoundRole.warmUp,
+        GuidedRoundRole.focus,
+      },
+      completedTaskCounts: const <GuidedRoundRole, int>{
+        GuidedRoundRole.warmUp: 2,
+        GuidedRoundRole.focus: 3,
+      },
+      gradeLevel: controller.gradeLevel,
+      numberRange: controller.numberRange,
+      startedAt: now.subtract(const Duration(minutes: 8)),
+      updatedAt: now,
+      recoveryRequired: false,
+      decisionTrace: const GuidedRoundDecisionTrace(
+        items: <GuidedRoundDecisionItem>[
+          GuidedRoundDecisionItem(
+            kind: GuidedRoundDecisionKind.dueReview,
+            detail: 'nach Abstand wieder prüfen',
+            priority: 90,
+            selected: true,
+            competencyId: MicroCompetencyId.additionNoBridge,
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(MaterialApp(home: MyRoundScreen(controller: controller)));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('round-learning-summary')), findsOneWidget);
+    expect(find.text('Das hast du heute gestärkt'), findsOneWidget);
+    expect(find.text('5 Aufgaben sind genug für heute. Rechenblitz hat Verstehen, Wiederholung, Anwendung und Automatisierung getrennt ausgewertet.'), findsOneWidget);
+    expect(
+      find.text(MicroCompetencyCatalog.definition(MicroCompetencyId.additionNoBridge).label),
+      findsWidgets,
+    );
+    expect(
+      find.text(MicroCompetencyCatalog.definition(MicroCompetencyId.subtractionTenBridge).label),
+      findsWidgets,
+    );
+    expect(find.byKey(const ValueKey('round-next-learning-step')), findsOneWidget);
+    expect(find.textContaining('Abstandskontrolle fällig'), findsOneWidget);
+  });
+
+  testWidgets('Lernbilanz der Runde bleibt bei 200 Prozent stabil', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(() async {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.binding.setSurfaceSize(null);
+    });
+    final controller = AppController();
+    await controller.load();
+    final now = DateTime.now();
+    const segment = GuidedRoundSegment(
+      role: GuidedRoundRole.focus,
+      mode: TrainingMode.minus,
+      tasks: 3,
+      reason: 'Fokus',
+      targetCompetency: MicroCompetencyId.subtractionTenBridge,
+    );
+    controller.guidedRoundProgress = GuidedRoundProgress(
+      plan: const <GuidedRoundSegment>[segment],
+      completedRoles: const <GuidedRoundRole>{GuidedRoundRole.focus},
+      completedTaskCounts: const <GuidedRoundRole, int>{GuidedRoundRole.focus: 3},
+      gradeLevel: controller.gradeLevel,
+      numberRange: controller.numberRange,
+      startedAt: now.subtract(const Duration(minutes: 4)),
+      updatedAt: now,
+      recoveryRequired: false,
+    );
+
+    await tester.pumpWidget(MaterialApp(home: MyRoundScreen(controller: controller)));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('round-learning-summary')),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('round-learning-summary')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+
+  testWidgets('abgeschlossene Runde plant den nächsten Fokus frisch statt vom Rundenstart', (
+    tester,
+  ) async {
+    const oldTrace = GuidedRoundDecisionTrace(
+      items: <GuidedRoundDecisionItem>[
+        GuidedRoundDecisionItem(
+          kind: GuidedRoundDecisionKind.focus,
+          detail: 'alter Fokus',
+          priority: 100,
+          selected: true,
+          competencyId: MicroCompetencyId.additionNoBridge,
+        ),
+      ],
+    );
+    const freshTrace = GuidedRoundDecisionTrace(
+      items: <GuidedRoundDecisionItem>[
+        GuidedRoundDecisionItem(
+          kind: GuidedRoundDecisionKind.dueTransfer,
+          detail: 'neuer Transfer',
+          priority: 100,
+          selected: true,
+          competencyId: MicroCompetencyId.subtractionTenBridge,
+        ),
+      ],
+    );
+    final controller = _FreshDecisionController(freshTrace);
+    await controller.load();
+    final now = DateTime.now();
+    controller.guidedRoundProgress = GuidedRoundProgress(
+      plan: const <GuidedRoundSegment>[
+        GuidedRoundSegment(
+          role: GuidedRoundRole.focus,
+          mode: TrainingMode.practice,
+          tasks: 2,
+          reason: 'alter Rundenteil',
+          targetCompetency: MicroCompetencyId.additionNoBridge,
+        ),
+      ],
+      completedRoles: const <GuidedRoundRole>{GuidedRoundRole.focus},
+      completedTaskCounts: const <GuidedRoundRole, int>{GuidedRoundRole.focus: 2},
+      gradeLevel: controller.gradeLevel,
+      numberRange: controller.numberRange,
+      startedAt: now.subtract(const Duration(minutes: 3)),
+      updatedAt: now,
+      recoveryRequired: false,
+      decisionTrace: oldTrace,
+    );
+
+    await tester.pumpWidget(MaterialApp(home: MyRoundScreen(controller: controller)));
+    await tester.pump();
+
+    final freshLabel = MicroCompetencyCatalog.definition(
+      MicroCompetencyId.subtractionTenBridge,
+    ).label;
+    final oldLabel = MicroCompetencyCatalog.definition(
+      MicroCompetencyId.additionNoBridge,
+    ).label;
+    final nextText = tester.widget<Text>(
+      find.byKey(const ValueKey('round-next-learning-step')),
+    ).data!;
+    expect(nextText, contains(freshLabel));
+    expect(nextText, contains('Transfer fällig'));
+    expect(nextText, isNot(contains('„$oldLabel“ dran')));
+  });
+
+}
+
+
+class _FreshDecisionController extends AppController {
+  _FreshDecisionController(this.freshTrace);
+
+  final GuidedRoundDecisionTrace freshTrace;
+
+  @override
+  GuidedRoundDecisionTrace guidedRoundDecisionTrace({DateTime? now}) => freshTrace;
 }
