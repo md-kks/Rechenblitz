@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../models/learner_profile.dart';
 import '../models/teacher_assignment_result.dart';
+import '../models/training.dart';
 
 class AssignmentResultScreen extends StatelessWidget {
   const AssignmentResultScreen({
@@ -37,6 +39,14 @@ class AssignmentResultScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(result.summary),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${result.gradeLevel.label} · ${result.state?.label ?? 'Bundesland nicht enthalten'} · ${result.numberRange.label}',
+                    key: const ValueKey('assignment-completion-context'),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
                   const SizedBox(height: 16),
                   Wrap(
                     spacing: 22,

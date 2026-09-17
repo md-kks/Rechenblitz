@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/learner_profile.dart';
 import '../models/micro_competency.dart';
 import '../models/teacher_assignment_result.dart';
 import '../models/training.dart';
@@ -167,6 +168,14 @@ class _ResultCard extends StatelessWidget {
                   : MicroCompetencyCatalog
                       .definition(result.targetCompetency!)
                       .label,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${result.gradeLevel.label} · ${result.state?.label ?? 'Bundesland nicht enthalten'} · ${result.numberRange.label}',
+              key: const ValueKey('assignment-result-context'),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
             const SizedBox(height: 16),
             Wrap(
