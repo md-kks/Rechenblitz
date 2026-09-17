@@ -114,6 +114,9 @@ class _TrainingScreenState extends State<TrainingScreen>
   bool useTouchInput = true;
   bool helpCountedForCurrent = false;
   bool taskFirstAttemptRecorded = false;
+  bool submitting = false;
+  int factAttemptSequence = 0;
+  PendingFactAttempt? pendingFactAttempt;
   bool resumedFromDraft = false;
   bool resumeResolvedTask = false;
   int helpLevel = 0;
@@ -223,6 +226,8 @@ class _TrainingScreenState extends State<TrainingScreen>
       hadCheckpointError = saved.hadCheckpointError;
       taskFirstAttemptRecorded = saved.taskFirstAttemptRecorded;
       helpCountedForCurrent = saved.helpCountedForCurrent;
+      factAttemptSequence = saved.factAttemptSequence;
+      pendingFactAttempt = saved.pendingFactAttempt;
       completedResponseMs.addAll(saved.responseTimes);
       plusTotal = saved.plusTotal;
       plusCorrect = saved.plusCorrect;
@@ -247,7 +252,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       responseTimer = ActiveResponseTimer(startedAt: now);
       resumedFromDraft = true;
       resumeResolvedTask = saved.taskResolved;
-      locked = resumeResolvedTask;
+      locked = resumeResolvedTask || pendingFactAttempt != null;
     } else {
       startedAt = now;
       current = _next();
@@ -257,7 +262,9 @@ class _TrainingScreenState extends State<TrainingScreen>
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (resumeResolvedTask) {
+      if (pendingFactAttempt != null) {
+        unawaited(_recoverPendingFactAttempt());
+      } else if (resumeResolvedTask) {
         unawaited(_continueResolvedSession());
       } else {
         unawaited(widget.controller.speak(_spokenTask));
@@ -306,6 +313,7 @@ class _TrainingScreenState extends State<TrainingScreen>
 
   CoreTrainingSessionProgress _sessionSnapshot({
     bool? taskResolvedOverride,
+    bool clearPendingFactAttempt = false,
   }) =>
       CoreTrainingSessionProgress(
         kind: CoreTrainingKind.fact,
@@ -343,6 +351,9 @@ class _TrainingScreenState extends State<TrainingScreen>
         hadCheckpointError: hadCheckpointError,
         taskFirstAttemptRecorded: taskFirstAttemptRecorded,
         helpCountedForCurrent: helpCountedForCurrent,
+        factAttemptSequence: factAttemptSequence,
+        pendingFactAttempt:
+            clearPendingFactAttempt ? null : pendingFactAttempt,
         responseTimes: List<int>.from(completedResponseMs),
         plusTotal: plusTotal,
         plusCorrect: plusCorrect,
@@ -355,9 +366,15 @@ class _TrainingScreenState extends State<TrainingScreen>
         taskResolved: taskResolvedOverride ?? false,
       );
 
-  Future<void> _persistSession({bool? taskResolvedOverride}) =>
+  Future<void> _persistSession({
+    bool? taskResolvedOverride,
+    bool clearPendingFactAttempt = false,
+  }) =>
       widget.controller.saveCoreTrainingSession(
-        _sessionSnapshot(taskResolvedOverride: taskResolvedOverride),
+        _sessionSnapshot(
+          taskResolvedOverride: taskResolvedOverride,
+          clearPendingFactAttempt: clearPendingFactAttempt,
+        ),
       );
 
   Future<void> _continueResolvedSession() async {
@@ -382,6 +399,8 @@ class _TrainingScreenState extends State<TrainingScreen>
     hadCheckpointError = false;
     taskRememberFuture = null;
     taskFirstAttemptRecorded = false;
+    pendingFactAttempt = null;
+    submitting = false;
     checkpointFeedback = '';
     useTouchInput = true;
 
@@ -569,55 +588,71 @@ class _TrainingScreenState extends State<TrainingScreen>
   int get _expectedAnswer =>
       widget.mode == TrainingMode.numberFriends ? current.b : current.result;
 
-  Future<void> _answer(int answer) async {
-    if (locked || finishing || !_checkpointsComplete) return;
-    final response = responseTimer.elapsed();
-    final correct = answer == _expectedAnswer;
-    final diagnosedPattern = correct
+  String _factAttemptId(int sequence) =>
+      '${startedAt.microsecondsSinceEpoch}:${widget.mode.name}:${current.key}:$sequence';
+
+  Future<void> _recoverPendingFactAttempt() async {
+    final receipt = pendingFactAttempt;
+    if (receipt == null || submitting) return;
+    submitting = true;
+    try {
+      await _commitFactAttempt(receipt, restoring: true);
+    } catch (_) {
+      // Keep the persisted receipt. A later retry can safely replay it because
+      // recordAttempt is idempotent for the same receipt id.
+      submitting = false;
+      if (mounted) setState(() => locked = false);
+    }
+  }
+
+  Future<void> _commitFactAttempt(
+    PendingFactAttempt receipt, {
+    required bool restoring,
+  }) async {
+    if (receipt.taskKey != current.key) {
+      submitting = false;
+      return;
+    }
+    final response = Duration(milliseconds: receipt.responseMs);
+    final diagnosedPattern = receipt.correct
         ? null
         : ErrorClassifier.classify(
             mode: widget.mode,
             taskKey: current.key,
             expected: _expectedAnswer,
-            actual: answer,
+            actual: receipt.actualAnswer,
             fact: current,
           );
-    if (!taskFirstAttemptRecorded) {
-      taskFirstAttemptRecorded = true;
-      await _persistSession();
-      await _rememberCurrentTaskOnce();
-      await widget.controller.recordDiagnosticAttempt(
-        mode: widget.mode,
-        taskKey: current.key,
-        expected: _expectedAnswer,
-        actual: answer,
-        fact: current,
-        usedHelp: usedHelp || showHelp,
-        helpLevel: helpLevel,
-        methodKey: activeMethodKey,
-        source: _evidenceSource,
-        responseTime: _independentArithmeticSteps.isEmpty ? response : null,
-      );
-    }
+
     await widget.controller.recordAttempt(
       current,
-      correct: correct,
+      correct: receipt.correct,
       responseTime: response,
-      usedHelp: usedHelp && !helpCountedForCurrent,
+      usedHelp: receipt.usedHelp,
+      attemptId: receipt.id,
     );
-    if (usedHelp) helpCountedForCurrent = true;
-    if (!mounted || finishing) return;
+    if (receipt.usedHelp) helpCountedForCurrent = true;
+    if (!mounted || finishing) {
+      submitting = false;
+      return;
+    }
 
-    if (!correct && widget.mode == TrainingMode.tempo) {
+    if (!receipt.correct && widget.mode == TrainingMode.tempo) {
       incorrectAttempts += 1;
       completed += 1;
-      completedResponseMs
-          .add(response.inMilliseconds.clamp(0, 30000).toInt());
+      completedResponseMs.add(receipt.responseMs);
       _countCompletedFact(firstTryCorrect: false);
       locked = true;
       setState(() => feedback = 'Weiter geht’s.');
-      await _persistSession(taskResolvedOverride: true);
-      await Future<void>.delayed(const Duration(milliseconds: 350));
+      await _persistSession(
+        taskResolvedOverride: true,
+        clearPendingFactAttempt: true,
+      );
+      pendingFactAttempt = null;
+      submitting = false;
+      if (!restoring) {
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+      }
       if (!mounted || finishing) return;
       if (completed >= widget.targetTasks) {
         await _finish();
@@ -627,9 +662,10 @@ class _TrainingScreenState extends State<TrainingScreen>
       return;
     }
 
-    if (!correct) {
+    if (!receipt.correct) {
       incorrectAttempts += 1;
       wrongOnCurrent += 1;
+      locked = false;
       final retryHelp = _manualHelpLevel;
       setState(() {
         currentErrorPattern ??= diagnosedPattern;
@@ -647,7 +683,9 @@ class _TrainingScreenState extends State<TrainingScreen>
           activeMethodKey ??= _guide.methodKey;
         }
       });
-      await _persistSession();
+      await _persistSession(clearPendingFactAttempt: true);
+      pendingFactAttempt = null;
+      submitting = false;
       return;
     }
 
@@ -660,26 +698,37 @@ class _TrainingScreenState extends State<TrainingScreen>
         methodKey: activeMethodKey,
         source: _evidenceSource,
       );
-      if (!mounted || finishing) return;
+      if (!mounted || finishing) {
+        submitting = false;
+        return;
+      }
     }
 
     locked = true;
     completed += 1;
     segmentUsedHelp = segmentUsedHelp || usedHelp || showHelp || helpLevel > 0;
-    completedResponseMs
-        .add(response.inMilliseconds.clamp(0, 30000).toInt());
+    completedResponseMs.add(receipt.responseMs);
     final firstTry = wrongOnCurrent == 0 && !hadCheckpointError;
     if (firstTry) correctFirstTry += 1;
     _countCompletedFact(firstTryCorrect: firstTry);
-    if (widget.controller.hapticEnabled) HapticFeedback.lightImpact();
-    if (widget.controller.soundEnabled) {
+    if (!restoring && widget.controller.hapticEnabled) {
+      HapticFeedback.lightImpact();
+    }
+    if (!restoring && widget.controller.soundEnabled) {
       SystemSound.play(SystemSoundType.click);
     }
     setState(() => feedback =
         ['Richtig!', 'Genau!', 'Stimmt!', 'Gut gerechnet!'][completed % 4]);
     final adaptiveDecision = _adaptiveSegmentDecision();
-    await _persistSession(taskResolvedOverride: true);
-    await Future<void>.delayed(const Duration(milliseconds: 550));
+    await _persistSession(
+      taskResolvedOverride: true,
+      clearPendingFactAttempt: true,
+    );
+    pendingFactAttempt = null;
+    submitting = false;
+    if (!restoring) {
+      await Future<void>.delayed(const Duration(milliseconds: 550));
+    }
     if (!mounted || finishing) return;
     if (adaptiveDecision.shouldStop) {
       await _finish(adaptiveStopReason: adaptiveDecision.message);
@@ -690,6 +739,60 @@ class _TrainingScreenState extends State<TrainingScreen>
       return;
     }
     _showNextTask();
+  }
+
+  Future<void> _answer(int answer) async {
+    if (locked || finishing || !_checkpointsComplete || submitting) return;
+    final pending = pendingFactAttempt;
+    if (pending != null) {
+      submitting = true;
+      try {
+        await _commitFactAttempt(pending, restoring: false);
+      } catch (_) {
+        submitting = false;
+        rethrow;
+      }
+      return;
+    }
+
+    submitting = true;
+    try {
+      final response = responseTimer.elapsed();
+      final correct = answer == _expectedAnswer;
+      if (!taskFirstAttemptRecorded) {
+        taskFirstAttemptRecorded = true;
+        await _persistSession();
+        await _rememberCurrentTaskOnce();
+        await widget.controller.recordDiagnosticAttempt(
+          mode: widget.mode,
+          taskKey: current.key,
+          expected: _expectedAnswer,
+          actual: answer,
+          fact: current,
+          usedHelp: usedHelp || showHelp,
+          helpLevel: helpLevel,
+          methodKey: activeMethodKey,
+          source: _evidenceSource,
+          responseTime: _independentArithmeticSteps.isEmpty ? response : null,
+        );
+      }
+
+      factAttemptSequence += 1;
+      final receipt = PendingFactAttempt(
+        id: _factAttemptId(factAttemptSequence),
+        taskKey: current.key,
+        correct: correct,
+        actualAnswer: answer,
+        responseMs: response.inMilliseconds.clamp(0, 30000).toInt(),
+        usedHelp: usedHelp && !helpCountedForCurrent,
+      );
+      pendingFactAttempt = receipt;
+      await _persistSession();
+      await _commitFactAttempt(receipt, restoring: false);
+    } catch (_) {
+      submitting = false;
+      rethrow;
+    }
   }
 
   void _countCompletedFact({required bool firstTryCorrect}) {

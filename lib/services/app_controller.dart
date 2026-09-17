@@ -653,7 +653,15 @@ class AppController extends ChangeNotifier {
     required bool correct,
     required Duration responseTime,
     required bool usedHelp,
+    String? attemptId,
   }) async {
+    if (attemptId != null && fact.lastAttemptId == attemptId) {
+      // A crash may leave the same committed answer pending in the session
+      // draft. Re-saving repairs a previous interrupted storage write without
+      // counting the child's answer twice.
+      await storage.saveFacts(facts);
+      return;
+    }
     final hasWeakHistory = fact.attempts >= 2 &&
         (fact.masteryScore < 0.45 ||
             fact.incorrectAttempts >= 2 ||
@@ -663,6 +671,7 @@ class AppController extends ChangeNotifier {
       correct: correct,
       responseTime: responseTime,
       usedHelp: usedHelp,
+      attemptId: attemptId,
     );
     if (hasWeakHistory &&
         fact.masteryScore >= 0.72 &&

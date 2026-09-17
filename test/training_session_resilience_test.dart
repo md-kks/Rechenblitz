@@ -18,6 +18,7 @@ class _CaptureController extends AppController {
     required bool correct,
     required Duration responseTime,
     required bool usedHelp,
+    String? attemptId,
   }) async {
     lastFactResponse = responseTime;
   }

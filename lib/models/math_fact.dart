@@ -44,6 +44,7 @@ class MathFact {
     this.lastResponseMs = 0,
     this.helpCount = 0,
     this.lastPracticed,
+    this.lastAttemptId,
   });
 
   final int a;
@@ -56,6 +57,7 @@ class MathFact {
   int lastResponseMs;
   int helpCount;
   DateTime? lastPracticed;
+  String? lastAttemptId;
 
   int get result => switch (operation) {
         MathOperation.plus => a + b,
@@ -110,6 +112,7 @@ class MathFact {
     required bool correct,
     required Duration responseTime,
     required bool usedHelp,
+    String? attemptId,
   }) {
     final boundedMs = min(responseTime.inMilliseconds, 30000);
     attempts += 1;
@@ -124,6 +127,7 @@ class MathFact {
         ? boundedMs.toDouble()
         : ((averageResponseMs * (attempts - 1)) + boundedMs) / attempts;
     lastPracticed = DateTime.now();
+    if (attemptId != null) lastAttemptId = attemptId;
   }
 
   Map<String, dynamic> toJson() => {
@@ -137,6 +141,7 @@ class MathFact {
         'lastResponseMs': lastResponseMs,
         'helpCount': helpCount,
         'lastPracticed': lastPracticed?.toIso8601String(),
+        'lastAttemptId': lastAttemptId,
       };
 
   factory MathFact.fromJson(Map<String, dynamic> json) => MathFact(
@@ -153,5 +158,6 @@ class MathFact {
         lastPracticed: json['lastPracticed'] == null
             ? null
             : DateTime.tryParse(json['lastPracticed'] as String),
+        lastAttemptId: json['lastAttemptId'] as String?,
       );
 }

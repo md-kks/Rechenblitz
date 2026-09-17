@@ -7,6 +7,49 @@ import 'training.dart';
 
 enum CoreTrainingKind { fact, structured, curriculum }
 
+class PendingFactAttempt {
+  const PendingFactAttempt({
+    required this.id,
+    required this.taskKey,
+    required this.correct,
+    required this.actualAnswer,
+    required this.responseMs,
+    required this.usedHelp,
+  });
+
+  final String id;
+  final String taskKey;
+  final bool correct;
+  final int actualAnswer;
+  final int responseMs;
+  final bool usedHelp;
+
+  bool get hasSaneState =>
+      id.trim().isNotEmpty &&
+      taskKey.trim().isNotEmpty &&
+      responseMs >= 0 &&
+      responseMs <= 30000;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'taskKey': taskKey,
+        'correct': correct,
+        'actualAnswer': actualAnswer,
+        'responseMs': responseMs,
+        'usedHelp': usedHelp,
+      };
+
+  factory PendingFactAttempt.fromJson(Map<String, dynamic> json) =>
+      PendingFactAttempt(
+        id: json['id'] as String,
+        taskKey: json['taskKey'] as String,
+        correct: json['correct'] as bool,
+        actualAnswer: json['actualAnswer'] as int,
+        responseMs: json['responseMs'] as int,
+        usedHelp: json['usedHelp'] as bool? ?? false,
+      );
+}
+
 class CoreTrainingSessionProgress {
   const CoreTrainingSessionProgress({
     required this.kind,
@@ -43,6 +86,8 @@ class CoreTrainingSessionProgress {
     this.hadCheckpointError = false,
     this.taskFirstAttemptRecorded = false,
     this.helpCountedForCurrent = false,
+    this.factAttemptSequence = 0,
+    this.pendingFactAttempt,
     this.responseTimes = const <int>[],
     this.plusTotal = 0,
     this.plusCorrect = 0,
@@ -91,6 +136,8 @@ class CoreTrainingSessionProgress {
   final bool hadCheckpointError;
   final bool taskFirstAttemptRecorded;
   final bool helpCountedForCurrent;
+  final int factAttemptSequence;
+  final PendingFactAttempt? pendingFactAttempt;
   final List<int> responseTimes;
   final int plusTotal;
   final int plusCorrect;
@@ -119,7 +166,8 @@ class CoreTrainingSessionProgress {
         wrongOnCurrent < 0 ||
         helpLevel < 0 ||
         helpLevel > 3 ||
-        checkpointIndex < 0) {
+        checkpointIndex < 0 ||
+        factAttemptSequence < 0) {
       return false;
     }
     if (checkpointAttempted.any((index) => index < 0) ||
@@ -135,6 +183,15 @@ class CoreTrainingSessionProgress {
         !validCounterPair(divideTotal, divideCorrect)) {
       return false;
     }
+    final pending = pendingFactAttempt;
+    if (pending != null &&
+        (kind != CoreTrainingKind.fact ||
+            !pending.hasSaneState ||
+            factAttemptSequence <= 0 ||
+            pending.taskKey != currentTask['key'])) {
+      return false;
+    }
+    if (kind != CoreTrainingKind.fact && factAttemptSequence != 0) return false;
 
     try {
       switch (kind) {
@@ -225,6 +282,8 @@ class CoreTrainingSessionProgress {
     'hadCheckpointError': hadCheckpointError,
     'taskFirstAttemptRecorded': taskFirstAttemptRecorded,
     'helpCountedForCurrent': helpCountedForCurrent,
+    'factAttemptSequence': factAttemptSequence,
+    'pendingFactAttempt': pendingFactAttempt?.toJson(),
     'responseTimes': responseTimes,
     'plusTotal': plusTotal,
     'plusCorrect': plusCorrect,
@@ -294,6 +353,12 @@ class CoreTrainingSessionProgress {
       taskFirstAttemptRecorded:
           json['taskFirstAttemptRecorded'] as bool? ?? false,
       helpCountedForCurrent: json['helpCountedForCurrent'] as bool? ?? false,
+      factAttemptSequence: json['factAttemptSequence'] as int? ?? 0,
+      pendingFactAttempt: json['pendingFactAttempt'] is Map<String, dynamic>
+          ? PendingFactAttempt.fromJson(
+              json['pendingFactAttempt'] as Map<String, dynamic>,
+            )
+          : null,
       responseTimes: (json['responseTimes'] as List<dynamic>? ?? const [])
           .cast<int>(),
       plusTotal: json['plusTotal'] as int? ?? 0,
