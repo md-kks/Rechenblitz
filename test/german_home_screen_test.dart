@@ -68,4 +68,25 @@ void main() {
     expect(find.text('Deutsch üben'), findsOneWidget);
     expect(find.text('1 von 6'), findsOneWidget);
   });
+  testWidgets('competency map starts targeted six-task practice', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('german-competency-map')));
+    await tester.pumpAndSettle();
+    final practiceButton = find.text('Gezielt üben').first;
+    await tester.scrollUntilVisible(practiceButton, 160);
+    await tester.tap(practiceButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Deutsch üben'), findsOneWidget);
+    expect(find.text('1 von 6'), findsOneWidget);
+  });
 }

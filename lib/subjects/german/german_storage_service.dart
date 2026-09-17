@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/learning_subject.dart';
 import '../../core/storage/subject_storage_keyspace.dart';
+import 'german_round_draft.dart';
 import 'german_session.dart';
 
 class GermanStorageService {
@@ -11,10 +12,13 @@ class GermanStorageService {
 
   static const _keyspace = SubjectStorageKeyspace(LearningSubject.german);
   static const _historyKey = 'history_v1';
+  static const _roundDraftKey = 'round_draft_v1';
 
   final String profileId;
 
   String get _profileHistoryKey => _keyspace.profileKey(profileId, _historyKey);
+  String get _profileRoundDraftKey =>
+      _keyspace.profileKey(profileId, _roundDraftKey);
 
   Future<List<GermanSessionResult>> loadHistory() async {
     final prefs = await SharedPreferences.getInstance();
@@ -53,8 +57,33 @@ class GermanStorageService {
     await saveHistory(<GermanSessionResult>[result, ...history]);
   }
 
+  Future<GermanRoundDraft?> loadRoundDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_profileRoundDraftKey);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      return GermanRoundDraft.fromJson(decoded);
+    } catch (_) {
+      await prefs.remove(_profileRoundDraftKey);
+      return null;
+    }
+  }
+
+  Future<void> saveRoundDraft(GermanRoundDraft draft) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_profileRoundDraftKey, jsonEncode(draft.toJson()));
+  }
+
+  Future<void> clearRoundDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_profileRoundDraftKey);
+  }
+
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_profileHistoryKey);
+    await prefs.remove(_profileRoundDraftKey);
   }
 }

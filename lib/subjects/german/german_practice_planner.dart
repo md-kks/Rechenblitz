@@ -60,6 +60,24 @@ class GermanPracticePlanner {
     return ranked.take(taskCount).toList(growable: false);
   }
 
+  static List<GermanTask> buildCompetencyRound({
+    required GradeLevel gradeLevel,
+    required GermanCompetencyId competencyId,
+    required Iterable<GermanSessionResult> history,
+    int taskCount = 6,
+  }) {
+    final source = GermanTaskCatalog.forCompetency(
+      competencyId,
+    ).where((task) => task.recommendedFromGrade.index <= gradeLevel.index);
+    final ranked = _ranked(source, history, gradeLevel: gradeLevel);
+    if (ranked.isEmpty) return const <GermanTask>[];
+    return List<GermanTask>.generate(
+      taskCount,
+      (index) => ranked[index % ranked.length],
+      growable: false,
+    );
+  }
+
   static List<GermanTask> buildAssignmentRound({
     required GermanTeacherAssignment assignment,
     required Iterable<GermanSessionResult> history,

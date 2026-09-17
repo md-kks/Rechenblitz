@@ -90,6 +90,7 @@ class GermanCompetencyMapScreen extends StatelessWidget {
             label: definition.label,
             description: definition.description,
             progress: progress,
+            onPractice: () => Navigator.of(context).pop(definition.id),
           ),
         );
       }),
@@ -102,11 +103,13 @@ class _CompetencyCard extends StatelessWidget {
     required this.label,
     required this.description,
     required this.progress,
+    required this.onPractice,
   });
 
   final String label;
   final String description;
   final GermanCompetencyProgress progress;
+  final VoidCallback onPractice;
 
   @override
   Widget build(BuildContext context) {
@@ -122,15 +125,28 @@ class _CompetencyCard extends StatelessWidget {
         ? 'Noch keine Übungsergebnisse'
         : '${progress.correctFirstTry} von ${progress.attempts} direkt richtig';
     return Card(
-      child: ListTile(
-        leading: Icon(status.$2),
-        title: Text(label),
-        subtitle: Text('$description\n$detail'),
-        isThreeLine: true,
-        trailing: Text(
-          status.$1,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          ListTile(
+            leading: Icon(status.$2),
+            title: Text(label),
+            subtitle: Text('$description\n$detail'),
+            isThreeLine: true,
+            trailing: Text(
+              status.$1,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+            child: OutlinedButton.icon(
+              onPressed: onPractice,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('Gezielt üben'),
+            ),
+          ),
+        ],
       ),
     );
   }

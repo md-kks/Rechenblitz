@@ -6,13 +6,18 @@ import '../../../core/grade_level.dart';
 import '../../../core/learning_app_theme.dart';
 import '../../../core/learning_subject.dart';
 import '../../../services/app_controller.dart';
+import '../german_competency.dart';
 import '../german_competency_catalog.dart';
 import '../german_learning_domain.dart';
 import '../german_practice_planner.dart';
 import '../german_progress.dart';
+import '../german_round_draft.dart';
 import '../german_session.dart';
 import '../german_storage_service.dart';
+import '../german_teacher_assignment.dart';
+import '../german_teacher_assignment_result.dart';
 import '../german_task.dart';
+import 'german_assignment_result_screen.dart';
 import 'german_competency_map_screen.dart';
 import 'german_training_screen.dart';
 
@@ -27,6 +32,7 @@ class GermanHomeScreen extends StatefulWidget {
 
 class _GermanHomeScreenState extends State<GermanHomeScreen> {
   List<GermanSessionResult> _history = const <GermanSessionResult>[];
+  GermanRoundDraft? _draft;
   bool _loading = true;
 
   GermanStorageService get _storage =>
@@ -40,9 +46,15 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
 
   Future<void> _load() async {
     final history = await _storage.loadHistory();
+    var draft = await _storage.loadRoundDraft();
+    if (draft != null && !draft.isResumableFor(widget.controller.gradeLevel)) {
+      await _storage.clearRoundDraft();
+      draft = null;
+    }
     if (!mounted) return;
     setState(() {
       _history = history;
+      _draft = draft;
       _loading = false;
     });
   }
@@ -52,9 +64,26 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     accessibility: widget.controller.accessibilityPreferences,
   );
 
-  Future<void> _openRound(List<GermanTask> tasks) async {
+  Future<void> _openRound(
+    List<GermanTask> tasks, {
+    GermanRoundDraft? draft,
+  }) async {
     if (tasks.isEmpty) return;
-    await Navigator.of(context).push(
+    final activeDraft =
+        draft ??
+        GermanRoundDraft(
+          gradeLevel: widget.controller.gradeLevel,
+          taskIds: tasks.map((task) => task.id).toList(growable: false),
+          currentIndex: 0,
+          startedAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          completedResults: const <GermanTaskResult>[],
+        );
+    await _storage.saveRoundDraft(activeDraft);
+    if (!mounted) return;
+    setState(() => _draft = activeDraft);
+
+    final session = await Navigator.of(context).push<GermanSessionResult>(
       MaterialPageRoute<GermanSessionResult>(
         builder: (_) => Theme(
           data: _germanTheme,
@@ -64,16 +93,63 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
             speak: widget.controller.speakOnDemand,
             speakCompletion:
                 widget.controller.accessibilityPreferences.spokenRoundFeedback,
+            draft: activeDraft,
+            onDraftChanged: _saveDraft,
             onComplete: _saveResult,
           ),
         ),
       ),
     );
+    if (!mounted || session == null) return;
+
+    final payload = activeDraft.assignmentPayload;
+    if (payload != null) {
+      final assignment = GermanTeacherAssignment.tryParse(payload);
+      if (assignment != null) {
+        final result = GermanTeacherAssignmentResult.fromSession(
+          assignment: assignment,
+          session: session,
+        );
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => Theme(
+              data: _germanTheme,
+              child: GermanAssignmentResultScreen(result: result),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _saveDraft(GermanRoundDraft draft) {
+    if (mounted) setState(() => _draft = draft);
+    unawaited(_storage.saveRoundDraft(draft));
   }
 
   void _saveResult(GermanSessionResult result) {
-    setState(() => _history = <GermanSessionResult>[result, ..._history]);
-    unawaited(_storage.appendSession(result));
+    setState(() {
+      _history = <GermanSessionResult>[result, ..._history];
+      _draft = null;
+    });
+    unawaited(_persistCompletedResult(result));
+  }
+
+  Future<void> _persistCompletedResult(GermanSessionResult result) async {
+    await _storage.appendSession(result);
+    await _storage.clearRoundDraft();
+  }
+
+  Future<void> _resumeRound() async {
+    final draft = _draft;
+    if (draft == null) return;
+    final tasks = draft.resolveTasks();
+    if (tasks == null) {
+      await _storage.clearRoundDraft();
+      if (mounted) setState(() => _draft = null);
+      return;
+    }
+    await _openRound(tasks, draft: draft);
   }
 
   void _startDailyRound() {
@@ -94,19 +170,28 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   }
 
   void _openCompetencyMap() {
-    unawaited(
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => Theme(
-            data: _germanTheme,
-            child: GermanCompetencyMapScreen(
-              gradeLevel: widget.controller.gradeLevel,
-              history: _history,
-            ),
+    unawaited(_selectCompetencyFromMap());
+  }
+
+  Future<void> _selectCompetencyFromMap() async {
+    final competency = await Navigator.of(context).push<GermanCompetencyId>(
+      MaterialPageRoute<GermanCompetencyId>(
+        builder: (_) => Theme(
+          data: _germanTheme,
+          child: GermanCompetencyMapScreen(
+            gradeLevel: widget.controller.gradeLevel,
+            history: _history,
           ),
         ),
       ),
     );
+    if (!mounted || competency == null) return;
+    final tasks = GermanPracticePlanner.buildCompetencyRound(
+      gradeLevel: widget.controller.gradeLevel,
+      competencyId: competency,
+      history: _history,
+    );
+    await _openRound(tasks);
   }
 
   @override
@@ -151,10 +236,18 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
               Text(_roundSummary()),
               const SizedBox(height: 16),
               FilledButton.icon(
-                key: const ValueKey('german-daily-round'),
-                onPressed: _startDailyRound,
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Runde starten'),
+                key: ValueKey(
+                  _draft == null ? 'german-daily-round' : 'german-resume-round',
+                ),
+                onPressed: _draft == null ? _startDailyRound : _resumeRound,
+                icon: Icon(
+                  _draft == null
+                      ? Icons.play_arrow_rounded
+                      : Icons.restore_rounded,
+                ),
+                label: Text(
+                  _draft == null ? 'Runde starten' : 'Runde fortsetzen',
+                ),
               ),
             ],
           ),
@@ -195,6 +288,13 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   );
 
   String _roundSummary() {
+    final draft = _draft;
+    if (draft != null) {
+      final kind = draft.assignmentPayload == null
+          ? 'Deine angefangene Runde'
+          : 'Dein angefangener Schulauftrag';
+      return '$kind wartet: Aufgabe ${draft.nextTaskNumber} von ${draft.totalTasks}.';
+    }
     if (_history.isEmpty) {
       return 'Kurze Aufgaben aus Lesen, Sprache, Schreiben und Hören.';
     }

@@ -10,6 +10,7 @@ import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../services/assignment_launcher.dart';
 import '../subjects/german/german_practice_planner.dart';
+import '../subjects/german/german_round_draft.dart';
 import '../subjects/german/german_session.dart';
 import '../subjects/german/german_storage_service.dart';
 import '../subjects/german/german_teacher_assignment_result.dart';
@@ -107,6 +108,17 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
         return;
       }
       if (!mounted) return;
+      final draft = GermanRoundDraft(
+        gradeLevel: assignment.gradeLevel,
+        taskIds: tasks.map((task) => task.id).toList(growable: false),
+        currentIndex: 0,
+        startedAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        completedResults: const <GermanTaskResult>[],
+        assignmentPayload: assignment.toPayload(),
+      );
+      await storage.saveRoundDraft(draft);
+      if (!mounted) return;
       final germanTheme = LearningAppTheme.build(
         subject: LearningSubject.german,
         accessibility: widget.controller.accessibilityPreferences,
@@ -123,7 +135,15 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
                   .controller
                   .accessibilityPreferences
                   .spokenRoundFeedback,
-              onComplete: (result) => unawaited(storage.appendSession(result)),
+              draft: draft,
+              onDraftChanged: (value) =>
+                  unawaited(storage.saveRoundDraft(value)),
+              onComplete: (result) => unawaited(
+                Future.wait<void>(<Future<void>>[
+                  storage.appendSession(result),
+                  storage.clearRoundDraft(),
+                ]),
+              ),
             ),
           ),
         ),

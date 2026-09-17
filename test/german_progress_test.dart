@@ -149,6 +149,23 @@ void main() {
     },
   );
 
+  test('targeted German round stays on the selected competency', () {
+    final round = GermanPracticePlanner.buildCompetencyRound(
+      gradeLevel: GradeLevel.second,
+      competencyId: GermanCompetencyId.wordRecognition,
+      history: const <GermanSessionResult>[],
+    );
+
+    expect(round, hasLength(6));
+    expect(
+      round.every(
+        (task) => task.competencyId == GermanCompetencyId.wordRecognition,
+      ),
+      isTrue,
+    );
+    expect(round.map((task) => task.id).toSet().length, greaterThan(1));
+  });
+
   test('teacher assignment keeps its requested task count offline', () {
     final assignment = GermanTeacherAssignment(
       gradeLevel: GradeLevel.second,

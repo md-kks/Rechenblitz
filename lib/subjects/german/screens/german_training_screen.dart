@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/grade_level.dart';
+import '../german_round_draft.dart';
 import '../german_round_feedback.dart';
 import '../german_session.dart';
 import '../german_support_catalog.dart';
@@ -10,6 +11,7 @@ import '../german_task.dart';
 
 typedef GermanSpeak = Future<void> Function(String text);
 typedef GermanSessionComplete = void Function(GermanSessionResult result);
+typedef GermanDraftChanged = void Function(GermanRoundDraft draft);
 
 class GermanTrainingScreen extends StatefulWidget {
   const GermanTrainingScreen({
@@ -18,6 +20,8 @@ class GermanTrainingScreen extends StatefulWidget {
     required this.tasks,
     required this.speak,
     this.speakCompletion = false,
+    this.draft,
+    this.onDraftChanged,
     this.onComplete,
   }) : assert(tasks.length > 0);
 
@@ -25,6 +29,8 @@ class GermanTrainingScreen extends StatefulWidget {
   final List<GermanTask> tasks;
   final GermanSpeak speak;
   final bool speakCompletion;
+  final GermanRoundDraft? draft;
+  final GermanDraftChanged? onDraftChanged;
   final GermanSessionComplete? onComplete;
 
   @override
@@ -49,14 +55,48 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
   @override
   void initState() {
     super.initState();
-    _startedAt = DateTime.now();
-    _taskStartedAt = _startedAt;
+    final draft = widget.draft;
+    if (draft != null &&
+        draft.gradeLevel == widget.gradeLevel &&
+        draft.taskIds.length == widget.tasks.length &&
+        draft.taskIds.asMap().entries.every(
+          (entry) => widget.tasks[entry.key].id == entry.value,
+        ) &&
+        draft.currentIndex >= 0 &&
+        draft.currentIndex < widget.tasks.length &&
+        draft.completedResults.length == draft.currentIndex) {
+      _startedAt = draft.startedAt;
+      _index = draft.currentIndex;
+      _incorrectAttempts = draft.incorrectAttempts;
+      _results.addAll(draft.completedResults);
+      _taskStartedAt = DateTime.now();
+    } else {
+      _startedAt = DateTime.now();
+      _taskStartedAt = _startedAt;
+    }
   }
 
   @override
   void dispose() {
     _answerController.dispose();
     super.dispose();
+  }
+
+  void _emitDraft([DateTime? now]) {
+    final callback = widget.onDraftChanged;
+    if (callback == null || _completed) return;
+    callback(
+      GermanRoundDraft(
+        gradeLevel: widget.gradeLevel,
+        taskIds: widget.tasks.map((task) => task.id).toList(growable: false),
+        currentIndex: _index,
+        startedAt: _startedAt,
+        updatedAt: now ?? DateTime.now(),
+        completedResults: List<GermanTaskResult>.unmodifiable(_results),
+        incorrectAttempts: _incorrectAttempts,
+        assignmentPayload: widget.draft?.assignmentPayload,
+      ),
+    );
   }
 
   void _submit(String answer) {
@@ -66,6 +106,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
         _incorrectAttempts += 1;
         _feedback = 'Noch nicht. Versuch es noch einmal.';
       });
+      _emitDraft();
       return;
     }
 
@@ -109,6 +150,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
       _orderedWords.clear();
       _taskStartedAt = now;
     });
+    _emitDraft(now);
   }
 
   @override
