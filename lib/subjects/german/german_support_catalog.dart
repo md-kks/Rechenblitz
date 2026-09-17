@@ -40,6 +40,10 @@ class GermanSupportCatalog {
       'Lies die Frage zuerst und suche dann genau die passende Textstelle.',
     GermanCompetencyId.listeningComprehension =>
       'Hör noch einmal und achte nur auf das gesuchte Schlüsselwort.',
+    GermanCompetencyId.conversationRules =>
+      'Überlege: Wer spricht gerade, und wie kannst du zeigen, dass du zuhörst?',
+    GermanCompetencyId.oralRetelling =>
+      'Suche zuerst Anfang, wichtiges Ereignis und Schluss der Geschichte.',
     GermanCompetencyId.sentenceWriting =>
       'Beginne groß, ordne die Wörter sinnvoll und denke an das Satzzeichen.',
     GermanCompetencyId.spellingStrategies =>
@@ -66,6 +70,10 @@ class GermanSupportCatalog {
       'Lies den Text noch einmal und prüfe Reihenfolge, Wiederholungen und genaue Wörter.',
     GermanCompetencyId.listeningMainIdeas =>
       'Hör auf das Thema und die wichtigste Botschaft statt auf einzelne Nebendetails.',
+    GermanCompetencyId.presentationStructure =>
+      'Plane einen klaren Anfang, wenige wichtige Punkte und einen kurzen Abschluss.',
+    GermanCompetencyId.discussionReasoning =>
+      'Greife den Beitrag auf und nenne einen verständlichen Grund für deine Meinung.',
     GermanCompetencyId.directSpeechPunctuation =>
       'Trenne Begleitsatz und wörtliche Rede und prüfe Doppelpunkt, Anführungszeichen und Satzzeichen.',
   };
@@ -78,8 +86,12 @@ class GermanSupportCatalog {
       'Sprich oder lies noch einmal langsam. Du musst nicht raten.',
     GermanCompetencyId.sentenceComprehension ||
     GermanCompetencyId.textInformation ||
-    GermanCompetencyId.listeningComprehension =>
-      'Konzentriere dich nur auf die Information, nach der gefragt wird.',
+    GermanCompetencyId.listeningComprehension ||
+    GermanCompetencyId.conversationRules ||
+    GermanCompetencyId.oralRetelling ||
+    GermanCompetencyId.presentationStructure ||
+    GermanCompetencyId.discussionReasoning =>
+      'Hör den Beitrag noch einmal. Achte auf Reihenfolge, Gesprächsziel und einen passenden nächsten Satz.',
     GermanCompetencyId.sentenceWordOrder ||
     GermanCompetencyId.sentencePunctuation ||
     GermanCompetencyId.sentenceTypes ||

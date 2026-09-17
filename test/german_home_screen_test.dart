@@ -32,7 +32,7 @@ void main() {
     await tester.scrollUntilVisible(find.text('Wörter & Wortschatz'), 180);
     expect(find.text('Wörter & Wortschatz'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Schreiben'), 180);
-    expect(find.text('Hören & Verstehen'), findsOneWidget);
+    expect(find.text('Sprechen & Zuhören'), findsOneWidget);
     expect(find.text('Schreiben'), findsOneWidget);
   });
 

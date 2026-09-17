@@ -68,6 +68,17 @@ class GermanCompetencyCatalog {
       recommendedFromGrade: GradeLevel.first,
     ),
     GermanCompetencyDefinition(
+      id: GermanCompetencyId.conversationRules,
+      label: 'Gesprächsregeln anwenden',
+      description:
+          'Zuhören, ausreden lassen und passende Gesprächsbeiträge auswählen.',
+      domain: GermanLearningDomain.listening,
+      recommendedFromGrade: GradeLevel.first,
+      prerequisites: <GermanCompetencyId>[
+        GermanCompetencyId.listeningComprehension,
+      ],
+    ),
+    GermanCompetencyDefinition(
       id: GermanCompetencyId.sentenceWordOrder,
       label: 'Sätze sinnvoll aufbauen',
       description: 'Wörter zu verständlichen einfachen Sätzen ordnen.',
@@ -145,6 +156,18 @@ class GermanCompetencyCatalog {
       recommendedFromGrade: GradeLevel.second,
       prerequisites: <GermanCompetencyId>[
         GermanCompetencyId.sentenceComprehension,
+      ],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.oralRetelling,
+      label: 'Mündliches Erzählen vorbereiten',
+      description:
+          'Wichtige Ereignisse auswählen und in eine verständliche Erzählreihenfolge bringen.',
+      domain: GermanLearningDomain.listening,
+      recommendedFromGrade: GradeLevel.second,
+      prerequisites: <GermanCompetencyId>[
+        GermanCompetencyId.listeningComprehension,
+        GermanCompetencyId.conversationRules,
       ],
     ),
     GermanCompetencyDefinition(
@@ -277,6 +300,26 @@ class GermanCompetencyCatalog {
       recommendedFromGrade: GradeLevel.fourth,
       prerequisites: <GermanCompetencyId>[
         GermanCompetencyId.listeningComprehension,
+      ],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.presentationStructure,
+      label: 'Einen kurzen Vortrag strukturieren',
+      description:
+          'Thema, wichtige Informationen und Abschluss für einen verständlichen Vortrag ordnen.',
+      domain: GermanLearningDomain.listening,
+      recommendedFromGrade: GradeLevel.third,
+      prerequisites: <GermanCompetencyId>[GermanCompetencyId.oralRetelling],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.discussionReasoning,
+      label: 'Meinungen im Gespräch begründen',
+      description:
+          'Auf Beiträge eingehen, höflich widersprechen und die eigene Meinung begründen.',
+      domain: GermanLearningDomain.listening,
+      recommendedFromGrade: GradeLevel.fourth,
+      prerequisites: <GermanCompetencyId>[
+        GermanCompetencyId.presentationStructure,
       ],
     ),
     GermanCompetencyDefinition(

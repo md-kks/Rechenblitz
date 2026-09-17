@@ -20,6 +20,8 @@ enum GermanCompetencyId {
   sentenceComprehension,
   textInformation,
   listeningComprehension,
+  conversationRules,
+  oralRetelling,
   sentenceWriting,
   spellingStrategies,
   dictionarySkills,
@@ -33,6 +35,8 @@ enum GermanCompetencyId {
   sentenceConnections,
   textRevision,
   listeningMainIdeas,
+  presentationStructure,
+  discussionReasoning,
   directSpeechPunctuation,
 }
 

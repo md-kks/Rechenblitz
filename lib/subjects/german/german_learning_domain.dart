@@ -13,7 +13,7 @@ extension GermanLearningDomainX on GermanLearningDomain {
     GermanLearningDomain.spelling => 'Rechtschreibung',
     GermanLearningDomain.language => 'Sprache untersuchen',
     GermanLearningDomain.vocabulary => 'Wörter & Wortschatz',
-    GermanLearningDomain.listening => 'Hören & Verstehen',
+    GermanLearningDomain.listening => 'Sprechen & Zuhören',
     GermanLearningDomain.writing => 'Schreiben',
   };
 }
