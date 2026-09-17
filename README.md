@@ -99,7 +99,9 @@ Neue Installationen beginnen mit einem kurzen, druckfreien Lernstart:
 
 Bestehende Nutzer werden bei einem Update nicht nachträglich durch das Onboarding gezwungen. Alte lokale Lernstände werden weiterverwendet.
 
-Das Bundesland wird ausschließlich lokal gespeichert. Für alle 16 Bundesländer ist eine quellengeprüfte Lehrplan-Zuordnung hinterlegt. Rechenblitz ordnet seine Mikro-Kompetenzen den inhaltlichen Bereichen der jeweils geltenden amtlichen Grundlage zu; Übergangs- und auslaufende Fassungen werden im Audit transparent gekennzeichnet. Die Zuordnung ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
+Das Bundesland wird ausschließlich lokal gespeichert. Für alle 16 Bundesländer ist eine quellengeprüfte Lehrplan-Zuordnung hinterlegt. Rechenblitz ordnet seine Mikro-Kompetenzen den inhaltlichen Bereichen der jeweils geltenden amtlichen Grundlage zu; Übergangs- und auslaufende Fassungen werden im Audit transparent gekennzeichnet. Wo die amtliche Quelle Lernbänder, Niveaustufen oder Abschlussstandards vorgibt, bildet Rechenblitz diese Progressionslogik zusätzlich ab. Sie beeinflusst die Auswahl noch unentdeckter Lernziele in „Meine Runde“, ohne bereits beobachtete Schwierigkeiten zu verdrängen. Die Zuordnung ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
+
+Für Baden-Württemberg, Bayern, Berlin, Brandenburg und Nordrhein-Westfalen berücksichtigt die Progression außerdem frühe, ausdrücklich belegte Inhalte aus **Daten und Zufall** bis zum Ende der ersten beiden Schuljahre. Bayern, Berlin/Brandenburg und Nordrhein-Westfalen schalten dabei auch kleine kombinatorische Aufgaben frei. Rechenblitz verwendet dafür bewusst reduzierte, altersgerechte Varianten; die deutlich anspruchsvollere Auswertung relativer Häufigkeiten bleibt weiterhin dem späteren Lernpfad vorbehalten.
 
 ## Persönlicher Lernpfad
 
@@ -481,7 +483,7 @@ Die Lehrkraft kann den Ergebnis-QR direkt wieder scannen. Auch dieser Rückkanal
 
 ### Lehrplan-Audit
 
-Der interne Lehrplan-Audit arbeitet bundeslandspezifisch. Für jedes der 16 Länder sind Quelle, Fassungsstand, zuständige Stelle und fachliche Gliederung hinterlegt. Jede Rechenblitz-Mikro-Kompetenz erhält eine stabile landesspezifische Lernziel-ID und wird einem passenden Inhaltsbereich zugeordnet. Der Audit unterscheidet zwischen:
+Der interne Lehrplan-Audit arbeitet bundeslandspezifisch. Für jedes der 16 Länder sind Quelle, Fassungsstand, zuständige Stelle, fachliche Gliederung und ein Progressionsmodell hinterlegt. Jede Rechenblitz-Mikro-Kompetenz erhält eine stabile landesspezifische Lernziel-ID und wird einem passenden Inhaltsbereich zugeordnet. Explizite Lernbänder 1/2 und 3/4, Niveaustufen oder verbindliche Erwartungen am Ende der Grundschule werden nicht künstlich in einzelne Schuljahre zerlegt. Der Audit unterscheidet zwischen:
 
 - **digital üb- und prüfbar**
 - **digital unterstützt – praktisch ergänzen**

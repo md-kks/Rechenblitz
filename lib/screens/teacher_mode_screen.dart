@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../models/curriculum_audit.dart';
 import '../models/micro_competency.dart';
 import '../models/teacher_assignment.dart';
 import '../models/training.dart';
@@ -35,7 +36,11 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
     range = widget.controller.numberRange;
     final focus = widget.controller.currentMicroFocus();
     target = focus?.definition.id ??
-        MicroCompetencyCatalog.forContext(grade, range).firstOrNull?.id;
+        CurriculumAuditCatalog.definitionsForContext(
+          widget.controller.activeProfile.state,
+          grade,
+          range,
+        ).firstOrNull?.id;
   }
 
   List<NumberRangeLevel> _rangesFor(GradeLevel value) => switch (value) {
@@ -59,7 +64,11 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
       };
 
   List<MicroCompetencyDefinition> get _targets =>
-      MicroCompetencyCatalog.forContext(grade, range);
+      CurriculumAuditCatalog.definitionsForContext(
+        widget.controller.activeProfile.state,
+        grade,
+        range,
+      );
 
   TeacherAssignment get _assignment {
     final definition = target == null
@@ -84,7 +93,11 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
     setState(() {
       grade = value;
       if (!ranges.contains(range)) range = value.recommendedRange;
-      final targets = MicroCompetencyCatalog.forContext(value, range);
+      final targets = CurriculumAuditCatalog.definitionsForContext(
+        widget.controller.activeProfile.state,
+        value,
+        range,
+      );
       if (target == null || !targets.any((item) => item.id == target)) {
         target = targets.isEmpty ? null : targets.first.id;
       }
@@ -147,8 +160,11 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
               if (value != null) {
                 setState(() {
                   range = value;
-                  final targets =
-                      MicroCompetencyCatalog.forContext(grade, range);
+                  final targets = CurriculumAuditCatalog.definitionsForContext(
+                    widget.controller.activeProfile.state,
+                    grade,
+                    range,
+                  );
                   if (target == null ||
                       !targets.any((item) => item.id == target)) {
                     target = targets.firstOrNull?.id;

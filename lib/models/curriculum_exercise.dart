@@ -1637,7 +1637,12 @@ class CurriculumExerciseGenerator {
   }
 
   CurriculumExercise _tallyData(GradeLevel grade) {
-    final count = _between(6, grade == GradeLevel.third ? 24 : 40);
+    final maxCount = grade.index <= GradeLevel.second.index
+        ? 20
+        : grade == GradeLevel.third
+            ? 24
+            : 40;
+    final count = _between(6, maxCount);
     final groups = count ~/ 5;
     final rest = count % 5;
     final tally = [
@@ -1805,14 +1810,16 @@ class CurriculumExerciseGenerator {
     GradeLevel grade, {
     bool targeted = false,
   }) {
-    var first = _between(2, grade == GradeLevel.third ? 4 : 6);
-    var second = _between(2, grade == GradeLevel.third ? 4 : 5);
+    final lowerPrimary = grade.index <= GradeLevel.second.index;
+    var first = _between(2, lowerPrimary ? 3 : grade == GradeLevel.third ? 4 : 6);
+    var second = _between(2, lowerPrimary ? 3 : grade == GradeLevel.third ? 4 : 5);
     var third =
         grade == GradeLevel.fourth && _random.nextBool() ? _between(2, 3) : 1;
     if (targeted) {
       for (var attempt = 0; attempt < 24 && first * second * third > 24; attempt++) {
-        first = _between(2, 4);
-        second = _between(2, 4);
+        final maxFactor = lowerPrimary ? 3 : 4;
+        first = _between(2, maxFactor);
+        second = _between(2, maxFactor);
         third = grade == GradeLevel.fourth && _random.nextBool()
             ? _between(2, 3)
             : 1;

@@ -51,6 +51,11 @@ class CurriculumAuditScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(profile.structureNote),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Progression: ${profile.progressionModel.label}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                   if (profile.transitionNote != null) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -155,6 +160,11 @@ class _DomainCard extends StatelessWidget {
               ...objectives.map((objective) {
                 final progress =
                     controller.microCompetencyProgress(objective.competency);
+                final curriculumProgression = CurriculumAuditCatalog.progressionFor(
+                  controller.activeProfile.state,
+                  controller.gradeLevel,
+                  objective.competency,
+                );
                 return ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   childrenPadding: const EdgeInsets.only(bottom: 10),
@@ -184,6 +194,14 @@ class _DomainCard extends StatelessWidget {
                       child: Text(objective.note),
                     ),
                     const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Lehrplan-Progression: ${curriculumProgression.label}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(

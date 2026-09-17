@@ -30,7 +30,10 @@ void main() {
 
       for (final grade in GradeLevel.values) {
         final summary = CurriculumAuditCatalog.audit(grade, state: state);
-        final expected = MicroCompetencyCatalog.forGrade(grade).length;
+        final expected = CurriculumAuditCatalog.definitionsForGrade(
+          state,
+          grade,
+        ).length;
         expect(
           summary.structurallyComplete,
           isTrue,

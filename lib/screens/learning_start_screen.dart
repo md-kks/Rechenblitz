@@ -173,7 +173,7 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
       ),
       const SizedBox(height: 10),
       Text(
-        '${state.label}: ${CurriculumAuditCatalog.profileFor(state).sourceTitle} ist für die Lehrplan-Zuordnung hinterlegt.',
+        '${state.label}: ${CurriculumAuditCatalog.profileFor(state).sourceTitle} ist hinterlegt. Progression: ${CurriculumAuditCatalog.profileFor(state).progressionModel.label}.',
         style: Theme.of(context).textTheme.bodySmall,
       ),
       const SizedBox(height: 28),
