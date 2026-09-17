@@ -12,6 +12,7 @@ import '../models/learning_path.dart';
 import '../models/math_fact.dart';
 import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
+import '../models/support_session_progress.dart';
 import '../models/training.dart';
 import 'micro_evidence_retention.dart';
 
@@ -31,6 +32,8 @@ class StorageService {
   static const _microCompetencyKey = 'micro_competency_v1';
   static const _guidedRoundKey = 'guided_round_v1';
   static const _assessmentProgressKey = 'assessment_progress_v1';
+  static const _remediationSessionKey = 'remediation_session_v1';
+  static const _stepRecoverySessionKey = 'step_recovery_session_v1';
   static const _accessibilityKey = 'accessibility_preferences_v1';
   static const _betaFeedbackKey = 'beta_feedback_v1';
 
@@ -137,6 +140,8 @@ class StorageService {
       _microCompetencyKey,
       _guidedRoundKey,
       _assessmentProgressKey,
+      _remediationSessionKey,
+      _stepRecoverySessionKey,
     ]) {
       await prefs.remove('profile:$id:$key');
     }
@@ -393,6 +398,56 @@ class StorageService {
       (await SharedPreferences.getInstance())
           .remove(_profileKey(_assessmentProgressKey));
 
+  Future<RemediationSessionProgress?> loadRemediationSession() async {
+    final raw = (await SharedPreferences.getInstance())
+        .getString(_profileKey(_remediationSessionKey));
+    if (raw == null) return null;
+    try {
+      return RemediationSessionProgress.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveRemediationSession(
+    RemediationSessionProgress progress,
+  ) async =>
+      (await SharedPreferences.getInstance()).setString(
+        _profileKey(_remediationSessionKey),
+        jsonEncode(progress.toJson()),
+      );
+
+  Future<void> clearRemediationSession() async =>
+      (await SharedPreferences.getInstance())
+          .remove(_profileKey(_remediationSessionKey));
+
+  Future<StepRecoverySessionProgress?> loadStepRecoverySession() async {
+    final raw = (await SharedPreferences.getInstance())
+        .getString(_profileKey(_stepRecoverySessionKey));
+    if (raw == null) return null;
+    try {
+      return StepRecoverySessionProgress.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveStepRecoverySession(
+    StepRecoverySessionProgress progress,
+  ) async =>
+      (await SharedPreferences.getInstance()).setString(
+        _profileKey(_stepRecoverySessionKey),
+        jsonEncode(progress.toJson()),
+      );
+
+  Future<void> clearStepRecoverySession() async =>
+      (await SharedPreferences.getInstance())
+          .remove(_profileKey(_stepRecoverySessionKey));
+
   Future<GradeLevel?> storedGradeLevel() async {
     final raw = (await SharedPreferences.getInstance())
         .getString(_profileKey(_gradeLevelKey));
@@ -512,6 +567,8 @@ class StorageService {
     await prefs.remove(_profileKey(_microCompetencyKey));
     await prefs.remove(_profileKey(_guidedRoundKey));
     await prefs.remove(_profileKey(_assessmentProgressKey));
+    await prefs.remove(_profileKey(_remediationSessionKey));
+    await prefs.remove(_profileKey(_stepRecoverySessionKey));
   }
 
   List<LearnerProfile> _decodeProfiles(String raw) {

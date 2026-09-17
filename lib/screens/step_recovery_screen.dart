@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../models/guided_method.dart';
 import '../models/remediation_path.dart';
+import '../models/support_session_progress.dart';
 import '../services/app_controller.dart';
 import '../widgets/number_answer_pad.dart';
 
@@ -29,6 +30,8 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
   int wrongOnCurrent = 0;
   bool locked = false;
   bool submitting = false;
+  bool firstAttemptRecorded = false;
+  bool resumedFromDraft = false;
   bool finishing = false;
   bool showHint = false;
   String feedback = '';
@@ -43,11 +46,29 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
   @override
   void initState() {
     super.initState();
-    plan = StepRecoveryGenerator().generate(
-      focus: widget.focus,
-      range: widget.controller.numberRange,
-    );
+    final saved = widget.controller.resumableStepRecoverySession(widget.focus);
+    final pendingFinish = saved != null && saved.index >= saved.tasks.length;
+    if (saved != null) {
+      plan = StepRecoveryPlan(focus: widget.focus, tasks: saved.tasks);
+      index = pendingFinish ? saved.tasks.length - 1 : saved.index;
+      wrongOnCurrent = saved.wrongOnCurrent;
+      firstAttemptRecorded = saved.firstAttemptRecorded;
+      showHint = saved.showHint;
+      resumedFromDraft = true;
+      locked = pendingFinish;
+    } else {
+      plan = StepRecoveryGenerator().generate(
+        focus: widget.focus,
+        range: widget.controller.numberRange,
+      );
+      unawaited(_persistSession());
+    }
     _scheduleCurrentTask();
+    if (pendingFinish) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_finish());
+      });
+    }
   }
 
   @override
@@ -73,6 +94,42 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
     });
   }
 
+  StepRecoverySessionProgress _sessionSnapshot({
+    int? indexOverride,
+    int? wrongOnCurrentOverride,
+    bool? firstAttemptRecordedOverride,
+    bool? showHintOverride,
+  }) => StepRecoverySessionProgress(
+    focus: widget.focus,
+    numberRange: widget.controller.numberRange,
+    tasks: plan.tasks,
+    index: indexOverride ?? index,
+    wrongOnCurrent: wrongOnCurrentOverride ?? wrongOnCurrent,
+    firstAttemptRecorded: firstAttemptRecordedOverride ?? firstAttemptRecorded,
+    showHint: showHintOverride ?? showHint,
+    updatedAt: DateTime.now(),
+  );
+
+  Future<void> _persistSession({
+    int? indexOverride,
+    int? wrongOnCurrentOverride,
+    bool? firstAttemptRecordedOverride,
+    bool? showHintOverride,
+  }) => widget.controller.saveStepRecoverySession(
+    _sessionSnapshot(
+      indexOverride: indexOverride,
+      wrongOnCurrentOverride: wrongOnCurrentOverride,
+      firstAttemptRecordedOverride: firstAttemptRecordedOverride,
+      showHintOverride: showHintOverride,
+    ),
+  );
+
+  void _revealHint() {
+    if (showHint) return;
+    setState(() => showHint = true);
+    unawaited(_persistSession());
+  }
+
   Future<void> _answer(int answer) async {
     if (locked || submitting || finishing) return;
     final answeredIndex = index;
@@ -81,7 +138,9 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
 
     final correct = answer == answeredTask.answer;
     try {
-      if (wrongOnCurrent == 0) {
+      if (!firstAttemptRecorded) {
+        firstAttemptRecorded = true;
+        await _persistSession();
         await widget.controller.recordIndependentStepAttempt(
           mode: answeredTask.mode,
           taskKey: answeredTask.taskKey,
@@ -111,6 +170,7 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
             ? 'Noch nicht. Prüfe genau diesen Rechenschritt.'
             : 'Nutze den Hinweis und probiere den Schritt noch einmal.';
       });
+      await _persistSession();
       return;
     }
 
@@ -127,17 +187,25 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
           : 'Geschafft. Jetzt ist der Rechenschritt klar.';
     });
 
+    final nextIndex = index + 1;
+    await _persistSession(
+      indexOverride: nextIndex,
+      wrongOnCurrentOverride: 0,
+      firstAttemptRecordedOverride: false,
+      showHintOverride: false,
+    );
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted || finishing) return;
 
-    if (index + 1 >= plan.tasks.length) {
+    if (nextIndex >= plan.tasks.length) {
       await _finish();
       return;
     }
 
     setState(() {
-      index += 1;
+      index = nextIndex;
       wrongOnCurrent = 0;
+      firstAttemptRecorded = false;
       locked = false;
       showHint = false;
       feedback = '';
@@ -154,6 +222,7 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
         nextFocus == null ||
         nextFocus.competencyId != widget.focus.competencyId ||
         nextFocus.stepKey != widget.focus.stepKey;
+    await widget.controller.clearStepRecoverySession();
 
     if (!mounted) return;
     await showDialog<void>(
@@ -199,7 +268,9 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Aufgabe ${index + 1} von ${plan.tasks.length}',
+              resumedFromDraft
+                  ? 'Aufgabe ${index + 1} von ${plan.tasks.length} · fortgesetzt'
+                  : 'Aufgabe ${index + 1} von ${plan.tasks.length}',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -244,7 +315,7 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
               ),
             if (!_autoHint && !showHint && stage != RemediationStage.check)
               TextButton.icon(
-                onPressed: () => setState(() => showHint = true),
+                onPressed: _revealHint,
                 icon: const Icon(Icons.lightbulb_outline_rounded),
                 label: const Text('Hinweis anzeigen'),
               ),
