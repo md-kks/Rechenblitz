@@ -1187,14 +1187,56 @@ class AppController extends ChangeNotifier {
     ];
   }
 
+  bool _diagnosticFitsActiveCurriculum(
+    DiagnosticAttempt entry, {
+    required Set<MicroCompetencyId> activeIds,
+    required Set<TrainingMode> activeModes,
+    required Set<TrainingMode> curricularModes,
+  }) {
+    final tags = MicroCompetencyCatalog.tagsForTask(
+      mode: entry.mode,
+      taskKey: entry.taskKey,
+    );
+    if (tags.isNotEmpty) {
+      return activeIds.contains(tags.first.id);
+    }
+    if (activeModes.contains(entry.mode)) return true;
+    return !curricularModes.contains(entry.mode);
+  }
+
+  Set<TrainingMode> _curricularModesAcrossStates() => {
+        for (final state in GermanState.values)
+          ...CurriculumAuditCatalog.definitionsForContext(
+            state,
+            gradeLevel,
+            numberRange,
+          ).map((definition) => definition.preferredMode),
+      };
+
   List<DiagnosticSummary> diagnosticSummaries({
     int maxAttempts = 120,
     bool recurringOnly = false,
   }) {
+    final activeDefinitions = CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
+      gradeLevel,
+      numberRange,
+    );
+    final activeIds =
+        activeDefinitions.map((definition) => definition.id).toSet();
+    final activeModes =
+        activeDefinitions.map((definition) => definition.preferredMode).toSet();
+    final curricularModes = _curricularModesAcrossStates();
     final recent = diagnostics
         .where((entry) =>
             entry.gradeLevel == gradeLevel &&
-            entry.numberRange == numberRange)
+            entry.numberRange == numberRange &&
+            _diagnosticFitsActiveCurriculum(
+              entry,
+              activeIds: activeIds,
+              activeModes: activeModes,
+              curricularModes: curricularModes,
+            ))
         .take(maxAttempts)
         .where(
           (entry) => !entry.correct && entry.pattern != null,
@@ -1226,11 +1268,27 @@ class AppController extends ChangeNotifier {
   }
 
   DiagnosticSummary? topDiagnosticForMode(TrainingMode mode) {
+    final activeDefinitions = CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
+      gradeLevel,
+      numberRange,
+    );
+    final activeIds =
+        activeDefinitions.map((definition) => definition.id).toSet();
+    final activeModes =
+        activeDefinitions.map((definition) => definition.preferredMode).toSet();
+    final curricularModes = _curricularModesAcrossStates();
     final grouped = <ErrorPattern, List<DiagnosticAttempt>>{};
     for (final entry in diagnostics
         .where((entry) =>
             entry.gradeLevel == gradeLevel &&
             entry.numberRange == numberRange &&
+            _diagnosticFitsActiveCurriculum(
+              entry,
+              activeIds: activeIds,
+              activeModes: activeModes,
+              curricularModes: curricularModes,
+            ) &&
             entry.mode == mode &&
             !entry.correct &&
             entry.pattern != null)
