@@ -4,6 +4,7 @@ class AccessibilityPreferences {
     this.highContrast = false,
     this.reducedMotion = false,
     this.readAloud = false,
+    this.spokenRoundFeedback = true,
     this.speechRate = 0.45,
   });
 
@@ -11,6 +12,7 @@ class AccessibilityPreferences {
   final bool highContrast;
   final bool reducedMotion;
   final bool readAloud;
+  final bool spokenRoundFeedback;
   final double speechRate;
 
   AccessibilityPreferences copyWith({
@@ -18,6 +20,7 @@ class AccessibilityPreferences {
     bool? highContrast,
     bool? reducedMotion,
     bool? readAloud,
+    bool? spokenRoundFeedback,
     double? speechRate,
   }) =>
       AccessibilityPreferences(
@@ -25,6 +28,8 @@ class AccessibilityPreferences {
         highContrast: highContrast ?? this.highContrast,
         reducedMotion: reducedMotion ?? this.reducedMotion,
         readAloud: readAloud ?? this.readAloud,
+        spokenRoundFeedback:
+            spokenRoundFeedback ?? this.spokenRoundFeedback,
         speechRate: speechRate ?? this.speechRate,
       );
 
@@ -33,6 +38,7 @@ class AccessibilityPreferences {
         'highContrast': highContrast,
         'reducedMotion': reducedMotion,
         'readAloud': readAloud,
+        'spokenRoundFeedback': spokenRoundFeedback,
         'speechRate': speechRate,
       };
 
@@ -42,6 +48,8 @@ class AccessibilityPreferences {
         highContrast: json['highContrast'] as bool? ?? false,
         reducedMotion: json['reducedMotion'] as bool? ?? false,
         readAloud: json['readAloud'] as bool? ?? false,
+        spokenRoundFeedback:
+            json['spokenRoundFeedback'] as bool? ?? true,
         speechRate: (json['speechRate'] as num?)?.toDouble() ?? 0.45,
       );
 }

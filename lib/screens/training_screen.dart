@@ -32,6 +32,7 @@ class TrainingScreen extends StatefulWidget {
     this.fluencyEmphasis = false,
     this.scaffoldFading = false,
     this.adaptiveLength = false,
+    this.announceCompletion = true,
   });
 
   final AppController controller;
@@ -44,6 +45,7 @@ class TrainingScreen extends StatefulWidget {
   final bool fluencyEmphasis;
   final bool scaffoldFading;
   final bool adaptiveLength;
+  final bool announceCompletion;
 
   @override
   State<TrainingScreen> createState() => _TrainingScreenState();
@@ -780,6 +782,17 @@ class _TrainingScreenState extends State<TrainingScreen>
             transferEmphasis: widget.transferEmphasis,
             fluencyEmphasis: widget.fluencyEmphasis,
           );
+    final spokenFeedback = completed == 0 || !widget.announceCompletion
+        ? null
+        : widget.controller.roundSpokenFeedback(
+            result: result,
+            targetCompetency: widget.targetCompetency,
+            reviewEmphasis: widget.reviewEmphasis,
+            transferEmphasis: widget.transferEmphasis,
+            fluencyEmphasis: widget.fluencyEmphasis,
+          );
+    final spokenFeedbackEnabled = spokenFeedback != null &&
+        widget.controller.accessibilityPreferences.spokenRoundFeedback;
     if (!mounted) return;
     await showRoundCompletionDialog(
       context,
@@ -789,6 +802,11 @@ class _TrainingScreenState extends State<TrainingScreen>
       rewardReason: rewardReason,
       adaptiveNote: adaptiveStopReason,
       learningInsight: learningInsight,
+      spokenFeedback: spokenFeedback,
+      autoSpeakSpokenFeedback: spokenFeedbackEnabled,
+      onSpeakSpokenFeedback: spokenFeedbackEnabled
+          ? () => widget.controller.speakRoundFeedback(spokenFeedback)
+          : null,
       newBadges: newBadges,
       averageSeconds: widget.mode == TrainingMode.tempo ||
               widget.mode == TrainingMode.speed

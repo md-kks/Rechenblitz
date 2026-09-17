@@ -35,6 +35,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
   late GuidedRoundDecisionTrace decisionTrace;
   GuidedRoundAdaptationKind? lastAdaptationKind;
   String? lastAdaptationMessage;
+  bool completionSpeechTriggered = false;
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
           : restored.decisionTrace;
       lastAdaptationKind = restored.lastAdaptationKind;
       lastAdaptationMessage = restored.lastAdaptationMessage;
+      completionSpeechTriggered = restored.isComplete;
       if (recoveryRequired &&
           !stepRecoveryCompleted &&
           widget.controller.independentStepRecoveryFocus() == null) {
@@ -109,6 +111,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             fluencyEmphasis: segment.fluencyEmphasis,
             scaffoldFading: segment.scaffoldFading,
             adaptiveLength: true,
+            announceCompletion: false,
           ),
         ),
       );
@@ -125,6 +128,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             fluencyEmphasis: segment.fluencyEmphasis,
             scaffoldFading: segment.scaffoldFading,
             adaptiveLength: true,
+            announceCompletion: false,
           ),
         ),
       );
@@ -141,6 +145,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             fluencyEmphasis: segment.fluencyEmphasis,
             scaffoldFading: segment.scaffoldFading,
             adaptiveLength: true,
+            announceCompletion: false,
           ),
         ),
       );
@@ -197,6 +202,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
         }
       });
       await _persistRound();
+      await _maybeSpeakOverallCompletion();
     }
   }
 
@@ -217,6 +223,32 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
 
   int _completedTaskCountFor(GuidedRoundSegment segment) =>
       completedTaskCounts[segment.role] ?? segment.tasks;
+
+  bool get _roundIsComplete =>
+      plan.every(_isCompleted) && (!recoveryRequired || stepRecoveryCompleted);
+
+  List<String> get _completedCompetencyLabels => <String>{
+        for (final segment in plan)
+          if (_isCompleted(segment) && segment.targetCompetency != null)
+            MicroCompetencyCatalog.definition(segment.targetCompetency!).label,
+      }.toList(growable: false);
+
+  String _overallSpokenFeedback() {
+    final next = widget.controller.guidedRoundDecisionTrace().primary;
+    final nextLabel = next?.competencyId == null
+        ? null
+        : MicroCompetencyCatalog.definition(next!.competencyId!).label;
+    return widget.controller.guidedRoundSpokenFeedback(
+      strengthenedCompetencies: _completedCompetencyLabels,
+      nextCompetency: nextLabel,
+    );
+  }
+
+  Future<void> _maybeSpeakOverallCompletion() async {
+    if (completionSpeechTriggered || !_roundIsComplete) return;
+    completionSpeechTriggered = true;
+    await widget.controller.speakRoundFeedback(_overallSpokenFeedback());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -255,17 +287,14 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
       }
     }
     final nextSegment = nextIndex == null ? null : plan[nextIndex];
-    final completedCompetencyLabels = <String>{
-      for (final segment in plan)
-        if (_isCompleted(segment) && segment.targetCompetency != null)
-          MicroCompetencyCatalog.definition(segment.targetCompetency!).label,
-    }.toList(growable: false);
+    final completedCompetencyLabels = _completedCompetencyLabels;
     final completionDecisionTrace =
         allDone ? widget.controller.guidedRoundDecisionTrace() : decisionTrace;
     final nextDecision = allDone ? completionDecisionTrace.primary : null;
     final nextDecisionCompetency = nextDecision?.competencyId == null
         ? null
         : MicroCompetencyCatalog.definition(nextDecision!.competencyId!).label;
+    final spokenRoundFeedback = allDone ? _overallSpokenFeedback() : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Meine Runde')),
@@ -339,6 +368,33 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                       key: const ValueKey('round-next-learning-step'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    if (spokenRoundFeedback != null) ...[
+                      const SizedBox(height: 14),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.record_voice_over_outlined, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              spokenRoundFeedback,
+                              key: const ValueKey('guided-round-spoken-feedback'),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (widget.controller.accessibilityPreferences.spokenRoundFeedback) ...[
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          key: const ValueKey('guided-round-feedback-replay'),
+                          onPressed: () => widget.controller
+                              .speakRoundFeedback(spokenRoundFeedback),
+                          icon: const Icon(Icons.volume_up_outlined),
+                          label: const Text('Feedback nochmal anhören'),
+                        ),
+                      ],
+                    ],
                   ],
                 ),
               ),
@@ -399,6 +455,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                             stepRecoveryCompleted = true;
                           });
                           await _persistRound();
+                          await _maybeSpeakOverallCompletion();
                         }
                       },
                       icon: const Icon(Icons.play_arrow_rounded),

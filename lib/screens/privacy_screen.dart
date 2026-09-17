@@ -48,8 +48,9 @@ class PrivacyScreen extends StatelessWidget {
         _PrivacySection(
           title: '4. Vorlesen über System-TTS',
           body:
-              'Beim Vorlesen übergibt Rechenblitz den angezeigten Text an '
-              'die auf dem Gerät ausgewählte Android-Sprachausgabe. '
+              'Beim Vorlesen von Aufgaben oder Rundenfeedback übergibt '
+              'Rechenblitz den angezeigten Text an die auf dem Gerät '
+              'ausgewählte System-Sprachausgabe. '
               'Rechenblitz betreibt dafür keinen eigenen Sprachserver. '
               'Ob eine Systemstimme lokal oder online arbeitet, richtet '
               'sich nach dem installierten TTS-Dienst und dessen '

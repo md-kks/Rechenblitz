@@ -32,6 +32,7 @@ class StructuredTrainingScreen extends StatefulWidget {
     this.fluencyEmphasis = false,
     this.scaffoldFading = false,
     this.adaptiveLength = false,
+    this.announceCompletion = true,
     this.exerciseGenerator,
   });
 
@@ -44,6 +45,7 @@ class StructuredTrainingScreen extends StatefulWidget {
   final bool fluencyEmphasis;
   final bool scaffoldFading;
   final bool adaptiveLength;
+  final bool announceCompletion;
   final StructuredExerciseGenerator? exerciseGenerator;
 
   @override
@@ -581,6 +583,17 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
             transferEmphasis: widget.transferEmphasis,
             fluencyEmphasis: widget.fluencyEmphasis,
           );
+    final spokenFeedback = completed == 0 || !widget.announceCompletion
+        ? null
+        : widget.controller.roundSpokenFeedback(
+            result: result,
+            targetCompetency: widget.targetCompetency,
+            reviewEmphasis: widget.reviewEmphasis,
+            transferEmphasis: widget.transferEmphasis,
+            fluencyEmphasis: widget.fluencyEmphasis,
+          );
+    final spokenFeedbackEnabled = spokenFeedback != null &&
+        widget.controller.accessibilityPreferences.spokenRoundFeedback;
     if (!mounted) return;
     await showRoundCompletionDialog(
       context,
@@ -590,6 +603,11 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       rewardReason: rewardReason,
       adaptiveNote: adaptiveStopReason,
       learningInsight: learningInsight,
+      spokenFeedback: spokenFeedback,
+      autoSpeakSpokenFeedback: spokenFeedbackEnabled,
+      onSpeakSpokenFeedback: spokenFeedbackEnabled
+          ? () => widget.controller.speakRoundFeedback(spokenFeedback)
+          : null,
       newBadges: newBadges,
     );
     if (mounted) Navigator.of(context).pop();

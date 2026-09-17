@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/learning_path.dart';
@@ -13,7 +15,18 @@ Future<void> showRoundCompletionDialog(
   double? averageSeconds,
   String? adaptiveNote,
   LearningCompletionInsight? learningInsight,
-}) => showDialog<void>(
+  String? spokenFeedback,
+  bool autoSpeakSpokenFeedback = false,
+  Future<void> Function()? onSpeakSpokenFeedback,
+}) {
+  final spoken = spokenFeedback?.trim();
+  if (autoSpeakSpokenFeedback &&
+      spoken != null &&
+      spoken.isNotEmpty &&
+      onSpeakSpokenFeedback != null) {
+    unawaited(onSpeakSpokenFeedback());
+  }
+  return showDialog<void>(
   context: context,
   barrierDismissible: false,
   builder: (dialogContext) => AlertDialog(
@@ -76,6 +89,38 @@ Future<void> showRoundCompletionDialog(
                       learningInsight.nextStep,
                       style: Theme.of(dialogContext).textTheme.bodySmall,
                     ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (spoken != null && spoken.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              key: const ValueKey('round-spoken-feedback'),
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.record_voice_over_outlined, size: 22),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        spoken,
+                        key: const ValueKey('round-spoken-feedback-text'),
+                      ),
+                    ),
+                    if (onSpeakSpokenFeedback != null) ...[
+                      const SizedBox(width: 4),
+                      IconButton(
+                        key: const ValueKey('round-spoken-feedback-replay'),
+                        tooltip: 'Nochmal anhören',
+                        onPressed: () => unawaited(onSpeakSpokenFeedback()),
+                        icon: const Icon(Icons.volume_up_outlined),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -158,3 +203,4 @@ Future<void> showRoundCompletionDialog(
     ],
   ),
 );
+}

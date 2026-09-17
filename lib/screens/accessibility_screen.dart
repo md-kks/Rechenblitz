@@ -92,6 +92,17 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
             onChanged: (value) =>
                 _update((current) => current.copyWith(readAloud: value)),
           ),
+          SwitchListTile(
+            key: const ValueKey('spoken-round-feedback-setting'),
+            title: const Text('Rundenfeedback sprechen'),
+            subtitle: const Text(
+              'Nach einer Runde spricht Rechenblitz eine kurze Lernrückmeldung.',
+            ),
+            value: prefs.spokenRoundFeedback,
+            onChanged: (value) => _update(
+              (current) => current.copyWith(spokenRoundFeedback: value),
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
             'Sprechgeschwindigkeit',
@@ -111,7 +122,7 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
           ),
           FilledButton.tonalIcon(
             onPressed: () => widget.controller.speakOnDemand(
-              'Rechenblitz liest diese Aufgabe jetzt vor.',
+              'Runde geschafft. Rechenblitz kann Aufgaben und Lernfeedback mit dieser Stimme vorlesen.',
             ),
             icon: const Icon(Icons.volume_up_outlined),
             label: const Text('Vorlesen testen'),
@@ -121,7 +132,7 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'Alle Aufgaben bleiben zusätzlich als Text sichtbar. Vorlesen ersetzt die visuelle Darstellung nicht.',
+                'Aufgaben und gesprochenes Rundenfeedback bleiben zusätzlich als Text sichtbar. Die Sprachausgabe ersetzt die visuelle Darstellung nicht.',
               ),
             ),
           ),

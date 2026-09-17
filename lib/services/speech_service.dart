@@ -24,15 +24,23 @@ class SpeechService {
   }) async {
     final cleaned = text.trim();
     if (cleaned.isEmpty) return;
-    await _ensureConfigured(rate);
-    final tts = _engine;
-    await tts.stop();
-    await tts.speak(cleaned);
+    try {
+      await _ensureConfigured(rate);
+      final tts = _engine;
+      await tts.stop();
+      await tts.speak(cleaned);
+    } catch (_) {
+      // System-TTS is optional. Missing voices/plugins must never block learning.
+    }
   }
 
   Future<void> stop() async {
     final tts = _tts;
     if (tts == null) return;
-    await tts.stop();
+    try {
+      await tts.stop();
+    } catch (_) {
+      // Keep shutdown best-effort when the platform TTS is unavailable.
+    }
   }
 }

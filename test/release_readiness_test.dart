@@ -445,6 +445,7 @@ void main() {
         highContrast: true,
         reducedMotion: true,
         readAloud: true,
+        spokenRoundFeedback: false,
         speechRate: 0.55,
       ),
     );
@@ -454,6 +455,7 @@ void main() {
     expect(loaded.highContrast, isTrue);
     expect(loaded.reducedMotion, isTrue);
     expect(loaded.readAloud, isTrue);
+    expect(loaded.spokenRoundFeedback, isFalse);
     expect(loaded.speechRate, closeTo(0.55, 0.001));
   });
 

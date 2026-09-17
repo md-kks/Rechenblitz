@@ -4594,10 +4594,14 @@ class AppController extends ChangeNotifier {
   Future<void> setAccessibilityPreferences(
     AccessibilityPreferences value,
   ) async {
+    final previous = accessibilityPreferences;
     accessibilityPreferences = value;
     notifyListeners();
     await storage.setAccessibilityPreferences(value);
-    if (!value.readAloud) await speech.stop();
+    if ((previous.readAloud && !value.readAloud) ||
+        (previous.spokenRoundFeedback && !value.spokenRoundFeedback)) {
+      await speech.stop();
+    }
   }
 
   Future<void> speak(String text) async {
@@ -4613,6 +4617,100 @@ class AppController extends ChangeNotifier {
       text,
       rate: accessibilityPreferences.speechRate,
     );
+  }
+
+  Future<void> speakRoundFeedback(String text) async {
+    if (!accessibilityPreferences.spokenRoundFeedback) return;
+    await speech.speak(
+      text,
+      rate: accessibilityPreferences.speechRate,
+    );
+  }
+
+  String roundSpokenFeedback({
+    required TrainingSessionResult result,
+    required MicroCompetencyId? targetCompetency,
+    bool reviewEmphasis = false,
+    bool transferEmphasis = false,
+    bool fluencyEmphasis = false,
+  }) {
+    if (targetCompetency == null) {
+      final activity = result.mode.title;
+      if (result.accuracy >= 0.9 && result.incorrectAttempts <= 1) {
+        return 'Runde geschafft. Heute hast du $activity geübt. Viele Aufgaben gingen schon direkt.';
+      }
+      if (result.incorrectAttempts >= 2) {
+        return 'Runde geschafft. Heute hast du $activity geübt. Einige Aufgaben waren noch knifflig. Die nehmen wir beim nächsten Mal wieder mit.';
+      }
+      return 'Runde geschafft. Heute hast du $activity geübt. Rechenblitz plant passend dazu weiter.';
+    }
+
+    final progress = microCompetencyProgress(targetCompetency);
+    final label = progress.definition.label;
+    final sessionObservations = microObservations.where((entry) =>
+        entry.id == targetCompetency &&
+        !entry.occurredAt.isBefore(result.startedAt) &&
+        !entry.occurredAt.isAfter(
+          result.finishedAt.add(const Duration(seconds: 2)),
+        ));
+    final helpedCorrect = sessionObservations.any(
+      (entry) => entry.correct && entry.usedHelp,
+    );
+    final independentCorrect = sessionObservations.any(
+      (entry) => entry.correct && !entry.usedHelp,
+    );
+
+    if (helpedCorrect && independentCorrect) {
+      return 'Runde geschafft. Bei „$label“ bist du heute mit Hilfe gestartet. Danach hat der Schritt auch ohne Hilfe geklappt.';
+    }
+    if (helpedCorrect && !independentCorrect) {
+      return 'Runde geschafft. Bei „$label“ hat dir heute eine Hilfe geholfen. Beim nächsten Mal probieren wir den Schritt wieder selbstständig.';
+    }
+    if (fluencyEmphasis) {
+      return progress.fluencyState == MicroFluencyState.fluent
+          ? 'Runde geschafft. „$label“ sitzt schon sicher und wird inzwischen flüssig abgerufen.'
+          : 'Runde geschafft. Heute hast du „$label“ weiter flüssig geübt, ohne Zeitdruck.';
+    }
+    if (transferEmphasis) {
+      return progress.hasIndependentTransferEvidence
+          ? 'Runde geschafft. Heute hast du „$label“ auch in einer neuen Aufgabe selbstständig angewendet.'
+          : 'Runde geschafft. Heute hast du „$label“ in einer neuen Aufgabe ausprobiert. Das schauen wir uns später noch einmal an.';
+    }
+    if (reviewEmphasis) {
+      return progress.hasIndependentReviewEvidence
+          ? 'Runde geschafft. „$label“ hat heute auch nach einer Pause wieder selbstständig geklappt.'
+          : 'Runde geschafft. Heute hast du „$label“ nach einer Pause wiederholt. Beim nächsten Mal prüfen wir es noch einmal selbstständig.';
+    }
+
+    return switch (progress.state) {
+      MicroCompetencyState.mastered =>
+        'Runde geschafft. „$label“ sitzt schon richtig stabil. Später reicht eine kurze Wiederholung.',
+      MicroCompetencyState.secure =>
+        'Runde geschafft. „$label“ klappt schon sicher. Als Nächstes prüfen wir es nach einer Pause oder in einer neuen Aufgabe.',
+      MicroCompetencyState.practicing =>
+        'Runde geschafft. Heute hast du „$label“ weiter geübt. Beim nächsten Mal festigen wir den Schritt noch ein bisschen.',
+      MicroCompetencyState.discovering =>
+        'Runde geschafft. Heute hast du „$label“ weiter aufgebaut. Beim nächsten Mal geht es in einem kleinen Schritt weiter.',
+      MicroCompetencyState.newSkill =>
+        'Runde geschafft. Heute hast du „$label“ kennengelernt. Beim nächsten Mal probieren wir noch ein paar passende Aufgaben.',
+    };
+  }
+
+  String guidedRoundSpokenFeedback({
+    required List<String> strengthenedCompetencies,
+    String? nextCompetency,
+  }) {
+    final distinct = strengthenedCompetencies.toSet();
+    if (distinct.isEmpty) {
+      return 'Deine Runde ist geschafft. Beim nächsten Mal plant Rechenblitz passend weiter.';
+    }
+    final first = distinct.first;
+    final next = nextCompetency == null
+        ? 'Beim nächsten Mal plant Rechenblitz passend weiter.'
+        : nextCompetency == first
+            ? 'Das üben wir beim nächsten Mal kurz weiter.'
+            : 'Nächstes Mal geht es mit „$nextCompetency“ weiter.';
+    return 'Deine Runde ist geschafft. Heute hast du „$first“ gestärkt. $next';
   }
 
   String? methodSupportInsight(MicroCompetencyId id) {
