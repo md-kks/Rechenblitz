@@ -260,6 +260,34 @@ class _ParentScreenState extends State<ParentScreen> {
           ),
           const SizedBox(height: 14),
           _Section(
+            title: 'Gesprochenes Feedback',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SwitchListTile(
+                  key: const ValueKey('parent-spoken-round-feedback'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Nach einer Runde vorlesen'),
+                  subtitle: const Text(
+                    'Eine kurze kindgerechte Lernrückmeldung wird mit der Systemstimme gesprochen.',
+                  ),
+                  value: c.accessibilityPreferences.spokenRoundFeedback,
+                  onChanged: (value) => c.setAccessibilityPreferences(
+                    c.accessibilityPreferences.copyWith(
+                      spokenRoundFeedback: value,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Diese Audio-Einstellung gilt für das ganze Gerät. Sie verändert weder Lernstand noch Zeitmessung.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Section(
             title: 'Heute',
             child: Wrap(
               spacing: 22,
