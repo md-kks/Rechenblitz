@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'learner_profile.dart';
 import 'micro_competency.dart';
 import 'teacher_assignment.dart';
 import 'training.dart';
@@ -18,6 +19,7 @@ class TeacherAssignmentResult {
     required this.aidedObservations,
     required this.maxHelpLevel,
     required this.methodsUsed,
+    this.state,
     this.targetCompetency,
   });
 
@@ -35,6 +37,7 @@ class TeacherAssignmentResult {
   final int aidedObservations;
   final int maxHelpLevel;
   final List<String> methodsUsed;
+  final GermanState? state;
   final MicroCompetencyId? targetCompetency;
 
   double get accuracy =>
@@ -44,7 +47,8 @@ class TeacherAssignmentResult {
     final target = targetCompetency == null
         ? mode.title
         : MicroCompetencyCatalog.definition(targetCompetency!).label;
-    return 'Auftrag $assignmentId · $target · $correctFirstTry/$completedTasks direkt richtig';
+    final stateText = state == null ? '' : ' · ${state!.label}';
+    return 'Auftrag $assignmentId$stateText · $target · $correctFirstTry/$completedTasks direkt richtig';
   }
 
   Map<String, dynamic> toJson() => {
@@ -62,6 +66,7 @@ class TeacherAssignmentResult {
         'maxHelpLevel': maxHelpLevel,
         'methodsUsed': methodsUsed,
         'target': targetCompetency?.name,
+        if (state != null) 'state': state!.name,
       };
 
   String toPayload() {
@@ -101,6 +106,7 @@ class TeacherAssignmentResult {
       aidedObservations: aided,
       maxHelpLevel: maxHelp,
       methodsUsed: methods,
+      state: assignment.state,
       targetCompetency: assignment.targetCompetency,
     );
   }
@@ -142,6 +148,9 @@ class TeacherAssignmentResult {
         methodsUsed: (decoded['methodsUsed'] as List<dynamic>? ?? const [])
             .whereType<String>()
             .toList(),
+        state: decoded['state'] == null
+            ? null
+            : GermanState.values.byName(decoded['state'] as String),
         targetCompetency: target,
       );
 

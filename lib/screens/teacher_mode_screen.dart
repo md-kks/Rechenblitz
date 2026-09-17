@@ -82,6 +82,7 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
       numberRange: range,
       mode: mode,
       tasks: tasks,
+      state: widget.controller.activeProfile.state,
       targetCompetency: target,
       transferEmphasis: transferEmphasis,
       methods: widget.controller.methodPreferences,
@@ -117,7 +118,7 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'Der QR-Code enthält nur den Lernauftrag. Kein Name, keine Profil-ID und kein Lernverlauf werden übertragen.',
+                'Der QR-Code enthält nur den Lernauftrag mit Bundesland, Klassenstufe und Rechenweg. Kein Name, keine Profil-ID und kein Lernverlauf werden übertragen.',
               ),
             ),
           ),

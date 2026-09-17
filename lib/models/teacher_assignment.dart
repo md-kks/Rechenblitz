@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'curriculum_audit.dart';
+import 'learner_profile.dart';
 import 'learning_methods.dart';
 import 'micro_competency.dart';
 import 'training.dart';
@@ -11,6 +13,7 @@ class TeacherAssignment {
     required this.mode,
     required this.tasks,
     required this.methods,
+    this.state,
     this.targetCompetency,
     this.transferEmphasis = false,
   });
@@ -24,6 +27,7 @@ class TeacherAssignment {
   final MicroCompetencyId? targetCompetency;
   final bool transferEmphasis;
   final MethodPreferences methods;
+  final GermanState? state;
 
   Map<String, dynamic> toJson() => {
         'v': 1,
@@ -34,6 +38,7 @@ class TeacherAssignment {
         'target': targetCompetency?.name,
         'transfer': transferEmphasis,
         'methods': methods.toJson(),
+        if (state != null) 'state': state!.name,
       };
 
   String get assignmentId {
@@ -82,6 +87,9 @@ class TeacherAssignment {
         numberRange: range,
         mode: mode,
         tasks: tasks,
+        state: decoded['state'] == null
+            ? null
+            : GermanState.values.byName(decoded['state'] as String),
         targetCompetency: target,
         transferEmphasis: decoded['transfer'] as bool? ?? false,
         methods: decoded['methods'] is Map<String, dynamic>
@@ -95,11 +103,27 @@ class TeacherAssignment {
     }
   }
 
+  bool isCompatibleWithState(GermanState profileState) {
+    if (state != null && state != profileState) return false;
+    final effectiveState = state ?? profileState;
+    final definitions = CurriculumAuditCatalog.definitionsForContext(
+      effectiveState,
+      gradeLevel,
+      numberRange,
+    );
+    final target = targetCompetency;
+    if (target == null) {
+      return definitions.any((definition) => definition.preferredMode == mode);
+    }
+    return definitions.any((definition) => definition.id == target);
+  }
+
   String get summary {
     final target = targetCompetency == null
         ? mode.title
         : MicroCompetencyCatalog.definition(targetCompetency!).label;
     final transfer = transferEmphasis ? ' · Transfer' : '';
-    return '${gradeLevel.label} · ${numberRange.label} · $target · $tasks Aufgaben$transfer';
+    final stateText = state == null ? '' : ' · ${state!.label}';
+    return '${gradeLevel.label}$stateText · ${numberRange.label} · $target · $tasks Aufgaben$transfer';
   }
 }

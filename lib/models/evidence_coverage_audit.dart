@@ -1,3 +1,5 @@
+import 'curriculum_audit.dart';
+import 'learner_profile.dart';
 import 'guided_method.dart';
 import 'micro_competency.dart';
 import 'remediation_path.dart';
@@ -562,8 +564,11 @@ abstract final class EvidenceCoverageAuditCatalog {
     );
   }
 
-  static EvidenceCoverageAuditSummary audit(GradeLevel grade) {
-    final items = MicroCompetencyCatalog.forGrade(grade)
+  static EvidenceCoverageAuditSummary audit(
+    GradeLevel grade, {
+    GermanState state = GermanState.thuringia,
+  }) {
+    final items = CurriculumAuditCatalog.definitionsForGrade(state, grade)
         .map(forDefinition)
         .toList(growable: false);
     return EvidenceCoverageAuditSummary(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/learner_profile.dart';
 import '../models/teacher_assignment.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
@@ -45,6 +46,12 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
       errorText = null;
     });
 
+    final gradeMatches = assignment.gradeLevel == widget.controller.gradeLevel;
+    final stateCompatible = assignment.isCompatibleWithState(
+      widget.controller.activeProfile.state,
+    );
+    final canStart = gradeMatches && stateCompatible;
+
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -59,10 +66,26 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              assignment.gradeLevel == widget.controller.gradeLevel
+              gradeMatches
                   ? 'Der Auftrag passt zur Klassenstufe dieses Profils.'
-                  : 'Der Auftrag ist für ${assignment.gradeLevel.label}, dieses Profil aber für ${widget.controller.gradeLevel.label}. Er wird nicht in das Profil übernommen.',
+                  : 'Der Auftrag ist für ${assignment.gradeLevel.label}, dieses Profil aber für ${widget.controller.gradeLevel.label}.',
             ),
+            const SizedBox(height: 8),
+            Text(
+              assignment.state == null
+                  ? stateCompatible
+                      ? 'Älterer Auftrag ohne Bundesland: Das Lernziel passt zum aktiven Lehrplanpfad ${widget.controller.activeProfile.state.label}.'
+                      : 'Älterer Auftrag ohne Bundesland: Das Lernziel gehört nicht zum aktiven Lehrplanpfad ${widget.controller.activeProfile.state.label}.'
+                  : stateCompatible
+                      ? 'Bundesland: ${assignment.state!.label} · passt zum aktiven Profil.'
+                      : 'Bundesland: ${assignment.state!.label} · das aktive Profil nutzt ${widget.controller.activeProfile.state.label}.',
+            ),
+            if (!canStart) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Der Auftrag kann mit diesem Profil nicht gestartet werden.',
+              ),
+            ],
             const SizedBox(height: 10),
             const Text(
               'Der QR-Code enthält keine persönlichen Schülerdaten.',
@@ -75,10 +98,9 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
             child: const Text('Abbrechen'),
           ),
           FilledButton(
-            onPressed:
-                assignment.gradeLevel == widget.controller.gradeLevel
-                    ? () => Navigator.of(context).pop(true)
-                    : null,
+            onPressed: canStart
+                ? () => Navigator.of(context).pop(true)
+                : null,
             child: const Text('Auftrag starten'),
           ),
         ],
