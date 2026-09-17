@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/grade_level.dart';
+import '../../../models/active_response_timer.dart';
 import '../german_round_draft.dart';
 import '../german_round_feedback.dart';
 import '../german_session.dart';
@@ -10,6 +11,7 @@ import '../german_support_catalog.dart';
 import '../german_task.dart';
 
 typedef GermanSpeak = Future<void> Function(String text);
+typedef GermanNow = DateTime Function();
 typedef GermanSessionComplete = void Function(GermanSessionResult result);
 typedef GermanDraftChanged = void Function(GermanRoundDraft draft);
 
@@ -22,6 +24,7 @@ class GermanTrainingScreen extends StatefulWidget {
     this.speakCompletion = false,
     this.sessionKind = GermanSessionKind.practice,
     this.supportEnabled = true,
+    this.now = DateTime.now,
     this.draft,
     this.onDraftChanged,
     this.onComplete,
@@ -33,6 +36,7 @@ class GermanTrainingScreen extends StatefulWidget {
   final bool speakCompletion;
   final GermanSessionKind sessionKind;
   final bool supportEnabled;
+  final GermanNow now;
   final GermanRoundDraft? draft;
   final GermanDraftChanged? onDraftChanged;
   final GermanSessionComplete? onComplete;
@@ -41,13 +45,14 @@ class GermanTrainingScreen extends StatefulWidget {
   State<GermanTrainingScreen> createState() => _GermanTrainingScreenState();
 }
 
-class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
+class _GermanTrainingScreenState extends State<GermanTrainingScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _answerController = TextEditingController();
   final List<GermanTaskResult> _results = <GermanTaskResult>[];
   final List<String> _orderedWords = <String>[];
 
   late final DateTime _startedAt;
-  late DateTime _taskStartedAt;
+  late final ActiveResponseTimer _responseTimer;
   int _index = 0;
   int _incorrectAttempts = 0;
   bool _completed = false;
@@ -59,6 +64,8 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final initialNow = widget.now();
     final draft = widget.draft;
     if (draft != null &&
         draft.gradeLevel == widget.gradeLevel &&
@@ -74,15 +81,26 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
       _index = draft.currentIndex;
       _incorrectAttempts = draft.incorrectAttempts;
       _results.addAll(draft.completedResults);
-      _taskStartedAt = DateTime.now();
+      _responseTimer = ActiveResponseTimer(startedAt: initialNow);
     } else {
-      _startedAt = DateTime.now();
-      _taskStartedAt = _startedAt;
+      _startedAt = initialNow;
+      _responseTimer = ActiveResponseTimer(startedAt: initialNow);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final now = widget.now();
+    if (state == AppLifecycleState.resumed) {
+      _responseTimer.resume(at: now);
+    } else {
+      _responseTimer.pause(at: now);
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _answerController.dispose();
     super.dispose();
   }
@@ -96,13 +114,23 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
         taskIds: widget.tasks.map((task) => task.id).toList(growable: false),
         currentIndex: _index,
         startedAt: _startedAt,
-        updatedAt: now ?? DateTime.now(),
+        updatedAt: now ?? widget.now(),
         completedResults: List<GermanTaskResult>.unmodifiable(_results),
         incorrectAttempts: _incorrectAttempts,
         assignmentPayload: widget.draft?.assignmentPayload,
         sessionKind: widget.sessionKind,
       ),
     );
+  }
+
+  Future<void> _speakWithoutTiming(String text) async {
+    final pausedAt = widget.now();
+    _responseTimer.pause(at: pausedAt);
+    try {
+      await widget.speak(text);
+    } finally {
+      _responseTimer.resume(at: widget.now());
+    }
   }
 
   void _submit(String answer) {
@@ -116,14 +144,14 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
       return;
     }
 
-    final now = DateTime.now();
+    final now = widget.now();
     _results.add(
       GermanTaskResult(
         taskId: _task.id,
         competencyId: _task.competencyId,
         correctFirstTry: _incorrectAttempts == 0,
         incorrectAttempts: _incorrectAttempts,
-        responseMs: now.difference(_taskStartedAt).inMilliseconds,
+        responseMs: _responseTimer.elapsed(at: now).inMilliseconds,
       ),
     );
 
@@ -155,7 +183,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
       _feedback = null;
       _answerController.clear();
       _orderedWords.clear();
-      _taskStartedAt = now;
+      _responseTimer.reset(at: now);
     });
     _emitDraft(now);
   }
@@ -244,7 +272,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 key: const ValueKey('german-hint-speak'),
-                onPressed: () => widget.speak(hint),
+                onPressed: () => unawaited(_speakWithoutTiming(hint)),
                 icon: const Icon(Icons.volume_up_outlined),
                 label: const Text('Hinweis anhören'),
               ),
@@ -281,7 +309,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: <Widget>[
       FilledButton.icon(
-        onPressed: () => widget.speak(_task.spokenText!),
+        onPressed: () => unawaited(_speakWithoutTiming(_task.spokenText!)),
         icon: const Icon(Icons.volume_up_rounded),
         label: const Text('Anhören'),
       ),

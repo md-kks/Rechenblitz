@@ -14,6 +14,7 @@ GermanSessionResult _session({
   required List<bool> correct,
   int minute = 0,
   GermanSessionKind kind = GermanSessionKind.practice,
+  String taskPrefix = 'task',
 }) => GermanSessionResult(
   gradeLevel: GradeLevel.second,
   startedAt: DateTime(2026, 9, 17, 10, minute),
@@ -22,7 +23,7 @@ GermanSessionResult _session({
   taskResults: <GermanTaskResult>[
     for (var i = 0; i < correct.length; i++)
       GermanTaskResult(
-        taskId: '${competency.name}-$i',
+        taskId: '$taskPrefix-${competency.name}-$i',
         competencyId: competency,
         correctFirstTry: correct[i],
         incorrectAttempts: correct[i] ? 0 : 1,
@@ -40,7 +41,14 @@ void main() {
       history: <GermanSessionResult>[
         _session(
           competency: GermanCompetencyId.nounArticle,
-          correct: const <bool>[true, true, true],
+          correct: const <bool>[true, true],
+          taskPrefix: 'noun-a',
+        ),
+        _session(
+          competency: GermanCompetencyId.nounArticle,
+          correct: const <bool>[true],
+          minute: 2,
+          taskPrefix: 'noun-b',
         ),
         _session(
           competency: GermanCompetencyId.wordRecognition,
@@ -50,7 +58,7 @@ void main() {
       ],
     );
 
-    expect(overview.sessionCount, 2);
+    expect(overview.sessionCount, 3);
     expect(overview.totalTasks, 5);
     expect(overview.secureCompetencies, 1);
     expect(
@@ -94,7 +102,14 @@ void main() {
     await storage.saveHistory(<GermanSessionResult>[
       _session(
         competency: GermanCompetencyId.nounArticle,
-        correct: const <bool>[true, true, true],
+        correct: const <bool>[true, true],
+        taskPrefix: 'noun-a',
+      ),
+      _session(
+        competency: GermanCompetencyId.nounArticle,
+        correct: const <bool>[true],
+        minute: 2,
+        taskPrefix: 'noun-b',
       ),
     ]);
 
@@ -104,7 +119,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Deutsch-Lernstand'), findsOneWidget);
-    expect(find.text('1'), findsWidgets);
+    expect(find.text('2'), findsWidgets);
     expect(find.text('3'), findsWidgets);
     expect(find.text('100 %'), findsWidgets);
     expect(find.textContaining('Nomen und Artikel erkennen'), findsOneWidget);

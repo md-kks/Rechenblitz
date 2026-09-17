@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/german_state.dart';
 import '../../../core/grade_level.dart';
 import '../../../core/learning_app_theme.dart';
 import '../../../core/learning_subject.dart';
@@ -12,6 +13,7 @@ import '../german_learning_domain.dart';
 import '../german_parent_overview.dart';
 import '../german_progress.dart';
 import '../german_storage_service.dart';
+import 'german_curriculum_audit_screen.dart';
 
 class GermanParentOverviewScreen extends StatefulWidget {
   const GermanParentOverviewScreen({super.key, required this.controller});
@@ -76,7 +78,7 @@ class _GermanParentOverviewScreenState
         ),
         const SizedBox(height: 4),
         Text(
-          '${overview.gradeLevel.label} · Deutsch',
+          '${overview.gradeLevel.label} · Deutsch · ${widget.controller.activeProfile.state.label}',
           style: Theme.of(context).textTheme.bodyLarge,
         ),
         const SizedBox(height: 16),
@@ -128,6 +130,20 @@ class _GermanParentOverviewScreenState
                 : 'Aktuell zeigt sich keine geübte Kompetenz mit besonderem Übungsbedarf.',
           ),
         ),
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          key: const ValueKey('german-curriculum-audit'),
+          onPressed: () => unawaited(
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    GermanCurriculumAuditScreen(controller: widget.controller),
+              ),
+            ),
+          ),
+          icon: const Icon(Icons.fact_check_outlined),
+          label: const Text('Deutsch-Lehrplan-Audit öffnen'),
+        ),
         const SizedBox(height: 20),
         Text('Lernbereiche', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 10),
@@ -152,7 +168,7 @@ class _GermanParentOverviewScreenState
           child: Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'Die Übersicht bewertet nur Aufgaben dieser Klassenstufe und dieses Lernprofils. „Sicher“ bedeutet mindestens drei Versuche mit mindestens 80 % direkt richtigen Antworten. Die Anzeige ist eine Lernhilfe, keine Schulnote.',
+              'Die Übersicht bewertet nur Aufgaben dieser Klassenstufe und dieses Lernprofils. „Sicher“ verlangt mindestens drei verschiedene Aufgaben, verteilt über mindestens zwei Runden, mit mindestens 80 % direkt richtigen Antworten. Die Anzeige ist eine Lernhilfe, keine Schulnote.',
             ),
           ),
         ),

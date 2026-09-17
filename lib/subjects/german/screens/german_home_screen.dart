@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/german_state.dart';
 import '../../../core/grade_level.dart';
 import '../../../core/learning_app_theme.dart';
 import '../../../core/learning_subject.dart';
@@ -326,7 +327,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       ),
       const SizedBox(height: 6),
       Text(
-        '${widget.controller.gradeLevel.label} · Deutsch',
+        '${widget.controller.gradeLevel.label} · Deutsch · ${widget.controller.activeProfile.state.label}',
         style: Theme.of(context).textTheme.bodyLarge,
       ),
       const SizedBox(height: 20),

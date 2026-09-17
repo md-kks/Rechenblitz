@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/core/accessibility_preferences.dart';
@@ -13,6 +15,7 @@ Widget _app({
   required Future<void> Function(String) speak,
   void Function(GermanSessionResult)? onComplete,
   bool speakCompletion = false,
+  DateTime Function()? now,
 }) => MaterialApp(
   theme: LearningAppTheme.build(
     subject: LearningSubject.german,
@@ -23,6 +26,7 @@ Widget _app({
     tasks: <GermanTask>[task],
     speak: speak,
     speakCompletion: speakCompletion,
+    now: now ?? DateTime.now,
     onComplete: onComplete,
   ),
 );
@@ -71,6 +75,37 @@ void main() {
     await tester.tap(find.text('Anhören'));
     await tester.pump();
     expect(spoken, task.spokenText);
+  });
+
+  testWidgets('listening time is not counted as answer time', (tester) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.interaction == GermanTaskInteraction.listeningChoice,
+    );
+    var clock = DateTime(2026, 9, 18, 9);
+    final speechDone = Completer<void>();
+    GermanSessionResult? completed;
+    await tester.pumpWidget(
+      _app(
+        task: task,
+        speak: (_) => speechDone.future,
+        now: () => clock,
+        onComplete: (result) => completed = result,
+      ),
+    );
+
+    await tester.tap(find.text('Anhören'));
+    await tester.pump();
+    clock = clock.add(const Duration(seconds: 20));
+    speechDone.complete();
+    await tester.pump();
+    clock = clock.add(const Duration(milliseconds: 1200));
+    await tester.tap(
+      find.widgetWithText(FilledButton, task.acceptedAnswers.first),
+    );
+    await tester.pump();
+
+    expect(completed, isNotNull);
+    expect(completed!.taskResults.single.responseMs, 1200);
   });
 
   testWidgets('word-order task can be solved entirely by touch', (

@@ -9,6 +9,7 @@ import 'package:rechenblitz/subjects/german/german_practice_planner.dart';
 import 'package:rechenblitz/subjects/german/german_progress.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_storage_service.dart';
+import 'package:rechenblitz/subjects/german/german_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_teacher_assignment.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -63,18 +64,75 @@ void main() {
     },
   );
 
-  test('progress marks repeated accurate work as secure', () {
+  test('repeating one German task cannot fake a secure competency', () {
     final history = List<GermanSessionResult>.generate(
       3,
-      (_) => _session(GermanCompetencyId.wordRecognition, correct: true),
+      (index) => _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'same-task',
+        finishedAt: DateTime(2026, 9, 10 + index, 12),
+      ),
     );
     final progress = GermanProgressAnalyzer.forCompetency(
       GermanCompetencyId.wordRecognition,
       history,
     );
 
+    expect(progress.state, GermanCompetencyState.learning);
+    expect(progress.distinctTaskCount, 1);
+    expect(progress.sessionCount, 3);
+  });
+
+  test('diverse evidence across rounds can secure a German competency', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'word-a',
+        finishedAt: DateTime(2026, 9, 10, 12),
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'word-b',
+        finishedAt: DateTime(2026, 9, 11, 12),
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'word-c',
+        finishedAt: DateTime(2026, 9, 11, 13),
+      ),
+    ];
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      history,
+    );
+
     expect(progress.state, GermanCompetencyState.secure);
+    expect(progress.distinctTaskCount, 3);
+    expect(progress.sessionCount, 3);
     expect(progress.accuracy, 1);
+  });
+
+  test('secure German evidence becomes due for spaced review', () {
+    final history = <GermanSessionResult>[
+      for (var index = 0; index < 3; index++)
+        _session(
+          GermanCompetencyId.wordRecognition,
+          correct: true,
+          taskId: 'word-$index',
+          finishedAt: DateTime(2026, 8, 20 + index, 12),
+        ),
+    ];
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      history,
+    );
+
+    expect(progress.state, GermanCompetencyState.secure);
+    expect(progress.needsReview(now: DateTime(2026, 9, 17)), isTrue);
   });
 
   test('daily round puts a proven weak skill ahead of new skills', () {
@@ -166,6 +224,29 @@ void main() {
     expect(round.map((task) => task.id).toSet().length, greaterThan(1));
   });
 
+  test('targeted practice rotates away from the most recent task', () {
+    final tasks = GermanTaskCatalog.forCompetency(
+      GermanCompetencyId.wordRecognition,
+    );
+    expect(tasks.length, greaterThanOrEqualTo(3));
+    final recent = tasks.first;
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: recent.id,
+      ),
+    ];
+
+    final round = GermanPracticePlanner.buildCompetencyRound(
+      gradeLevel: GradeLevel.second,
+      competencyId: GermanCompetencyId.wordRecognition,
+      history: history,
+    );
+
+    expect(round.first.id, isNot(recent.id));
+  });
+
   test('teacher assignment keeps its requested task count offline', () {
     final assignment = GermanTeacherAssignment(
       gradeLevel: GradeLevel.second,
@@ -193,15 +274,17 @@ GermanSessionResult _session(
   GermanCompetencyId competencyId, {
   required bool correct,
   int incorrectAttempts = 0,
+  String? taskId,
+  DateTime? finishedAt,
 }) {
-  final finished = DateTime(2026, 9, 17, 12);
+  final finished = finishedAt ?? DateTime(2026, 9, 17, 12);
   return GermanSessionResult(
     gradeLevel: GradeLevel.second,
     startedAt: finished.subtract(const Duration(minutes: 1)),
     finishedAt: finished,
     taskResults: <GermanTaskResult>[
       GermanTaskResult(
-        taskId: 'test-${competencyId.name}',
+        taskId: taskId ?? 'test-${competencyId.name}',
         competencyId: competencyId,
         correctFirstTry: correct,
         incorrectAttempts: incorrectAttempts,

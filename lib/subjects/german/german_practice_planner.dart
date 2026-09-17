@@ -15,11 +15,13 @@ class GermanPracticePlanner {
     required GradeLevel gradeLevel,
     required Iterable<GermanSessionResult> history,
     int taskCount = 6,
+    DateTime? now,
   }) {
     final ranked = _ranked(
       GermanTaskCatalog.forGrade(gradeLevel),
       history,
       gradeLevel: gradeLevel,
+      now: now,
     );
     if (ranked.length <= taskCount) return ranked;
 
@@ -51,11 +53,13 @@ class GermanPracticePlanner {
     required GermanLearningDomain domain,
     required Iterable<GermanSessionResult> history,
     int taskCount = 6,
+    DateTime? now,
   }) {
     final ranked = _ranked(
       GermanTaskCatalog.forDomain(domain, gradeLevel),
       history,
       gradeLevel: gradeLevel,
+      now: now,
     );
     return ranked.take(taskCount).toList(growable: false);
   }
@@ -65,11 +69,12 @@ class GermanPracticePlanner {
     required GermanCompetencyId competencyId,
     required Iterable<GermanSessionResult> history,
     int taskCount = 6,
+    DateTime? now,
   }) {
     final source = GermanTaskCatalog.forCompetency(
       competencyId,
     ).where((task) => task.recommendedFromGrade.index <= gradeLevel.index);
-    final ranked = _ranked(source, history, gradeLevel: gradeLevel);
+    final ranked = _ranked(source, history, gradeLevel: gradeLevel, now: now);
     if (ranked.isEmpty) return const <GermanTask>[];
     return List<GermanTask>.generate(
       taskCount,
@@ -81,11 +86,17 @@ class GermanPracticePlanner {
   static List<GermanTask> buildAssignmentRound({
     required GermanTeacherAssignment assignment,
     required Iterable<GermanSessionResult> history,
+    DateTime? now,
   }) {
     final source = assignment.targetCompetency == null
         ? GermanTaskCatalog.forDomain(assignment.domain, assignment.gradeLevel)
         : GermanTaskCatalog.forCompetency(assignment.targetCompetency!);
-    final ranked = _ranked(source, history, gradeLevel: assignment.gradeLevel);
+    final ranked = _ranked(
+      source,
+      history,
+      gradeLevel: assignment.gradeLevel,
+      now: now,
+    );
     if (ranked.isEmpty) return const <GermanTask>[];
     final selected = <GermanTask>[];
     for (var index = 0; index < assignment.tasks; index++) {
@@ -98,9 +109,12 @@ class GermanPracticePlanner {
     Iterable<GermanTask> source,
     Iterable<GermanSessionResult> history, {
     required GradeLevel gradeLevel,
+    DateTime? now,
   }) {
     final result = source.toList();
-    result.sort((a, b) => _compareTasks(a, b, history, gradeLevel: gradeLevel));
+    result.sort(
+      (a, b) => _compareTasks(a, b, history, gradeLevel: gradeLevel, now: now),
+    );
     return result;
   }
 
@@ -109,6 +123,7 @@ class GermanPracticePlanner {
     GermanTask b,
     Iterable<GermanSessionResult> history, {
     required GradeLevel gradeLevel,
+    DateTime? now,
   }) {
     final aProgress = GermanProgressAnalyzer.forCompetency(
       a.competencyId,
@@ -118,8 +133,8 @@ class GermanPracticePlanner {
       b.competencyId,
       history,
     );
-    final aBucket = _priorityBucket(aProgress);
-    final bBucket = _priorityBucket(bProgress);
+    final aBucket = _priorityBucket(aProgress, now: now);
+    final bBucket = _priorityBucket(bProgress, now: now);
     if (aBucket != bBucket) return aBucket.compareTo(bBucket);
 
     if (aProgress.state == GermanCompetencyState.learning &&
@@ -141,6 +156,16 @@ class GermanPracticePlanner {
       return aPrerequisites.compareTo(bPrerequisites);
     }
 
+    if (a.competencyId == b.competencyId) {
+      final aTaskLast = _lastPracticedTaskAt(a.id, history);
+      final bTaskLast = _lastPracticedTaskAt(b.id, history);
+      if (aTaskLast == null && bTaskLast != null) return -1;
+      if (aTaskLast != null && bTaskLast == null) return 1;
+      if (aTaskLast != null && bTaskLast != null && aTaskLast != bTaskLast) {
+        return aTaskLast.compareTo(bTaskLast);
+      }
+    }
+
     final aLast = aProgress.lastPracticedAt;
     final bLast = bProgress.lastPracticedAt;
     if (aLast != null && bLast != null && aLast != bLast) {
@@ -151,12 +176,37 @@ class GermanPracticePlanner {
     return a.competencyId.index.compareTo(b.competencyId.index);
   }
 
-  static int _priorityBucket(GermanCompetencyProgress progress) =>
-      switch (progress.state) {
-        GermanCompetencyState.learning => progress.accuracy < 0.8 ? 0 : 2,
-        GermanCompetencyState.newSkill => 1,
-        GermanCompetencyState.secure => 3,
-      };
+  static int _priorityBucket(
+    GermanCompetencyProgress progress, {
+    DateTime? now,
+  }) {
+    if (progress.state == GermanCompetencyState.learning &&
+        progress.accuracy < 0.8) {
+      return 0;
+    }
+    if (progress.needsReview(now: now)) return 1;
+    return switch (progress.state) {
+      GermanCompetencyState.newSkill => 2,
+      GermanCompetencyState.learning => 3,
+      GermanCompetencyState.secure => 4,
+    };
+  }
+
+  static DateTime? _lastPracticedTaskAt(
+    String taskId,
+    Iterable<GermanSessionResult> history,
+  ) {
+    DateTime? latest;
+    for (final session in history) {
+      if (!session.taskResults.any((result) => result.taskId == taskId)) {
+        continue;
+      }
+      if (latest == null || session.finishedAt.isAfter(latest)) {
+        latest = session.finishedAt;
+      }
+    }
+    return latest;
+  }
 
   static int _unmetPrerequisites(
     GermanCompetencyId competencyId,
@@ -169,7 +219,7 @@ class GermanPracticePlanner {
         prerequisite,
         history,
       );
-      if (progress.attempts == 0) unmet += 1;
+      if (progress.state != GermanCompetencyState.secure) unmet += 1;
     }
     return unmet;
   }
