@@ -373,22 +373,21 @@ class AppController extends ChangeNotifier {
       assessmentProgress = null;
       await storage.clearAssessmentProgress();
     }
+    final progressNow = DateTime.now();
     remediationSessionProgress = await storage.loadRemediationSession();
     final remediationSession = remediationSessionProgress;
     if (remediationSession != null &&
-        (remediationSession.gradeLevel != gradeLevel ||
-            remediationSession.numberRange != numberRange ||
-            DateTime.now().difference(remediationSession.updatedAt) >
-                RemediationSessionProgress.maxAge)) {
+        (!remediationSession.hasSaneState(now: progressNow) ||
+            remediationSession.gradeLevel != gradeLevel ||
+            remediationSession.numberRange != numberRange)) {
       remediationSessionProgress = null;
       await storage.clearRemediationSession();
     }
     stepRecoverySessionProgress = await storage.loadStepRecoverySession();
     final stepRecoverySession = stepRecoverySessionProgress;
     if (stepRecoverySession != null &&
-        (stepRecoverySession.numberRange != numberRange ||
-            DateTime.now().difference(stepRecoverySession.updatedAt) >
-                StepRecoverySessionProgress.maxAge)) {
+        (!stepRecoverySession.hasSaneState(now: progressNow) ||
+            stepRecoverySession.numberRange != numberRange)) {
       stepRecoverySessionProgress = null;
       await storage.clearStepRecoverySession();
     }

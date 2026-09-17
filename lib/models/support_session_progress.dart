@@ -69,6 +69,32 @@ bool _sameFocus(
     a.mode == b.mode &&
     a.sourceTaskKey == b.sourceTaskKey;
 
+bool _saneSupportTask(RemediationTask task) {
+  if (task.taskKey.trim().isEmpty ||
+      task.prompt.trim().isEmpty ||
+      task.maxAnswerValue < 0) {
+    return false;
+  }
+  final wallValues = task.wallValues;
+  final hiddenIndex = task.hiddenWallIndex;
+  if (hiddenIndex != null &&
+      (wallValues == null || hiddenIndex < 0 || hiddenIndex >= wallValues.length)) {
+    return false;
+  }
+  if (task.clockHour case final hour?) {
+    if (hour < 0 || hour > 23) return false;
+  }
+  if (task.clockMinute case final minute?) {
+    if (minute < 0 || minute > 59) return false;
+  }
+  return true;
+}
+
+bool _saneRecoveryFocus(IndependentStepRecoveryFocus focus) =>
+    focus.stepKey.trim().isNotEmpty &&
+    focus.label.trim().isNotEmpty &&
+    focus.sourceTaskKey.trim().isNotEmpty;
+
 class RemediationSessionProgress {
   const RemediationSessionProgress({
     required this.pattern,
@@ -102,6 +128,29 @@ class RemediationSessionProgress {
   final bool showHint;
   final DateTime updatedAt;
 
+  bool hasSaneState({DateTime? now}) {
+    final age = (now ?? DateTime.now()).difference(updatedAt);
+    if (tasks.isEmpty ||
+        index < 0 ||
+        index > tasks.length ||
+        wrongOnCurrent < 0 ||
+        checkCorrect < 0 ||
+        checkTotal < 0 ||
+        checkCorrect > checkTotal ||
+        checkTotal > index ||
+        age.isNegative ||
+        age > maxAge) {
+      return false;
+    }
+    if (tasks.any((task) => !_saneSupportTask(task))) return false;
+    if (wrongOnCurrent > 0 && !firstAttemptRecorded) return false;
+    if (index == tasks.length &&
+        (wrongOnCurrent != 0 || firstAttemptRecorded || showHint)) {
+      return false;
+    }
+    return true;
+  }
+
   bool isCompatible({
     required ErrorPattern pattern,
     required TrainingMode mode,
@@ -110,17 +159,12 @@ class RemediationSessionProgress {
     required bool reviewOnly,
     DateTime? now,
   }) {
-    final age = (now ?? DateTime.now()).difference(updatedAt);
     return this.pattern == pattern &&
         this.mode == mode &&
         gradeLevel == grade &&
         numberRange == range &&
         this.reviewOnly == reviewOnly &&
-        tasks.isNotEmpty &&
-        index >= 0 &&
-        index <= tasks.length &&
-        !age.isNegative &&
-        age <= maxAge;
+        hasSaneState(now: now);
   }
 
   Map<String, dynamic> toJson() => {
@@ -185,19 +229,34 @@ class StepRecoverySessionProgress {
   final bool showHint;
   final DateTime updatedAt;
 
+  bool hasSaneState({DateTime? now}) {
+    final age = (now ?? DateTime.now()).difference(updatedAt);
+    if (!_saneRecoveryFocus(focus) ||
+        tasks.isEmpty ||
+        index < 0 ||
+        index > tasks.length ||
+        wrongOnCurrent < 0 ||
+        age.isNegative ||
+        age > maxAge) {
+      return false;
+    }
+    if (tasks.any((task) => !_saneSupportTask(task))) return false;
+    if (wrongOnCurrent > 0 && !firstAttemptRecorded) return false;
+    if (index == tasks.length &&
+        (wrongOnCurrent != 0 || firstAttemptRecorded || showHint)) {
+      return false;
+    }
+    return true;
+  }
+
   bool isCompatible({
     required IndependentStepRecoveryFocus focus,
     required NumberRangeLevel range,
     DateTime? now,
   }) {
-    final age = (now ?? DateTime.now()).difference(updatedAt);
     return _sameFocus(this.focus, focus) &&
         numberRange == range &&
-        tasks.isNotEmpty &&
-        index >= 0 &&
-        index <= tasks.length &&
-        !age.isNegative &&
-        age <= maxAge;
+        hasSaneState(now: now);
   }
 
   Map<String, dynamic> toJson() => {

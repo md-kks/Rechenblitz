@@ -122,6 +122,28 @@ class AssessmentTaskResult {
       );
 }
 
+
+bool _saneAssessmentTask(AssessmentTask task) {
+  if (task.taskKey.trim().isEmpty ||
+      task.prompt.trim().isEmpty ||
+      task.maxAnswerValue < 0) {
+    return false;
+  }
+  final wallValues = task.wallValues;
+  final hiddenIndex = task.hiddenWallIndex;
+  if (hiddenIndex != null &&
+      (wallValues == null || hiddenIndex < 0 || hiddenIndex >= wallValues.length)) {
+    return false;
+  }
+  if (task.clockHour case final hour?) {
+    if (hour < 0 || hour > 23) return false;
+  }
+  if (task.clockMinute case final minute?) {
+    if (minute < 0 || minute > 59) return false;
+  }
+  return true;
+}
+
 class AssessmentProgress {
   const AssessmentProgress({
     required this.gradeLevel,
@@ -141,27 +163,41 @@ class AssessmentProgress {
   final DateTime startedAt;
   final DateTime updatedAt;
 
+  bool hasSaneState({DateTime? now}) {
+    final reference = now ?? DateTime.now();
+    if (tasks.isEmpty || nextIndex <= 0 || nextIndex >= tasks.length) {
+      return false;
+    }
+    if (startedAt.isAfter(updatedAt) ||
+        updatedAt.isAfter(reference.add(const Duration(minutes: 5))) ||
+        reference.difference(updatedAt) > const Duration(hours: 24)) {
+      return false;
+    }
+    if (taskResults.length != nextIndex) return false;
+    for (final task in tasks) {
+      if (!_saneAssessmentTask(task)) return false;
+    }
+    for (var i = 0; i < taskResults.length; i++) {
+      final result = taskResults[i];
+      final task = tasks[i];
+      if (result.taskKey.trim().isEmpty ||
+          result.taskKey != task.taskKey ||
+          result.mode != task.mode) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   bool isCompatible({
     required GradeLevel grade,
     required NumberRangeLevel range,
     DateTime? now,
   }) {
-    if (grade != gradeLevel || range != numberRange) return false;
-    if (tasks.isEmpty || nextIndex <= 0 || nextIndex >= tasks.length) {
-      return false;
-    }
-    if (taskResults.length != nextIndex) return false;
-    for (var i = 0; i < taskResults.length; i++) {
-      if (taskResults[i].taskKey != tasks[i].taskKey ||
-          taskResults[i].mode != tasks[i].mode) {
-        return false;
-      }
-    }
     final reference = now ?? DateTime.now();
-    if (updatedAt.isAfter(reference.add(const Duration(minutes: 5)))) {
-      return false;
-    }
-    return reference.difference(updatedAt) <= const Duration(hours: 24);
+    return grade == gradeLevel &&
+        range == numberRange &&
+        hasSaneState(now: reference);
   }
 
   Map<String, dynamic> toJson() => {
