@@ -3,6 +3,7 @@ import 'german_competency.dart';
 import 'german_competency_catalog.dart';
 import 'german_extra_task_catalog.dart';
 import 'german_learning_domain.dart';
+import 'german_more_task_catalog.dart';
 import 'german_starter_task_catalog.dart';
 import 'german_task.dart';
 
@@ -12,6 +13,7 @@ class GermanTaskCatalog {
   static const tasks = <GermanTask>[
     ...GermanStarterTaskCatalog.tasks,
     ...GermanExtraTaskCatalog.tasks,
+    ...GermanMoreTaskCatalog.tasks,
   ];
 
   static List<GermanTask> forGrade(GradeLevel grade) => tasks

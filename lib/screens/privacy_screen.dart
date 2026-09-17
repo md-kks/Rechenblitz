@@ -46,7 +46,7 @@ class PrivacyScreen extends StatelessWidget {
               'Lernverläufe.',
         ),
         _PrivacySection(
-          title: '4. Vorlesen über System-TTS',
+          title: '4. Vorlesen und Sprachfeedback über System-TTS',
           body:
               'Beim Vorlesen von Aufgaben oder Rundenfeedback übergibt '
               'Rechenblitz den angezeigten Text an die auf dem Gerät '

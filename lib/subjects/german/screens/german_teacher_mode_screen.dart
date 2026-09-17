@@ -88,6 +88,8 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
             gradeLevel: assignment.gradeLevel,
             tasks: round,
             speak: widget.controller.speakOnDemand,
+            speakCompletion:
+                widget.controller.accessibilityPreferences.spokenRoundFeedback,
             onComplete: (result) => unawaited(storage.appendSession(result)),
           ),
         ),

@@ -113,6 +113,16 @@ void main() {
     }
   });
 
+  test('every German competency has at least three curated tasks', () {
+    for (final competency in GermanCompetencyId.values) {
+      expect(
+        GermanTaskCatalog.forCompetency(competency).length,
+        greaterThanOrEqualTo(3),
+        reason: competency.name,
+      );
+    }
+  });
+
   test('combined catalog has varied practice instead of one fixed task', () {
     expect(GermanTaskCatalog.tasks.length, greaterThanOrEqualTo(38));
     expect(

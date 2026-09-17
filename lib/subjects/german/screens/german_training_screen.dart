@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/grade_level.dart';
+import '../german_round_feedback.dart';
 import '../german_session.dart';
+import '../german_support_catalog.dart';
 import '../german_task.dart';
 
 typedef GermanSpeak = Future<void> Function(String text);
@@ -13,12 +17,14 @@ class GermanTrainingScreen extends StatefulWidget {
     required this.gradeLevel,
     required this.tasks,
     required this.speak,
+    this.speakCompletion = false,
     this.onComplete,
   }) : assert(tasks.length > 0);
 
   final GradeLevel gradeLevel;
   final List<GermanTask> tasks;
   final GermanSpeak speak;
+  final bool speakCompletion;
   final GermanSessionComplete? onComplete;
 
   @override
@@ -35,6 +41,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
   int _index = 0;
   int _incorrectAttempts = 0;
   bool _completed = false;
+  GermanSessionResult? _completedResult;
   String? _feedback;
 
   GermanTask get _task => widget.tasks[_index];
@@ -82,9 +89,15 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
       );
       setState(() {
         _completed = true;
+        _completedResult = result;
         _feedback = null;
       });
       widget.onComplete?.call(result);
+      if (widget.speakCompletion) {
+        unawaited(
+          widget.speak(GermanRoundFeedback.forSession(result).spokenText),
+        );
+      }
       return;
     }
 
@@ -142,6 +155,39 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
                 ),
               ),
             ],
+            if (_incorrectAttempts > 0) ...<Widget>[
+              const SizedBox(height: 12),
+              _buildSupportCard(context),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupportCard(BuildContext context) {
+    final hint = _incorrectAttempts >= 2
+        ? GermanSupportCatalog.secondHint(_task.competencyId)
+        : GermanSupportCatalog.firstHint(_task.competencyId);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text('Denkhinweis', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            Text(hint),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: const ValueKey('german-hint-speak'),
+                onPressed: () => widget.speak(hint),
+                icon: const Icon(Icons.volume_up_outlined),
+                label: const Text('Hinweis anhören'),
+              ),
+            ),
           ],
         ),
       ),
@@ -277,13 +323,9 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
   );
 
   Widget _buildCompleted(BuildContext context) {
-    final result = GermanSessionResult(
-      gradeLevel: widget.gradeLevel,
-      startedAt: _startedAt,
-      finishedAt: DateTime.now(),
-      taskResults: List<GermanTaskResult>.unmodifiable(_results),
-    );
+    final result = _completedResult!;
     final percent = (result.accuracy * 100).round();
+    final feedback = GermanRoundFeedback.forSession(result);
     return Scaffold(
       appBar: AppBar(title: const Text('Runde geschafft')),
       body: SafeArea(
@@ -312,6 +354,21 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ],
+                const SizedBox(height: 18),
+                Text(
+                  feedback.headline,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 6),
+                Text(feedback.detail, textAlign: TextAlign.center),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  key: const ValueKey('german-round-feedback-replay'),
+                  onPressed: () => widget.speak(feedback.spokenText),
+                  icon: const Icon(Icons.volume_up_rounded),
+                  label: const Text('Feedback anhören'),
+                ),
                 const SizedBox(height: 20),
                 FilledButton(
                   key: const ValueKey('german-round-done'),

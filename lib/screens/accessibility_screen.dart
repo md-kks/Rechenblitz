@@ -4,10 +4,7 @@ import '../models/accessibility_preferences.dart';
 import '../services/app_controller.dart';
 
 class AccessibilityScreen extends StatefulWidget {
-  const AccessibilityScreen({
-    super.key,
-    required this.controller,
-  });
+  const AccessibilityScreen({super.key, required this.controller});
 
   final AppController controller;
 
@@ -33,12 +30,10 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
   }
 
   Future<void> _update(
-    AccessibilityPreferences Function(AccessibilityPreferences current)
-        update,
-  ) =>
-      widget.controller.setAccessibilityPreferences(
-        update(widget.controller.accessibilityPreferences),
-      );
+    AccessibilityPreferences Function(AccessibilityPreferences current) update,
+  ) => widget.controller.setAccessibilityPreferences(
+    update(widget.controller.accessibilityPreferences),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -106,10 +101,9 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
           const SizedBox(height: 8),
           Text(
             'Sprechgeschwindigkeit',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w800),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           Slider(
             min: 0.25,

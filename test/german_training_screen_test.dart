@@ -12,6 +12,7 @@ Widget _app({
   required GermanTask task,
   required Future<void> Function(String) speak,
   void Function(GermanSessionResult)? onComplete,
+  bool speakCompletion = false,
 }) => MaterialApp(
   theme: LearningAppTheme.build(
     subject: LearningSubject.german,
@@ -21,6 +22,7 @@ Widget _app({
     gradeLevel: task.recommendedFromGrade,
     tasks: <GermanTask>[task],
     speak: speak,
+    speakCompletion: speakCompletion,
     onComplete: onComplete,
   ),
 );
@@ -44,6 +46,8 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'die'));
     await tester.pump();
     expect(find.text('Noch nicht. Versuch es noch einmal.'), findsOneWidget);
+    expect(find.text('Denkhinweis'), findsOneWidget);
+    expect(find.textContaining('der, die und das'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, 'der'));
     await tester.pump();
@@ -85,6 +89,34 @@ void main() {
     await tester.pump();
 
     expect(find.text('Runde geschafft'), findsWidgets);
+  });
+
+  testWidgets('completion feedback can speak automatically and be replayed', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g2-noun-article-tree',
+    );
+    final spoken = <String>[];
+    await tester.pumpWidget(
+      _app(
+        task: task,
+        speak: (text) async => spoken.add(text),
+        speakCompletion: true,
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, 'der'));
+    await tester.pump();
+    expect(spoken, hasLength(1));
+    expect(spoken.single, contains('direkt richtig'));
+    expect(find.text('Feedback anhören'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('german-round-feedback-replay')),
+    );
+    await tester.pump();
+    expect(spoken, hasLength(2));
   });
 
   testWidgets('typed answer accepts normalized child input', (tester) async {
