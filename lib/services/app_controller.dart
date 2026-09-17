@@ -196,6 +196,30 @@ class AppController extends ChangeNotifier {
     await storage.clearAssessmentProgress();
   }
 
+  Future<void> _clearCompletedAssessmentBaseline() async {
+    history = history.where((entry) => !entry.isAssessment).toList();
+    if (profiles.isNotEmpty) {
+      profiles = profiles
+          .map(
+            (profile) => profile.id == activeProfileId
+                ? profile.copyWith(clearAssessment: true)
+                : profile,
+          )
+          .toList();
+    }
+    await Future.wait([
+      storage.saveHistory(history),
+      if (profiles.isNotEmpty) storage.saveProfiles(profiles),
+    ]);
+  }
+
+  Future<void> _clearAssessmentEvidenceForStateChange() async {
+    microObservations = microObservations
+        .where((entry) => entry.source != MicroEvidenceSource.assessment)
+        .toList();
+    await storage.saveMicroCompetencyObservations(microObservations);
+  }
+
   RemediationSessionProgress? resumableRemediationSession({
     required ErrorPattern pattern,
     required TrainingMode mode,
@@ -203,7 +227,9 @@ class AppController extends ChangeNotifier {
     DateTime? now,
   }) {
     final progress = remediationSessionProgress;
-    if (progress == null) return null;
+    if (progress == null || !_remediationSessionFitsActiveCurriculum(progress)) {
+      return null;
+    }
     return progress.isCompatible(
       pattern: pattern,
       mode: mode,
@@ -233,7 +259,9 @@ class AppController extends ChangeNotifier {
     DateTime? now,
   }) {
     final progress = stepRecoverySessionProgress;
-    if (progress == null) return null;
+    if (progress == null || !_stepRecoverySessionFitsActiveCurriculum(progress)) {
+      return null;
+    }
     return progress.isCompatible(
       focus: focus,
       range: numberRange,
@@ -340,6 +368,38 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _competencyFitsActiveCurriculum(MicroCompetencyId id) {
+    bool availableIn(GermanState state) =>
+        CurriculumAuditCatalog.definitionsForContext(
+          state,
+          gradeLevel,
+          numberRange,
+        ).any((definition) => definition.id == id);
+
+    if (availableIn(activeProfile.state)) return true;
+
+    // Diese Prüfung dient nur dem Schutz vor einem Wechsel des
+    // Bundesland-Kontexts. Historische Entwürfe, deren Kompetenz in dieser
+    // Klassenstufe in keinem Land aktiv wäre, werden weiterhin von den
+    // bestehenden Sitzungsregeln behandelt.
+    return !GermanState.values.any(availableIn);
+  }
+
+  bool _remediationSessionFitsActiveCurriculum(
+    RemediationSessionProgress progress,
+  ) {
+    return progress.tasks.every((task) {
+      final target = task.effectiveTargetCompetency;
+      return target == null || _competencyFitsActiveCurriculum(target);
+    });
+  }
+
+  bool _stepRecoverySessionFitsActiveCurriculum(
+    StepRecoverySessionProgress progress,
+  ) {
+    return _competencyFitsActiveCurriculum(progress.focus.competencyId);
+  }
+
   Future<void> _loadActiveProfileData() async {
     final pool = AdaptiveEngine.buildFactPool(maxValue: 100);
     final saved = await storage.loadFacts();
@@ -382,7 +442,8 @@ class AppController extends ChangeNotifier {
     if (remediationSession != null &&
         (!remediationSession.hasSaneState(now: progressNow) ||
             remediationSession.gradeLevel != gradeLevel ||
-            remediationSession.numberRange != numberRange)) {
+            remediationSession.numberRange != numberRange ||
+            !_remediationSessionFitsActiveCurriculum(remediationSession))) {
       remediationSessionProgress = null;
       await storage.clearRemediationSession();
     }
@@ -390,7 +451,8 @@ class AppController extends ChangeNotifier {
     final stepRecoverySession = stepRecoverySessionProgress;
     if (stepRecoverySession != null &&
         (!stepRecoverySession.hasSaneState(now: progressNow) ||
-            stepRecoverySession.numberRange != numberRange)) {
+            stepRecoverySession.numberRange != numberRange ||
+            !_stepRecoverySessionFitsActiveCurriculum(stepRecoverySession))) {
       stepRecoverySessionProgress = null;
       await storage.clearStepRecoverySession();
     }
@@ -4404,8 +4466,7 @@ class AppController extends ChangeNotifier {
     numberRange = value.recommendedRange;
 
     if (gradeChanged) {
-      history = history.where((entry) => !entry.isAssessment).toList();
-      await storage.saveHistory(history);
+      await _clearCompletedAssessmentBaseline();
       recentTaskKeysByMode = <String, List<String>>{};
       await storage.saveTaskDiversity(recentTaskKeysByMode);
     }
@@ -4536,14 +4597,19 @@ class AppController extends ChangeNotifier {
     required GradeLevel grade,
     required GermanState state,
   }) async {
+    activeTeacherAssignment = null;
     await clearGuidedRoundProgress();
     await clearSupportSessionProgress();
     await clearCoreTrainingSession();
     final nextRange = grade.recommendedRange;
-    final assessmentContextChanged = grade != gradeLevel ||
-        nextRange != numberRange ||
-        state != activeProfile.state;
-    if (assessmentContextChanged) await clearAssessmentProgress();
+    final stateChanged = state != activeProfile.state;
+    final assessmentContextChanged =
+        grade != gradeLevel || nextRange != numberRange || stateChanged;
+    if (assessmentContextChanged) {
+      await clearAssessmentProgress();
+      await _clearCompletedAssessmentBaseline();
+      if (stateChanged) await _clearAssessmentEvidenceForStateChange();
+    }
     final cleanName = name.trim().isEmpty ? 'Lernprofil' : name.trim();
     gradeLevel = grade;
     numberRange = nextRange;
@@ -4575,7 +4641,7 @@ class AppController extends ChangeNotifier {
     List<AssessmentTaskResult> taskResults = const <AssessmentTaskResult>[],
   }) async {
     final now = DateTime.now();
-    history = history.where((entry) => !entry.isAssessment).toList();
+    await _clearCompletedAssessmentBaseline();
     microObservations = microObservations
         .where(
           (entry) =>
@@ -4668,9 +4734,13 @@ class AppController extends ChangeNotifier {
 
   Future<void> setProfileState(GermanState value) async {
     if (profiles.isEmpty || activeProfile.state == value) return;
+    activeTeacherAssignment = null;
     await clearGuidedRoundProgress();
     await clearAssessmentProgress();
+    await clearSupportSessionProgress();
     await clearCoreTrainingSession();
+    await _clearCompletedAssessmentBaseline();
+    await _clearAssessmentEvidenceForStateChange();
     profiles = profiles
         .map(
           (profile) => profile.id == activeProfileId
@@ -4689,6 +4759,7 @@ class AppController extends ChangeNotifier {
       await clearAssessmentProgress();
       await clearSupportSessionProgress();
       await clearCoreTrainingSession();
+      await _clearCompletedAssessmentBaseline();
       recentTaskKeysByMode = <String, List<String>>{};
       await storage.saveTaskDiversity(recentTaskKeysByMode);
     }

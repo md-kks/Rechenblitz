@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'curriculum_audit.dart';
 import 'learner_profile.dart';
 import 'micro_competency.dart';
 import 'teacher_assignment.dart';
@@ -42,6 +43,34 @@ class TeacherAssignmentResult {
 
   double get accuracy =>
       completedTasks == 0 ? 0 : correctFirstTry / completedTasks;
+
+  bool get hasSaneContext {
+    if (assignmentId.trim().isEmpty ||
+        requestedTasks < 1 ||
+        requestedTasks > 30 ||
+        completedTasks < 0 ||
+        completedTasks > requestedTasks ||
+        correctFirstTry < 0 ||
+        correctFirstTry > completedTasks ||
+        incorrectAttempts < 0 ||
+        !averageResponseMs.isFinite ||
+        averageResponseMs < 0 ||
+        aidedObservations < 0 ||
+        maxHelpLevel < 0 ||
+        maxHelpLevel > 3) {
+      return false;
+    }
+    final resultState = state;
+    final target = targetCompetency;
+    if (resultState != null && target != null) {
+      return CurriculumAuditCatalog.definitionsForContext(
+        resultState,
+        gradeLevel,
+        numberRange,
+      ).any((definition) => definition.id == target);
+    }
+    return true;
+  }
 
   String get summary {
     final target = targetCompetency == null
@@ -154,16 +183,7 @@ class TeacherAssignmentResult {
         targetCompetency: target,
       );
 
-      if (result.requestedTasks < 1 ||
-          result.requestedTasks > 30 ||
-          result.completedTasks < 0 ||
-          result.completedTasks > result.requestedTasks ||
-          result.correctFirstTry < 0 ||
-          result.correctFirstTry > result.completedTasks ||
-          result.maxHelpLevel < 0 ||
-          result.maxHelpLevel > 3) {
-        return null;
-      }
+      if (!result.hasSaneContext) return null;
       return result;
     } catch (_) {
       return null;
