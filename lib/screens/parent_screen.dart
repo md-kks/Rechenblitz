@@ -9,6 +9,7 @@ import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
+import '../subjects/german/screens/german_parent_overview_screen.dart';
 import 'competency_map_screen.dart';
 import 'teacher_mode_screen.dart';
 import 'curriculum_audit_screen.dart';
@@ -48,11 +49,13 @@ class _ParentScreenState extends State<ParentScreen> {
   String _percent(double value) => '${(value * 100).round()} %';
   Future<void> _startRecommended() async {
     final priority = widget.controller.parentPriorityMicroCompetency();
-    final mode = priority?.definition.preferredMode ??
+    final mode =
+        priority?.definition.preferredMode ??
         widget.controller.recommendedMode();
     final targetCompetency = priority?.definition.id;
     final decision = widget.controller.guidedRoundDecisionTrace().primary;
-    final fluencyEmphasis = decision?.kind == GuidedRoundDecisionKind.fluency &&
+    final fluencyEmphasis =
+        decision?.kind == GuidedRoundDecisionKind.fluency &&
         decision?.competencyId == targetCompetency;
     if (mode.isUpperPrimary) {
       await Navigator.of(context).push(
@@ -84,8 +87,9 @@ class _ParentScreenState extends State<ParentScreen> {
           controller: widget.controller,
           mode: mode,
           targetTasks: mode == TrainingMode.blitz ? 5 : 10,
-          timeLimit:
-              mode == TrainingMode.tempo ? const Duration(minutes: 2) : null,
+          timeLimit: mode == TrainingMode.tempo
+              ? const Duration(minutes: 2)
+              : null,
           targetCompetency: targetCompetency,
           fluencyEmphasis: fluencyEmphasis,
         ),
@@ -117,10 +121,8 @@ class _ParentScreenState extends State<ParentScreen> {
         .take(4)
         .toList();
     final today = c.todayHistory.toList();
-    final todayCorrect =
-        today.fold<int>(0, (s, e) => s + e.correctFirstTry);
-    final todayErrors =
-        today.fold<int>(0, (s, e) => s + e.incorrectAttempts);
+    final todayCorrect = today.fold<int>(0, (s, e) => s + e.correctFirstTry);
+    final todayErrors = today.fold<int>(0, (s, e) => s + e.incorrectAttempts);
     final todayTasks = today.fold<int>(0, (s, e) => s + e.total);
     final todayAccuracy = todayTasks == 0 ? 0.0 : todayCorrect / todayTasks;
     final fluencyProgress = MicroCompetencyCatalog.forGrade(c.gradeLevel)
@@ -134,14 +136,19 @@ class _ParentScreenState extends State<ParentScreen> {
         .where((progress) => progress.fluencyState == MicroFluencyState.fluent)
         .length;
     final buildingCount = fluencyProgress
-        .where((progress) => progress.fluencyState == MicroFluencyState.building)
+        .where(
+          (progress) => progress.fluencyState == MicroFluencyState.building,
+        )
         .length;
     final notMeasuredCount = fluencyProgress
-        .where((progress) => progress.fluencyState == MicroFluencyState.notMeasured)
+        .where(
+          (progress) => progress.fluencyState == MicroFluencyState.notMeasured,
+        )
         .length;
     final fluencyFocus = c.fluencyFocusMicroCompetency();
     final fluencyPaused = c.accessibilityPreferences.readAloud;
-    final fluencyIsPriority = fluencyFocus != null &&
+    final fluencyIsPriority =
+        fluencyFocus != null &&
         roundDecision.primary?.kind == GuidedRoundDecisionKind.fluency &&
         roundDecision.primary?.competencyId == fluencyFocus.definition.id;
 
@@ -154,14 +161,14 @@ class _ParentScreenState extends State<ParentScreen> {
             title: 'Aktueller Lernrahmen',
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final stacked = constraints.maxWidth < 420 ||
+                final stacked =
+                    constraints.maxWidth < 420 ||
                     MediaQuery.textScalerOf(context).scale(1) > 1.4;
                 final frame = Text(
                   '${c.activeProfileName} · ${c.gradeLevel.label} · Zahlenraum ${c.numberRange.label}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 );
                 final rewards = Text(
                   '${c.stars} ★ · ${c.badges.length} Abzeichen',
@@ -169,11 +176,7 @@ class _ParentScreenState extends State<ParentScreen> {
                 if (stacked) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      frame,
-                      const SizedBox(height: 8),
-                      rewards,
-                    ],
+                    children: [frame, const SizedBox(height: 8), rewards],
                   );
                 }
                 return Row(
@@ -192,9 +195,7 @@ class _ParentScreenState extends State<ParentScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Welche Rechenhilfen ${c.activeProfileName} öffnen darf.',
-                ),
+                Text('Welche Rechenhilfen ${c.activeProfileName} öffnen darf.'),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<HelpAccess>(
                   key: const ValueKey('parent-help-access'),
@@ -227,9 +228,7 @@ class _ParentScreenState extends State<ParentScreen> {
                   key: const ValueKey('parent-help-presentation'),
                   isExpanded: true,
                   initialValue: c.helpPreferences.presentation,
-                  decoration: const InputDecoration(
-                    labelText: 'Hilfe öffnen',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Hilfe öffnen'),
                   items: HelpPresentation.values
                       .map(
                         (value) => DropdownMenuItem(
@@ -294,8 +293,10 @@ class _ParentScreenState extends State<ParentScreen> {
               runSpacing: 16,
               children: [
                 _Metric('Aufgaben', '$todayTasks'),
-                _Metric('direkt richtig',
-                    todayTasks == 0 ? '–' : _percent(todayAccuracy)),
+                _Metric(
+                  'direkt richtig',
+                  todayTasks == 0 ? '–' : _percent(todayAccuracy),
+                ),
                 _Metric('Fehlversuche', '$todayErrors'),
                 _Metric('Runden', '${today.length}'),
               ],
@@ -333,12 +334,14 @@ class _ParentScreenState extends State<ParentScreen> {
                   _ExplainCard(
                     icon: Icons.autorenew_rounded,
                     title: fluencyFocus.definition.label,
-                    text: fluencyFocus.fluencyState == MicroFluencyState.building
+                    text:
+                        fluencyFocus.fluencyState == MicroFluencyState.building
                         ? '${(fluencyFocus.fluencyAccuracy * 100).round()} % richtig bei ${fluencyFocus.fluencyTaskVariety} unterschiedlichen Grundaufgaben; typisch ${(fluencyFocus.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s. Der Bereich ist fachlich bereits sicher und wird jetzt kurz ohne Countdown automatisiert.'
                         : 'Der Bereich ist fachlich bereits sicher. Für eine belastbare Automatisierungsmessung fehlen noch genügend unterschiedliche, unverzerrte Grundaufgaben.',
                   )
                 else if (fluencyProgress.every(
-                  (progress) => progress.fluencyState == MicroFluencyState.fluent,
+                  (progress) =>
+                      progress.fluencyState == MicroFluencyState.fluent,
                 ))
                   const _ExplainCard(
                     icon: Icons.check_circle_outline_rounded,
@@ -467,10 +470,9 @@ class _ParentScreenState extends State<ParentScreen> {
                 if (priority != null) ...[
                   Text(
                     priority.definition.label,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w900),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 5),
                   Text(priority.definition.description),
@@ -491,7 +493,8 @@ class _ParentScreenState extends State<ParentScreen> {
                   const SizedBox(height: 10),
                   _ExplainCard(
                     icon: Icons.autorenew_rounded,
-                    title: roundProgress!.lastAdaptationKind?.label ??
+                    title:
+                        roundProgress!.lastAdaptationKind?.label ??
                         'Runde live angepasst',
                     text: roundProgress.lastAdaptationMessage!,
                   ),
@@ -544,6 +547,17 @@ class _ParentScreenState extends State<ParentScreen> {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
+                  key: const ValueKey('parent-german-overview'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => GermanParentOverviewScreen(controller: c),
+                    ),
+                  ),
+                  icon: const Icon(Icons.menu_book_rounded),
+                  label: const Text('Deutsch-Lernstand'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => CurriculumAuditScreen(controller: c),
@@ -573,95 +587,86 @@ class _ParentScreenState extends State<ParentScreen> {
                     'Noch kein wiederkehrendes Fehlermuster. Rechenblitz zeigt hier erst etwas an, wenn ein ähnlicher Fehler mindestens zweimal aufgefallen ist.',
                   )
                 : Column(
-                    children: diagnosticPatterns
-                        .map(
-                          (summary) {
-                            final status =
-                                c.remediationStatusFor(summary.pattern) ??
-                                    RemediationStatus.recurring;
-                            final reviewOnly =
-                                c.remediationReviewOnly(summary.pattern);
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: Row(
+                    children: diagnosticPatterns.map((summary) {
+                      final status =
+                          c.remediationStatusFor(summary.pattern) ??
+                          RemediationStatus.recurring;
+                      final reviewOnly = c.remediationReviewOnly(
+                        summary.pattern,
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.search_rounded, size: 22),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.search_rounded, size: 22),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                summary.pattern.label,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w900,
-                                                ),
-                                              ),
-                                            ),
-                                            Chip(
-                                              label: Text(status.label),
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          '${summary.confidenceLabel} · ${summary.errors} Beobachtungen',
-                                        ),
-                                        const SizedBox(height: 5),
-                                        Text(summary.pattern.action),
-                                        if (status ==
-                                                RemediationStatus.recurring ||
-                                            status ==
-                                                RemediationStatus.inProgress ||
-                                            reviewOnly) ...[
-                                          const SizedBox(height: 10),
-                                          OutlinedButton.icon(
-                                            onPressed: summary.modes.isEmpty
-                                                ? null
-                                                : () async {
-                                                    await Navigator.of(context)
-                                                        .push(
-                                                      MaterialPageRoute(
-                                                        builder: (_) =>
-                                                            RemediationScreen(
-                                                          controller: c,
-                                                          pattern:
-                                                              summary.pattern,
-                                                          preferredMode:
-                                                              summary
-                                                                  .modes.first,
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
-                                            icon: Icon(
-                                              reviewOnly
-                                                  ? Icons.fact_check_outlined
-                                                  : Icons.route_rounded,
-                                            ),
-                                            label: Text(
-                                              reviewOnly
-                                                  ? 'Kontrollrunde starten'
-                                                  : 'Förderpfad starten',
-                                            ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          summary.pattern.label,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
                                           ),
-                                        ],
-                                      ],
-                                    ),
+                                        ),
+                                      ),
+                                      Chip(
+                                        label: Text(status.label),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                    ],
                                   ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${summary.confidenceLabel} · ${summary.errors} Beobachtungen',
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(summary.pattern.action),
+                                  if (status == RemediationStatus.recurring ||
+                                      status == RemediationStatus.inProgress ||
+                                      reviewOnly) ...[
+                                    const SizedBox(height: 10),
+                                    OutlinedButton.icon(
+                                      onPressed: summary.modes.isEmpty
+                                          ? null
+                                          : () async {
+                                              await Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      RemediationScreen(
+                                                        controller: c,
+                                                        pattern:
+                                                            summary.pattern,
+                                                        preferredMode:
+                                                            summary.modes.first,
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                      icon: Icon(
+                                        reviewOnly
+                                            ? Icons.fact_check_outlined
+                                            : Icons.route_rounded,
+                                      ),
+                                      label: Text(
+                                        reviewOnly
+                                            ? 'Kontrollrunde starten'
+                                            : 'Förderpfad starten',
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
-                            );
-                          },
-                        )
-                        .toList(),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
           ),
           const SizedBox(height: 14),
@@ -670,13 +675,21 @@ class _ParentScreenState extends State<ParentScreen> {
             child: Column(
               children: [
                 _PercentBar(
-                    label: 'Plus', value: c.accuracyFor(MathOperation.plus)),
+                  label: 'Plus',
+                  value: c.accuracyFor(MathOperation.plus),
+                ),
                 _PercentBar(
-                    label: 'Minus', value: c.accuracyFor(MathOperation.minus)),
+                  label: 'Minus',
+                  value: c.accuracyFor(MathOperation.minus),
+                ),
                 _PercentBar(
-                    label: 'Mal', value: c.accuracyFor(MathOperation.multiply)),
+                  label: 'Mal',
+                  value: c.accuracyFor(MathOperation.multiply),
+                ),
                 _PercentBar(
-                    label: 'Geteilt', value: c.accuracyFor(MathOperation.divide)),
+                  label: 'Geteilt',
+                  value: c.accuracyFor(MathOperation.divide),
+                ),
               ],
             ),
           ),
@@ -705,8 +718,8 @@ class _ParentScreenState extends State<ParentScreen> {
                       'Nächster Zahlenraum ist bereit',
                   },
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(rangeReadiness.reason),
@@ -728,9 +741,7 @@ class _ParentScreenState extends State<ParentScreen> {
                     onPressed: () =>
                         c.setNumberRange(rangeReadiness.nextRange!),
                     icon: const Icon(Icons.trending_up_rounded),
-                    label: Text(
-                      '${rangeReadiness.nextRange!.label} verwenden',
-                    ),
+                    label: Text('${rangeReadiness.nextRange!.label} verwenden'),
                   ),
                 ],
                 if (gradeBridge.isActive) ...[
@@ -742,9 +753,8 @@ class _ParentScreenState extends State<ParentScreen> {
                       Expanded(
                         child: Text(
                           'Übergang ${gradeBridge.previousGrade!.label} → ${gradeBridge.currentGrade.label}',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                       ),
                       Text(
@@ -780,9 +790,8 @@ class _ParentScreenState extends State<ParentScreen> {
                       Expanded(
                         child: Text(
                           'Übergang ${rangeBridge.previousRange!.label} → ${rangeBridge.currentRange.label}',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                       ),
                       Text(
@@ -816,42 +825,44 @@ class _ParentScreenState extends State<ParentScreen> {
           _Section(
             title: 'Zahlen & Rechenwege',
             child: Column(
-              children: const [
-                TrainingMode.numberWall,
-                TrainingMode.missingNumber,
-                TrainingMode.neighbors,
-                TrainingMode.placeValue,
-                TrainingMode.doublesHalves,
-                TrainingMode.sequences,
-                TrainingMode.factFamilies,
-              ]
-                  .map(
-                    (mode) => _PercentBar(
-                      label: mode.title,
-                      value: c.modeAccuracy(mode),
-                    ),
-                  )
-                  .toList(),
+              children:
+                  const [
+                        TrainingMode.numberWall,
+                        TrainingMode.missingNumber,
+                        TrainingMode.neighbors,
+                        TrainingMode.placeValue,
+                        TrainingMode.doublesHalves,
+                        TrainingMode.sequences,
+                        TrainingMode.factFamilies,
+                      ]
+                      .map(
+                        (mode) => _PercentBar(
+                          label: mode.title,
+                          value: c.modeAccuracy(mode),
+                        ),
+                      )
+                      .toList(),
             ),
           ),
           const SizedBox(height: 14),
           _Section(
             title: 'Sachrechnen & Alltag',
             child: Column(
-              children: const [
-                TrainingMode.wordProblems,
-                TrainingMode.money,
-                TrainingMode.clock,
-                TrainingMode.measures,
-                TrainingMode.geometry,
-              ]
-                  .map(
-                    (mode) => _PercentBar(
-                      label: mode.title,
-                      value: c.modeAccuracy(mode),
-                    ),
-                  )
-                  .toList(),
+              children:
+                  const [
+                        TrainingMode.wordProblems,
+                        TrainingMode.money,
+                        TrainingMode.clock,
+                        TrainingMode.measures,
+                        TrainingMode.geometry,
+                      ]
+                      .map(
+                        (mode) => _PercentBar(
+                          label: mode.title,
+                          value: c.modeAccuracy(mode),
+                        ),
+                      )
+                      .toList(),
             ),
           ),
           if (c.gradeLevel.index >= GradeLevel.third.index) ...[
@@ -882,8 +893,10 @@ class _ParentScreenState extends State<ParentScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(recommendation,
-                    style: Theme.of(context).textTheme.bodyLarge),
+                Text(
+                  recommendation,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
                 const SizedBox(height: 14),
                 FilledButton.icon(
                   onPressed: _startRecommended,
@@ -908,9 +921,7 @@ class _ParentScreenState extends State<ParentScreen> {
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Einmaleins: ${c.methodPreferences.multiplication.label}',
-                ),
+                Text('Einmaleins: ${c.methodPreferences.multiplication.label}'),
                 const SizedBox(height: 4),
                 Text(
                   'Schriftliche Subtraktion: ${c.methodPreferences.writtenSubtraction.label}',
@@ -995,24 +1006,23 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 14),
-              child,
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
-        ),
-      );
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    ),
+  );
 }
 
 class _InsightLine extends StatelessWidget {
@@ -1028,28 +1038,25 @@ class _InsightLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 13),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(text),
-                ],
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.only(bottom: 13),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+              const SizedBox(height: 2),
+              Text(text),
+            ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _ExplainCard extends StatelessWidget {
@@ -1065,31 +1072,31 @@ class _ExplainCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 21),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(text),
-                  ],
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 21),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
-              ),
-            ],
+                const SizedBox(height: 3),
+                Text(text),
+              ],
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 class _FluencyProgressRow extends StatelessWidget {
@@ -1116,9 +1123,10 @@ class _FluencyProgressRow extends StatelessWidget {
         ? 'Vorlesen ist aktiv; fachliche Sicherheit wird weiter bewertet.'
         : switch (state) {
             MicroFluencyState.notApplicable => '',
-            MicroFluencyState.notMeasured => progress.fluencyAttempts == 0
-                ? 'Noch keine unverzerrte Grundaufgabe im aktuellen Lernrahmen.'
-                : '${progress.fluencyAttempts} gewertete Grundaufgaben · ${progress.fluencyTaskVariety} unterschiedliche · noch nicht belastbar',
+            MicroFluencyState.notMeasured =>
+              progress.fluencyAttempts == 0
+                  ? 'Noch keine unverzerrte Grundaufgabe im aktuellen Lernrahmen.'
+                  : '${progress.fluencyAttempts} gewertete Grundaufgaben · ${progress.fluencyTaskVariety} unterschiedliche · noch nicht belastbar',
             MicroFluencyState.building || MicroFluencyState.fluent =>
               '${(progress.fluencyAccuracy * 100).round()} % richtig · ${progress.fluencyTaskVariety} unterschiedliche · typisch ${(progress.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s',
           };
@@ -1144,15 +1152,9 @@ class _FluencyProgressRow extends StatelessWidget {
                   progress.definition.label,
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
-                Text(
-                  status,
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
+                Text(status, style: Theme.of(context).textTheme.labelMedium),
                 if (detail.isNotEmpty)
-                  Text(
-                    detail,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text(detail, style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ),
@@ -1169,21 +1171,20 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: 130,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            Text(label),
-          ],
+    width: 130,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
-      );
+        Text(label),
+      ],
+    ),
+  );
 }
 
 class _PercentBar extends StatelessWidget {
@@ -1193,28 +1194,28 @@ class _PercentBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            SizedBox(width: 115, child: Text(label)),
-            Expanded(
-              child: LinearProgressIndicator(
-                value: value,
-                minHeight: 10,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-            const SizedBox(width: 10),
-            SizedBox(
-              width: 44,
-              child: Text(
-                value == 0 ? '–' : '${(value * 100).round()} %',
-                textAlign: TextAlign.end,
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      children: [
+        SizedBox(width: 115, child: Text(label)),
+        Expanded(
+          child: LinearProgressIndicator(
+            value: value,
+            minHeight: 10,
+            borderRadius: BorderRadius.circular(99),
+          ),
         ),
-      );
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 44,
+          child: Text(
+            value == 0 ? '–' : '${(value * 100).round()} %',
+            textAlign: TextAlign.end,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _FactList extends StatelessWidget {
@@ -1224,26 +1225,27 @@ class _FactList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _Section(
-        title: title,
-        child: facts.isEmpty
-            ? const Text('Noch nicht genug Daten.')
-            : Column(
-                children: facts
-                    .map(
-                      (f) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(f.label,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w700)),
-                        subtitle: Text(
-                          'Treffer ${(f.accuracy * 100).round()} % · Ø ${(f.averageResponseMs / 1000).toStringAsFixed(1)} s',
-                        ),
-                        trailing: Text('${(f.masteryScore * 100).round()} %'),
-                      ),
-                    )
-                    .toList(),
-              ),
-      );
+    title: title,
+    child: facts.isEmpty
+        ? const Text('Noch nicht genug Daten.')
+        : Column(
+            children: facts
+                .map(
+                  (f) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      f.label,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      'Treffer ${(f.accuracy * 100).round()} % · Ø ${(f.averageResponseMs / 1000).toStringAsFixed(1)} s',
+                    ),
+                    trailing: Text('${(f.masteryScore * 100).round()} %'),
+                  ),
+                )
+                .toList(),
+          ),
+  );
 }
 
 class _AccuracyTrend extends StatelessWidget {
@@ -1252,8 +1254,12 @@ class _AccuracyTrend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sessions =
-        history.where((e) => e.total > 0).take(12).toList().reversed.toList();
+    final sessions = history
+        .where((e) => e.total > 0)
+        .take(12)
+        .toList()
+        .reversed
+        .toList();
     if (sessions.length < 2) {
       return const Text(
         'Nach zwei abgeschlossenen Runden wird hier die Entwicklung sichtbar.',
