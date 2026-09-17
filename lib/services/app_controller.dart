@@ -17,6 +17,7 @@ import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/reward_badge.dart';
 import '../models/support_session_progress.dart';
+import '../models/training_session_progress.dart';
 import '../models/training.dart';
 import '../models/task_diversity.dart';
 import '../models/teacher_assignment.dart';
@@ -132,6 +133,7 @@ class AppController extends ChangeNotifier {
   AssessmentProgress? assessmentProgress;
   RemediationSessionProgress? remediationSessionProgress;
   StepRecoverySessionProgress? stepRecoverySessionProgress;
+  CoreTrainingSessionProgress? coreTrainingSessionProgress;
 
   int get maxValue => numberRange.maxValue;
 
@@ -260,6 +262,53 @@ class AppController extends ChangeNotifier {
     ]);
   }
 
+  CoreTrainingSessionProgress? resumableCoreTrainingSession({
+    required CoreTrainingKind kind,
+    required TrainingMode mode,
+    required int targetTasks,
+    required MicroCompetencyId? targetCompetency,
+    required bool reviewEmphasis,
+    required bool transferEmphasis,
+    required bool fluencyEmphasis,
+    required bool scaffoldFading,
+    required bool adaptiveLength,
+    required Duration? timeLimit,
+    DateTime? now,
+  }) {
+    final progress = coreTrainingSessionProgress;
+    if (progress == null) return null;
+    return progress.isCompatible(
+      kind: kind,
+      mode: mode,
+      targetTasks: targetTasks,
+      targetCompetency: targetCompetency,
+      reviewEmphasis: reviewEmphasis,
+      transferEmphasis: transferEmphasis,
+      fluencyEmphasis: fluencyEmphasis,
+      scaffoldFading: scaffoldFading,
+      adaptiveLength: adaptiveLength,
+      gradeLevel: effectiveGradeLevel,
+      numberRange: effectiveNumberRange,
+      teacherAssignmentActive: hasTeacherAssignment,
+      timeLimit: timeLimit,
+      now: now,
+    )
+        ? progress
+        : null;
+  }
+
+  Future<void> saveCoreTrainingSession(
+    CoreTrainingSessionProgress progress,
+  ) async {
+    coreTrainingSessionProgress = progress;
+    await storage.saveCoreTrainingSession(progress);
+  }
+
+  Future<void> clearCoreTrainingSession() async {
+    coreTrainingSessionProgress = null;
+    await storage.clearCoreTrainingSession();
+  }
+
   void beginTeacherAssignment(TeacherAssignment assignment) {
     activeTeacherAssignment = assignment;
     notifyListeners();
@@ -342,6 +391,17 @@ class AppController extends ChangeNotifier {
                 StepRecoverySessionProgress.maxAge)) {
       stepRecoverySessionProgress = null;
       await storage.clearStepRecoverySession();
+    }
+    coreTrainingSessionProgress = await storage.loadCoreTrainingSession();
+    final coreTrainingSession = coreTrainingSessionProgress;
+    if (coreTrainingSession != null &&
+        (coreTrainingSession.gradeLevel != gradeLevel ||
+            coreTrainingSession.numberRange != numberRange ||
+            coreTrainingSession.teacherAssignmentActive ||
+            DateTime.now().difference(coreTrainingSession.updatedAt) >
+                CoreTrainingSessionProgress.maxAge)) {
+      coreTrainingSessionProgress = null;
+      await storage.clearCoreTrainingSession();
     }
     methodPreferences = await storage.methodPreferences();
     unlockedBadges = await storage.rewardBadges();
@@ -4216,6 +4276,7 @@ class AppController extends ChangeNotifier {
       activeTeacherAssignment = null;
       await clearAssessmentProgress();
       await clearSupportSessionProgress();
+      await clearCoreTrainingSession();
     }
     await clearGuidedRoundProgress();
     gradeLevel = value;
@@ -4315,6 +4376,7 @@ class AppController extends ChangeNotifier {
     MethodSelectionPreference value,
   ) async {
     await clearSupportSessionProgress();
+    await clearCoreTrainingSession();
     methodPreferences =
         methodPreferences.copyWith(selectionPreference: value);
     notifyListeners();
@@ -4323,6 +4385,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> setSubtractionStrategy(SubtractionStrategy value) async {
     await clearSupportSessionProgress();
+    await clearCoreTrainingSession();
     methodPreferences = methodPreferences.copyWith(subtraction: value);
     notifyListeners();
     await storage.setMethodPreferences(methodPreferences);
@@ -4330,6 +4393,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> setMultiplicationStrategy(MultiplicationStrategy value) async {
     await clearSupportSessionProgress();
+    await clearCoreTrainingSession();
     methodPreferences = methodPreferences.copyWith(multiplication: value);
     notifyListeners();
     await storage.setMethodPreferences(methodPreferences);
@@ -4339,6 +4403,7 @@ class AppController extends ChangeNotifier {
     WrittenSubtractionStrategy value,
   ) async {
     await clearSupportSessionProgress();
+    await clearCoreTrainingSession();
     methodPreferences =
         methodPreferences.copyWith(writtenSubtraction: value);
     notifyListeners();
@@ -4352,6 +4417,7 @@ class AppController extends ChangeNotifier {
   }) async {
     await clearGuidedRoundProgress();
     await clearSupportSessionProgress();
+    await clearCoreTrainingSession();
     final nextRange = grade.recommendedRange;
     final assessmentContextChanged =
         grade != gradeLevel || nextRange != numberRange;
@@ -4465,6 +4531,8 @@ class AppController extends ChangeNotifier {
 
   Future<void> setHelpPreferences(HelpPreferences value) async {
     if (profiles.isEmpty) return;
+    await clearCoreTrainingSession();
+    await clearSupportSessionProgress();
     profiles = profiles
         .map(
           (profile) => profile.id == activeProfileId
@@ -4495,6 +4563,7 @@ class AppController extends ChangeNotifier {
       await clearGuidedRoundProgress();
       await clearAssessmentProgress();
       await clearSupportSessionProgress();
+      await clearCoreTrainingSession();
       recentTaskKeysByMode = <String, List<String>>{};
       await storage.saveTaskDiversity(recentTaskKeysByMode);
     }
@@ -4604,6 +4673,7 @@ class AppController extends ChangeNotifier {
     assessmentProgress = null;
     remediationSessionProgress = null;
     stepRecoverySessionProgress = null;
+    coreTrainingSessionProgress = null;
     activeTeacherAssignment = null;
     _pendingBadgeIds.clear();
     lastSessionNewBadges = const [];

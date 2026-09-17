@@ -13,6 +13,7 @@ import '../models/math_fact.dart';
 import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/support_session_progress.dart';
+import '../models/training_session_progress.dart';
 import '../models/training.dart';
 import 'micro_evidence_retention.dart';
 
@@ -34,6 +35,7 @@ class StorageService {
   static const _assessmentProgressKey = 'assessment_progress_v1';
   static const _remediationSessionKey = 'remediation_session_v1';
   static const _stepRecoverySessionKey = 'step_recovery_session_v1';
+  static const _coreTrainingSessionKey = 'core_training_session_v1';
   static const _accessibilityKey = 'accessibility_preferences_v1';
   static const _betaFeedbackKey = 'beta_feedback_v1';
 
@@ -142,6 +144,7 @@ class StorageService {
       _assessmentProgressKey,
       _remediationSessionKey,
       _stepRecoverySessionKey,
+      _coreTrainingSessionKey,
     ]) {
       await prefs.remove('profile:$id:$key');
     }
@@ -448,6 +451,31 @@ class StorageService {
       (await SharedPreferences.getInstance())
           .remove(_profileKey(_stepRecoverySessionKey));
 
+  Future<CoreTrainingSessionProgress?> loadCoreTrainingSession() async {
+    final raw = (await SharedPreferences.getInstance())
+        .getString(_profileKey(_coreTrainingSessionKey));
+    if (raw == null) return null;
+    try {
+      return CoreTrainingSessionProgress.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveCoreTrainingSession(
+    CoreTrainingSessionProgress progress,
+  ) async =>
+      (await SharedPreferences.getInstance()).setString(
+        _profileKey(_coreTrainingSessionKey),
+        jsonEncode(progress.toJson()),
+      );
+
+  Future<void> clearCoreTrainingSession() async =>
+      (await SharedPreferences.getInstance())
+          .remove(_profileKey(_coreTrainingSessionKey));
+
   Future<GradeLevel?> storedGradeLevel() async {
     final raw = (await SharedPreferences.getInstance())
         .getString(_profileKey(_gradeLevelKey));
@@ -569,6 +597,7 @@ class StorageService {
     await prefs.remove(_profileKey(_assessmentProgressKey));
     await prefs.remove(_profileKey(_remediationSessionKey));
     await prefs.remove(_profileKey(_stepRecoverySessionKey));
+    await prefs.remove(_profileKey(_coreTrainingSessionKey));
   }
 
   List<LearnerProfile> _decodeProfiles(String raw) {
