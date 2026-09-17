@@ -57,6 +57,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       tasks = (widget.generator ?? AssessmentGenerator()).generate(
         grade: widget.controller.gradeLevel,
         range: widget.controller.numberRange,
+        state: widget.controller.activeProfile.state,
       );
       assessmentStartedAt = DateTime.now();
     }
@@ -92,6 +93,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       tasks = (widget.generator ?? AssessmentGenerator()).generate(
         grade: widget.controller.gradeLevel,
         range: widget.controller.numberRange,
+        state: widget.controller.activeProfile.state,
       );
       correctByMode.clear();
       totalByMode.clear();
@@ -174,6 +176,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         nextIndex: nextIndex,
         startedAt: assessmentStartedAt,
         updatedAt: DateTime.now(),
+        state: widget.controller.activeProfile.state,
       ),
     );
 

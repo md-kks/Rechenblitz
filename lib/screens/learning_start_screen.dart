@@ -201,8 +201,8 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
         style: Theme.of(context).textTheme.headlineMedium,
       ),
       const SizedBox(height: 10),
-      const Text(
-        '12 Aufgaben ohne Zeitdruck. So findet Rechenblitz einen guten Startpunkt.',
+      Text(
+        '12 Aufgaben ohne Zeitdruck. Rechenblitz berücksichtigt dabei ${state.label} und ${grade.label}.',
         textAlign: TextAlign.center,
       ),
       const SizedBox(height: 22),

@@ -90,7 +90,7 @@ Neue Installationen beginnen mit einem kurzen, druckfreien Lernstart:
 
 - lokales Lernprofil mit Name/Spitzname, Klassenstufe und Bundesland
 - Auswahl der in der Schule verwendeten Rechenwege
-- optionaler Einstufungscheck mit 12 Aufgaben aus sechs Kompetenzbereichen
+- optionaler Einstufungscheck mit 12 Aufgaben aus sechs Kompetenzbereichen; Klassenstufe und Bundesland bestimmen die curricular passenden Diagnosebereiche
 - keine Note, kein Zeitlimit, keine Sterne und keine Abzeichen im Lerncheck
 - „Weiß ich noch nicht“ als normale Antwortmöglichkeit
 - sichere Startbereiche werden in der Lernlandkarte markiert
@@ -99,7 +99,7 @@ Neue Installationen beginnen mit einem kurzen, druckfreien Lernstart:
 
 Bestehende Nutzer werden bei einem Update nicht nachträglich durch das Onboarding gezwungen. Alte lokale Lernstände werden weiterverwendet.
 
-Das Bundesland wird ausschließlich lokal gespeichert. Für alle 16 Bundesländer ist eine quellengeprüfte Lehrplan-Zuordnung hinterlegt. Rechenblitz ordnet seine Mikro-Kompetenzen den inhaltlichen Bereichen der jeweils geltenden amtlichen Grundlage zu; Übergangs- und auslaufende Fassungen werden im Audit transparent gekennzeichnet. Wo die amtliche Quelle Lernbänder, Niveaustufen oder Abschlussstandards vorgibt, bildet Rechenblitz diese Progressionslogik zusätzlich ab. Sie beeinflusst die Auswahl noch unentdeckter Lernziele in „Meine Runde“, ohne bereits beobachtete Schwierigkeiten zu verdrängen. Die Zuordnung ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
+Das Bundesland wird ausschließlich lokal gespeichert. Für alle 16 Bundesländer ist eine quellengeprüfte Lehrplan-Zuordnung hinterlegt. Rechenblitz ordnet seine Mikro-Kompetenzen den inhaltlichen Bereichen der jeweils geltenden amtlichen Grundlage zu; Übergangs- und auslaufende Fassungen werden im Audit transparent gekennzeichnet. Wo die amtliche Quelle Lernbänder, Niveaustufen oder Abschlussstandards vorgibt, bildet Rechenblitz diese Progressionslogik zusätzlich ab. Sie beeinflusst die Auswahl noch unentdeckter Lernziele in „Meine Runde“ und die Zusammensetzung des Lernchecks, ohne bereits beobachtete Schwierigkeiten zu verdrängen. Die Zuordnung ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
 
 Für Baden-Württemberg, Bayern, Berlin, Brandenburg und Nordrhein-Westfalen berücksichtigt die Progression außerdem frühe, ausdrücklich belegte Inhalte aus **Daten und Zufall** bis zum Ende der ersten beiden Schuljahre. Bayern, Berlin/Brandenburg und Nordrhein-Westfalen schalten dabei auch kleine kombinatorische Aufgaben frei. Rechenblitz verwendet dafür bewusst reduzierte, altersgerechte Varianten; die deutlich anspruchsvollere Auswertung relativer Häufigkeiten bleibt weiterhin dem späteren Lernpfad vorbehalten.
 

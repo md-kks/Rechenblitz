@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/assessment.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
+import 'package:rechenblitz/models/learner_profile.dart';
 import 'package:rechenblitz/models/learning_path.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/remediation_path.dart';
@@ -53,6 +54,7 @@ void main() {
       progress.isCompatible(
         grade: GradeLevel.second,
         range: NumberRangeLevel.hundred,
+        currentState: GermanState.thuringia,
         now: now,
       ),
       isFalse,

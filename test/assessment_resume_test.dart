@@ -48,6 +48,7 @@ void main() {
         restored.isCompatible(
           grade: GradeLevel.second,
           range: NumberRangeLevel.hundred,
+          currentState: GermanState.thuringia,
           now: now.add(const Duration(hours: 23)),
         ),
         isTrue,
@@ -56,6 +57,7 @@ void main() {
         restored.isCompatible(
           grade: GradeLevel.second,
           range: NumberRangeLevel.hundred,
+          currentState: GermanState.thuringia,
           now: now.add(const Duration(hours: 25)),
         ),
         isFalse,
@@ -64,6 +66,7 @@ void main() {
         restored.isCompatible(
           grade: GradeLevel.third,
           range: NumberRangeLevel.hundred,
+          currentState: GermanState.thuringia,
           now: now,
         ),
         isFalse,
@@ -358,5 +361,6 @@ class _FixedAssessmentGenerator extends AssessmentGenerator {
   List<AssessmentTask> generate({
     required GradeLevel grade,
     required NumberRangeLevel range,
+    GermanState state = GermanState.thuringia,
   }) => List<AssessmentTask>.from(tasks);
 }

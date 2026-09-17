@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/main.dart';
 import 'package:rechenblitz/models/assessment.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
+import 'package:rechenblitz/models/learner_profile.dart';
 import 'package:rechenblitz/models/learning_path.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
@@ -527,7 +528,7 @@ void main() {
     expect(find.text('Ein kurzer Lerncheck'), findsOneWidget);
     expect(
       find.text(
-        '12 Aufgaben ohne Zeitdruck. So findet Rechenblitz einen guten Startpunkt.',
+        '12 Aufgaben ohne Zeitdruck. Rechenblitz berücksichtigt dabei Thüringen und Klasse 3.',
       ),
       findsOneWidget,
     );
@@ -1042,5 +1043,6 @@ class _FixedAssessmentGenerator extends AssessmentGenerator {
   List<AssessmentTask> generate({
     required GradeLevel grade,
     required NumberRangeLevel range,
+    GermanState state = GermanState.thuringia,
   }) => tasks;
 }

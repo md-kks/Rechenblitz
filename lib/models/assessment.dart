@@ -1,6 +1,8 @@
 import 'dart:math';
 
+import 'curriculum_audit.dart';
 import 'curriculum_exercise.dart';
+import 'learner_profile.dart';
 import 'math_fact.dart';
 import 'micro_competency.dart';
 import 'structured_exercise.dart';
@@ -153,6 +155,7 @@ class AssessmentProgress {
     required this.nextIndex,
     required this.startedAt,
     required this.updatedAt,
+    this.state,
   });
 
   final GradeLevel gradeLevel;
@@ -162,6 +165,7 @@ class AssessmentProgress {
   final int nextIndex;
   final DateTime startedAt;
   final DateTime updatedAt;
+  final GermanState? state;
 
   bool hasSaneState({DateTime? now}) {
     final reference = now ?? DateTime.now();
@@ -174,8 +178,21 @@ class AssessmentProgress {
       return false;
     }
     if (taskResults.length != nextIndex) return false;
+    final stateDefinitions = state == null
+        ? null
+        : CurriculumAuditCatalog.definitionsForContext(
+            state!,
+            gradeLevel,
+            numberRange,
+          ).map((definition) => definition.id).toSet();
     for (final task in tasks) {
       if (!_saneAssessmentTask(task)) return false;
+      final target = task.targetCompetency;
+      if (target != null &&
+          stateDefinitions != null &&
+          !stateDefinitions.contains(target)) {
+        return false;
+      }
     }
     for (var i = 0; i < taskResults.length; i++) {
       final result = taskResults[i];
@@ -192,11 +209,16 @@ class AssessmentProgress {
   bool isCompatible({
     required GradeLevel grade,
     required NumberRangeLevel range,
+    required GermanState currentState,
     DateTime? now,
   }) {
     final reference = now ?? DateTime.now();
+    final stateMatches = state == null
+        ? currentState == GermanState.thuringia
+        : state == currentState;
     return grade == gradeLevel &&
         range == numberRange &&
+        stateMatches &&
         hasSaneState(now: reference);
   }
 
@@ -208,6 +230,7 @@ class AssessmentProgress {
         'nextIndex': nextIndex,
         'startedAt': startedAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
+        'state': state?.name,
       };
 
   factory AssessmentProgress.fromJson(Map<String, dynamic> json) =>
@@ -232,6 +255,9 @@ class AssessmentProgress {
         nextIndex: (json['nextIndex'] as num).toInt(),
         startedAt: DateTime.parse(json['startedAt'] as String),
         updatedAt: DateTime.parse(json['updatedAt'] as String),
+        state: json['state'] == null
+            ? null
+            : GermanState.values.byName(json['state'] as String),
       );
 }
 
@@ -252,11 +278,12 @@ class AssessmentGenerator {
   List<AssessmentTask> generate({
     required GradeLevel grade,
     required NumberRangeLevel range,
+    GermanState state = GermanState.thuringia,
   }) {
-    final modes = _modesFor(grade, range);
+    final modes = _modesFor(grade, range, state);
     final tasks = <AssessmentTask>[];
     for (final mode in modes) {
-      final targets = _targetsForMode(mode, grade, range);
+      final targets = _targetsForMode(mode, grade, range, state);
       for (final target in <MicroCompetencyId?>[targets.first, targets.last]) {
         AssessmentTask? candidate;
         for (var attempt = 0; attempt < 40; attempt++) {
@@ -279,9 +306,13 @@ class AssessmentGenerator {
     TrainingMode mode,
     GradeLevel grade,
     NumberRangeLevel range,
+    GermanState state,
   ) {
-    final available = MicroCompetencyCatalog.forContext(grade, range)
-        .where((definition) => definition.preferredMode == mode)
+    final available = CurriculumAuditCatalog.definitionsForContext(
+      state,
+      grade,
+      range,
+    ).where((definition) => definition.preferredMode == mode)
         .map((definition) => definition.id)
         .toList(growable: false);
 
@@ -333,6 +364,7 @@ class AssessmentGenerator {
   List<TrainingMode> _modesFor(
     GradeLevel grade,
     NumberRangeLevel range,
+    GermanState state,
   ) {
     final core = switch (grade) {
       GradeLevel.first => const <TrainingMode>[
@@ -361,21 +393,39 @@ class AssessmentGenerator {
     };
 
     final recentGradeFloor = max(0, grade.index - 1);
-    final contextModes = MicroCompetencyCatalog.forContext(grade, range)
-        .where((definition) => definition.minGrade.index >= recentGradeFloor)
-        .map((definition) => definition.preferredMode)
-        .toSet();
-    final rotating = contextModes.where((mode) => !core.contains(mode)).toList()
-      ..shuffle(_random);
+    final definitions = CurriculumAuditCatalog.definitionsForContext(
+      state,
+      grade,
+      range,
+    );
+    final stateSpecific = <TrainingMode>[];
+    final regular = <TrainingMode>[];
+    for (final definition in definitions) {
+      if (core.contains(definition.preferredMode)) continue;
+      final effectiveMin = CurriculumAuditCatalog.effectiveMinGrade(
+        state,
+        definition.id,
+      );
+      if (effectiveMin.index < definition.minGrade.index) {
+        if (!stateSpecific.contains(definition.preferredMode)) {
+          stateSpecific.add(definition.preferredMode);
+        }
+      } else if (effectiveMin.index >= recentGradeFloor &&
+          !regular.contains(definition.preferredMode)) {
+        regular.add(definition.preferredMode);
+      }
+    }
+    regular.shuffle(_random);
+    final rotating = <TrainingMode>[...stateSpecific, ...regular];
 
     final selected = <TrainingMode>[...core];
     for (final mode in rotating) {
       if (selected.length >= 6) break;
-      selected.add(mode);
+      if (!selected.contains(mode)) selected.add(mode);
     }
 
     if (selected.length < 6) {
-      final fallback = MicroCompetencyCatalog.forContext(grade, range)
+      final fallback = definitions
           .map((definition) => definition.preferredMode)
           .where((mode) => !selected.contains(mode))
           .toSet()
