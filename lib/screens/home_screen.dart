@@ -2,15 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../models/error_diagnosis.dart';
+import '../models/support_session_progress.dart';
 import '../models/training.dart';
+import '../models/training_session_progress.dart';
 import '../services/app_controller.dart';
+import 'assessment_screen.dart';
 import 'assignment_scanner_screen.dart';
 import 'competency_map_screen.dart';
 import 'curriculum_training_screen.dart';
 import 'my_round_screen.dart';
 import 'parent_screen.dart';
+import 'remediation_screen.dart';
 import 'reward_screen.dart';
 import 'settings_screen.dart';
+import 'step_recovery_screen.dart';
 import 'structured_training_screen.dart';
 import 'training_screen.dart';
 
@@ -151,6 +157,204 @@ class _HomeScreenState extends State<HomeScreen> {
     _cancelParentGate();
   }
 
+  CoreTrainingSessionProgress? _resumableCoreDraft() {
+    final draft = widget.controller.coreTrainingSessionProgress;
+    if (draft == null) return null;
+    return widget.controller.resumableCoreTrainingSession(
+      kind: draft.kind,
+      mode: draft.mode,
+      targetTasks: draft.targetTasks,
+      targetCompetency: draft.targetCompetency,
+      reviewEmphasis: draft.reviewEmphasis,
+      transferEmphasis: draft.transferEmphasis,
+      fluencyEmphasis: draft.fluencyEmphasis,
+      scaffoldFading: draft.scaffoldFading,
+      adaptiveLength: draft.adaptiveLength,
+      timeLimit: draft.timeLimitMs == null
+          ? null
+          : Duration(milliseconds: draft.timeLimitMs!),
+    );
+  }
+
+  RemediationSessionProgress? _resumableRemediationDraft() {
+    final draft = widget.controller.remediationSessionProgress;
+    if (draft == null ||
+        widget.controller.remediationReviewOnly(draft.pattern) !=
+            draft.reviewOnly) {
+      return null;
+    }
+    return widget.controller.resumableRemediationSession(
+      pattern: draft.pattern,
+      mode: draft.mode,
+      reviewOnly: draft.reviewOnly,
+    );
+  }
+
+  StepRecoverySessionProgress? _resumableStepRecoveryDraft() {
+    final draft = widget.controller.stepRecoverySessionProgress;
+    if (draft == null) return null;
+    return widget.controller.resumableStepRecoverySession(draft.focus);
+  }
+
+  _ResumeActivity? _standaloneResumeActivity() {
+    final guidedRound = widget.controller.resumableGuidedRound();
+    if (guidedRound != null && !guidedRound.isComplete) return null;
+
+    final candidates = <_ResumeActivity>[];
+    final assessment = widget.controller.resumableAssessment();
+    if (assessment != null) {
+      candidates.add(
+        _ResumeActivity(
+          kind: _ResumeKind.assessment,
+          updatedAt: assessment.updatedAt,
+          title: 'Lerncheck fortsetzen',
+          subtitle:
+              '${assessment.nextIndex} von ${assessment.tasks.length} Aufgaben beantwortet',
+          payload: assessment,
+        ),
+      );
+    }
+
+    final core = _resumableCoreDraft();
+    if (core != null) {
+      final nextTask = core.completed >= core.targetTasks
+          ? core.targetTasks
+          : core.completed + 1;
+      candidates.add(
+        _ResumeActivity(
+          kind: _ResumeKind.core,
+          updatedAt: core.updatedAt,
+          title: '${core.mode.title} fortsetzen',
+          subtitle: core.taskResolved && core.completed >= core.targetTasks
+              ? 'Letzte Aufgabe gelöst · Abschluss anzeigen'
+              : 'Aufgabe $nextTask von ${core.targetTasks}',
+          payload: core,
+        ),
+      );
+    }
+
+    final remediation = _resumableRemediationDraft();
+    if (remediation != null) {
+      final pendingFinish = remediation.index >= remediation.tasks.length;
+      candidates.add(
+        _ResumeActivity(
+          kind: _ResumeKind.remediation,
+          updatedAt: remediation.updatedAt,
+          title: remediation.reviewOnly
+              ? 'Kurze Wiederholung fortsetzen'
+              : 'Knacknuss fortsetzen',
+          subtitle: pendingFinish
+              ? '${remediation.pattern.label} · Abschluss anzeigen'
+              : '${remediation.pattern.label} · Aufgabe ${remediation.index + 1} von ${remediation.tasks.length}',
+          payload: remediation,
+        ),
+      );
+    }
+
+    final recovery = _resumableStepRecoveryDraft();
+    if (recovery != null) {
+      final pendingFinish = recovery.index >= recovery.tasks.length;
+      candidates.add(
+        _ResumeActivity(
+          kind: _ResumeKind.stepRecovery,
+          updatedAt: recovery.updatedAt,
+          title: 'Kurz üben fortsetzen',
+          subtitle: pendingFinish
+              ? '${recovery.focus.label} · Abschluss anzeigen'
+              : '${recovery.focus.label} · Aufgabe ${recovery.index + 1} von ${recovery.tasks.length}',
+          payload: recovery,
+        ),
+      );
+    }
+
+    if (candidates.isEmpty) return null;
+    candidates.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return candidates.first;
+  }
+
+  Future<void> _resumeActivity(_ResumeActivity activity) async {
+    final controller = widget.controller;
+    switch (activity.kind) {
+      case _ResumeKind.assessment:
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AssessmentScreen(controller: controller),
+          ),
+        );
+      case _ResumeKind.core:
+        await _openCoreDraft(activity.payload as CoreTrainingSessionProgress);
+      case _ResumeKind.remediation:
+        final draft = activity.payload as RemediationSessionProgress;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => RemediationScreen(
+              controller: controller,
+              pattern: draft.pattern,
+              preferredMode: draft.mode,
+            ),
+          ),
+        );
+      case _ResumeKind.stepRecovery:
+        final draft = activity.payload as StepRecoverySessionProgress;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                StepRecoveryScreen(controller: controller, focus: draft.focus),
+          ),
+        );
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _openCoreDraft(CoreTrainingSessionProgress draft) async {
+    final controller = widget.controller;
+    final route = switch (draft.kind) {
+      CoreTrainingKind.fact => MaterialPageRoute<void>(
+        builder: (_) => TrainingScreen(
+          controller: controller,
+          mode: draft.mode,
+          targetTasks: draft.targetTasks,
+          targetCompetency: draft.targetCompetency,
+          reviewEmphasis: draft.reviewEmphasis,
+          transferEmphasis: draft.transferEmphasis,
+          fluencyEmphasis: draft.fluencyEmphasis,
+          scaffoldFading: draft.scaffoldFading,
+          adaptiveLength: draft.adaptiveLength,
+          timeLimit: draft.timeLimitMs == null
+              ? null
+              : Duration(milliseconds: draft.timeLimitMs!),
+        ),
+      ),
+      CoreTrainingKind.structured => MaterialPageRoute<void>(
+        builder: (_) => StructuredTrainingScreen(
+          controller: controller,
+          mode: draft.mode,
+          targetTasks: draft.targetTasks,
+          targetCompetency: draft.targetCompetency,
+          reviewEmphasis: draft.reviewEmphasis,
+          transferEmphasis: draft.transferEmphasis,
+          fluencyEmphasis: draft.fluencyEmphasis,
+          scaffoldFading: draft.scaffoldFading,
+          adaptiveLength: draft.adaptiveLength,
+        ),
+      ),
+      CoreTrainingKind.curriculum => MaterialPageRoute<void>(
+        builder: (_) => CurriculumTrainingScreen(
+          controller: controller,
+          mode: draft.mode,
+          targetTasks: draft.targetTasks,
+          targetCompetency: draft.targetCompetency,
+          reviewEmphasis: draft.reviewEmphasis,
+          transferEmphasis: draft.transferEmphasis,
+          fluencyEmphasis: draft.fluencyEmphasis,
+          scaffoldFading: draft.scaffoldFading,
+          adaptiveLength: draft.adaptiveLength,
+        ),
+      ),
+    };
+    await Navigator.of(context).push(route);
+  }
+
   Future<void> _openMode(TrainingMode mode) async {
     if (mode.isUpperPrimary) {
       await Navigator.of(context).push(
@@ -212,6 +416,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final recommendation = controller.childRecommendationText();
+    final guidedRound = controller.resumableGuidedRound();
+    final resumeActivity = _standaloneResumeActivity();
+    final roundButtonLabel = guidedRound == null
+        ? 'Runde starten'
+        : guidedRound.isComplete
+        ? 'Heutige Runde ansehen'
+        : 'Runde fortsetzen';
 
     return Scaffold(
       appBar: AppBar(
@@ -245,6 +456,13 @@ class _HomeScreenState extends State<HomeScreen> {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 18),
+            if (resumeActivity != null) ...[
+              _ResumeCard(
+                activity: resumeActivity,
+                onResume: () => _resumeActivity(resumeActivity),
+              ),
+              const SizedBox(height: 14),
+            ],
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -273,13 +491,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 16),
                     FilledButton.icon(
                       key: const ValueKey('my-round-button'),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => MyRoundScreen(controller: controller),
-                        ),
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                MyRoundScreen(controller: controller),
+                          ),
+                        );
+                        if (mounted) setState(() {});
+                      },
+                      icon: Icon(
+                        guidedRound?.isComplete == true
+                            ? Icons.check_circle_outline_rounded
+                            : Icons.play_arrow_rounded,
                       ),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text('Runde starten'),
+                      label: Text(roundButtonLabel),
                     ),
                   ],
                 ),
@@ -325,6 +551,99 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+enum _ResumeKind { assessment, core, remediation, stepRecovery }
+
+class _ResumeActivity {
+  const _ResumeActivity({
+    required this.kind,
+    required this.updatedAt,
+    required this.title,
+    required this.subtitle,
+    required this.payload,
+  });
+
+  final _ResumeKind kind;
+  final DateTime updatedAt;
+  final String title;
+  final String subtitle;
+  final Object payload;
+
+  IconData get icon => switch (kind) {
+    _ResumeKind.assessment => Icons.route_rounded,
+    _ResumeKind.core => Icons.play_circle_outline_rounded,
+    _ResumeKind.remediation => Icons.psychology_alt_outlined,
+    _ResumeKind.stepRecovery => Icons.build_circle_outlined,
+  };
+}
+
+class _ResumeCard extends StatelessWidget {
+  const _ResumeCard({required this.activity, required this.onResume});
+
+  final _ResumeActivity activity;
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    key: const ValueKey('home-resume-card'),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 340;
+          final details = Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                activity.icon,
+                size: 30,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activity.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      activity.subtitle,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+          final button = FilledButton(
+            key: ValueKey('home-resume-${activity.kind.name}'),
+            style: FilledButton.styleFrom(minimumSize: const Size(96, 54)),
+            onPressed: onResume,
+            child: const Text('Weiter'),
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [details, const SizedBox(height: 12), button],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: details),
+              const SizedBox(width: 10),
+              button,
+            ],
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class _QuickAction extends StatelessWidget {
