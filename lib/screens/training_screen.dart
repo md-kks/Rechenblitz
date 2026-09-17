@@ -10,6 +10,7 @@ import '../models/help_preferences.dart';
 import '../models/math_fact.dart';
 import '../models/micro_competency.dart';
 import '../models/training.dart';
+import '../models/training_session_progress.dart';
 import '../models/touch_interaction.dart';
 import '../services/app_controller.dart';
 import '../widgets/guided_method_panel.dart';
@@ -48,7 +49,8 @@ class TrainingScreen extends StatefulWidget {
   State<TrainingScreen> createState() => _TrainingScreenState();
 }
 
-class _TrainingScreenState extends State<TrainingScreen> {
+class _TrainingScreenState extends State<TrainingScreen>
+    with WidgetsBindingObserver {
   HelpPreferences get _helpPreferences => widget.controller.helpPreferences;
   HelpLevel? get _manualHelpLevel => _helpPreferences.manualStartLevel;
   bool get _helpAvailable => _helpPreferences.enabled;
@@ -108,6 +110,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
   bool segmentUsedHelp = false;
   bool useTouchInput = true;
   bool helpCountedForCurrent = false;
+  bool taskFirstAttemptRecorded = false;
+  bool resumedFromDraft = false;
+  bool resumeResolvedTask = false;
   int helpLevel = 0;
   String? activeMethodKey;
   String feedback = '';
@@ -129,6 +134,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
   int multiplyCorrect = 0;
   int divideTotal = 0;
   int divideCorrect = 0;
+  Duration activeElapsedBase = Duration.zero;
+  late DateTime activeClockStartedAt;
+  bool activeClockRunning = true;
 
   int get _minusStage {
     final tried = widget.controller.facts
@@ -176,16 +184,85 @@ class _TrainingScreenState extends State<TrainingScreen> {
   @override
   void initState() {
     super.initState();
-    startedAt = DateTime.now();
-    current = _next();
-    _prepareHelpForCurrent();
-    taskShownAt = DateTime.now();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => widget.controller.speak(_spokenTask),
+    WidgetsBinding.instance.addObserver(this);
+    final saved = widget.controller.resumableCoreTrainingSession(
+      kind: CoreTrainingKind.fact,
+      mode: widget.mode,
+      targetTasks: widget.targetTasks,
+      targetCompetency: widget.targetCompetency,
+      reviewEmphasis: widget.reviewEmphasis,
+      transferEmphasis: widget.transferEmphasis,
+      fluencyEmphasis: widget.fluencyEmphasis,
+      scaffoldFading: widget.scaffoldFading,
+      adaptiveLength: widget.adaptiveLength,
+      timeLimit: widget.timeLimit,
     );
-    timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    final now = DateTime.now();
+    activeClockStartedAt = now;
+    if (saved != null) {
+      startedAt = saved.startedAt;
+      activeElapsedBase = Duration(milliseconds: saved.elapsedActiveMs);
+      elapsed = activeElapsedBase;
+      completed = saved.completed;
+      incorrectAttempts = saved.incorrectAttempts;
+      correctFirstTry = saved.correctFirstTry;
+      wrongOnCurrent = saved.wrongOnCurrent;
+      segmentUsedHelp = saved.segmentUsedHelp;
+      showHelp = saved.assistanceVisible;
+      usedHelp = saved.usedHelp;
+      useTouchInput = saved.useTouchInput;
+      helpLevel = saved.helpLevel;
+      activeMethodKey = saved.activeMethodKey;
+      currentErrorPattern = saved.currentErrorPattern;
+      checkpointIndex = saved.checkpointIndex;
+      checkpointAttempted.addAll(saved.checkpointAttempted);
+      checkpointWrongAttempts.addAll(saved.checkpointWrongAttempts);
+      hadCheckpointError = saved.hadCheckpointError;
+      taskFirstAttemptRecorded = saved.taskFirstAttemptRecorded;
+      helpCountedForCurrent = saved.helpCountedForCurrent;
+      completedResponseMs.addAll(saved.responseTimes);
+      plusTotal = saved.plusTotal;
+      plusCorrect = saved.plusCorrect;
+      minusTotal = saved.minusTotal;
+      minusCorrect = saved.minusCorrect;
+      multiplyTotal = saved.multiplyTotal;
+      multiplyCorrect = saved.multiplyCorrect;
+      divideTotal = saved.divideTotal;
+      divideCorrect = saved.divideCorrect;
+      final key = saved.currentTask['key'] as String?;
+      final matches = widget.controller.facts.where((fact) => fact.key == key);
+      current = matches.isNotEmpty
+          ? matches.first
+          : widget.controller.engine.selectNext(
+              facts: widget.controller.facts,
+              mode: widget.mode,
+              maxValue: _selectionMaxValue,
+              previousKey: null,
+              recentKeys: widget.controller.recentTaskKeys(widget.mode),
+              targetCompetency: widget.targetCompetency,
+            );
+      taskShownAt = now;
+      resumedFromDraft = true;
+      resumeResolvedTask = saved.taskResolved;
+      locked = resumeResolvedTask;
+    } else {
+      startedAt = now;
+      current = _next();
+      _prepareHelpForCurrent();
+      taskShownAt = now;
+      unawaited(_persistSession());
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() => elapsed = DateTime.now().difference(startedAt));
+      if (resumeResolvedTask) {
+        unawaited(_continueResolvedSession());
+      } else {
+        unawaited(widget.controller.speak(_spokenTask));
+      }
+    });
+    timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || !activeClockRunning) return;
+      setState(() => elapsed = _activeElapsed());
       if (widget.timeLimit != null && elapsed >= widget.timeLimit!) {
         _finish();
       }
@@ -193,9 +270,99 @@ class _TrainingScreenState extends State<TrainingScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      activeClockStartedAt = DateTime.now();
+      activeClockRunning = true;
+      return;
+    }
+    if (activeClockRunning) {
+      activeElapsedBase = _activeElapsed();
+      elapsed = activeElapsedBase;
+      activeClockRunning = false;
+      unawaited(_persistSession());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     timer?.cancel();
     super.dispose();
+  }
+
+  Duration _activeElapsed() => activeElapsedBase +
+      (activeClockRunning
+          ? DateTime.now().difference(activeClockStartedAt)
+          : Duration.zero);
+
+  CoreTrainingSessionProgress _sessionSnapshot({
+    bool? taskResolvedOverride,
+  }) =>
+      CoreTrainingSessionProgress(
+        kind: CoreTrainingKind.fact,
+        mode: widget.mode,
+        targetTasks: widget.targetTasks,
+        targetCompetency: widget.targetCompetency,
+        reviewEmphasis: widget.reviewEmphasis,
+        transferEmphasis: widget.transferEmphasis,
+        fluencyEmphasis: widget.fluencyEmphasis,
+        scaffoldFading: widget.scaffoldFading,
+        adaptiveLength: widget.adaptiveLength,
+        gradeLevel: widget.controller.effectiveGradeLevel,
+        numberRange: widget.controller.effectiveNumberRange,
+        teacherAssignmentActive: widget.controller.hasTeacherAssignment,
+        timeLimitMs: widget.timeLimit?.inMilliseconds,
+        startedAt: startedAt,
+        updatedAt: DateTime.now(),
+        currentTask: {'key': current.key},
+        elapsedActiveMs: _activeElapsed().inMilliseconds,
+        completed: completed,
+        incorrectAttempts: incorrectAttempts,
+        correctFirstTry: correctFirstTry,
+        wrongOnCurrent: wrongOnCurrent,
+        segmentUsedHelp: segmentUsedHelp,
+        assistanceVisible: showHelp,
+        usedHelp: usedHelp,
+        useTouchInput: useTouchInput,
+        helpLevel: helpLevel,
+        activeMethodKey: activeMethodKey,
+        currentErrorPattern: currentErrorPattern,
+        checkpointIndex: checkpointIndex,
+        checkpointAttempted: checkpointAttempted.toList()..sort(),
+        checkpointWrongAttempts:
+            Map<int, int>.from(checkpointWrongAttempts),
+        hadCheckpointError: hadCheckpointError,
+        taskFirstAttemptRecorded: taskFirstAttemptRecorded,
+        helpCountedForCurrent: helpCountedForCurrent,
+        responseTimes: List<int>.from(completedResponseMs),
+        plusTotal: plusTotal,
+        plusCorrect: plusCorrect,
+        minusTotal: minusTotal,
+        minusCorrect: minusCorrect,
+        multiplyTotal: multiplyTotal,
+        multiplyCorrect: multiplyCorrect,
+        divideTotal: divideTotal,
+        divideCorrect: divideCorrect,
+        taskResolved: taskResolvedOverride ?? false,
+      );
+
+  Future<void> _persistSession({bool? taskResolvedOverride}) =>
+      widget.controller.saveCoreTrainingSession(
+        _sessionSnapshot(taskResolvedOverride: taskResolvedOverride),
+      );
+
+  Future<void> _continueResolvedSession() async {
+    final adaptiveDecision = _adaptiveSegmentDecision();
+    if (adaptiveDecision.shouldStop || completed >= widget.targetTasks) {
+      await _finish(
+        adaptiveStopReason:
+            adaptiveDecision.shouldStop ? adaptiveDecision.message : null,
+      );
+      return;
+    }
+    resumeResolvedTask = false;
+    _showNextTask();
   }
 
   void _prepareHelpForCurrent() {
@@ -206,6 +373,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     checkpointLocked = false;
     hadCheckpointError = false;
     taskRememberFuture = null;
+    taskFirstAttemptRecorded = false;
     checkpointFeedback = '';
     useTouchInput = true;
 
@@ -330,19 +498,18 @@ class _TrainingScreenState extends State<TrainingScreen> {
     final firstAttempt = checkpointAttempted.add(index);
 
     if (firstAttempt) {
-      unawaited(_rememberCurrentTaskOnce());
-      unawaited(
-        widget.controller.recordIndependentStepAttempt(
-          mode: widget.mode,
-          taskKey: current.key,
-          stepKey: step.evidenceKey!,
-          competencyId: step.evidenceCompetency!,
-          correct: correct,
-          usedHelp: usedHelp || showHelp,
-          helpLevel: helpLevel,
-          methodKey: activeMethodKey,
-          evidenceWeight: step.evidenceWeight,
-        ),
+      await _persistSession();
+      await _rememberCurrentTaskOnce();
+      await widget.controller.recordIndependentStepAttempt(
+        mode: widget.mode,
+        taskKey: current.key,
+        stepKey: step.evidenceKey!,
+        competencyId: step.evidenceCompetency!,
+        correct: correct,
+        usedHelp: usedHelp || showHelp,
+        helpLevel: helpLevel,
+        methodKey: activeMethodKey,
+        evidenceWeight: step.evidenceWeight,
       );
     }
 
@@ -364,6 +531,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           activeMethodKey ??= _guide.methodKey;
         }
       });
+      await _persistSession();
       return;
     }
 
@@ -383,6 +551,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       checkpointLocked = false;
       checkpointFeedback = '';
     });
+    await _persistSession();
   }
 
   String get _spokenTask => widget.mode == TrainingMode.numberFriends
@@ -405,7 +574,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
             actual: answer,
             fact: current,
           );
-    if (wrongOnCurrent == 0) {
+    if (!taskFirstAttemptRecorded) {
+      taskFirstAttemptRecorded = true;
+      await _persistSession();
       await _rememberCurrentTaskOnce();
       await widget.controller.recordDiagnosticAttempt(
         mode: widget.mode,
@@ -437,6 +608,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       _countCompletedFact(firstTryCorrect: false);
       locked = true;
       setState(() => feedback = 'Weiter geht’s.');
+      await _persistSession(taskResolvedOverride: true);
       await Future<void>.delayed(const Duration(milliseconds: 350));
       if (!mounted || finishing) return;
       if (completed >= widget.targetTasks) {
@@ -467,6 +639,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           activeMethodKey ??= _guide.methodKey;
         }
       });
+      await _persistSession();
       return;
     }
 
@@ -497,6 +670,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     setState(() => feedback =
         ['Richtig!', 'Genau!', 'Stimmt!', 'Gut gerechnet!'][completed % 4]);
     final adaptiveDecision = _adaptiveSegmentDecision();
+    await _persistSession(taskResolvedOverride: true);
     await Future<void>.delayed(const Duration(milliseconds: 550));
     if (!mounted || finishing) return;
     if (adaptiveDecision.shouldStop) {
@@ -543,6 +717,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       feedback = '';
       locked = false;
     });
+    unawaited(_persistSession());
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => widget.controller.speak(_spokenTask),
     );
@@ -551,6 +726,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
   Future<void> _finish({String? adaptiveStopReason}) async {
     if (finishing) return;
     finishing = true;
+    activeElapsedBase = _activeElapsed();
+    elapsed = activeElapsedBase;
+    activeClockRunning = false;
     timer?.cancel();
     locked = true;
     final avg = completedResponseMs.isEmpty
@@ -583,7 +761,16 @@ class _TrainingScreenState extends State<TrainingScreen> {
     result = result.copyWith(
       starsEarned: widget.controller.rewardStarsForSession(result),
     );
-    if (completed > 0) await widget.controller.addSession(result);
+    final alreadyRecorded = widget.controller.history.any(
+      (entry) =>
+          entry.mode == widget.mode &&
+          entry.startedAt == startedAt &&
+          entry.plannedTotal == widget.targetTasks,
+    );
+    if (completed > 0 && !alreadyRecorded) {
+      await widget.controller.addSession(result);
+    }
+    await widget.controller.clearCoreTrainingSession();
     final newBadges = widget.controller.lastSessionNewBadges;
     final learningInsight = completed == 0
         ? null
@@ -670,7 +857,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Aufgabe ${completed < widget.targetTasks ? completed + 1 : widget.targetTasks} von ${widget.targetTasks}',
+                    'Aufgabe ${completed < widget.targetTasks ? completed + 1 : widget.targetTasks} von ${widget.targetTasks}${resumedFromDraft ? ' · fortgesetzt' : ''}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   if (widget.fluencyEmphasis) ...[
@@ -787,6 +974,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                           helpLevel = level.value;
                           activeMethodKey ??= _guide.methodKey;
                         });
+                        unawaited(_persistSession());
                       },
                       onGuideChanged: (guide) {
                         if (!mounted) return;
@@ -794,6 +982,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                           usedHelp = true;
                           activeMethodKey = guide.methodKey;
                         });
+                        unawaited(_persistSession());
                       },
                       onSpeak: widget.controller.speakOnDemand,
                     ),
@@ -808,6 +997,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                           helpLevel = starter.value;
                           activeMethodKey = _guide.methodKey;
                         });
+                        unawaited(_persistSession());
                       },
                       icon: const Icon(Icons.lightbulb_outline_rounded),
                       label: const Text('Ich brauche Hilfe'),
@@ -827,7 +1017,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
                       key: const ValueKey('touch-switch-keypad'),
                       onPressed: locked
                           ? null
-                          : () => setState(() => useTouchInput = false),
+                          : () {
+                              setState(() => useTouchInput = false);
+                              unawaited(_persistSession());
+                            },
                       icon: const Icon(Icons.dialpad_rounded),
                       label: const Text('Lieber eintippen'),
                     ),
@@ -842,7 +1035,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
                         key: const ValueKey('touch-switch-interaction'),
                         onPressed: locked
                             ? null
-                            : () => setState(() => useTouchInput = true),
+                            : () {
+                              setState(() => useTouchInput = true);
+                              unawaited(_persistSession());
+                            },
                         icon: const Icon(Icons.touch_app_rounded),
                         label: const Text('Lieber mit Punkten'),
                       ),

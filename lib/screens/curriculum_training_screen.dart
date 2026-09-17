@@ -11,6 +11,7 @@ import '../models/guided_method.dart';
 import '../models/help_preferences.dart';
 import '../models/micro_competency.dart';
 import '../models/training.dart';
+import '../models/training_session_progress.dart';
 import '../models/touch_interaction.dart';
 import '../services/app_controller.dart';
 import '../widgets/geometry_relation_visual.dart';
@@ -82,6 +83,9 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   bool locked = false;
   bool finishing = false;
   bool segmentUsedHelp = false;
+  bool taskFirstAttemptRecorded = false;
+  bool resumedFromDraft = false;
+  bool resumeResolvedTask = false;
   bool showHint = false;
   bool useTouchInput = true;
   int helpLevel = 0;
@@ -127,13 +131,128 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   void initState() {
     super.initState();
     generator = widget.exerciseGenerator ?? CurriculumExerciseGenerator();
-    startedAt = DateTime.now();
-    current = _next();
-    _prepareHelpForCurrent();
-    shownAt = DateTime.now();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => widget.controller.speak(current.prompt),
+    final saved = widget.exerciseGenerator == null
+        ? widget.controller.resumableCoreTrainingSession(
+      kind: CoreTrainingKind.curriculum,
+      mode: widget.mode,
+      targetTasks: widget.targetTasks,
+      targetCompetency: widget.targetCompetency,
+      reviewEmphasis: widget.reviewEmphasis,
+      transferEmphasis: widget.transferEmphasis,
+      fluencyEmphasis: widget.fluencyEmphasis,
+      scaffoldFading: widget.scaffoldFading,
+      adaptiveLength: widget.adaptiveLength,
+            timeLimit: null,
+          )
+        : null;
+    final now = DateTime.now();
+    if (saved != null) {
+      startedAt = saved.startedAt;
+      current = decodeCurriculumExercise(saved.currentTask);
+      completed = saved.completed;
+      correctFirstTry = saved.correctFirstTry;
+      incorrectAttempts = saved.incorrectAttempts;
+      wrongOnCurrent = saved.wrongOnCurrent;
+      segmentUsedHelp = saved.segmentUsedHelp;
+      showHint = saved.assistanceVisible;
+      useTouchInput = saved.useTouchInput;
+      helpLevel = saved.helpLevel;
+      activeMethodKey = saved.activeMethodKey;
+      currentErrorPattern = saved.currentErrorPattern;
+      checkpointIndex = saved.checkpointIndex;
+      checkpointAttempted.addAll(saved.checkpointAttempted);
+      checkpointWrongAttempts.addAll(saved.checkpointWrongAttempts);
+      hadCheckpointError = saved.hadCheckpointError;
+      taskFirstAttemptRecorded = saved.taskFirstAttemptRecorded;
+      responseTimes.addAll(saved.responseTimes);
+      shownAt = now;
+      resumedFromDraft = true;
+      resumeResolvedTask = saved.taskResolved;
+      locked = resumeResolvedTask;
+    } else {
+      startedAt = now;
+      current = _next();
+      _prepareHelpForCurrent();
+      shownAt = now;
+      unawaited(_persistSession());
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (resumeResolvedTask) {
+        unawaited(_continueResolvedSession());
+      } else {
+        unawaited(widget.controller.speak(current.prompt));
+      }
+    });
+  }
+
+  CoreTrainingSessionProgress _sessionSnapshot({
+    bool? taskResolvedOverride,
+  }) =>
+      CoreTrainingSessionProgress(
+        kind: CoreTrainingKind.curriculum,
+        mode: widget.mode,
+        targetTasks: widget.targetTasks,
+        targetCompetency: widget.targetCompetency,
+        reviewEmphasis: widget.reviewEmphasis,
+        transferEmphasis: widget.transferEmphasis,
+        fluencyEmphasis: widget.fluencyEmphasis,
+        scaffoldFading: widget.scaffoldFading,
+        adaptiveLength: widget.adaptiveLength,
+        gradeLevel: widget.controller.effectiveGradeLevel,
+        numberRange: widget.controller.effectiveNumberRange,
+        teacherAssignmentActive: widget.controller.hasTeacherAssignment,
+        startedAt: startedAt,
+        updatedAt: DateTime.now(),
+        currentTask: encodeCurriculumExercise(current),
+        completed: completed,
+        incorrectAttempts: incorrectAttempts,
+        correctFirstTry: correctFirstTry,
+        wrongOnCurrent: wrongOnCurrent,
+        segmentUsedHelp: segmentUsedHelp,
+        assistanceVisible: showHint,
+        useTouchInput: useTouchInput,
+        helpLevel: helpLevel,
+        activeMethodKey: activeMethodKey,
+        currentErrorPattern: currentErrorPattern,
+        checkpointIndex: checkpointIndex,
+        checkpointAttempted: checkpointAttempted.toList()..sort(),
+        checkpointWrongAttempts:
+            Map<int, int>.from(checkpointWrongAttempts),
+        hadCheckpointError: hadCheckpointError,
+        taskFirstAttemptRecorded: taskFirstAttemptRecorded,
+        responseTimes: List<int>.from(responseTimes),
+        taskResolved: taskResolvedOverride ?? false,
+      );
+
+  Future<void> _persistSession({bool? taskResolvedOverride}) {
+    if (widget.exerciseGenerator != null) return Future<void>.value();
+    return widget.controller.saveCoreTrainingSession(
+      _sessionSnapshot(taskResolvedOverride: taskResolvedOverride),
     );
+  }
+
+  Future<void> _continueResolvedSession() async {
+    final adaptiveDecision = _adaptiveSegmentDecision();
+    if (adaptiveDecision.shouldStop || completed >= widget.targetTasks) {
+      await _finish(
+        adaptiveStopReason:
+            adaptiveDecision.shouldStop ? adaptiveDecision.message : null,
+      );
+      return;
+    }
+    resumeResolvedTask = false;
+    setState(() {
+      current = _next();
+      shownAt = DateTime.now();
+      wrongOnCurrent = 0;
+      locked = false;
+      _prepareHelpForCurrent();
+      currentErrorPattern = null;
+      feedback = '';
+    });
+    await _persistSession();
+    unawaited(widget.controller.speak(current.prompt));
   }
 
   void _showManualHelp() {
@@ -144,6 +263,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       helpLevel = starter.value;
       activeMethodKey = _guide.methodKey;
     });
+    unawaited(_persistSession());
   }
 
   void _prepareHelpForCurrent() {
@@ -154,6 +274,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     checkpointLocked = false;
     hadCheckpointError = false;
     taskRememberFuture = null;
+    taskFirstAttemptRecorded = false;
     checkpointFeedback = '';
     useTouchInput = true;
 
@@ -256,19 +377,18 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     final firstAttempt = checkpointAttempted.add(index);
 
     if (firstAttempt) {
-      unawaited(_rememberCurrentTaskOnce());
-      unawaited(
-        widget.controller.recordIndependentStepAttempt(
-          mode: widget.mode,
-          taskKey: current.key,
-          stepKey: step.evidenceKey!,
-          competencyId: step.evidenceCompetency!,
-          correct: correct,
-          usedHelp: showHint,
-          helpLevel: helpLevel,
-          methodKey: activeMethodKey,
-          evidenceWeight: step.evidenceWeight,
-        ),
+      await _persistSession();
+      await _rememberCurrentTaskOnce();
+      await widget.controller.recordIndependentStepAttempt(
+        mode: widget.mode,
+        taskKey: current.key,
+        stepKey: step.evidenceKey!,
+        competencyId: step.evidenceCompetency!,
+        correct: correct,
+        usedHelp: showHint,
+        helpLevel: helpLevel,
+        methodKey: activeMethodKey,
+        evidenceWeight: step.evidenceWeight,
       );
     }
 
@@ -289,6 +409,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
           activeMethodKey ??= _guide.methodKey;
         }
       });
+      await _persistSession();
       return;
     }
 
@@ -308,6 +429,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       checkpointLocked = false;
       checkpointFeedback = '';
     });
+    await _persistSession();
   }
 
   Future<void> _answer(int answer) async {
@@ -321,7 +443,9 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
             expected: current.answer,
             actual: answer,
           );
-    if (wrongOnCurrent == 0) {
+    if (!taskFirstAttemptRecorded) {
+      taskFirstAttemptRecorded = true;
+      await _persistSession();
       await _rememberCurrentTaskOnce();
       await widget.controller.recordDiagnosticAttempt(
         mode: widget.mode,
@@ -354,6 +478,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
           activeMethodKey ??= _guide.methodKey;
         }
       });
+      await _persistSession();
       return;
     }
 
@@ -387,6 +512,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       ][completed % 4];
     });
     final adaptiveDecision = _adaptiveSegmentDecision();
+    await _persistSession(taskResolvedOverride: true);
     await Future<void>.delayed(const Duration(milliseconds: 550));
     if (!mounted || finishing) return;
     if (adaptiveDecision.shouldStop) {
@@ -406,6 +532,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       currentErrorPattern = null;
       feedback = '';
     });
+    await _persistSession();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => widget.controller.speak(current.prompt),
     );
@@ -439,7 +566,16 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     result = result.copyWith(
       starsEarned: widget.controller.rewardStarsForSession(result),
     );
-    if (completed > 0) await widget.controller.addSession(result);
+    final alreadyRecorded = widget.controller.history.any(
+      (entry) =>
+          entry.mode == widget.mode &&
+          entry.startedAt == startedAt &&
+          entry.plannedTotal == widget.targetTasks,
+    );
+    if (completed > 0 && !alreadyRecorded) {
+      await widget.controller.addSession(result);
+    }
+    await widget.controller.clearCoreTrainingSession();
     final newBadges = widget.controller.lastSessionNewBadges;
     final learningInsight = completed == 0
         ? null
@@ -505,7 +641,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Aufgabe ${completed < widget.targetTasks ? completed + 1 : widget.targetTasks} von ${widget.targetTasks}',
+              'Aufgabe ${completed < widget.targetTasks ? completed + 1 : widget.targetTasks} von ${widget.targetTasks}${resumedFromDraft ? ' · fortgesetzt' : ''}',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -610,12 +746,14 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                     helpLevel = level.value;
                     activeMethodKey ??= _guide.methodKey;
                   });
+                  unawaited(_persistSession());
                 },
                 onGuideChanged: (guide) {
                   if (!mounted) return;
                   setState(() {
                     activeMethodKey = guide.methodKey;
                   });
+                  unawaited(_persistSession());
                 },
                 onSpeak: widget.controller.speakOnDemand,
               ),
@@ -643,7 +781,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                   key: const ValueKey('touch-switch-choices'),
                   onPressed: locked
                       ? null
-                      : () => setState(() => useTouchInput = false),
+                      : () {
+                          setState(() => useTouchInput = false);
+                          unawaited(_persistSession());
+                        },
                   icon: const Icon(Icons.list_alt_rounded),
                   label: const Text('Lieber auswählen'),
                 ),
@@ -666,7 +807,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                     key: const ValueKey('touch-switch-interaction'),
                     onPressed: locked
                         ? null
-                        : () => setState(() => useTouchInput = true),
+                        : () {
+                          setState(() => useTouchInput = true);
+                          unawaited(_persistSession());
+                        },
                     icon: const Icon(Icons.touch_app_rounded),
                     label: const Text('Mit Finger lösen'),
                   ),
@@ -692,7 +836,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                     key: const ValueKey('touch-switch-keypad'),
                     onPressed: locked
                         ? null
-                        : () => setState(() => useTouchInput = false),
+                        : () {
+                          setState(() => useTouchInput = false);
+                          unawaited(_persistSession());
+                        },
                     icon: const Icon(Icons.dialpad_rounded),
                     label: const Text('Lieber eintippen'),
                   ),
@@ -708,7 +855,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
                       key: const ValueKey('touch-switch-interaction'),
                       onPressed: locked
                           ? null
-                          : () => setState(() => useTouchInput = true),
+                          : () {
+                          setState(() => useTouchInput = true);
+                          unawaited(_persistSession());
+                        },
                       icon: const Icon(Icons.touch_app_rounded),
                       label: const Text('Mit Finger lösen'),
                     ),
