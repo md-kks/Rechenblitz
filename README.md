@@ -99,7 +99,7 @@ Neue Installationen beginnen mit einem kurzen, druckfreien Lernstart:
 
 Bestehende Nutzer werden bei einem Update nicht nachträglich durch das Onboarding gezwungen. Alte lokale Lernstände werden weiterverwendet.
 
-Das Bundesland wird ausschließlich lokal gespeichert. Thüringen ist derzeit vollständig lehrplangeprüft; andere Bundesländer verwenden bis zu einem eigenen Curriculum-Audit zunächst den gemeinsamen Grundschul-Mathematikkern.
+Das Bundesland wird ausschließlich lokal gespeichert. Für alle 16 Bundesländer ist eine quellengeprüfte Lehrplan-Zuordnung hinterlegt. Rechenblitz ordnet seine Mikro-Kompetenzen den inhaltlichen Bereichen der jeweils geltenden amtlichen Grundlage zu; Übergangs- und auslaufende Fassungen werden im Audit transparent gekennzeichnet. Die Zuordnung ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
 
 ## Persönlicher Lernpfad
 
@@ -481,14 +481,14 @@ Die Lehrkraft kann den Ergebnis-QR direkt wieder scannen. Auch dieser Rückkanal
 
 ### Lehrplan-Audit
 
-Der interne Thüringen-Audit ordnet jede Mikro-Kompetenz einem Lernbereich und einer stabilen Lernziel-ID zu. Er unterscheidet zwischen:
+Der interne Lehrplan-Audit arbeitet bundeslandspezifisch. Für jedes der 16 Länder sind Quelle, Fassungsstand, zuständige Stelle und fachliche Gliederung hinterlegt. Jede Rechenblitz-Mikro-Kompetenz erhält eine stabile landesspezifische Lernziel-ID und wird einem passenden Inhaltsbereich zugeordnet. Der Audit unterscheidet zwischen:
 
 - **digital üb- und prüfbar**
 - **digital unterstützt – praktisch ergänzen**
 
 - **prozessbezogen** – z. B. Rechenweg wählen, Fehler erkennen und Plausibilität prüfen
 
-Reales Messen, Zeichnen, Falten, Bauen und Orientieren wird bewusst nicht als vollständig digital prüfbar dargestellt. Der Audit ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
+Reales Messen, Zeichnen, Falten, Bauen und Orientieren wird bewusst nicht als vollständig digital prüfbar dargestellt. Bei Ländern mit aufwachsenden oder parallel auslaufenden Fassungen zeigt Rechenblitz zusätzlich einen Übergangshinweis. Der Audit ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
 
 ### Lesen & Darstellung
 

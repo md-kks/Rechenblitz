@@ -16,15 +16,14 @@ class CurriculumAuditScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final grade = controller.gradeLevel;
-    final summary = CurriculumAuditCatalog.audit(grade);
-    final objectives = CurriculumAuditCatalog.forGrade(grade);
+    final state = controller.activeProfile.state;
+    final profile = CurriculumAuditCatalog.profileFor(state);
+    final summary = CurriculumAuditCatalog.audit(grade, state: state);
+    final objectives = CurriculumAuditCatalog.forGrade(grade, state: state);
     final domains = <String, List<CurriculumObjective>>{};
     for (final objective in objectives) {
       domains.putIfAbsent(objective.domain, () => []).add(objective);
     }
-    final thuringia =
-        controller.activeProfile.state == GermanState.thuringia;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Lehrplan-Audit')),
       body: ListView(
@@ -33,10 +32,38 @@ class CurriculumAuditScreen extends StatelessWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(
-                thuringia
-                    ? 'Detaillierte Zuordnung für Thüringen. Der Audit beschreibt die Abdeckung in Rechenblitz und ist keine amtliche Zertifizierung.'
-                    : 'Für ${controller.activeProfile.state.label} nutzt Rechenblitz derzeit den gemeinsamen Grundschul-Mathematikkern. Der detaillierte Lernziel-Audit ist momentan nur für Thüringen gepflegt.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Landesspezifische Zuordnung für ${state.label}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('${profile.sourceTitle} · ${profile.sourceVersion}'),
+                  const SizedBox(height: 4),
+                  Text(
+                    profile.authority,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(profile.structureNote),
+                  if (profile.transitionNote != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      profile.transitionNote!,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Text(
+                    'Rechenblitz ordnet seine Mikro-Kompetenzen den inhaltlichen Bereichen dieser amtlichen Grundlage zu. Stand der internen Quellenprüfung: ${CurriculumAuditCatalog.reviewedOn}. Das ist keine amtliche Zertifizierung.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ),
             ),
           ),
