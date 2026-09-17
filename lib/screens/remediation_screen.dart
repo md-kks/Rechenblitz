@@ -31,6 +31,7 @@ class RemediationScreen extends StatefulWidget {
 }
 
 class _RemediationScreenState extends State<RemediationScreen> {
+  final ScrollController _scrollController = ScrollController();
   late final bool reviewOnly;
   late final RemediationPlan plan;
   int index = 0;
@@ -38,6 +39,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
   int checkCorrect = 0;
   int checkTotal = 0;
   bool locked = false;
+  bool submitting = false;
   bool finishing = false;
   bool showHint = false;
   bool useTouchInput = true;
@@ -86,9 +88,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
       methods: widget.controller.effectiveMethodPreferences,
       reviewOnly: reviewOnly,
     );
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => widget.controller.speak(current.prompt),
-    );
+    _scheduleCurrentTask();
     unawaited(
       widget.controller.startRemediation(
         widget.pattern,
@@ -97,25 +97,61 @@ class _RemediationScreenState extends State<RemediationScreen> {
     );
   }
 
-  Future<void> _answer(int answer) async {
-    if (locked || finishing) return;
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
-    if (wrongOnCurrent == 0) {
-      await widget.controller.recordDiagnosticAttempt(
-        mode: current.mode,
-        taskKey: current.taskKey,
-        expected: current.answer,
-        actual: answer,
-        usedHelp: _currentHelpLevel > 0,
-        helpLevel: _currentHelpLevel,
-        methodKey: _guide.methodKey,
-        source: MicroEvidenceSource.remediation,
-      );
+  void _scheduleCurrentTask({bool resetViewport = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (resetViewport) _resetViewportToStart();
+      unawaited(widget.controller.speak(current.prompt));
+    });
+  }
+
+  void _resetViewportToStart() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+    });
+  }
+
+  Future<void> _answer(int answer) async {
+    if (locked || submitting || finishing) return;
+    final answeredIndex = index;
+    final answeredTask = current;
+    setState(() => submitting = true);
+
+    try {
+      if (wrongOnCurrent == 0) {
+        await widget.controller.recordDiagnosticAttempt(
+          mode: answeredTask.mode,
+          taskKey: answeredTask.taskKey,
+          expected: answeredTask.answer,
+          actual: answer,
+          usedHelp: _currentHelpLevel > 0,
+          helpLevel: _currentHelpLevel,
+          methodKey: _guide.methodKey,
+          source: MicroEvidenceSource.remediation,
+        );
+      }
+    } catch (_) {
+      if (mounted && index == answeredIndex) {
+        setState(() => submitting = false);
+      }
+      rethrow;
     }
 
-    if (answer != current.answer) {
+    if (!mounted || finishing || index != answeredIndex) return;
+
+    if (answer != answeredTask.answer) {
       wrongOnCurrent += 1;
       setState(() {
+        submitting = false;
         feedback = wrongOnCurrent == 1
             ? widget.pattern.firstResponseHint
             : 'Nutze den Hinweis und probiere es noch einmal.';
@@ -136,6 +172,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
     }
 
     setState(() {
+      submitting = false;
       feedback = wrongOnCurrent == 0
           ? 'Richtig – der Rechenweg sitzt.'
           : 'Geschafft. Der richtige Weg ist jetzt klar.';
@@ -157,9 +194,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
       useTouchInput = true;
       feedback = '';
     });
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => widget.controller.speak(current.prompt),
-    );
+    _scheduleCurrentTask(resetViewport: true);
   }
 
   Future<void> _finish() async {
@@ -220,6 +255,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
       body: SafeArea(
         child: ListView(
           key: const ValueKey('remediation-scroll'),
+          controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: [
             LinearProgressIndicator(
@@ -263,7 +299,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ],
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             if (autoHint || showHint) ...[
               LearningVisualAid(
                 pattern: widget.pattern,
@@ -295,28 +331,31 @@ class _RemediationScreenState extends State<RemediationScreen> {
                   ),
                 ),
               ),
-            const SizedBox(height: 12),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: Text(
-                feedback,
-                key: ValueKey(feedback),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w800),
+            if (feedback.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: Text(
+                  feedback,
+                  key: ValueKey(feedback),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
-            ),
-            const SizedBox(height: 18),
+              const SizedBox(height: 10),
+            ] else
+              const SizedBox(height: 6),
             if (useTouchInput && _touchInteraction != null) ...[
               TouchAnswerInteraction(
                 key: ValueKey('remediation-touch:$index:${current.taskKey}'),
                 plan: _touchInteraction!,
-                locked: locked,
+                locked: locked || submitting,
                 onAnswer: _answer,
               ),
               const SizedBox(height: 6),
               TextButton.icon(
                 key: const ValueKey('remediation-touch-switch-classic'),
-                onPressed: locked
+                onPressed: locked || submitting
                     ? null
                     : () => setState(() => useTouchInput = false),
                 icon: Icon(
@@ -334,7 +373,9 @@ class _RemediationScreenState extends State<RemediationScreen> {
                 (choiceIndex) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: FilledButton.tonal(
-                    onPressed: locked ? null : () => _answer(choiceIndex),
+                    onPressed: locked || submitting
+                        ? null
+                        : () => _answer(choiceIndex),
                     child: Text(
                       current.choices![choiceIndex],
                       textAlign: TextAlign.center,
@@ -345,7 +386,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
               if (_touchInteraction != null)
                 TextButton.icon(
                   key: const ValueKey('remediation-touch-switch-interaction'),
-                  onPressed: locked
+                  onPressed: locked || submitting
                       ? null
                       : () => setState(() => useTouchInput = true),
                   icon: const Icon(Icons.touch_app_rounded),
@@ -360,7 +401,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
               if (_touchInteraction != null)
                 TextButton.icon(
                   key: const ValueKey('remediation-touch-switch-interaction'),
-                  onPressed: locked
+                  onPressed: locked || submitting
                       ? null
                       : () => setState(() => useTouchInput = true),
                   icon: const Icon(Icons.touch_app_rounded),

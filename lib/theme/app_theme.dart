@@ -155,10 +155,28 @@ abstract final class AppTheme {
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
+        color: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return highContrast ? Colors.black : primary;
+          }
+          return highContrast ? Colors.white : const Color(0xFFF0F3F8);
+        }),
         backgroundColor: highContrast ? Colors.white : const Color(0xFFF0F3F8),
+        selectedColor: highContrast ? Colors.black : primary,
+        secondarySelectedColor: highContrast ? Colors.black : primary,
+        checkmarkColor: Colors.white,
         side: BorderSide(color: highContrast ? Colors.black87 : softBorder),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+        labelStyle: TextStyle(
+          color: WidgetStateColor.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return Colors.white;
+            if (states.contains(WidgetState.disabled)) {
+              return highContrast ? Colors.black54 : subtleText;
+            }
+            return highContrast ? Colors.black : text;
+          }),
+          fontWeight: FontWeight.w700,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       ),
       dividerTheme: DividerThemeData(

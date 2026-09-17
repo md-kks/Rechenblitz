@@ -5830,7 +5830,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
-        FilledButton.tonalIcon(
+        FilledButton.icon(
           key: const ValueKey('touch-symmetry-submit'),
           onPressed: widget.locked ? null : _submitSymmetry,
           icon: const Icon(Icons.check_rounded),

@@ -3284,6 +3284,58 @@ void main() {
   });
 
 
+  testWidgets('Förderaufgabe setzt nach richtiger Touch-Antwort den Viewport zurück', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.fourth;
+    controller.numberRange = NumberRangeLevel.million;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RemediationScreen(
+          controller: controller,
+          pattern: ErrorPattern.symmetry,
+          preferredMode: TrainingMode.symmetry,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final scrollFinder = find.descendant(
+      of: find.byKey(const ValueKey('remediation-scroll')),
+      matching: find.byType(Scrollable),
+    ).first;
+    final scrollable = tester.state<ScrollableState>(scrollFinder);
+    scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+    await tester.pump();
+    expect(scrollable.position.pixels, greaterThan(0));
+
+    final interaction = tester.widget<TouchAnswerInteraction>(
+      find.byType(TouchAnswerInteraction),
+    );
+    for (final axis in interaction.plan.correctSelectionIndexes) {
+      final chip = find.byKey(ValueKey('touch-symmetry-axis-$axis'));
+      await tester.ensureVisible(chip);
+      await tester.tap(chip);
+      await tester.pump();
+    }
+
+    final submit = find.byKey(const ValueKey('touch-symmetry-submit'));
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    await tester.tap(submit);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump();
+
+    expect(find.text('Aufgabe 2 von 8'), findsOneWidget);
+    expect(find.text('Aufgabe 3 von 8'), findsNothing);
+    expect(scrollable.position.pixels, scrollable.position.minScrollExtent);
+  });
+
+
   test('alte Kern-Förderpfade nutzen nach Key-Normalisierung vorhandene Touch-Pläne', () {
     const cases = <(ErrorPattern, TrainingMode)>[
       (ErrorPattern.numberBond, TrainingMode.numberFriends),

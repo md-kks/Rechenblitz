@@ -23,10 +23,12 @@ class StepRecoveryScreen extends StatefulWidget {
 }
 
 class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
+  final ScrollController _scrollController = ScrollController();
   late final StepRecoveryPlan plan;
   int index = 0;
   int wrongOnCurrent = 0;
   bool locked = false;
+  bool submitting = false;
   bool finishing = false;
   bool showHint = false;
   String feedback = '';
@@ -45,31 +47,65 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
       focus: widget.focus,
       range: widget.controller.numberRange,
     );
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => unawaited(widget.controller.speak(current.prompt)),
-    );
+    _scheduleCurrentTask();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scheduleCurrentTask({bool resetViewport = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (resetViewport) _resetViewportToStart();
+      unawaited(widget.controller.speak(current.prompt));
+    });
+  }
+
+  void _resetViewportToStart() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+    });
   }
 
   Future<void> _answer(int answer) async {
-    if (locked || finishing) return;
+    if (locked || submitting || finishing) return;
+    final answeredIndex = index;
+    final answeredTask = current;
+    setState(() => submitting = true);
 
-    final correct = answer == current.answer;
-    if (wrongOnCurrent == 0) {
-      await widget.controller.recordIndependentStepAttempt(
-        mode: current.mode,
-        taskKey: current.taskKey,
-        stepKey: widget.focus.stepKey,
-        competencyId: widget.focus.competencyId,
-        correct: correct,
-        usedHelp: _helpLevel > 0,
-        helpLevel: _helpLevel,
-        evidenceWeight: 0.35,
-      );
+    final correct = answer == answeredTask.answer;
+    try {
+      if (wrongOnCurrent == 0) {
+        await widget.controller.recordIndependentStepAttempt(
+          mode: answeredTask.mode,
+          taskKey: answeredTask.taskKey,
+          stepKey: widget.focus.stepKey,
+          competencyId: widget.focus.competencyId,
+          correct: correct,
+          usedHelp: _helpLevel > 0,
+          helpLevel: _helpLevel,
+          evidenceWeight: 0.35,
+        );
+      }
+    } catch (_) {
+      if (mounted && index == answeredIndex) {
+        setState(() => submitting = false);
+      }
+      rethrow;
     }
+
+    if (!mounted || finishing || index != answeredIndex) return;
 
     if (!correct) {
       wrongOnCurrent += 1;
       setState(() {
+        submitting = false;
         showHint = true;
         feedback = wrongOnCurrent == 1
             ? 'Noch nicht. Prüfe genau diesen Rechenschritt.'
@@ -85,6 +121,7 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
     }
 
     setState(() {
+      submitting = false;
       feedback = wrongOnCurrent == 0
           ? 'Richtig. Dieser Rechenschritt stimmt.'
           : 'Geschafft. Jetzt ist der Rechenschritt klar.';
@@ -105,9 +142,7 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
       showHint = false;
       feedback = '';
     });
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => unawaited(widget.controller.speak(current.prompt)),
-    );
+    _scheduleCurrentTask(resetViewport: true);
   }
 
   Future<void> _finish() async {
@@ -153,6 +188,8 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
       appBar: AppBar(title: const Text('Kurz üben')),
       body: SafeArea(
         child: ListView(
+          key: const ValueKey('step-recovery-scroll'),
+          controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: [
             LinearProgressIndicator(
@@ -190,7 +227,7 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             if (_autoHint || showHint)
               Card(
                 child: Padding(
@@ -218,24 +255,29 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
                   child: Text('Probier diese Aufgabe zuerst ohne Hilfe.'),
                 ),
               ),
-            const SizedBox(height: 12),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: Text(
-                feedback,
-                key: ValueKey(feedback),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w800),
+            if (feedback.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: Text(
+                  feedback,
+                  key: ValueKey(feedback),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
-            ),
-            const SizedBox(height: 18),
+              const SizedBox(height: 10),
+            ] else
+              const SizedBox(height: 6),
             if (current.usesChoices)
               ...List.generate(
                 current.choices!.length,
                 (choiceIndex) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: FilledButton.tonal(
-                    onPressed: locked ? null : () => _answer(choiceIndex),
+                    onPressed: locked || submitting
+                        ? null
+                        : () => _answer(choiceIndex),
                     child: Text(current.choices![choiceIndex]),
                   ),
                 ),
