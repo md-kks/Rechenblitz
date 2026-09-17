@@ -96,9 +96,19 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('german-competency-map')));
     await tester.pumpAndSettle();
-    final practiceButton = find.text('Gezielt üben').first;
-    await tester.scrollUntilVisible(practiceButton, 160);
-    await tester.tap(practiceButton);
+    final practiceButton = find.byKey(
+      const ValueKey('german-competency-practice-letterSoundMatch'),
+    );
+    await tester.scrollUntilVisible(
+      practiceButton,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.descendant(of: practiceButton, matching: find.text('Gezielt üben')),
+      findsOneWidget,
+    );
+    tester.widget<OutlinedButton>(practiceButton).onPressed!.call();
     await tester.pumpAndSettle();
 
     expect(find.text('Deutsch üben'), findsOneWidget);

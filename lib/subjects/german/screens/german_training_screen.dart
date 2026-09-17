@@ -489,55 +489,66 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     return Scaffold(
       appBar: AppBar(title: Text(_completionTitle)),
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const Icon(Icons.check_circle_outline_rounded, size: 72),
-                const SizedBox(height: 20),
-                Text(
-                  _completionTitle,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '${result.correctFirstTry} von ${result.total} beim ersten Versuch · $percent %',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                if (result.incorrectAttempts > 0) ...<Widget>[
-                  const SizedBox(height: 8),
-                  Text(
-                    '${result.incorrectAttempts} zusätzliche Versuche – du bist drangeblieben.',
-                    textAlign: TextAlign.center,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final minimumHeight = max(0.0, constraints.maxHeight - 48);
+            return SingleChildScrollView(
+              key: const ValueKey('german-completion-scroll'),
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: minimumHeight),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const Icon(Icons.check_circle_outline_rounded, size: 72),
+                      const SizedBox(height: 20),
+                      Text(
+                        _completionTitle,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        '${result.correctFirstTry} von ${result.total} beim ersten Versuch · $percent %',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      if (result.incorrectAttempts > 0) ...<Widget>[
+                        const SizedBox(height: 8),
+                        Text(
+                          '${result.incorrectAttempts} zusätzliche Versuche – du bist drangeblieben.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+                      Text(
+                        feedback.headline,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(feedback.detail, textAlign: TextAlign.center),
+                      const SizedBox(height: 14),
+                      OutlinedButton.icon(
+                        key: const ValueKey('german-round-feedback-replay'),
+                        onPressed: () => widget.speak(feedback.spokenText),
+                        icon: const Icon(Icons.volume_up_rounded),
+                        label: const Text('Feedback anhören'),
+                      ),
+                      const SizedBox(height: 20),
+                      FilledButton(
+                        key: const ValueKey('german-round-done'),
+                        onPressed: () =>
+                            Navigator.of(context).pop(_completedResult),
+                        child: const Text('Fertig'),
+                      ),
+                    ],
                   ),
-                ],
-                const SizedBox(height: 18),
-                Text(
-                  feedback.headline,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-                const SizedBox(height: 6),
-                Text(feedback.detail, textAlign: TextAlign.center),
-                const SizedBox(height: 14),
-                OutlinedButton.icon(
-                  key: const ValueKey('german-round-feedback-replay'),
-                  onPressed: () => widget.speak(feedback.spokenText),
-                  icon: const Icon(Icons.volume_up_rounded),
-                  label: const Text('Feedback anhören'),
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  key: const ValueKey('german-round-done'),
-                  onPressed: () => Navigator.of(context).pop(_completedResult),
-                  child: const Text('Fertig'),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );

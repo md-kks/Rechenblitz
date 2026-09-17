@@ -92,6 +92,7 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
             gradeLevel: assignment.gradeLevel,
             tasks: round,
             speak: widget.controller.speakOnDemand,
+            autoSpeak: widget.controller.speak,
             speakCompletion:
                 widget.controller.accessibilityPreferences.spokenRoundFeedback,
             sessionKind: GermanSessionKind.teacherAssignment,
@@ -137,6 +138,7 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<GradeLevel>(
+                isExpanded: true,
                 initialValue: grade,
                 decoration: const InputDecoration(
                   labelText: 'Klassenstufe',
@@ -156,6 +158,7 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<GermanLearningDomain>(
+                isExpanded: true,
                 initialValue: domain,
                 decoration: const InputDecoration(
                   labelText: 'Lernbereich',
@@ -175,6 +178,7 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<GermanCompetencyId>(
+                isExpanded: true,
                 key: ValueKey(
                   'german-teacher-target:${grade.name}:${domain.name}:${target?.name}',
                 ),
@@ -199,6 +203,7 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
+                isExpanded: true,
                 initialValue: tasks,
                 decoration: const InputDecoration(
                   labelText: 'Aufgabenanzahl',
@@ -233,15 +238,25 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 16),
-                      Semantics(
-                        label: 'QR-Code für den Deutsch-Lehrerauftrag',
-                        child: QrImageView(
-                          key: const ValueKey('german-teacher-qr'),
-                          data: payload,
-                          version: QrVersions.auto,
-                          size: 260,
-                          gapless: false,
-                        ),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final qrSize = constraints.maxWidth.clamp(
+                            160.0,
+                            260.0,
+                          );
+                          return Center(
+                            child: Semantics(
+                              label: 'QR-Code für den Deutsch-Lehrerauftrag',
+                              child: QrImageView(
+                                key: const ValueKey('german-teacher-qr'),
+                                data: payload,
+                                version: QrVersions.auto,
+                                size: qrSize,
+                                gapless: false,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

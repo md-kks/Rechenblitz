@@ -106,11 +106,13 @@ void main() {
     expect(restored.gradeLevel, GradeLevel.fourth);
   });
 
-  test('typed German answers ignore casing and repeated spaces', () {
+  test('typed German answers keep sentence form but forgive extra spaces', () {
     final task = GermanStarterTaskCatalog.tasks.firstWhere(
       (task) => task.interaction == GermanTaskInteraction.typedText,
     );
-    expect(task.accepts('  heute   REGNET es. '), isTrue);
+    expect(task.accepts('  Heute   regnet es. '), isTrue);
+    expect(task.accepts('heute regnet es.'), isFalse);
+    expect(task.accepts('Heute regnet es'), isFalse);
   });
   test('combined German task catalog covers every competency', () {
     final ids = <String>{};

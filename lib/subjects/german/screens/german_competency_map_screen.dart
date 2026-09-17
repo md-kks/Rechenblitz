@@ -4,6 +4,7 @@ import '../../../core/grade_level.dart';
 import '../german_competency_catalog.dart';
 import '../german_learning_domain.dart';
 import '../german_progress.dart';
+import '../german_prerequisites.dart';
 import '../german_session.dart';
 
 class GermanCompetencyMapScreen extends StatelessWidget {
@@ -84,13 +85,24 @@ class GermanCompetencyMapScreen extends StatelessWidget {
           definition.id,
           history,
         );
+        final unlock = GermanPrerequisiteResolver.status(
+          definition.id,
+          history,
+        );
+        final practiceId = unlock.isUnlocked
+            ? definition.id
+            : unlock.nextRequired?.id;
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: _CompetencyCard(
+            competencyId: definition.id.name,
             label: definition.label,
             description: definition.description,
             progress: progress,
-            onPractice: () => Navigator.of(context).pop(definition.id),
+            unlock: unlock,
+            onPractice: practiceId == null
+                ? null
+                : () => Navigator.of(context).pop(practiceId),
           ),
         );
       }),
@@ -100,16 +112,20 @@ class GermanCompetencyMapScreen extends StatelessWidget {
 
 class _CompetencyCard extends StatelessWidget {
   const _CompetencyCard({
+    required this.competencyId,
     required this.label,
     required this.description,
     required this.progress,
+    required this.unlock,
     required this.onPractice,
   });
 
+  final String competencyId;
   final String label;
   final String description;
   final GermanCompetencyProgress progress;
-  final VoidCallback onPractice;
+  final GermanCompetencyUnlockStatus unlock;
+  final VoidCallback? onPractice;
 
   @override
   Widget build(BuildContext context) {
@@ -121,29 +137,34 @@ class _CompetencyCard extends StatelessWidget {
         Icons.check_circle_outline_rounded,
       ),
     };
-    final detail = progress.attempts == 0
+    final evidence = progress.attempts == 0
         ? 'Noch keine Übungsergebnisse'
         : '${progress.correctFirstTry} von ${progress.attempts} direkt richtig';
+    final locked = !unlock.isUnlocked;
+    final next = unlock.nextRequired;
+    final detail = locked && next != null
+        ? '$evidence\nZuerst: ${next.label}'
+        : evidence;
     return Card(
+      key: ValueKey('german-competency-card-$competencyId'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           ListTile(
-            leading: Icon(status.$2),
+            leading: Icon(locked ? Icons.lock_outline_rounded : status.$2),
             title: Text(label),
-            subtitle: Text('$description\n$detail'),
+            subtitle: Text('${status.$1} · $description\n$detail'),
             isThreeLine: true,
-            trailing: Text(
-              status.$1,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
             child: OutlinedButton.icon(
+              key: ValueKey('german-competency-practice-$competencyId'),
               onPressed: onPractice,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Gezielt üben'),
+              icon: Icon(
+                locked ? Icons.account_tree_outlined : Icons.play_arrow_rounded,
+              ),
+              label: Text(locked ? 'Grundlage üben' : 'Gezielt üben'),
             ),
           ),
         ],

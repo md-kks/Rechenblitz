@@ -240,13 +240,15 @@ void main() {
     expect(returned!.correctFirstTry, 1);
   });
 
-  testWidgets('typed answer accepts normalized child input', (tester) async {
+  testWidgets('typed answer accepts correct sentence form with extra spaces', (
+    tester,
+  ) async {
     final task = GermanStarterTaskCatalog.tasks.firstWhere(
       (task) => task.interaction == GermanTaskInteraction.typedText,
     );
     await tester.pumpWidget(_app(task: task, speak: (_) async {}));
 
-    await tester.enterText(find.byType(TextField), 'heute   REGNET es.');
+    await tester.enterText(find.byType(TextField), 'Heute   regnet es.');
     await tester.tap(find.text('Prüfen'));
     await tester.pump();
 

@@ -34,6 +34,12 @@ class GermanTask {
   bool get requiresSpeech =>
       interaction == GermanTaskInteraction.listeningChoice;
   bool accepts(String answer) {
+    if (interaction == GermanTaskInteraction.typedText) {
+      final normalized = _normalizeTyped(answer);
+      return acceptedAnswers.any(
+        (value) => _normalizeTyped(value) == normalized,
+      );
+    }
     final normalized = _normalize(answer);
     return acceptedAnswers.any((value) => _normalize(value) == normalized);
   }
@@ -52,6 +58,9 @@ class GermanTask {
     return true;
   }
 
+  static String _normalizeTyped(String value) =>
+      value.trim().replaceAll(RegExp(r'\s+'), ' ');
+
   static String _normalize(String value) =>
-      value.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+      _normalizeTyped(value).toLowerCase();
 }
