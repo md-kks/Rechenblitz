@@ -13,6 +13,7 @@ import 'package:rechenblitz/subjects/german/screens/german_training_screen.dart'
 Widget _app({
   required GermanTask task,
   required Future<void> Function(String) speak,
+  Future<void> Function(String)? autoSpeak,
   void Function(GermanSessionResult)? onComplete,
   bool speakCompletion = false,
   DateTime Function()? now,
@@ -25,6 +26,7 @@ Widget _app({
     gradeLevel: task.recommendedFromGrade,
     tasks: <GermanTask>[task],
     speak: speak,
+    autoSpeak: autoSpeak,
     speakCompletion: speakCompletion,
     now: now ?? DateTime.now,
     onComplete: onComplete,
@@ -59,6 +61,27 @@ void main() {
     expect(completed, isNotNull);
     expect(completed!.taskResults.single.correctFirstTry, isFalse);
     expect(completed!.incorrectAttempts, 1);
+  });
+
+  testWidgets('shared read-aloud callback reads the current German task', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g2-noun-article-tree',
+    );
+    final spoken = <String>[];
+    await tester.pumpWidget(
+      _app(
+        task: task,
+        speak: (_) async {},
+        autoSpeak: (text) async => spoken.add(text),
+      ),
+    );
+    await tester.pump();
+
+    expect(spoken, hasLength(1));
+    expect(spoken.single, contains(task.instruction));
+    expect(spoken.single, contains(task.prompt));
   });
 
   testWidgets('listening task uses supplied local speech callback', (
@@ -106,6 +129,29 @@ void main() {
 
     expect(completed, isNotNull);
     expect(completed!.taskResults.single.responseMs, 1200);
+  });
+
+  testWidgets('word-order choices are not shown in answer order', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.interaction == GermanTaskInteraction.wordOrder,
+    );
+    final fixedNow = DateTime(2026, 9, 18, 9);
+    await tester.pumpWidget(
+      _app(task: task, speak: (_) async {}, now: () => fixedNow),
+    );
+
+    final shown = <String>[];
+    for (var index = 0; index < task.choices.length; index++) {
+      final button = tester.widget<FilledButton>(
+        find.byKey(ValueKey('german-word-choice-${task.id}-$index')),
+      );
+      shown.add((button.child! as Text).data!);
+    }
+
+    expect(shown, isNot(orderedEquals(task.choices)));
+    expect(shown.toSet(), task.choices.toSet());
   });
 
   testWidgets('word-order task can be solved entirely by touch', (

@@ -103,6 +103,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
             gradeLevel: widget.controller.gradeLevel,
             tasks: tasks,
             speak: widget.controller.speakOnDemand,
+            autoSpeak: widget.controller.speak,
             speakCompletion:
                 widget.controller.accessibilityPreferences.spokenRoundFeedback,
             sessionKind: activeDraft.sessionKind,
@@ -192,6 +193,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     if (_draft != null) return;
     final tasks = GermanAssessmentPlanner.buildRound(
       widget.controller.gradeLevel,
+      history: _history,
     );
     unawaited(_openRound(tasks, sessionKind: GermanSessionKind.assessment));
   }

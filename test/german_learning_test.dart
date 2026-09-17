@@ -135,18 +135,32 @@ void main() {
     }
   });
 
-  test('every German competency has at least three curated tasks', () {
+  test('lower-primary German competencies have six curated tasks', () {
+    final lowerPrimary = GermanCompetencyCatalog.definitions.where(
+      (definition) =>
+          definition.recommendedFromGrade.index <= GradeLevel.second.index,
+    );
+    for (final definition in lowerPrimary) {
+      expect(
+        GermanTaskCatalog.forCompetency(definition.id).length,
+        greaterThanOrEqualTo(6),
+        reason: definition.id.name,
+      );
+    }
+  });
+
+  test('every German competency has at least six curated tasks', () {
     for (final competency in GermanCompetencyId.values) {
       expect(
         GermanTaskCatalog.forCompetency(competency).length,
-        greaterThanOrEqualTo(3),
+        greaterThanOrEqualTo(6),
         reason: competency.name,
       );
     }
   });
 
   test('combined catalog has varied practice instead of one fixed task', () {
-    expect(GermanTaskCatalog.tasks.length, greaterThanOrEqualTo(90));
+    expect(GermanTaskCatalog.tasks.length, greaterThanOrEqualTo(215));
     expect(
       GermanTaskCatalog.forCompetency(GermanCompetencyId.wordRecognition),
       hasLength(greaterThanOrEqualTo(2)),

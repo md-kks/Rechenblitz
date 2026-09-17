@@ -11,42 +11,98 @@ class GermanAssessmentPlanner {
   static List<GermanTask> buildRound(
     GradeLevel gradeLevel, {
     int taskCount = 12,
+    Iterable<GermanSessionResult> history = const <GermanSessionResult>[],
   }) {
     if (taskCount < 1) return const <GermanTask>[];
+    final usage = _assessmentUsage(history);
     final selected = <GermanTask>[];
     final usedIds = <String>{};
     final usedCompetencies = <Object>{};
+
     for (final domain in GermanLearningDomain.values) {
-      final domainTasks = GermanTaskCatalog.forDomain(domain, gradeLevel);
-      for (final task in domainTasks) {
-        if (usedCompetencies.contains(task.competencyId)) continue;
-        selected.add(task);
-        usedIds.add(task.id);
-        usedCompetencies.add(task.competencyId);
-        break;
-      }
+      final candidates = _rankCandidates(
+        GermanTaskCatalog.forDomain(domain, gradeLevel),
+        usage,
+        usedCompetencies,
+      );
+      if (candidates.isEmpty) continue;
+      final task = candidates.first;
+      selected.add(task);
+      usedIds.add(task.id);
+      usedCompetencies.add(task.competencyId);
     }
 
-    var cursor = 0;
     while (selected.length < taskCount) {
       var added = false;
       for (final domain in GermanLearningDomain.values) {
-        final candidates = GermanTaskCatalog.forDomain(domain, gradeLevel);
+        final candidates = _rankCandidates(
+          GermanTaskCatalog.forDomain(
+            domain,
+            gradeLevel,
+          ).where((task) => !usedIds.contains(task.id)),
+          usage,
+          usedCompetencies,
+        );
         if (candidates.isEmpty) continue;
-        for (var offset = 0; offset < candidates.length; offset++) {
-          final task = candidates[(cursor + offset) % candidates.length];
-          if (!usedIds.add(task.id)) continue;
-          selected.add(task);
-          usedCompetencies.add(task.competencyId);
-          added = true;
-          break;
-        }
+        final task = candidates.first;
+        selected.add(task);
+        usedIds.add(task.id);
+        usedCompetencies.add(task.competencyId);
+        added = true;
         if (selected.length == taskCount) break;
       }
-      cursor += 1;
       if (!added) break;
     }
     return selected.take(taskCount).toList(growable: false);
+  }
+
+  static List<GermanTask> _rankCandidates(
+    Iterable<GermanTask> source,
+    Map<String, ({int count, DateTime lastSeen})> usage,
+    Set<Object> usedCompetencies,
+  ) {
+    final result = source.toList();
+    result.sort((a, b) {
+      final aUsedCompetency = usedCompetencies.contains(a.competencyId);
+      final bUsedCompetency = usedCompetencies.contains(b.competencyId);
+      if (aUsedCompetency != bUsedCompetency) {
+        return aUsedCompetency ? 1 : -1;
+      }
+      final aUsage = usage[a.id];
+      final bUsage = usage[b.id];
+      final aCount = aUsage?.count ?? 0;
+      final bCount = bUsage?.count ?? 0;
+      if (aCount != bCount) return aCount.compareTo(bCount);
+      if (aUsage == null && bUsage != null) return -1;
+      if (aUsage != null && bUsage == null) return 1;
+      if (aUsage != null &&
+          bUsage != null &&
+          aUsage.lastSeen != bUsage.lastSeen) {
+        return aUsage.lastSeen.compareTo(bUsage.lastSeen);
+      }
+      return a.id.compareTo(b.id);
+    });
+    return result;
+  }
+
+  static Map<String, ({int count, DateTime lastSeen})> _assessmentUsage(
+    Iterable<GermanSessionResult> history,
+  ) {
+    final result = <String, ({int count, DateTime lastSeen})>{};
+    for (final session in history) {
+      if (session.kind != GermanSessionKind.assessment) continue;
+      for (final task in session.taskResults) {
+        final previous = result[task.taskId];
+        result[task.taskId] = (
+          count: (previous?.count ?? 0) + 1,
+          lastSeen:
+              previous == null || session.finishedAt.isAfter(previous.lastSeen)
+              ? session.finishedAt
+              : previous.lastSeen,
+        );
+      }
+    }
+    return result;
   }
 }
 

@@ -125,7 +125,7 @@ class GermanExtraTaskCatalog {
       prompt: 'das Kind',
       interaction: GermanTaskInteraction.singleChoice,
       acceptedAnswers: <String>['die Kinder'],
-      choices: <String>['die Kinder', 'die Kinde', 'die Kindes'],
+      choices: <String>['die Kinder', 'die Häuser', 'die Mäuse'],
     ),
     GermanTask(
       id: 'g2-adjective-fast',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -21,6 +22,7 @@ class GermanTrainingScreen extends StatefulWidget {
     required this.gradeLevel,
     required this.tasks,
     required this.speak,
+    this.autoSpeak,
     this.speakCompletion = false,
     this.sessionKind = GermanSessionKind.practice,
     this.supportEnabled = true,
@@ -33,6 +35,7 @@ class GermanTrainingScreen extends StatefulWidget {
   final GradeLevel gradeLevel;
   final List<GermanTask> tasks;
   final GermanSpeak speak;
+  final GermanSpeak? autoSpeak;
   final bool speakCompletion;
   final GermanSessionKind sessionKind;
   final bool supportEnabled;
@@ -86,6 +89,10 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       _startedAt = initialNow;
       _responseTimer = ActiveResponseTimer(startedAt: initialNow);
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_autoReadCurrentTask());
+    });
   }
 
   @override
@@ -123,14 +130,26 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     );
   }
 
-  Future<void> _speakWithoutTiming(String text) async {
+  Future<void> _speakWithoutTiming(String text) =>
+      _speakWith(widget.speak, text);
+
+  Future<void> _speakWith(GermanSpeak speaker, String text) async {
     final pausedAt = widget.now();
     _responseTimer.pause(at: pausedAt);
     try {
-      await widget.speak(text);
+      await speaker(text);
     } finally {
       _responseTimer.resume(at: widget.now());
     }
+  }
+
+  Future<void> _autoReadCurrentTask() async {
+    final speaker = widget.autoSpeak;
+    if (speaker == null || _completed) return;
+    final text = _task.requiresSpeech
+        ? _task.spokenText!
+        : '${_task.instruction} ${_task.prompt}';
+    await _speakWith(speaker, text);
   }
 
   void _submit(String answer) {
@@ -186,6 +205,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       _responseTimer.reset(at: now);
     });
     _emitDraft(now);
+    unawaited(_autoReadCurrentTask());
   }
 
   String get _screenTitle => switch (widget.sessionKind) {
@@ -290,20 +310,58 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     GermanTaskInteraction.typedText => _buildTypedAnswer(),
   };
 
-  Widget _buildChoices() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: _task.choices
-        .map(
-          (choice) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: FilledButton.tonal(
-              onPressed: () => _submit(choice),
-              child: Text(choice),
+  List<String> _presentedChoices() {
+    final choices = List<String>.from(_task.choices);
+    if (choices.length < 2) return choices;
+    final seed = _stablePresentationSeed(
+      '${_startedAt.microsecondsSinceEpoch}:$_index:${_task.id}',
+    );
+    choices.shuffle(Random(seed));
+    if (_task.interaction == GermanTaskInteraction.wordOrder &&
+        _sameOrder(choices, _task.choices)) {
+      final first = choices.removeAt(0);
+      choices.add(first);
+    }
+    return choices;
+  }
+
+  int _stablePresentationSeed(String value) {
+    var hash = 0x811c9dc5;
+    for (final codeUnit in value.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * 0x01000193) & 0x7fffffff;
+    }
+    return hash;
+  }
+
+  bool _sameOrder(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var index = 0; index < a.length; index++) {
+      if (a[index] != b[index]) return false;
+    }
+    return true;
+  }
+
+  Widget _buildChoices() {
+    final choices = _presentedChoices();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: choices
+          .asMap()
+          .entries
+          .map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: FilledButton.tonal(
+                key: ValueKey('german-choice-${_task.id}-${entry.key}'),
+                onPressed: () => _submit(entry.value),
+                child: Text(entry.value),
+              ),
             ),
-          ),
-        )
-        .toList(),
-  );
+          )
+          .toList(),
+    );
+  }
 
   Widget _buildListening() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -319,9 +377,19 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
   );
 
   Widget _buildWordOrder(BuildContext context) {
-    final available = _task.choices
-        .where((word) => !_orderedWords.contains(word))
-        .toList();
+    final remainingUsed = <String, int>{};
+    for (final word in _orderedWords) {
+      remainingUsed[word] = (remainingUsed[word] ?? 0) + 1;
+    }
+    final available = <String>[];
+    for (final word in _presentedChoices()) {
+      final used = remainingUsed[word] ?? 0;
+      if (used > 0) {
+        remainingUsed[word] = used - 1;
+      } else {
+        available.add(word);
+      }
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -344,13 +412,16 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
           spacing: 10,
           runSpacing: 10,
           children: available
+              .asMap()
+              .entries
               .map(
-                (word) => FilledButton.tonal(
+                (entry) => FilledButton.tonal(
+                  key: ValueKey('german-word-choice-${_task.id}-${entry.key}'),
                   onPressed: () => setState(() {
-                    _orderedWords.add(word);
+                    _orderedWords.add(entry.value);
                     _feedback = null;
                   }),
-                  child: Text(word),
+                  child: Text(entry.value),
                 ),
               )
               .toList(),

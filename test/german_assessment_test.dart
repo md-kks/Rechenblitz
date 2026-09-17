@@ -24,6 +24,44 @@ void main() {
       );
     }
   });
+  test('repeated Lernchecks rotate away from recently used tasks', () {
+    final first = GermanAssessmentPlanner.buildRound(GradeLevel.second);
+    final firstSession = GermanSessionResult(
+      gradeLevel: GradeLevel.second,
+      startedAt: DateTime(2026, 9, 17, 10),
+      finishedAt: DateTime(2026, 9, 17, 10, 5),
+      kind: GermanSessionKind.assessment,
+      taskResults: first
+          .map(
+            (task) => GermanTaskResult(
+              taskId: task.id,
+              competencyId: task.competencyId,
+              correctFirstTry: true,
+              incorrectAttempts: 0,
+              responseMs: 1000,
+            ),
+          )
+          .toList(growable: false),
+    );
+
+    final second = GermanAssessmentPlanner.buildRound(
+      GradeLevel.second,
+      history: <GermanSessionResult>[firstSession],
+    );
+    final firstIds = first.map((task) => task.id).toSet();
+    final overlap = second.where((task) => firstIds.contains(task.id)).length;
+
+    expect(second, hasLength(first.length));
+    expect(overlap, lessThan(first.length));
+    final secondDomains = second
+        .map(
+          (task) =>
+              GermanCompetencyCatalog.definition(task.competencyId).domain,
+        )
+        .toSet();
+    expect(secondDomains, containsAll(GermanLearningDomain.values));
+  });
+
   test('assessment summary groups first-try evidence by domain', () {
     final tasks = GermanAssessmentPlanner.buildRound(GradeLevel.second);
     final results = tasks

@@ -221,7 +221,7 @@ void main() {
       ),
       isTrue,
     );
-    expect(round.map((task) => task.id).toSet().length, greaterThan(1));
+    expect(round.map((task) => task.id).toSet().length, 6);
   });
 
   test('targeted practice rotates away from the most recent task', () {
