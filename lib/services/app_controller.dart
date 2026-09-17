@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../models/accessibility_preferences.dart';
 import '../models/assessment.dart';
 import '../models/beta_feedback.dart';
+import '../models/curriculum_audit.dart';
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
 import '../models/help_preferences.dart';
@@ -1272,7 +1273,7 @@ class AppController extends ChangeNotifier {
       ];
     }
     if (grade == GradeLevel.second) {
-      return const [
+      final core = <TrainingMode>[
         TrainingMode.practice,
         TrainingMode.minus,
         TrainingMode.multiply,
@@ -1289,6 +1290,17 @@ class AppController extends ChangeNotifier {
         TrainingMode.measures,
         TrainingMode.geometry,
       ];
+      final stateModes = CurriculumAuditCatalog.definitionsForGrade(
+        activeProfile.state,
+        grade,
+      )
+          .where(
+            (definition) =>
+                definition.minGrade.index > grade.index &&
+                !core.contains(definition.preferredMode),
+          )
+          .map((definition) => definition.preferredMode);
+      return <TrainingMode>{...core, ...stateModes}.toList(growable: false);
     }
     return [
       TrainingMode.multiply,
@@ -1786,15 +1798,21 @@ class AppController extends ChangeNotifier {
   }
 
   List<MicroCompetencyProgress> microCompetenciesForGrade() =>
-      MicroCompetencyCatalog.forContext(gradeLevel, numberRange)
-          .map((definition) => microCompetencyProgress(definition.id))
+      CurriculumAuditCatalog.definitionsForContext(
+        activeProfile.state,
+        gradeLevel,
+        numberRange,
+      ).map((definition) => microCompetencyProgress(definition.id))
           .toList();
 
   List<MicroCompetencyProgress> microCompetenciesForMode(
     TrainingMode mode,
   ) =>
-      MicroCompetencyCatalog.forContext(gradeLevel, numberRange)
-          .where((definition) => definition.preferredMode == mode)
+      CurriculumAuditCatalog.definitionsForContext(
+        activeProfile.state,
+        gradeLevel,
+        numberRange,
+      ).where((definition) => definition.preferredMode == mode)
           .map((definition) => microCompetencyProgress(definition.id))
           .toList();
 
@@ -2596,11 +2614,42 @@ class AppController extends ChangeNotifier {
     final blocked = excluding.toSet();
     final preferred = recommendedMode();
     final definitions =
-        MicroCompetencyCatalog.forContext(gradeLevel, numberRange).where(
-      (definition) =>
-          !blocked.contains(definition.id) &&
-          _discoveryPrerequisitesReady(definition),
-    );
+        CurriculumAuditCatalog.definitionsForContext(
+          activeProfile.state,
+          gradeLevel,
+          numberRange,
+        ).where(
+          (definition) =>
+              !blocked.contains(definition.id) &&
+              _discoveryPrerequisitesReady(definition),
+        ).toList(growable: false)
+      ..sort((a, b) {
+        final aPriority = CurriculumAuditCatalog.discoveryPriority(
+          activeProfile.state,
+          gradeLevel,
+          a.id,
+        );
+        final bPriority = CurriculumAuditCatalog.discoveryPriority(
+          activeProfile.state,
+          gradeLevel,
+          b.id,
+        );
+        final curriculumOrder = bPriority.compareTo(aPriority);
+        if (curriculumOrder != 0) return curriculumOrder;
+        final aMinGrade = CurriculumAuditCatalog.effectiveMinGrade(
+          activeProfile.state,
+          a.id,
+        );
+        final bMinGrade = CurriculumAuditCatalog.effectiveMinGrade(
+          activeProfile.state,
+          b.id,
+        );
+        final gradeOrder = aMinGrade.index.compareTo(bMinGrade.index);
+        if (gradeOrder != 0) return gradeOrder;
+        return MicroCompetencyCatalog.definitions
+            .indexOf(a)
+            .compareTo(MicroCompetencyCatalog.definitions.indexOf(b));
+      });
     for (final definition in definitions) {
       final progress = microCompetencyProgress(definition.id);
       if (progress.state == MicroCompetencyState.newSkill &&
@@ -2943,7 +2992,7 @@ class AppController extends ChangeNotifier {
         reason: transferTarget != null
             ? 'Zum Schluss „${transferMicro!.definition.label}“ in einer veränderten Aufgabe anwenden.'
             : discoveryTarget != null
-                ? 'Zum Schluss „${newMicro!.definition.label}“ vorsichtig entdecken; die nötigen Grundlagen sind bereits stabil.'
+                ? 'Zum Schluss „${newMicro!.definition.label}“ vorsichtig entdecken. Lehrplan: ${CurriculumAuditCatalog.progressionFor(activeProfile.state, gradeLevel, discoveryTarget).label}; die nötigen Grundlagen sind bereits stabil.'
                 : 'Zum Schluss mit einer anderen Aufgabenart abwechslungsreich üben.',
         targetCompetency: transferTarget ?? discoveryTarget,
         transferEmphasis: transferTarget != null,
@@ -3178,7 +3227,7 @@ class AppController extends ChangeNotifier {
     if (discovery != null && discovery.definition.id != selectedDiscoveryId) {
       items.add(GuidedRoundDecisionItem(
         kind: GuidedRoundDecisionKind.discovery,
-        detail: '„${discovery.definition.label}“ könnte als neuer Teilschritt beginnen, wartet aber bis Fokus, Erhaltung oder fällige Nachweise bedient sind.',
+        detail: '„${discovery.definition.label}“ könnte als neuer Teilschritt beginnen (${CurriculumAuditCatalog.progressionFor(activeProfile.state, gradeLevel, discovery.definition.id).label}), wartet aber bis Fokus, Erhaltung oder fällige Nachweise bedient sind.',
         priority: 40,
         selected: false,
         competencyId: discovery.definition.id,
@@ -3632,6 +3681,14 @@ class AppController extends ChangeNotifier {
         focusText = priority.fluencyState == MicroFluencyState.building
             ? '„${priority.definition.label}“ ist $statusText. Im aktuellen Automatisierungsfenster sind ${(priority.fluencyAccuracy * 100).round()} % richtig bei ${priority.fluencyTaskVariety} unterschiedlichen Aufgaben; typisch braucht der Abruf ${(priority.typicalFluencyResponseMs / 1000).toStringAsFixed(1)} s. Deshalb wird kurz ohne Zeitdruck automatisiert.'
             : '„${priority.definition.label}“ ist $statusText. Für eine belastbare Automatisierungsmessung fehlen noch unterschiedliche Grundaufgaben aus normalen Übungsrunden; Blitz und Rechencheck zählen dafür nicht. Die Zeitmessung läuft nur im Hintergrund.';
+      } else if (priority.state == MicroCompetencyState.newSkill) {
+        final progression = CurriculumAuditCatalog.progressionFor(
+          activeProfile.state,
+          gradeLevel,
+          priority.definition.id,
+        );
+        focusText =
+            '„${priority.definition.label}“ ist der nächste neue Teilschritt. Lehrplan für ${activeProfile.state.label}: ${progression.label}.';
       } else {
         focusText =
             '„${priority.definition.label}“ ist der nächste sinnvolle Teilschritt in der Lernkarte.';
@@ -3673,8 +3730,13 @@ class AppController extends ChangeNotifier {
             ? 'Kurze bekannte Grundaufgaben ohne Countdown lösen. Das dient der Automatisierung und dem Erhalt; Rechenblitz misst die Antwortzeit nur im Hintergrund.'
             : 'Kurze bekannte Grundaufgaben ohne Countdown lösen. Rechenblitz misst die Antwortzeit nur im Hintergrund; Verständnis und richtige Rechenwege bleiben wichtiger als Tempo.';
       } else if (priority.state == MicroCompetencyState.newSkill) {
+        final progression = CurriculumAuditCatalog.progressionFor(
+          activeProfile.state,
+          gradeLevel,
+          priority.definition.id,
+        );
         action =
-            'Den Teilschritt zunächst mit wenigen Aufgaben vorsichtig kennenlernen; daraus entsteht erst die Beobachtungsbasis.';
+            'Den Teilschritt zunächst mit wenigen Aufgaben vorsichtig kennenlernen; daraus entsteht erst die Beobachtungsbasis. Einordnung: ${progression.label}.';
       } else {
         action =
             '3–5 Minuten gezielt „${priority.definition.label}“ üben und dabei den gewählten Schul-Rechenweg nutzen.';
@@ -3836,7 +3898,8 @@ class AppController extends ChangeNotifier {
   }
 
   bool _modeHasUnlockedMicroCompetency(TrainingMode mode) {
-    final definitions = MicroCompetencyCatalog.forContext(
+    final definitions = CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
       gradeLevel,
       numberRange,
     ).where((definition) => definition.preferredMode == mode).toList();
@@ -4080,10 +4143,18 @@ class AppController extends ChangeNotifier {
       );
     }
 
-    final foundations = MicroCompetencyCatalog.forContext(gradeLevel, numberRange)
+    final foundations = CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
+      gradeLevel,
+      numberRange,
+    )
         .where(
           (definition) =>
-              definition.appliesTo(previous) &&
+              previous.index >=
+                  CurriculumAuditCatalog.effectiveMinGrade(
+                    activeProfile.state,
+                    definition.id,
+                  ).index &&
               (definition.domain == MicroCompetencyDomain.numberSense ||
                   definition.domain == MicroCompetencyDomain.arithmetic) &&
               _rangeReadinessModes.contains(definition.preferredMode) &&
@@ -4140,10 +4211,18 @@ class AppController extends ChangeNotifier {
       );
     }
 
-    final previousIds = MicroCompetencyCatalog.forContext(gradeLevel, previous)
+    final previousIds = CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
+      gradeLevel,
+      previous,
+    )
         .map((definition) => definition.id)
         .toSet();
-    final foundations = MicroCompetencyCatalog.forContext(gradeLevel, numberRange)
+    final foundations = CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
+      gradeLevel,
+      numberRange,
+    )
         .where(
           (definition) =>
               previousIds.contains(definition.id) &&
@@ -4209,7 +4288,11 @@ class AppController extends ChangeNotifier {
       );
     }
 
-    final core = MicroCompetencyCatalog.forContext(gradeLevel, numberRange)
+    final core = CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
+      gradeLevel,
+      numberRange,
+    )
         .where(
           (definition) =>
               (definition.domain == MicroCompetencyDomain.numberSense ||
@@ -4581,7 +4664,9 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> setProfileState(GermanState value) async {
-    if (profiles.isEmpty) return;
+    if (profiles.isEmpty || activeProfile.state == value) return;
+    await clearGuidedRoundProgress();
+    await clearCoreTrainingSession();
     profiles = profiles
         .map(
           (profile) => profile.id == activeProfileId

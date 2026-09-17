@@ -19,6 +19,41 @@ enum CurriculumDomainScheme {
   hamburgFive,
 }
 
+enum CurriculumProgressionModel {
+  stateSequence,
+  gradePairs,
+  frameworkLevels,
+  primaryEnd,
+}
+
+extension CurriculumProgressionModelX on CurriculumProgressionModel {
+  String get label => switch (this) {
+    CurriculumProgressionModel.stateSequence =>
+      'Rechenblitz-Klassenstufenfolge auf Landesgrundlage',
+    CurriculumProgressionModel.gradePairs => 'Lernbänder 1/2 und 3/4',
+    CurriculumProgressionModel.frameworkLevels =>
+      'Niveaustufen über Jahrgangsbänder',
+    CurriculumProgressionModel.primaryEnd =>
+      'verbindliche Erwartungen am Ende von Klasse 4',
+  };
+}
+
+enum CurriculumProgressionStage { later, building, dueNow, catchUp }
+
+class CurriculumProgressionInfo {
+  const CurriculumProgressionInfo({
+    required this.stage,
+    required this.checkpointGrade,
+    required this.label,
+    required this.priority,
+  });
+
+  final CurriculumProgressionStage stage;
+  final GradeLevel checkpointGrade;
+  final String label;
+  final int priority;
+}
+
 class CurriculumStateProfile {
   const CurriculumStateProfile({
     required this.state,
@@ -28,6 +63,7 @@ class CurriculumStateProfile {
     required this.authority,
     required this.structureNote,
     required this.domainScheme,
+    this.progressionModel = CurriculumProgressionModel.stateSequence,
     this.transitionNote,
   });
 
@@ -38,6 +74,7 @@ class CurriculumStateProfile {
   final String authority;
   final String structureNote;
   final CurriculumDomainScheme domainScheme;
+  final CurriculumProgressionModel progressionModel;
   final String? transitionNote;
 }
 
@@ -98,6 +135,7 @@ class CurriculumAuditCatalog {
       structureNote:
           'Inhaltsbezogene Kompetenzen sind nach Zahlen und Operationen, Raum und Form, Größen und Messen sowie Daten und Zufall gegliedert.',
       domainScheme: CurriculumDomainScheme.standardFour,
+      progressionModel: CurriculumProgressionModel.gradePairs,
     ),
     GermanState.bavaria: CurriculumStateProfile(
       state: GermanState.bavaria,
@@ -108,6 +146,7 @@ class CurriculumAuditCatalog {
       structureNote:
           'Die Lernbereiche sind Zahlen und Operationen, Raum und Form, Größen und Messen sowie Daten und Zufall; Muster und Strukturen wirken übergreifend.',
       domainScheme: CurriculumDomainScheme.standardFour,
+      progressionModel: CurriculumProgressionModel.gradePairs,
     ),
     GermanState.berlin: CurriculumStateProfile(
       state: GermanState.berlin,
@@ -118,6 +157,7 @@ class CurriculumAuditCatalog {
       structureNote:
           'Fünf Leitideen: Zahlen und Operationen, Größen und Messen, Raum und Form, Gleichungen und Funktionen sowie Daten und Zufall.',
       domainScheme: CurriculumDomainScheme.berlinBrandenburg,
+      progressionModel: CurriculumProgressionModel.frameworkLevels,
     ),
     GermanState.brandenburg: CurriculumStateProfile(
       state: GermanState.brandenburg,
@@ -128,6 +168,7 @@ class CurriculumAuditCatalog {
       structureNote:
           'Fünf Leitideen: Zahlen und Operationen, Größen und Messen, Raum und Form, Gleichungen und Funktionen sowie Daten und Zufall.',
       domainScheme: CurriculumDomainScheme.berlinBrandenburg,
+      progressionModel: CurriculumProgressionModel.frameworkLevels,
     ),
     GermanState.bremen: CurriculumStateProfile(
       state: GermanState.bremen,
@@ -159,6 +200,7 @@ class CurriculumAuditCatalog {
       structureNote:
           'Bildungsstandards und Inhaltsfelder beschreiben die verbindlichen Leistungserwartungen am Ende der Jahrgangsstufe 4.',
       domainScheme: CurriculumDomainScheme.standardFour,
+      progressionModel: CurriculumProgressionModel.primaryEnd,
     ),
     GermanState.mecklenburgVorpommern: CurriculumStateProfile(
       state: GermanState.mecklenburgVorpommern,
@@ -191,6 +233,7 @@ class CurriculumAuditCatalog {
       structureNote:
           'Der Lehrplan beschreibt Kompetenzbereiche, verbindliche Inhalte und Kompetenzerwartungen für die Primarstufe.',
       domainScheme: CurriculumDomainScheme.standardFour,
+      progressionModel: CurriculumProgressionModel.gradePairs,
     ),
     GermanState.rhinelandPalatinate: CurriculumStateProfile(
       state: GermanState.rhinelandPalatinate,
@@ -260,6 +303,147 @@ class CurriculumAuditCatalog {
   static CurriculumStateProfile profileFor(GermanState state) =>
       profiles[state] ?? profiles[GermanState.thuringia]!;
 
+  static const Map<GermanState, Map<MicroCompetencyId, GradeLevel>>
+  _earlierStateCompetencies = {
+    GermanState.badenWuerttemberg: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+    },
+    GermanState.bavaria: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
+    GermanState.berlin: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
+    GermanState.brandenburg: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
+    GermanState.northRhineWestphalia: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
+  };
+
+  static GradeLevel effectiveMinGrade(
+    GermanState state,
+    MicroCompetencyId competency,
+  ) =>
+      _earlierStateCompetencies[state]?[competency] ??
+      MicroCompetencyCatalog.definition(competency).minGrade;
+
+  static List<MicroCompetencyDefinition> definitionsForGrade(
+    GermanState state,
+    GradeLevel grade,
+  ) => MicroCompetencyCatalog.definitions
+      .where(
+        (definition) =>
+            grade.index >= effectiveMinGrade(state, definition.id).index,
+      )
+      .toList(growable: false);
+
+  static List<MicroCompetencyDefinition> definitionsForContext(
+    GermanState state,
+    GradeLevel grade,
+    NumberRangeLevel range,
+  ) => definitionsForGrade(state, grade)
+      .where((definition) => definition.appliesToNumberRange(range))
+      .toList(growable: false);
+
+  static GradeLevel checkpointGradeFor(
+    GermanState state,
+    MicroCompetencyDefinition definition,
+  ) {
+    final model = profileFor(state).progressionModel;
+    final earliest = effectiveMinGrade(state, definition.id);
+    return switch (model) {
+      CurriculumProgressionModel.gradePairs ||
+      CurriculumProgressionModel.frameworkLevels =>
+        earliest.index <= GradeLevel.second.index
+            ? GradeLevel.second
+            : GradeLevel.fourth,
+      CurriculumProgressionModel.primaryEnd => GradeLevel.fourth,
+      CurriculumProgressionModel.stateSequence => earliest,
+    };
+  }
+
+  static CurriculumProgressionInfo progressionFor(
+    GermanState state,
+    GradeLevel grade,
+    MicroCompetencyId competency,
+  ) {
+    final definition = MicroCompetencyCatalog.definition(competency);
+    final profile = profileFor(state);
+    final earliest = effectiveMinGrade(state, competency);
+    final checkpoint = checkpointGradeFor(state, definition);
+    if (grade.index < earliest.index) {
+      return CurriculumProgressionInfo(
+        stage: CurriculumProgressionStage.later,
+        checkpointGrade: checkpoint,
+        label: 'ab ${earliest.label} vorgesehen',
+        priority: 0,
+      );
+    }
+    if (grade.index > checkpoint.index) {
+      return CurriculumProgressionInfo(
+        stage: CurriculumProgressionStage.catchUp,
+        checkpointGrade: checkpoint,
+        label: 'bereits vorgesehen – weiter festigen',
+        priority: 500,
+      );
+    }
+    if (grade == checkpoint) {
+      final label = switch (profile.progressionModel) {
+        CurriculumProgressionModel.gradePairs =>
+          'bis Ende ${checkpoint.label} im Lernband sichern',
+        CurriculumProgressionModel.frameworkLevels =>
+          'Niveaustufe des Jahrgangsbands sichern',
+        CurriculumProgressionModel.primaryEnd => 'bis Ende Klasse 4 sichern',
+        CurriculumProgressionModel.stateSequence =>
+          'Rechenblitz ordnet diesen Schritt ab ${earliest.label} ein',
+      };
+      return CurriculumProgressionInfo(
+        stage: CurriculumProgressionStage.dueNow,
+        checkpointGrade: checkpoint,
+        label: label,
+        priority: 450,
+      );
+    }
+    final label = switch (profile.progressionModel) {
+      CurriculumProgressionModel.gradePairs =>
+        'im Lernband bis ${checkpoint.label} aufbauen',
+      CurriculumProgressionModel.frameworkLevels =>
+        'im aktuellen Niveaustufen-Band aufbauen',
+      CurriculumProgressionModel.primaryEnd =>
+        'auf die Erwartungen am Ende von Klasse 4 aufbauen',
+      CurriculumProgressionModel.stateSequence =>
+        'in der Rechenblitz-Klassenstufenfolge weiter aufbauen',
+    };
+    return CurriculumProgressionInfo(
+      stage: CurriculumProgressionStage.building,
+      checkpointGrade: checkpoint,
+      label: label,
+      priority: 250,
+    );
+  }
+
+  static int discoveryPriority(
+    GermanState state,
+    GradeLevel grade,
+    MicroCompetencyId competency,
+  ) => progressionFor(state, grade, competency).priority;
+
   static List<CurriculumObjective> get objectives =>
       objectivesFor(GermanState.thuringia);
 
@@ -273,7 +457,7 @@ class CurriculumAuditCatalog {
             domain: _domainFor(profile, definition),
             competency: definition.id,
             mode: definition.preferredMode,
-            minGrade: definition.minGrade,
+            minGrade: effectiveMinGrade(state, definition.id),
             coverage: _coverageFor(definition.id),
             note: _noteFor(definition.id),
             processRelated: _isProcessRelated(definition.id),
@@ -293,7 +477,7 @@ class CurriculumAuditCatalog {
     GradeLevel grade, {
     GermanState state = GermanState.thuringia,
   }) {
-    final applicableDefinitions = MicroCompetencyCatalog.forGrade(grade);
+    final applicableDefinitions = definitionsForGrade(state, grade);
     final items = forGrade(grade, state: state);
     final mapped = items.map((item) => item.competency).toSet();
     final missing = applicableDefinitions
