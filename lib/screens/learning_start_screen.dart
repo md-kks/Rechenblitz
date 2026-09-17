@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/curriculum_audit.dart';
 import '../models/learner_profile.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
@@ -172,9 +173,7 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
       ),
       const SizedBox(height: 10),
       Text(
-        state == GermanState.thuringia
-            ? 'Thüringen: Lehrplan vollständig geprüft.'
-            : 'Das Bundesland hilft bei der Lehrplan-Zuordnung.',
+        '${state.label}: ${CurriculumAuditCatalog.profileFor(state).sourceTitle} ist für die Lehrplan-Zuordnung hinterlegt.',
         style: Theme.of(context).textTheme.bodySmall,
       ),
       const SizedBox(height: 28),
