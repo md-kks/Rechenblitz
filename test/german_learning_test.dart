@@ -4,6 +4,7 @@ import 'package:rechenblitz/subjects/german/german_competency.dart';
 import 'package:rechenblitz/subjects/german/german_competency_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_learning_domain.dart';
 import 'package:rechenblitz/subjects/german/german_starter_task_catalog.dart';
+import 'package:rechenblitz/subjects/german/german_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_task.dart';
 import 'package:rechenblitz/subjects/german/german_teacher_assignment.dart';
 
@@ -96,5 +97,27 @@ void main() {
       (task) => task.interaction == GermanTaskInteraction.typedText,
     );
     expect(task.accepts('  heute   REGNET es. '), isTrue);
+  });
+  test('combined German task catalog covers every competency', () {
+    final ids = <String>{};
+    for (final task in GermanTaskCatalog.tasks) {
+      expect(ids.add(task.id), isTrue, reason: 'duplicate task id ${task.id}');
+      expect(task.isWellFormed, isTrue, reason: task.id);
+    }
+    for (final competency in GermanCompetencyId.values) {
+      expect(
+        GermanTaskCatalog.forCompetency(competency),
+        isNotEmpty,
+        reason: 'missing tasks for ${competency.name}',
+      );
+    }
+  });
+
+  test('combined catalog has varied practice instead of one fixed task', () {
+    expect(GermanTaskCatalog.tasks.length, greaterThanOrEqualTo(38));
+    expect(
+      GermanTaskCatalog.forCompetency(GermanCompetencyId.wordRecognition),
+      hasLength(greaterThanOrEqualTo(2)),
+    );
   });
 }

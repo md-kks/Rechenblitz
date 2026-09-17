@@ -15,6 +15,25 @@ class GermanTaskResult {
   final bool correctFirstTry;
   final int incorrectAttempts;
   final int responseMs;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'taskId': taskId,
+    'competencyId': competencyId.name,
+    'correctFirstTry': correctFirstTry,
+    'incorrectAttempts': incorrectAttempts,
+    'responseMs': responseMs,
+  };
+
+  factory GermanTaskResult.fromJson(Map<String, dynamic> json) =>
+      GermanTaskResult(
+        taskId: json['taskId'] as String,
+        competencyId: GermanCompetencyId.values.byName(
+          json['competencyId'] as String,
+        ),
+        correctFirstTry: json['correctFirstTry'] as bool,
+        incorrectAttempts: (json['incorrectAttempts'] as num).toInt(),
+        responseMs: (json['responseMs'] as num).toInt(),
+      );
 }
 
 class GermanSessionResult {
@@ -44,4 +63,28 @@ class GermanSessionResult {
       ? 0
       : taskResults.fold<int>(0, (sum, result) => sum + result.responseMs) /
             total;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'gradeLevel': gradeLevel.name,
+    'startedAt': startedAt.toIso8601String(),
+    'finishedAt': finishedAt.toIso8601String(),
+    'taskResults': taskResults.map((result) => result.toJson()).toList(),
+  };
+
+  factory GermanSessionResult.fromJson(Map<String, dynamic> json) {
+    final rawResults = json['taskResults'];
+    if (rawResults is! List<dynamic>) {
+      throw const FormatException('taskResults missing');
+    }
+    return GermanSessionResult(
+      gradeLevel: GradeLevel.values.byName(json['gradeLevel'] as String),
+      startedAt: DateTime.parse(json['startedAt'] as String),
+      finishedAt: DateTime.parse(json['finishedAt'] as String),
+      taskResults: rawResults
+          .map(
+            (value) => GermanTaskResult.fromJson(value as Map<String, dynamic>),
+          )
+          .toList(growable: false),
+    );
+  }
 }

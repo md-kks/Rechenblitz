@@ -7,6 +7,7 @@ import '../models/support_session_progress.dart';
 import '../models/training.dart';
 import '../models/training_session_progress.dart';
 import '../services/app_controller.dart';
+import '../subjects/german/screens/german_home_screen.dart';
 import 'assessment_screen.dart';
 import 'assignment_scanner_screen.dart';
 import 'competency_map_screen.dart';
@@ -111,6 +112,22 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (_) => AssignmentScannerScreen(
                           controller: widget.controller,
                         ),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  key: const ValueKey('more-german'),
+                  leading: const Icon(Icons.menu_book_rounded),
+                  title: const Text('Deutsch'),
+                  subtitle: const Text('Lesen, Schreiben, Sprache und Hören'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            GermanHomeScreen(controller: widget.controller),
                       ),
                     );
                   },

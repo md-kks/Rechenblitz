@@ -312,6 +312,12 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ],
+                const SizedBox(height: 20),
+                FilledButton(
+                  key: const ValueKey('german-round-done'),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Fertig'),
+                ),
               ],
             ),
           ),

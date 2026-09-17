@@ -1,9 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../core/assignments/subject_assignment_envelope.dart';
+import '../core/learning_app_theme.dart';
+import '../core/learning_subject.dart';
 import '../models/teacher_assignment.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../services/assignment_launcher.dart';
+import '../subjects/german/german_practice_planner.dart';
+import '../subjects/german/german_storage_service.dart';
+import '../subjects/german/german_teacher_assignment.dart';
+import '../subjects/german/screens/german_training_screen.dart';
 import '../widgets/qr_camera_panel.dart';
 
 class AssignmentScannerScreen extends StatefulWidget {
@@ -32,59 +41,34 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
 
   Future<void> _handlePayload(String raw) async {
     if (handling) return;
-    final assignment = TeacherAssignment.tryParse(raw);
-    if (assignment == null) {
-      setState(() {
-        errorText = 'Das ist kein gültiger Rechenblitz-Auftrag.';
-      });
+    final mathAssignment = TeacherAssignment.tryParse(raw);
+    if (mathAssignment != null) {
+      await _handleMathAssignment(mathAssignment);
       return;
     }
 
+    final germanAssignment = GermanTeacherAssignment.tryParse(raw);
+    if (germanAssignment != null) {
+      await _handleGermanAssignment(germanAssignment);
+      return;
+    }
+
+    setState(() {
+      errorText = 'Das ist kein gültiger Lernauftrag.';
+    });
+  }
+
+  Future<void> _handleMathAssignment(TeacherAssignment assignment) async {
     setState(() {
       handling = true;
       errorText = null;
     });
 
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Schulauftrag erkannt'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              assignment.summary,
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              assignment.gradeLevel == widget.controller.gradeLevel
-                  ? 'Der Auftrag passt zur Klassenstufe dieses Profils.'
-                  : 'Der Auftrag ist für ${assignment.gradeLevel.label}, dieses Profil aber für ${widget.controller.gradeLevel.label}. Er wird nicht in das Profil übernommen.',
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Der QR-Code enthält keine persönlichen Schülerdaten.',
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed:
-                assignment.gradeLevel == widget.controller.gradeLevel
-                    ? () => Navigator.of(context).pop(true)
-                    : null,
-            child: const Text('Auftrag starten'),
-          ),
-        ],
-      ),
+    final accepted = await _confirmAssignment(
+      summary: assignment.summary,
+      gradeLevel: assignment.gradeLevel,
+      subjectLabel: 'Mathematik',
     );
-
     if (!mounted) return;
     if (accepted == true) {
       await launchTeacherAssignment(
@@ -93,10 +77,97 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
         assignment,
       );
     }
-    if (mounted) {
-      setState(() => handling = false);
-    }
+    if (mounted) setState(() => handling = false);
   }
+
+  Future<void> _handleGermanAssignment(
+    GermanTeacherAssignment assignment,
+  ) async {
+    setState(() {
+      handling = true;
+      errorText = null;
+    });
+
+    final accepted = await _confirmAssignment(
+      summary: assignment.summary,
+      gradeLevel: assignment.gradeLevel,
+      subjectLabel: 'Deutsch',
+    );
+    if (!mounted) return;
+    if (accepted == true) {
+      final storage = GermanStorageService(
+        profileId: widget.controller.activeProfileId,
+      );
+      final history = await storage.loadHistory();
+      final tasks = GermanPracticePlanner.buildAssignmentRound(
+        assignment: assignment,
+        history: history,
+      );
+      if (tasks.isEmpty) {
+        setState(() {
+          handling = false;
+          errorText = 'Für diesen Deutsch-Auftrag fehlen noch Aufgaben.';
+        });
+        return;
+      }
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Theme(
+            data: LearningAppTheme.build(
+              subject: LearningSubject.german,
+              accessibility: widget.controller.accessibilityPreferences,
+            ),
+            child: GermanTrainingScreen(
+              gradeLevel: assignment.gradeLevel,
+              tasks: tasks,
+              speak: widget.controller.speakOnDemand,
+              onComplete: (result) => unawaited(storage.appendSession(result)),
+            ),
+          ),
+        ),
+      );
+    }
+    if (mounted) setState(() => handling = false);
+  }
+
+  Future<bool?> _confirmAssignment({
+    required String summary,
+    required GradeLevel gradeLevel,
+    required String subjectLabel,
+  }) => showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('$subjectLabel-Auftrag erkannt'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(summary, style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          Text(
+            gradeLevel == widget.controller.gradeLevel
+                ? 'Der Auftrag passt zur Klassenstufe dieses Profils.'
+                : 'Der Auftrag ist für ${gradeLevel.label}, dieses Profil aber für ${widget.controller.gradeLevel.label}. Er wird nicht in das Profil übernommen.',
+          ),
+          const SizedBox(height: 10),
+          const Text('Der QR-Code enthält keine persönlichen Schülerdaten.'),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: gradeLevel == widget.controller.gradeLevel
+              ? () => Navigator.of(context).pop(true)
+              : null,
+          child: const Text('Auftrag starten'),
+        ),
+      ],
+    ),
+  );
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -121,7 +192,8 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
                     ? const ColoredBox(color: Colors.black)
                     : QrCameraPanel(
                         onPayload: (raw) {
-                          if (raw.startsWith(TeacherAssignment.prefix)) {
+                          if (raw.startsWith(TeacherAssignment.prefix) ||
+                              raw.startsWith(SubjectAssignmentEnvelope.prefix)) {
                             _handlePayload(raw);
                           }
                         },
@@ -148,16 +220,18 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
             ),
             const SizedBox(height: 8),
             TextField(
+              key: const ValueKey('assignment-code-input'),
               controller: codeController,
               minLines: 2,
               maxLines: 4,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                hintText: 'RB1:…',
+                hintText: 'RB1:… oder LB1:…',
               ),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
+              key: const ValueKey('assignment-code-submit'),
               onPressed: () => _handlePayload(codeController.text),
               icon: const Icon(Icons.input_rounded),
               label: const Text('Code prüfen'),
