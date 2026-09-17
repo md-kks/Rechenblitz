@@ -320,6 +320,38 @@ class GuidedRoundProgress {
       plan.every((segment) => completedRoles.contains(segment.role)) &&
       (!recoveryRequired || stepRecoveryCompleted);
 
+  bool hasSaneState({DateTime? now}) {
+    final reference = now ?? DateTime.now();
+    if (plan.isEmpty ||
+        startedAt.isAfter(updatedAt) ||
+        updatedAt.isAfter(reference.add(const Duration(minutes: 5)))) {
+      return false;
+    }
+    final roles = <GuidedRoundRole>{};
+    for (final segment in plan) {
+      if (segment.tasks <= 0 || !roles.add(segment.role)) return false;
+    }
+    if (!roles.containsAll(completedRoles)) return false;
+    for (final entry in completedTaskCounts.entries) {
+      if (!completedRoles.contains(entry.key)) return false;
+      final index = plan.indexWhere((item) => item.role == entry.key);
+      if (index < 0 ||
+          entry.value <= 0 ||
+          entry.value > plan[index].tasks) {
+        return false;
+      }
+    }
+    if (stepRecoveryCompleted &&
+        (!stepRecoveryAttempted || !recoveryRequired)) {
+      return false;
+    }
+    if (!isComplete &&
+        reference.difference(updatedAt) > const Duration(hours: 24)) {
+      return false;
+    }
+    return true;
+  }
+
   bool isCompatible({
     required GradeLevel grade,
     required NumberRangeLevel range,
@@ -327,15 +359,13 @@ class GuidedRoundProgress {
   }) {
     if (grade != gradeLevel || range != numberRange) return false;
     final reference = now ?? DateTime.now();
-    if (updatedAt.isAfter(reference.add(const Duration(minutes: 5)))) {
-      return false;
-    }
+    if (!hasSaneState(now: reference)) return false;
     if (isComplete) {
       return startedAt.year == reference.year &&
           startedAt.month == reference.month &&
           startedAt.day == reference.day;
     }
-    return reference.difference(updatedAt) <= const Duration(hours: 24);
+    return true;
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{

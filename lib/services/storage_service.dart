@@ -356,14 +356,16 @@ class StorageService {
   }
 
   Future<GuidedRoundProgress?> loadGuidedRoundProgress() async {
-    final raw = (await SharedPreferences.getInstance())
-        .getString(_profileKey(_guidedRoundKey));
+    final prefs = await SharedPreferences.getInstance();
+    final key = _profileKey(_guidedRoundKey);
+    final raw = prefs.getString(key);
     if (raw == null) return null;
     try {
       return GuidedRoundProgress.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (_) {
+      await prefs.remove(key);
       return null;
     }
   }
@@ -379,14 +381,16 @@ class StorageService {
           .remove(_profileKey(_guidedRoundKey));
 
   Future<AssessmentProgress?> loadAssessmentProgress() async {
-    final raw = (await SharedPreferences.getInstance())
-        .getString(_profileKey(_assessmentProgressKey));
+    final prefs = await SharedPreferences.getInstance();
+    final key = _profileKey(_assessmentProgressKey);
+    final raw = prefs.getString(key);
     if (raw == null) return null;
     try {
       return AssessmentProgress.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (_) {
+      await prefs.remove(key);
       return null;
     }
   }
@@ -402,14 +406,16 @@ class StorageService {
           .remove(_profileKey(_assessmentProgressKey));
 
   Future<RemediationSessionProgress?> loadRemediationSession() async {
-    final raw = (await SharedPreferences.getInstance())
-        .getString(_profileKey(_remediationSessionKey));
+    final prefs = await SharedPreferences.getInstance();
+    final key = _profileKey(_remediationSessionKey);
+    final raw = prefs.getString(key);
     if (raw == null) return null;
     try {
       return RemediationSessionProgress.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (_) {
+      await prefs.remove(key);
       return null;
     }
   }
@@ -427,14 +433,16 @@ class StorageService {
           .remove(_profileKey(_remediationSessionKey));
 
   Future<StepRecoverySessionProgress?> loadStepRecoverySession() async {
-    final raw = (await SharedPreferences.getInstance())
-        .getString(_profileKey(_stepRecoverySessionKey));
+    final prefs = await SharedPreferences.getInstance();
+    final key = _profileKey(_stepRecoverySessionKey);
+    final raw = prefs.getString(key);
     if (raw == null) return null;
     try {
       return StepRecoverySessionProgress.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (_) {
+      await prefs.remove(key);
       return null;
     }
   }
