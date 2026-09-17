@@ -605,6 +605,30 @@ class _TrainingScreenState extends State<TrainingScreen>
     }
   }
 
+  Future<void> _ensureFirstAttemptEvidence(
+    PendingFactAttempt receipt,
+  ) async {
+    if (taskFirstAttemptRecorded) return;
+    await _rememberCurrentTaskOnce();
+    await widget.controller.recordDiagnosticAttempt(
+      mode: widget.mode,
+      taskKey: current.key,
+      expected: _expectedAnswer,
+      actual: receipt.actualAnswer,
+      fact: current,
+      usedHelp: usedHelp || showHelp,
+      helpLevel: helpLevel,
+      methodKey: activeMethodKey,
+      source: _evidenceSource,
+      responseTime: _independentArithmeticSteps.isEmpty
+          ? Duration(milliseconds: receipt.responseMs)
+          : null,
+      evidenceId: '${receipt.id}:diagnostic',
+    );
+    taskFirstAttemptRecorded = true;
+    await _persistSession();
+  }
+
   Future<void> _commitFactAttempt(
     PendingFactAttempt receipt, {
     required bool restoring,
@@ -613,6 +637,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       submitting = false;
       return;
     }
+    await _ensureFirstAttemptEvidence(receipt);
     final response = Duration(milliseconds: receipt.responseMs);
     final diagnosedPattern = receipt.correct
         ? null
@@ -759,24 +784,6 @@ class _TrainingScreenState extends State<TrainingScreen>
     try {
       final response = responseTimer.elapsed();
       final correct = answer == _expectedAnswer;
-      if (!taskFirstAttemptRecorded) {
-        taskFirstAttemptRecorded = true;
-        await _persistSession();
-        await _rememberCurrentTaskOnce();
-        await widget.controller.recordDiagnosticAttempt(
-          mode: widget.mode,
-          taskKey: current.key,
-          expected: _expectedAnswer,
-          actual: answer,
-          fact: current,
-          usedHelp: usedHelp || showHelp,
-          helpLevel: helpLevel,
-          methodKey: activeMethodKey,
-          source: _evidenceSource,
-          responseTime: _independentArithmeticSteps.isEmpty ? response : null,
-        );
-      }
-
       factAttemptSequence += 1;
       final receipt = PendingFactAttempt(
         id: _factAttemptId(factAttemptSequence),

@@ -53,6 +53,7 @@ class RemediationProgress {
     this.checkCorrect = 0,
     this.checkTotal = 0,
     this.stabilityCorrect = 0,
+    this.lastEvidenceId,
   });
 
   final ErrorPattern pattern;
@@ -65,6 +66,7 @@ class RemediationProgress {
   final int checkCorrect;
   final int checkTotal;
   final int stabilityCorrect;
+  final String? lastEvidenceId;
 
   double get checkAccuracy =>
       checkTotal == 0 ? 0 : checkCorrect / checkTotal;
@@ -76,6 +78,7 @@ class RemediationProgress {
     int? checkCorrect,
     int? checkTotal,
     int? stabilityCorrect,
+    String? lastEvidenceId,
   }) =>
       RemediationProgress(
         pattern: pattern,
@@ -88,6 +91,7 @@ class RemediationProgress {
         checkCorrect: checkCorrect ?? this.checkCorrect,
         checkTotal: checkTotal ?? this.checkTotal,
         stabilityCorrect: stabilityCorrect ?? this.stabilityCorrect,
+        lastEvidenceId: lastEvidenceId ?? this.lastEvidenceId,
       );
 
   Map<String, dynamic> toJson() => {
@@ -101,6 +105,7 @@ class RemediationProgress {
         'checkCorrect': checkCorrect,
         'checkTotal': checkTotal,
         'stabilityCorrect': stabilityCorrect,
+        'lastEvidenceId': lastEvidenceId,
       };
 
   factory RemediationProgress.fromJson(Map<String, dynamic> json) =>
@@ -118,6 +123,7 @@ class RemediationProgress {
         checkCorrect: json['checkCorrect'] as int? ?? 0,
         checkTotal: json['checkTotal'] as int? ?? 0,
         stabilityCorrect: json['stabilityCorrect'] as int? ?? 0,
+        lastEvidenceId: json['lastEvidenceId'] as String?,
       );
 }
 

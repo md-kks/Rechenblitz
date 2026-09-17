@@ -155,6 +155,7 @@ class MicroCompetencyObservation {
     required this.numberRange,
     required this.taskKey,
     this.responseMs,
+    this.evidenceId,
   });
 
   final MicroCompetencyId id;
@@ -170,6 +171,7 @@ class MicroCompetencyObservation {
   final NumberRangeLevel numberRange;
   final String taskKey;
   final int? responseMs;
+  final String? evidenceId;
 
   Map<String, dynamic> toJson() => {
         'id': id.name,
@@ -185,6 +187,7 @@ class MicroCompetencyObservation {
         'numberRange': numberRange.name,
         'taskKey': taskKey,
         'responseMs': responseMs,
+        'evidenceId': evidenceId,
       };
 
   factory MicroCompetencyObservation.fromJson(
@@ -216,6 +219,7 @@ class MicroCompetencyObservation {
         ),
         taskKey: json['taskKey'] as String? ?? '',
         responseMs: (json['responseMs'] as num?)?.toInt(),
+        evidenceId: json['evidenceId'] as String?,
       );
 }
 

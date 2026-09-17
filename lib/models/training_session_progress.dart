@@ -50,6 +50,86 @@ class PendingFactAttempt {
       );
 }
 
+class PendingFirstAttemptEvidence {
+  const PendingFirstAttemptEvidence({
+    required this.id,
+    required this.taskKey,
+    required this.expected,
+    required this.actual,
+    required this.responseMs,
+    required this.usedHelp,
+    required this.helpLevel,
+    required this.source,
+    this.methodKey,
+    this.directStepKey,
+    this.directStepCompetency,
+    this.directStepEvidenceWeight = 0.35,
+  });
+
+  final String id;
+  final String taskKey;
+  final int expected;
+  final int actual;
+  final int responseMs;
+  final bool usedHelp;
+  final int helpLevel;
+  final String? methodKey;
+  final MicroEvidenceSource source;
+  final String? directStepKey;
+  final MicroCompetencyId? directStepCompetency;
+  final double directStepEvidenceWeight;
+
+  bool get hasSaneState =>
+      id.trim().isNotEmpty &&
+      taskKey.trim().isNotEmpty &&
+      responseMs >= 0 &&
+      responseMs <= 30000 &&
+      helpLevel >= 0 &&
+      helpLevel <= 3 &&
+      ((directStepKey == null && directStepCompetency == null) ||
+          (directStepKey != null &&
+              directStepKey!.trim().isNotEmpty &&
+              directStepCompetency != null &&
+              directStepEvidenceWeight > 0 &&
+              directStepEvidenceWeight <= 0.5));
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'taskKey': taskKey,
+        'expected': expected,
+        'actual': actual,
+        'responseMs': responseMs,
+        'usedHelp': usedHelp,
+        'helpLevel': helpLevel,
+        'methodKey': methodKey,
+        'source': source.name,
+        'directStepKey': directStepKey,
+        'directStepCompetency': directStepCompetency?.name,
+        'directStepEvidenceWeight': directStepEvidenceWeight,
+      };
+
+  factory PendingFirstAttemptEvidence.fromJson(Map<String, dynamic> json) =>
+      PendingFirstAttemptEvidence(
+        id: json['id'] as String,
+        taskKey: json['taskKey'] as String,
+        expected: json['expected'] as int,
+        actual: json['actual'] as int,
+        responseMs: json['responseMs'] as int,
+        usedHelp: json['usedHelp'] as bool? ?? false,
+        helpLevel: json['helpLevel'] as int? ?? 0,
+        methodKey: json['methodKey'] as String?,
+        source: MicroEvidenceSource.values.byName(json['source'] as String),
+        directStepKey: json['directStepKey'] as String?,
+        directStepCompetency: json['directStepCompetency'] == null
+            ? null
+            : MicroCompetencyId.values.byName(
+                json['directStepCompetency'] as String,
+              ),
+        directStepEvidenceWeight:
+            (json['directStepEvidenceWeight'] as num?)?.toDouble() ?? 0.35,
+      );
+}
+
 class CoreTrainingSessionProgress {
   const CoreTrainingSessionProgress({
     required this.kind,
@@ -88,6 +168,7 @@ class CoreTrainingSessionProgress {
     this.helpCountedForCurrent = false,
     this.factAttemptSequence = 0,
     this.pendingFactAttempt,
+    this.pendingFirstAttemptEvidence,
     this.responseTimes = const <int>[],
     this.plusTotal = 0,
     this.plusCorrect = 0,
@@ -138,6 +219,7 @@ class CoreTrainingSessionProgress {
   final bool helpCountedForCurrent;
   final int factAttemptSequence;
   final PendingFactAttempt? pendingFactAttempt;
+  final PendingFirstAttemptEvidence? pendingFirstAttemptEvidence;
   final List<int> responseTimes;
   final int plusTotal;
   final int plusCorrect;
@@ -192,6 +274,12 @@ class CoreTrainingSessionProgress {
       return false;
     }
     if (kind != CoreTrainingKind.fact && factAttemptSequence != 0) return false;
+    final pendingEvidence = pendingFirstAttemptEvidence;
+    if (pendingEvidence != null &&
+        (!pendingEvidence.hasSaneState ||
+            pendingEvidence.taskKey != currentTask['key'])) {
+      return false;
+    }
 
     try {
       switch (kind) {
@@ -284,6 +372,7 @@ class CoreTrainingSessionProgress {
     'helpCountedForCurrent': helpCountedForCurrent,
     'factAttemptSequence': factAttemptSequence,
     'pendingFactAttempt': pendingFactAttempt?.toJson(),
+    'pendingFirstAttemptEvidence': pendingFirstAttemptEvidence?.toJson(),
     'responseTimes': responseTimes,
     'plusTotal': plusTotal,
     'plusCorrect': plusCorrect,
@@ -359,6 +448,12 @@ class CoreTrainingSessionProgress {
               json['pendingFactAttempt'] as Map<String, dynamic>,
             )
           : null,
+      pendingFirstAttemptEvidence:
+          json['pendingFirstAttemptEvidence'] is Map<String, dynamic>
+              ? PendingFirstAttemptEvidence.fromJson(
+                  json['pendingFirstAttemptEvidence'] as Map<String, dynamic>,
+                )
+              : null,
       responseTimes: (json['responseTimes'] as List<dynamic>? ?? const [])
           .cast<int>(),
       plusTotal: json['plusTotal'] as int? ?? 0,
