@@ -105,9 +105,19 @@ class _CompetencyMapScreenState extends State<CompetencyMapScreen> {
             }.contains(mode),
           )
           .toList();
+      final dataChance = modes
+          .where(
+            (mode) => {
+              TrainingMode.dataCharts,
+              TrainingMode.probability,
+              TrainingMode.combinatorics,
+            }.contains(mode),
+          )
+          .toList();
       return [
         ('Zahlen & Rechnen', numbers),
         if (everyday.isNotEmpty) ('Sachrechnen, Größen & Geometrie', everyday),
+        if (dataChance.isNotEmpty) ('Daten & Zufall', dataChance),
       ];
     }
 

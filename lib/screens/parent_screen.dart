@@ -4,6 +4,7 @@ import '../models/error_diagnosis.dart';
 import '../models/help_preferences.dart';
 import '../models/learning_methods.dart';
 import '../models/learning_path.dart';
+import '../models/learner_profile.dart';
 import '../models/math_fact.dart';
 import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
@@ -123,8 +124,7 @@ class _ParentScreenState extends State<ParentScreen> {
         today.fold<int>(0, (s, e) => s + e.incorrectAttempts);
     final todayTasks = today.fold<int>(0, (s, e) => s + e.total);
     final todayAccuracy = todayTasks == 0 ? 0.0 : todayCorrect / todayTasks;
-    final fluencyProgress = MicroCompetencyCatalog.forGrade(c.gradeLevel)
-        .map((definition) => c.microCompetencyProgress(definition.id))
+    final fluencyProgress = c.microCompetenciesForGrade()
         .where(
           (progress) =>
               progress.fluencyState != MicroFluencyState.notApplicable,
@@ -157,7 +157,7 @@ class _ParentScreenState extends State<ParentScreen> {
                 final stacked = constraints.maxWidth < 420 ||
                     MediaQuery.textScalerOf(context).scale(1) > 1.4;
                 final frame = Text(
-                  '${c.activeProfileName} · ${c.gradeLevel.label} · Zahlenraum ${c.numberRange.label}',
+                  '${c.activeProfileName} · ${c.gradeLevel.label} · ${c.activeProfile.state.label} · Zahlenraum ${c.numberRange.label}',
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium

@@ -99,7 +99,7 @@ Neue Installationen beginnen mit einem kurzen, druckfreien Lernstart:
 
 Bestehende Nutzer werden bei einem Update nicht nachträglich durch das Onboarding gezwungen. Alte lokale Lernstände werden weiterverwendet.
 
-Das Bundesland wird ausschließlich lokal gespeichert. Für alle 16 Bundesländer ist eine quellengeprüfte Lehrplan-Zuordnung hinterlegt. Rechenblitz ordnet seine Mikro-Kompetenzen den inhaltlichen Bereichen der jeweils geltenden amtlichen Grundlage zu; Übergangs- und auslaufende Fassungen werden im Audit transparent gekennzeichnet. Wo die amtliche Quelle Lernbänder, Niveaustufen oder Abschlussstandards vorgibt, bildet Rechenblitz diese Progressionslogik zusätzlich ab. Sie beeinflusst die Auswahl noch unentdeckter Lernziele in „Meine Runde“ und die Zusammensetzung des Lernchecks, ohne bereits beobachtete Schwierigkeiten zu verdrängen. Die Zuordnung ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
+Das Bundesland wird ausschließlich lokal im Profil gespeichert. Für Lehrer- und Ergebnis-QRs wird nur der notwendige Lehrplan-Kontext des Auftrags übertragen, nicht das Profil selbst. Für alle 16 Bundesländer ist eine quellengeprüfte Lehrplan-Zuordnung hinterlegt. Rechenblitz ordnet seine Mikro-Kompetenzen den inhaltlichen Bereichen der jeweils geltenden amtlichen Grundlage zu; Übergangs- und auslaufende Fassungen werden im Audit transparent gekennzeichnet. Wo die amtliche Quelle Lernbänder, Niveaustufen oder Abschlussstandards vorgibt, bildet Rechenblitz diese Progressionslogik zusätzlich ab. Sie beeinflusst die Auswahl noch unentdeckter Lernziele in „Meine Runde“ und die Zusammensetzung des Lernchecks, ohne bereits beobachtete Schwierigkeiten zu verdrängen. Die Zuordnung ist eine interne Abdeckungsprüfung und keine amtliche Zertifizierung.
 
 Für Baden-Württemberg, Bayern, Berlin, Brandenburg und Nordrhein-Westfalen berücksichtigt die Progression außerdem frühe, ausdrücklich belegte Inhalte aus **Daten und Zufall** bis zum Ende der ersten beiden Schuljahre. Bayern, Berlin/Brandenburg und Nordrhein-Westfalen schalten dabei auch kleine kombinatorische Aufgaben frei. Rechenblitz verwendet dafür bewusst reduzierte, altersgerechte Varianten; die deutlich anspruchsvollere Auswertung relativer Häufigkeiten bleibt weiterhin dem späteren Lernpfad vorbehalten.
 
@@ -462,18 +462,19 @@ Die Hilfestufe „Darstellung“ zeigt inzwischen aufgabenspezifische Mathematik
 Lehrkräfte können einen Lernauftrag aus:
 
 - Klassenstufe
+- Bundesland / Lehrplan-Kontext
 - Zahlenraum
 - Mikro-Lernziel
 - Aufgabenanzahl
 - Rechenweg
 - optionalem Transfer-Schwerpunkt
 
-erzeugen. Der QR-Code enthält **keinen Namen, keine Profil-ID und keinen Lernverlauf**. Beim Scannen wird der Auftrag nur als temporärer Sitzungsrahmen verwendet; persönliche Profileinstellungen werden danach wiederhergestellt. Aufträge für eine andere Klassenstufe werden nicht still in das Profil übernommen.
+erzeugen. Der QR-Code enthält **keinen Namen, keine Profil-ID und keinen Lernverlauf**. Beim Scannen wird der Auftrag nur als temporärer Sitzungsrahmen verwendet; persönliche Profileinstellungen werden danach wiederhergestellt. Neue Aufträge tragen den Lehrplan-Kontext des Bundeslands mit. Aufträge für eine andere Klassenstufe oder ein anderes Bundesland werden nicht still in das Profil übernommen; ältere QR-Aufträge ohne Bundesland werden gegen den aktiven Landespfad geprüft.
 
 Nach einer vollständig bearbeiteten Schulrunde erzeugt Rechenblitz zusätzlich einen **Ergebnis-QR**. Dieser enthält nur:
 
 - eine stabile Auftrags-ID
-- Lernziel und Zahlenraum des Auftrags
+- Bundesland, Lernziel und Zahlenraum des Auftrags
 - bearbeitete Aufgaben
 - direkt richtige Antworten und Fehlversuche
 - durchschnittliche Antwortzeit

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/learner_profile.dart';
 import '../models/teacher_assignment.dart';
 import '../models/teacher_assignment_result.dart';
 import '../models/training.dart';
@@ -23,6 +24,20 @@ Future<void> launchTeacherAssignment(
             'Das aktive Profil ist ${controller.gradeLevel.label}.',
           ),
         ),
+      );
+    }
+    return;
+  }
+
+  if (!assignment.isCompatibleWithState(controller.activeProfile.state)) {
+    if (context.mounted) {
+      final assignmentState = assignment.state;
+      final text = assignmentState != null &&
+              assignmentState != controller.activeProfile.state
+          ? 'Dieser Auftrag ist für ${assignmentState.label}. Das aktive Profil nutzt ${controller.activeProfile.state.label}.'
+          : 'Dieses Lernziel gehört nicht zum Lehrplanpfad für ${controller.activeProfile.state.label} in ${assignment.gradeLevel.label}.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(text)),
       );
     }
     return;
