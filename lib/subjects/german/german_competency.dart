@@ -21,6 +21,19 @@ enum GermanCompetencyId {
   textInformation,
   listeningComprehension,
   sentenceWriting,
+  spellingStrategies,
+  dictionarySkills,
+  compoundWords,
+  subjectPredicate,
+  sentenceConstituents,
+  verbTenses,
+  readingInference,
+  textSequence,
+  textMainIdea,
+  sentenceConnections,
+  textRevision,
+  listeningMainIdeas,
+  directSpeechPunctuation,
 }
 
 class GermanCompetencyDefinition {

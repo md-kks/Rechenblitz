@@ -42,6 +42,32 @@ class GermanSupportCatalog {
       'Hör noch einmal und achte nur auf das gesuchte Schlüsselwort.',
     GermanCompetencyId.sentenceWriting =>
       'Beginne groß, ordne die Wörter sinnvoll und denke an das Satzzeichen.',
+    GermanCompetencyId.spellingStrategies =>
+      'Prüfe das Wort: Kannst du es verlängern oder ein verwandtes Wort finden?',
+    GermanCompetencyId.dictionarySkills =>
+      'Suche nach der Grundform und vergleiche die Buchstaben von links nach rechts.',
+    GermanCompetencyId.compoundWords =>
+      'Zerlege das lange Wort in bekannte Wörter und prüfe ihre Bedeutung.',
+    GermanCompetencyId.subjectPredicate =>
+      'Frage zuerst „Wer oder was?“ und suche danach das Verb als Prädikat.',
+    GermanCompetencyId.sentenceConstituents =>
+      'Nutze eine W-Frage und verschiebe den ganzen Satzteil probeweise.',
+    GermanCompetencyId.verbTenses =>
+      'Achte auf Zeitwörter wie heute oder gestern und passe die Verbform an.',
+    GermanCompetencyId.readingInference =>
+      'Suche mehrere Hinweise im Text. Die Antwort muss zu allen Hinweisen passen.',
+    GermanCompetencyId.textSequence =>
+      'Achte auf Wörter wie zuerst, danach, anschließend und zum Schluss.',
+    GermanCompetencyId.textMainIdea =>
+      'Frage dich: Welche Aussage fasst den ganzen Text zusammen, nicht nur ein Detail?',
+    GermanCompetencyId.sentenceConnections =>
+      'Prüfe die Beziehung: Grund, Folge, Gegensatz oder zeitliche Reihenfolge?',
+    GermanCompetencyId.textRevision =>
+      'Lies den Text noch einmal und prüfe Reihenfolge, Wiederholungen und genaue Wörter.',
+    GermanCompetencyId.listeningMainIdeas =>
+      'Hör auf das Thema und die wichtigste Botschaft statt auf einzelne Nebendetails.',
+    GermanCompetencyId.directSpeechPunctuation =>
+      'Trenne Begleitsatz und wörtliche Rede und prüfe Doppelpunkt, Anführungszeichen und Satzzeichen.',
   };
 
   static String secondHint(GermanCompetencyId id) => switch (id) {

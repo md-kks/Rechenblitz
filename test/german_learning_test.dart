@@ -92,6 +92,20 @@ void main() {
     expect(GermanTeacherAssignment.tryParse(assignment.toPayload()), isNull);
   });
 
+  test('fourth-grade German assignment round-trips new learning goals', () {
+    const assignment = GermanTeacherAssignment(
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      tasks: 10,
+      targetCompetency: GermanCompetencyId.textMainIdea,
+    );
+
+    final restored = GermanTeacherAssignment.tryParse(assignment.toPayload());
+    expect(restored, isNotNull);
+    expect(restored!.targetCompetency, GermanCompetencyId.textMainIdea);
+    expect(restored.gradeLevel, GradeLevel.fourth);
+  });
+
   test('typed German answers ignore casing and repeated spaces', () {
     final task = GermanStarterTaskCatalog.tasks.firstWhere(
       (task) => task.interaction == GermanTaskInteraction.typedText,
@@ -111,6 +125,14 @@ void main() {
         reason: 'missing tasks for ${competency.name}',
       );
     }
+    for (final task in GermanTaskCatalog.tasks) {
+      final definition = GermanCompetencyCatalog.definition(task.competencyId);
+      expect(
+        task.recommendedFromGrade.index,
+        greaterThanOrEqualTo(definition.recommendedFromGrade.index),
+        reason: 'task appears before competency: ${task.id}',
+      );
+    }
   });
 
   test('every German competency has at least three curated tasks', () {
@@ -124,10 +146,74 @@ void main() {
   });
 
   test('combined catalog has varied practice instead of one fixed task', () {
-    expect(GermanTaskCatalog.tasks.length, greaterThanOrEqualTo(38));
+    expect(GermanTaskCatalog.tasks.length, greaterThanOrEqualTo(90));
     expect(
       GermanTaskCatalog.forCompetency(GermanCompetencyId.wordRecognition),
       hasLength(greaterThanOrEqualTo(2)),
     );
   });
+
+  test('upper-primary competencies unlock progressively by grade', () {
+    final second = GermanCompetencyCatalog.recommendedFor(
+      GradeLevel.second,
+    ).map((definition) => definition.id).toSet();
+    final third = GermanCompetencyCatalog.recommendedFor(
+      GradeLevel.third,
+    ).map((definition) => definition.id).toSet();
+    final fourth = GermanCompetencyCatalog.recommendedFor(
+      GradeLevel.fourth,
+    ).map((definition) => definition.id).toSet();
+
+    expect(second, isNot(contains(GermanCompetencyId.spellingStrategies)));
+    expect(third, contains(GermanCompetencyId.spellingStrategies));
+    expect(third, contains(GermanCompetencyId.readingInference));
+    expect(third, isNot(contains(GermanCompetencyId.textMainIdea)));
+    expect(fourth, contains(GermanCompetencyId.textMainIdea));
+    expect(fourth, contains(GermanCompetencyId.textRevision));
+    expect(fourth, contains(GermanCompetencyId.listeningMainIdeas));
+  });
+
+  test('grade filtering never leaks later German content downward', () {
+    final secondTasks = GermanTaskCatalog.forGrade(GradeLevel.second);
+    final thirdTasks = GermanTaskCatalog.forGrade(GradeLevel.third);
+
+    expect(
+      secondTasks.every(
+        (task) => task.recommendedFromGrade.index <= GradeLevel.second.index,
+      ),
+      isTrue,
+    );
+    expect(
+      thirdTasks.any(
+        (task) => task.competencyId == GermanCompetencyId.subjectPredicate,
+      ),
+      isTrue,
+    );
+    expect(
+      thirdTasks.any(
+        (task) => task.competencyId == GermanCompetencyId.textRevision,
+      ),
+      isFalse,
+    );
+  });
+
+  test(
+    'all upper-primary listening tasks keep answer text out of the prompt',
+    () {
+      final listening = GermanTaskCatalog.forDomain(
+        GermanLearningDomain.listening,
+        GradeLevel.fourth,
+      );
+      expect(listening, isNotEmpty);
+      expect(listening.every((task) => task.requiresSpeech), isTrue);
+      for (final task in listening) {
+        for (final answer in task.acceptedAnswers) {
+          expect(
+            task.prompt.toLowerCase(),
+            isNot(contains(answer.toLowerCase())),
+          );
+        }
+      }
+    },
+  );
 }

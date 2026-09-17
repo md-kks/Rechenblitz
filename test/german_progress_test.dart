@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/core/grade_level.dart';
 import 'package:rechenblitz/subjects/german/german_competency.dart';
+import 'package:rechenblitz/subjects/german/german_competency_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_learning_domain.dart';
 import 'package:rechenblitz/subjects/german/german_practice_planner.dart';
 import 'package:rechenblitz/subjects/german/german_progress.dart';
@@ -107,6 +108,47 @@ void main() {
     expect(counts.values.every((count) => count <= 2), isTrue);
   });
 
+  test(
+    'new fourth-grader starts with age-appropriate upper-primary skills',
+    () {
+      final round = GermanPracticePlanner.buildDailyRound(
+        gradeLevel: GradeLevel.fourth,
+        history: const <GermanSessionResult>[],
+        taskCount: 6,
+      );
+
+      expect(round, hasLength(6));
+      expect(
+        round
+            .take(5)
+            .every((task) => task.recommendedFromGrade == GradeLevel.fourth),
+        isTrue,
+      );
+      expect(
+        round.any(
+          (task) => task.competencyId == GermanCompetencyId.textMainIdea,
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'known lower-grade weakness still outranks new fourth-grade content',
+    () {
+      final history = <GermanSessionResult>[
+        _session(GermanCompetencyId.wordRecognition, correct: false),
+      ];
+      final round = GermanPracticePlanner.buildDailyRound(
+        gradeLevel: GradeLevel.fourth,
+        history: history,
+        taskCount: 6,
+      );
+
+      expect(round.first.competencyId, GermanCompetencyId.wordRecognition);
+    },
+  );
+
   test('teacher assignment keeps its requested task count offline', () {
     final assignment = GermanTeacherAssignment(
       gradeLevel: GradeLevel.second,
@@ -152,17 +194,5 @@ GermanSessionResult _session(
   );
 }
 
-GermanLearningDomain _domainFor(GermanCompetencyId id) => switch (id) {
-  GermanCompetencyId.wordRecognition ||
-  GermanCompetencyId.sentenceComprehension ||
-  GermanCompetencyId.textInformation => GermanLearningDomain.reading,
-  GermanCompetencyId.letterSoundMatch ||
-  GermanCompetencyId.syllableSegmentation ||
-  GermanCompetencyId.sentencePunctuation => GermanLearningDomain.spelling,
-  GermanCompetencyId.wordBuilding ||
-  GermanCompetencyId.wordFamilies => GermanLearningDomain.vocabulary,
-  GermanCompetencyId.listeningComprehension => GermanLearningDomain.listening,
-  GermanCompetencyId.sentenceWordOrder ||
-  GermanCompetencyId.sentenceWriting => GermanLearningDomain.writing,
-  _ => GermanLearningDomain.language,
-};
+GermanLearningDomain _domainFor(GermanCompetencyId id) =>
+    GermanCompetencyCatalog.definition(id).domain;

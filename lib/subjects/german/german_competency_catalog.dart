@@ -158,6 +158,138 @@ class GermanCompetencyCatalog {
         GermanCompetencyId.sentencePunctuation,
       ],
     ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.spellingStrategies,
+      label: 'Rechtschreibstrategien anwenden',
+      description:
+          'Wörter durch Verlängern, Ableiten und Wortverwandtschaft prüfen.',
+      domain: GermanLearningDomain.spelling,
+      recommendedFromGrade: GradeLevel.third,
+      prerequisites: <GermanCompetencyId>[
+        GermanCompetencyId.syllableSegmentation,
+        GermanCompetencyId.wordFamilies,
+      ],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.dictionarySkills,
+      label: 'Wörterbuch sicher nutzen',
+      description: 'Wörter alphabetisch und über ihre Grundform nachschlagen.',
+      domain: GermanLearningDomain.spelling,
+      recommendedFromGrade: GradeLevel.third,
+      prerequisites: <GermanCompetencyId>[GermanCompetencyId.alphabeticalOrder],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.compoundWords,
+      label: 'Zusammengesetzte Wörter verstehen',
+      description:
+          'Zusammengesetzte Wörter bilden, zerlegen und in ihrer Bedeutung erfassen.',
+      domain: GermanLearningDomain.vocabulary,
+      recommendedFromGrade: GradeLevel.third,
+      prerequisites: <GermanCompetencyId>[GermanCompetencyId.wordFamilies],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.subjectPredicate,
+      label: 'Subjekt und Prädikat bestimmen',
+      description:
+          'Den Satzkern mit Wer-oder-was-Frage und Verbprobe erkennen.',
+      domain: GermanLearningDomain.language,
+      recommendedFromGrade: GradeLevel.third,
+      prerequisites: <GermanCompetencyId>[
+        GermanCompetencyId.nounArticle,
+        GermanCompetencyId.verbRecognition,
+      ],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.sentenceConstituents,
+      label: 'Satzglieder untersuchen',
+      description:
+          'Zusammengehörige Satzteile mit W-Fragen und Umstellprobe erkennen.',
+      domain: GermanLearningDomain.language,
+      recommendedFromGrade: GradeLevel.third,
+      prerequisites: <GermanCompetencyId>[GermanCompetencyId.subjectPredicate],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.verbTenses,
+      label: 'Zeitformen von Verben verwenden',
+      description:
+          'Gegenwart und einfache Vergangenheitsformen passend unterscheiden und bilden.',
+      domain: GermanLearningDomain.language,
+      recommendedFromGrade: GradeLevel.third,
+      prerequisites: <GermanCompetencyId>[GermanCompetencyId.verbInflection],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.readingInference,
+      label: 'Zwischen den Zeilen lesen',
+      description:
+          'Aus mehreren Textsignalen eine begründete Schlussfolgerung ziehen.',
+      domain: GermanLearningDomain.reading,
+      recommendedFromGrade: GradeLevel.third,
+      prerequisites: <GermanCompetencyId>[GermanCompetencyId.textInformation],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.textSequence,
+      label: 'Textabläufe ordnen',
+      description:
+          'Ereignisse und Handlungsschritte in ihrer Reihenfolge erfassen.',
+      domain: GermanLearningDomain.reading,
+      recommendedFromGrade: GradeLevel.third,
+      prerequisites: <GermanCompetencyId>[GermanCompetencyId.textInformation],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.textMainIdea,
+      label: 'Kernaussage eines Textes erfassen',
+      description:
+          'Wichtige Aussagen von Einzelheiten unterscheiden und passend zusammenfassen.',
+      domain: GermanLearningDomain.reading,
+      recommendedFromGrade: GradeLevel.fourth,
+      prerequisites: <GermanCompetencyId>[
+        GermanCompetencyId.readingInference,
+        GermanCompetencyId.textSequence,
+      ],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.sentenceConnections,
+      label: 'Sätze sinnvoll verknüpfen',
+      description:
+          'Gedanken mit passenden Verbindungswörtern logisch miteinander verbinden.',
+      domain: GermanLearningDomain.writing,
+      recommendedFromGrade: GradeLevel.fourth,
+      prerequisites: <GermanCompetencyId>[GermanCompetencyId.sentenceWriting],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.textRevision,
+      label: 'Texte gezielt überarbeiten',
+      description:
+          'Verständlichkeit, Wortwahl, Reihenfolge und sprachliche Form verbessern.',
+      domain: GermanLearningDomain.writing,
+      recommendedFromGrade: GradeLevel.fourth,
+      prerequisites: <GermanCompetencyId>[
+        GermanCompetencyId.sentenceWriting,
+        GermanCompetencyId.sentenceConnections,
+      ],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.listeningMainIdeas,
+      label: 'Wichtiges beim Zuhören erfassen',
+      description:
+          'Kernaussagen aus längeren gesprochenen Informationen herausfiltern.',
+      domain: GermanLearningDomain.listening,
+      recommendedFromGrade: GradeLevel.fourth,
+      prerequisites: <GermanCompetencyId>[
+        GermanCompetencyId.listeningComprehension,
+      ],
+    ),
+    GermanCompetencyDefinition(
+      id: GermanCompetencyId.directSpeechPunctuation,
+      label: 'Wörtliche Rede kennzeichnen',
+      description:
+          'Begleitsatz, Doppelpunkt und Anführungszeichen passend verwenden.',
+      domain: GermanLearningDomain.spelling,
+      recommendedFromGrade: GradeLevel.fourth,
+      prerequisites: <GermanCompetencyId>[
+        GermanCompetencyId.sentencePunctuation,
+      ],
+    ),
   ];
 
   static GermanCompetencyDefinition definition(GermanCompetencyId id) =>

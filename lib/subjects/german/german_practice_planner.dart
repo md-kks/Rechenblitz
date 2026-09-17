@@ -16,18 +16,26 @@ class GermanPracticePlanner {
     required Iterable<GermanSessionResult> history,
     int taskCount = 6,
   }) {
-    final ranked = _ranked(GermanTaskCatalog.forGrade(gradeLevel), history);
+    final ranked = _ranked(
+      GermanTaskCatalog.forGrade(gradeLevel),
+      history,
+      gradeLevel: gradeLevel,
+    );
     if (ranked.length <= taskCount) return ranked;
 
     final selected = <GermanTask>[];
     final domainCount = <GermanLearningDomain, int>{};
+    final competencyCount = <GermanCompetencyId, int>{};
     for (final task in ranked) {
       final domain = GermanCompetencyCatalog.definition(
         task.competencyId,
       ).domain;
       if ((domainCount[domain] ?? 0) >= 2) continue;
+      if ((competencyCount[task.competencyId] ?? 0) >= 1) continue;
       selected.add(task);
       domainCount[domain] = (domainCount[domain] ?? 0) + 1;
+      competencyCount[task.competencyId] =
+          (competencyCount[task.competencyId] ?? 0) + 1;
       if (selected.length == taskCount) return selected;
     }
     for (final task in ranked) {
@@ -47,6 +55,7 @@ class GermanPracticePlanner {
     final ranked = _ranked(
       GermanTaskCatalog.forDomain(domain, gradeLevel),
       history,
+      gradeLevel: gradeLevel,
     );
     return ranked.take(taskCount).toList(growable: false);
   }
@@ -58,7 +67,7 @@ class GermanPracticePlanner {
     final source = assignment.targetCompetency == null
         ? GermanTaskCatalog.forDomain(assignment.domain, assignment.gradeLevel)
         : GermanTaskCatalog.forCompetency(assignment.targetCompetency!);
-    final ranked = _ranked(source, history);
+    final ranked = _ranked(source, history, gradeLevel: assignment.gradeLevel);
     if (ranked.isEmpty) return const <GermanTask>[];
     final selected = <GermanTask>[];
     for (var index = 0; index < assignment.tasks; index++) {
@@ -69,18 +78,20 @@ class GermanPracticePlanner {
 
   static List<GermanTask> _ranked(
     Iterable<GermanTask> source,
-    Iterable<GermanSessionResult> history,
-  ) {
+    Iterable<GermanSessionResult> history, {
+    required GradeLevel gradeLevel,
+  }) {
     final result = source.toList();
-    result.sort((a, b) => _compareTasks(a, b, history));
+    result.sort((a, b) => _compareTasks(a, b, history, gradeLevel: gradeLevel));
     return result;
   }
 
   static int _compareTasks(
     GermanTask a,
     GermanTask b,
-    Iterable<GermanSessionResult> history,
-  ) {
+    Iterable<GermanSessionResult> history, {
+    required GradeLevel gradeLevel,
+  }) {
     final aProgress = GermanProgressAnalyzer.forCompetency(
       a.competencyId,
       history,
@@ -97,6 +108,13 @@ class GermanPracticePlanner {
         bProgress.state == GermanCompetencyState.learning &&
         aProgress.accuracy != bProgress.accuracy) {
       return aProgress.accuracy.compareTo(bProgress.accuracy);
+    }
+
+    if (aProgress.state == GermanCompetencyState.newSkill &&
+        bProgress.state == GermanCompetencyState.newSkill) {
+      final aDistance = gradeLevel.index - a.recommendedFromGrade.index;
+      final bDistance = gradeLevel.index - b.recommendedFromGrade.index;
+      if (aDistance != bDistance) return aDistance.compareTo(bDistance);
     }
 
     final aPrerequisites = _unmetPrerequisites(a.competencyId, history);
