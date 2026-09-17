@@ -46,6 +46,9 @@ class GermanTask {
       if (choices.length < 2) return false;
       if (!acceptedAnswers.every(choices.contains)) return false;
     }
+    if (interaction == GermanTaskInteraction.wordOrder && choices.length < 2) {
+      return false;
+    }
     return true;
   }
 

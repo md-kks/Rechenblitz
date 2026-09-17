@@ -86,7 +86,8 @@ class GermanStarterTaskCatalog {
       instruction: 'Bringe die Wörter in die richtige Reihenfolge.',
       prompt: 'fliegt · Der Vogel · hoch',
       interaction: GermanTaskInteraction.wordOrder,
-      acceptedAnswers: <String>['Der Vogel fliegt hoch.'],
+      acceptedAnswers: <String>['Der Vogel fliegt hoch'],
+      choices: <String>['Der Vogel', 'fliegt', 'hoch'],
     ),
     GermanTask(
       id: 'g2-noun-article-tree',
