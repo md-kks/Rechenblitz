@@ -13,6 +13,7 @@ import '../german_progress.dart';
 import '../german_session.dart';
 import '../german_storage_service.dart';
 import '../german_task.dart';
+import 'german_competency_map_screen.dart';
 import 'german_training_screen.dart';
 
 class GermanHomeScreen extends StatefulWidget {
@@ -92,6 +93,22 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     unawaited(_openRound(tasks));
   }
 
+  void _openCompetencyMap() {
+    unawaited(
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Theme(
+            data: _germanTheme,
+            child: GermanCompetencyMapScreen(
+              gradeLevel: widget.controller.gradeLevel,
+              history: _history,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Theme(
     data: _germanTheme,
@@ -142,6 +159,13 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
             ],
           ),
         ),
+      ),
+      const SizedBox(height: 12),
+      OutlinedButton.icon(
+        key: const ValueKey('german-competency-map'),
+        onPressed: _openCompetencyMap,
+        icon: const Icon(Icons.route_rounded),
+        label: const Text('Lernlandkarte ansehen'),
       ),
       const SizedBox(height: 24),
       Text('Lernbereiche', style: Theme.of(context).textTheme.titleLarge),
