@@ -15,6 +15,25 @@ void main() {
       BorderRadius.circular(AppTheme.cardRadius),
     );
     expect(theme.textTheme.bodyLarge?.fontSize, 17);
+    expect(
+      WidgetStateProperty.resolveAs<Color?>(
+        theme.chipTheme.labelStyle?.color,
+        const <WidgetState>{},
+      ),
+      AppTheme.text,
+    );
+    expect(
+      WidgetStateProperty.resolveAs<Color?>(
+        theme.chipTheme.labelStyle?.color,
+        const <WidgetState>{WidgetState.selected},
+      ),
+      Colors.white,
+    );
+    expect(
+      theme.chipTheme.color?.resolve(const <WidgetState>{WidgetState.selected}),
+      AppTheme.primary,
+    );
+    expect(theme.chipTheme.checkmarkColor, Colors.white);
   });
 
   test('Hoher Kontrast bleibt trotz neuer Farbwelt deutlich', () {
@@ -26,6 +45,24 @@ void main() {
     expect(
       (theme.cardTheme.shape as RoundedRectangleBorder).side.color,
       Colors.black54,
+    );
+    expect(
+      WidgetStateProperty.resolveAs<Color?>(
+        theme.chipTheme.labelStyle?.color,
+        const <WidgetState>{},
+      ),
+      Colors.black,
+    );
+    expect(
+      WidgetStateProperty.resolveAs<Color?>(
+        theme.chipTheme.labelStyle?.color,
+        const <WidgetState>{WidgetState.selected},
+      ),
+      Colors.white,
+    );
+    expect(
+      theme.chipTheme.color?.resolve(const <WidgetState>{WidgetState.selected}),
+      Colors.black,
     );
   });
 }
