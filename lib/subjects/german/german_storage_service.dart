@@ -13,12 +13,15 @@ class GermanStorageService {
   static const _keyspace = SubjectStorageKeyspace(LearningSubject.german);
   static const _historyKey = 'history_v1';
   static const _roundDraftKey = 'round_draft_v1';
+  static const _introCompleteKey = 'intro_complete_v1';
 
   final String profileId;
 
   String get _profileHistoryKey => _keyspace.profileKey(profileId, _historyKey);
   String get _profileRoundDraftKey =>
       _keyspace.profileKey(profileId, _roundDraftKey);
+  String get _profileIntroCompleteKey =>
+      _keyspace.profileKey(profileId, _introCompleteKey);
 
   Future<List<GermanSessionResult>> loadHistory() async {
     final prefs = await SharedPreferences.getInstance();
@@ -81,9 +84,20 @@ class GermanStorageService {
     await prefs.remove(_profileRoundDraftKey);
   }
 
+  Future<bool> loadIntroComplete() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_profileIntroCompleteKey) ?? false;
+  }
+
+  Future<void> setIntroComplete(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_profileIntroCompleteKey, value);
+  }
+
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_profileHistoryKey);
     await prefs.remove(_profileRoundDraftKey);
+    await prefs.remove(_profileIntroCompleteKey);
   }
 }

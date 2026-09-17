@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/services/app_controller.dart';
+import 'package:rechenblitz/subjects/german/german_storage_service.dart';
 import 'package:rechenblitz/subjects/german/screens/german_home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,6 +13,9 @@ void main() {
   ) async {
     final controller = AppController();
     await controller.load();
+    await GermanStorageService(
+      profileId: controller.activeProfileId,
+    ).setIntroComplete(true);
 
     await tester.pumpWidget(
       MaterialApp(home: GermanHomeScreen(controller: controller)),
@@ -35,6 +39,9 @@ void main() {
   testWidgets('German home opens the competency map', (tester) async {
     final controller = AppController();
     await controller.load();
+    await GermanStorageService(
+      profileId: controller.activeProfileId,
+    ).setIntroComplete(true);
 
     await tester.pumpWidget(
       MaterialApp(home: GermanHomeScreen(controller: controller)),
@@ -58,6 +65,9 @@ void main() {
   ) async {
     final controller = AppController();
     await controller.load();
+    await GermanStorageService(
+      profileId: controller.activeProfileId,
+    ).setIntroComplete(true);
 
     await tester.pumpWidget(
       MaterialApp(home: GermanHomeScreen(controller: controller)),
@@ -75,6 +85,9 @@ void main() {
   ) async {
     final controller = AppController();
     await controller.load();
+    await GermanStorageService(
+      profileId: controller.activeProfileId,
+    ).setIntroComplete(true);
 
     await tester.pumpWidget(
       MaterialApp(home: GermanHomeScreen(controller: controller)),
@@ -94,6 +107,9 @@ void main() {
   testWidgets('German home starts a support-free Lerncheck', (tester) async {
     final controller = AppController();
     await controller.load();
+    await GermanStorageService(
+      profileId: controller.activeProfileId,
+    ).setIntroComplete(true);
 
     await tester.pumpWidget(
       MaterialApp(home: GermanHomeScreen(controller: controller)),
@@ -107,5 +123,53 @@ void main() {
 
     expect(find.text('Deutsch-Lerncheck'), findsOneWidget);
     expect(find.text('1 von 12'), findsOneWidget);
+  });
+
+  testWidgets('first German visit offers Lerncheck or direct practice', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(false);
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Willkommen bei Deutsch'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('german-intro-assessment')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('german-intro-skip')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('german-intro-skip')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Meine Deutsch-Runde'), findsOneWidget);
+    expect(await storage.loadIntroComplete(), isTrue);
+  });
+
+  testWidgets('first German visit can start the adaptive Lerncheck directly', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(false);
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('german-intro-assessment')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Deutsch-Lerncheck'), findsOneWidget);
+    expect(find.text('1 von 12'), findsOneWidget);
+    expect(await storage.loadIntroComplete(), isTrue);
   });
 }

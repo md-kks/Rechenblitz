@@ -35,6 +35,7 @@ class GermanHomeScreen extends StatefulWidget {
 class _GermanHomeScreenState extends State<GermanHomeScreen> {
   List<GermanSessionResult> _history = const <GermanSessionResult>[];
   GermanRoundDraft? _draft;
+  bool _introComplete = false;
   bool _loading = true;
 
   GermanStorageService get _storage =>
@@ -49,14 +50,20 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   Future<void> _load() async {
     final history = await _storage.loadHistory();
     var draft = await _storage.loadRoundDraft();
+    var introComplete = await _storage.loadIntroComplete();
     if (draft != null && !draft.isResumableFor(widget.controller.gradeLevel)) {
       await _storage.clearRoundDraft();
       draft = null;
+    }
+    if (!introComplete && (history.isNotEmpty || draft != null)) {
+      introComplete = true;
+      await _storage.setIntroComplete(true);
     }
     if (!mounted) return;
     setState(() {
       _history = history;
       _draft = draft;
+      _introComplete = introComplete;
       _loading = false;
     });
   }
@@ -173,6 +180,13 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     await _openRound(tasks, draft: draft, sessionKind: draft.sessionKind);
   }
 
+  Future<void> _completeIntro({required bool startAssessment}) async {
+    await _storage.setIntroComplete(true);
+    if (!mounted) return;
+    setState(() => _introComplete = true);
+    if (startAssessment) _startAssessment();
+  }
+
   void _startAssessment() {
     if (_draft != null) return;
     final tasks = GermanAssessmentPlanner.buildRound(
@@ -239,10 +253,68 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
         body: SafeArea(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
-              : _buildContent(context),
+              : _introComplete
+              ? _buildContent(context)
+              : _buildIntro(context),
         ),
       ),
     ),
+  );
+
+  Widget _buildIntro(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(20),
+    children: <Widget>[
+      const SizedBox(height: 18),
+      Icon(
+        Icons.auto_stories_rounded,
+        size: 68,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      const SizedBox(height: 18),
+      Text(
+        'Willkommen bei Deutsch',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.headlineMedium,
+      ),
+      const SizedBox(height: 10),
+      Text(
+        'Kurze Übungen passen sich an ${widget.controller.activeProfileName} an. Alles bleibt auf diesem Gerät.',
+        textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 24),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                'Mit Lerncheck starten',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '12 kurze Aufgaben zeigen, welche Lernbereiche schon sicher sind. Es gibt keine Note.',
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                key: const ValueKey('german-intro-assessment'),
+                onPressed: () =>
+                    unawaited(_completeIntro(startAssessment: true)),
+                icon: const Icon(Icons.fact_check_outlined),
+                label: const Text('Lerncheck starten'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: 12),
+      OutlinedButton(
+        key: const ValueKey('german-intro-skip'),
+        onPressed: () => unawaited(_completeIntro(startAssessment: false)),
+        child: const Text('Erst einmal ohne Lerncheck üben'),
+      ),
+    ],
   );
 
   Widget _buildContent(BuildContext context) => ListView(
