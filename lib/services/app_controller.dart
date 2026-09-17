@@ -496,7 +496,10 @@ class AppController extends ChangeNotifier {
     String? methodKey,
     MicroEvidenceSource source = MicroEvidenceSource.practice,
     Duration? responseTime,
+    String? evidenceId,
   }) async {
+    final diagnosticAlreadyRecorded = evidenceId != null &&
+        diagnostics.any((entry) => entry.evidenceId == evidenceId);
     final pattern = ErrorClassifier.classify(
       mode: mode,
       taskKey: taskKey,
@@ -514,10 +517,12 @@ class AppController extends ChangeNotifier {
       methodKey: methodKey,
       source: source,
       responseMs: _fairFluencyResponseMs(responseTime),
+      evidenceId: evidenceId,
     );
-    diagnostics.insert(
-      0,
-      DiagnosticAttempt(
+    if (!diagnosticAlreadyRecorded) {
+      diagnostics.insert(
+        0,
+        DiagnosticAttempt(
         occurredAt: DateTime.now(),
         mode: mode,
         taskKey: taskKey,
@@ -526,17 +531,20 @@ class AppController extends ChangeNotifier {
         correct: actual == expected,
         gradeLevel: effectiveGradeLevel,
         numberRange: effectiveNumberRange,
-        pattern: pattern,
-      ),
-    );
-    if (diagnostics.length > 500) {
-      diagnostics = diagnostics.take(500).toList();
+          pattern: pattern,
+          evidenceId: evidenceId,
+        ),
+      );
+      if (diagnostics.length > 500) {
+        diagnostics = diagnostics.take(500).toList();
+      }
     }
     var becameStable = false;
     if (pattern != null) {
       becameStable = _updateRemediationRecovery(
         pattern,
         correct: actual == expected,
+        evidenceId: evidenceId,
       );
       if (becameStable &&
           _unlockBadge('weak_spot', _pendingBadgeIds)) {
@@ -583,8 +591,14 @@ class AppController extends ChangeNotifier {
     required int helpLevel,
     String? methodKey,
     double evidenceWeight = 0.35,
+    String? evidenceId,
   }) async {
     if (evidenceWeight <= 0) return;
+    if (evidenceId != null &&
+        microObservations.any((entry) => entry.evidenceId == evidenceId)) {
+      await storage.saveMicroCompetencyObservations(microObservations);
+      return;
+    }
     final helpWeight = !correct
         ? 1.0
         : switch (helpLevel) {
@@ -609,6 +623,7 @@ class AppController extends ChangeNotifier {
         gradeLevel: gradeLevel,
         numberRange: numberRange,
         taskKey: 'independent:$stepKey:$taskKey',
+        evidenceId: evidenceId,
       ),
     );
     _compactMicroObservations();
@@ -1056,8 +1071,12 @@ class AppController extends ChangeNotifier {
   bool _updateRemediationRecovery(
     ErrorPattern pattern, {
     required bool correct,
+    String? evidenceId,
   }) {
     final progress = remediationProgressFor(pattern);
+    if (evidenceId != null && progress?.lastEvidenceId == evidenceId) {
+      return false;
+    }
     if (progress == null ||
         (progress.status != RemediationStatus.improved &&
             progress.status != RemediationStatus.stable)) {
@@ -1069,6 +1088,7 @@ class AppController extends ChangeNotifier {
         progress.copyWith(
           status: RemediationStatus.recurring,
           stabilityCorrect: 0,
+          lastEvidenceId: evidenceId,
         ),
       );
       return false;
@@ -1084,6 +1104,7 @@ class AppController extends ChangeNotifier {
             ? RemediationStatus.stable
             : RemediationStatus.improved,
         stabilityCorrect: stableCorrect,
+        lastEvidenceId: evidenceId,
       ),
     );
     return becameStable;
@@ -1288,7 +1309,12 @@ class AppController extends ChangeNotifier {
     MathFact? fact,
     int? responseMs,
     MicroCompetencyId? onlyCompetency,
+    String? evidenceId,
   }) {
+    if (evidenceId != null &&
+        microObservations.any((entry) => entry.evidenceId == evidenceId)) {
+      return;
+    }
     final sourceWeight = switch (source) {
       MicroEvidenceSource.assessment => 0.75,
       MicroEvidenceSource.remediation => 0.65,
@@ -1332,6 +1358,7 @@ class AppController extends ChangeNotifier {
             numberRange: numberRange,
             taskKey: taskKey,
             responseMs: responseMs,
+            evidenceId: evidenceId,
           ),
         )
         .toList();

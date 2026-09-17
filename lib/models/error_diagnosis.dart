@@ -281,6 +281,7 @@ class DiagnosticAttempt {
     required this.gradeLevel,
     required this.numberRange,
     this.pattern,
+    this.evidenceId,
   });
 
   final DateTime occurredAt;
@@ -292,6 +293,7 @@ class DiagnosticAttempt {
   final GradeLevel gradeLevel;
   final NumberRangeLevel numberRange;
   final ErrorPattern? pattern;
+  final String? evidenceId;
 
   Map<String, dynamic> toJson() => {
         'occurredAt': occurredAt.toIso8601String(),
@@ -303,6 +305,7 @@ class DiagnosticAttempt {
         'gradeLevel': gradeLevel.name,
         'numberRange': numberRange.name,
         'pattern': pattern?.name,
+        'evidenceId': evidenceId,
       };
 
   factory DiagnosticAttempt.fromJson(Map<String, dynamic> json) {
@@ -331,6 +334,7 @@ class DiagnosticAttempt {
           ? NumberRangeLevel.hundred
           : NumberRangeLevel.values.byName(json['numberRange'] as String),
       pattern: pattern,
+      evidenceId: json['evidenceId'] as String?,
     );
   }
 }

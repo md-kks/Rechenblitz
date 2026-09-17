@@ -89,8 +89,10 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
   int wrongOnCurrent = 0;
   bool locked = false;
   bool finishing = false;
+  bool submitting = false;
   bool segmentUsedHelp = false;
   bool taskFirstAttemptRecorded = false;
+  PendingFirstAttemptEvidence? pendingFirstAttemptEvidence;
   bool resumedFromDraft = false;
   bool resumeResolvedTask = false;
   bool showHint = false;
@@ -174,11 +176,12 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
       checkpointWrongAttempts.addAll(saved.checkpointWrongAttempts);
       hadCheckpointError = saved.hadCheckpointError;
       taskFirstAttemptRecorded = saved.taskFirstAttemptRecorded;
+      pendingFirstAttemptEvidence = saved.pendingFirstAttemptEvidence;
       responseTimes.addAll(saved.responseTimes);
       responseTimer = ActiveResponseTimer(startedAt: now);
       resumedFromDraft = true;
       resumeResolvedTask = saved.taskResolved;
-      locked = resumeResolvedTask;
+      locked = resumeResolvedTask || pendingFirstAttemptEvidence != null;
     } else {
       startedAt = now;
       current = _next();
@@ -188,7 +191,9 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (resumeResolvedTask) {
+      if (pendingFirstAttemptEvidence != null) {
+        unawaited(_recoverPendingFirstAttempt());
+      } else if (resumeResolvedTask) {
         unawaited(_continueResolvedSession());
       } else {
         unawaited(widget.controller.speak(current.prompt));
@@ -214,6 +219,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
 
   CoreTrainingSessionProgress _sessionSnapshot({
     bool? taskResolvedOverride,
+    bool clearPendingFirstAttempt = false,
   }) =>
       CoreTrainingSessionProgress(
         kind: CoreTrainingKind.structured,
@@ -247,14 +253,22 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
             Map<int, int>.from(checkpointWrongAttempts),
         hadCheckpointError: hadCheckpointError,
         taskFirstAttemptRecorded: taskFirstAttemptRecorded,
+        pendingFirstAttemptEvidence:
+            clearPendingFirstAttempt ? null : pendingFirstAttemptEvidence,
         responseTimes: List<int>.from(responseTimes),
         taskResolved: taskResolvedOverride ?? false,
       );
 
-  Future<void> _persistSession({bool? taskResolvedOverride}) {
+  Future<void> _persistSession({
+    bool? taskResolvedOverride,
+    bool clearPendingFirstAttempt = false,
+  }) {
     if (widget.exerciseGenerator != null) return Future<void>.value();
     return widget.controller.saveCoreTrainingSession(
-      _sessionSnapshot(taskResolvedOverride: taskResolvedOverride),
+      _sessionSnapshot(
+        taskResolvedOverride: taskResolvedOverride,
+        clearPendingFirstAttempt: clearPendingFirstAttempt,
+      ),
     );
   }
 
@@ -300,6 +314,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     hadCheckpointError = false;
     taskRememberFuture = null;
     taskFirstAttemptRecorded = false;
+    pendingFirstAttemptEvidence = null;
+    submitting = false;
     checkpointFeedback = '';
     useTouchInput = true;
 
@@ -438,9 +454,125 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     await _persistSession();
   }
 
+  String _firstAttemptEvidenceId() =>
+      '${startedAt.microsecondsSinceEpoch}:structured:$completed:${current.key}';
+
+  PendingFirstAttemptEvidence _pendingFirstAttempt(
+    int answer,
+    Duration response,
+  ) =>
+      PendingFirstAttemptEvidence(
+        id: _firstAttemptEvidenceId(),
+        taskKey: current.key,
+        expected: current.answer,
+        actual: answer,
+        responseMs: response.inMilliseconds.clamp(0, 30000).toInt(),
+        usedHelp: showHint,
+        helpLevel: helpLevel,
+        methodKey: activeMethodKey,
+        source: _evidenceSource,
+        directStepKey: current.directIndependentStepKey,
+        directStepCompetency: current.directIndependentStepCompetency,
+      );
+
+  Future<void> _recordPendingFirstAttempt(
+    PendingFirstAttemptEvidence receipt,
+  ) async {
+    if (taskFirstAttemptRecorded) return;
+    await _rememberCurrentTaskOnce();
+    if (!mounted || finishing) return;
+    final stepKey = receipt.directStepKey;
+    final stepCompetency = receipt.directStepCompetency;
+    if (stepKey != null && stepCompetency != null) {
+      await widget.controller.recordIndependentStepAttempt(
+        mode: widget.mode,
+        taskKey: receipt.taskKey,
+        stepKey: stepKey,
+        competencyId: stepCompetency,
+        correct: receipt.actual == receipt.expected,
+        usedHelp: receipt.usedHelp,
+        helpLevel: receipt.helpLevel,
+        methodKey: receipt.methodKey,
+        evidenceWeight: receipt.directStepEvidenceWeight,
+        evidenceId: '${receipt.id}:direct-step',
+      );
+    }
+    await widget.controller.recordDiagnosticAttempt(
+      mode: widget.mode,
+      taskKey: receipt.taskKey,
+      expected: receipt.expected,
+      actual: receipt.actual,
+      usedHelp: receipt.usedHelp,
+      helpLevel: receipt.helpLevel,
+      methodKey: receipt.methodKey,
+      source: receipt.source,
+      responseTime: Duration(milliseconds: receipt.responseMs),
+      evidenceId: '${receipt.id}:diagnostic',
+    );
+    taskFirstAttemptRecorded = true;
+    await _persistSession();
+  }
+
+  Future<void> _recoverPendingFirstAttempt() async {
+    final receipt = pendingFirstAttemptEvidence;
+    if (receipt == null || submitting) return;
+    submitting = true;
+    try {
+      await _recordPendingFirstAttempt(receipt);
+      if (!mounted || finishing) return;
+      await _applyAnswerOutcome(
+        receipt.actual,
+        Duration(milliseconds: receipt.responseMs),
+        restoring: true,
+      );
+    } catch (_) {
+      submitting = false;
+      if (mounted) setState(() => locked = false);
+    }
+  }
+
   Future<void> _answer(int answer) async {
-    if (locked || finishing || !_checkpointsComplete) return;
-    final response = responseTimer.elapsed();
+    if (finishing || !_checkpointsComplete || submitting) return;
+    final pending = pendingFirstAttemptEvidence;
+    if (pending != null) {
+      submitting = true;
+      try {
+        await _recordPendingFirstAttempt(pending);
+        if (!mounted || finishing) return;
+        await _applyAnswerOutcome(
+          pending.actual,
+          Duration(milliseconds: pending.responseMs),
+          restoring: true,
+        );
+      } catch (_) {
+        submitting = false;
+        if (mounted) setState(() => locked = false);
+        rethrow;
+      }
+      return;
+    }
+    if (locked) return;
+    submitting = true;
+    try {
+      final response = responseTimer.elapsed();
+      if (!taskFirstAttemptRecorded) {
+        final receipt = _pendingFirstAttempt(answer, response);
+        pendingFirstAttemptEvidence = receipt;
+        await _persistSession();
+        await _recordPendingFirstAttempt(receipt);
+      }
+      await _applyAnswerOutcome(answer, response, restoring: false);
+    } catch (_) {
+      submitting = false;
+      rethrow;
+    }
+  }
+
+  Future<void> _applyAnswerOutcome(
+    int answer,
+    Duration response, {
+    required bool restoring,
+  }) async {
     final diagnosedPattern = answer == current.answer
         ? null
         : ErrorClassifier.classify(
@@ -449,40 +581,6 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
             expected: current.answer,
             actual: answer,
           );
-    if (!taskFirstAttemptRecorded) {
-      taskFirstAttemptRecorded = true;
-      await _persistSession();
-      await _rememberCurrentTaskOnce();
-      if (!mounted || finishing) return;
-      final directStepKey = current.directIndependentStepKey;
-      final directStepCompetency = current.directIndependentStepCompetency;
-      if (directStepKey != null && directStepCompetency != null) {
-        unawaited(
-          widget.controller.recordIndependentStepAttempt(
-            mode: widget.mode,
-            taskKey: current.key,
-            stepKey: directStepKey,
-            competencyId: directStepCompetency,
-            correct: answer == current.answer,
-            usedHelp: showHint,
-            helpLevel: helpLevel,
-            methodKey: activeMethodKey,
-            evidenceWeight: 0.35,
-          ),
-        );
-      }
-      await widget.controller.recordDiagnosticAttempt(
-        mode: widget.mode,
-        taskKey: current.key,
-        expected: current.answer,
-        actual: answer,
-        usedHelp: showHint,
-        helpLevel: helpLevel,
-        methodKey: activeMethodKey,
-        source: _evidenceSource,
-        responseTime: response,
-      );
-    }
     if (answer != current.answer) {
       incorrectAttempts += 1;
       wrongOnCurrent += 1;
@@ -499,8 +597,11 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
           helpLevel = retryHelp.value;
           activeMethodKey = _guide.methodKey;
         }
+        locked = false;
       });
-      await _persistSession();
+      pendingFirstAttemptEvidence = null;
+      submitting = false;
+      await _persistSession(clearPendingFirstAttempt: true);
       return;
     }
 
@@ -522,15 +623,24 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     if (wrongOnCurrent == 0 && !hadCheckpointError) {
       correctFirstTry += 1;
     }
-    if (widget.controller.hapticEnabled) HapticFeedback.lightImpact();
-    if (widget.controller.soundEnabled) {
+    if (!restoring && widget.controller.hapticEnabled) {
+      HapticFeedback.lightImpact();
+    }
+    if (!restoring && widget.controller.soundEnabled) {
       SystemSound.play(SystemSoundType.click);
     }
     setState(() => feedback =
         ['Richtig!', 'Genau!', 'Stimmt!', 'Gut gelöst!'][completed % 4]);
     final adaptiveDecision = _adaptiveSegmentDecision();
-    await _persistSession(taskResolvedOverride: true);
-    await Future<void>.delayed(const Duration(milliseconds: 550));
+    pendingFirstAttemptEvidence = null;
+    submitting = false;
+    await _persistSession(
+      taskResolvedOverride: true,
+      clearPendingFirstAttempt: true,
+    );
+    if (!restoring) {
+      await Future<void>.delayed(const Duration(milliseconds: 550));
+    }
     if (!mounted || finishing) return;
     if (adaptiveDecision.shouldStop) {
       await _finish(adaptiveStopReason: adaptiveDecision.message);
