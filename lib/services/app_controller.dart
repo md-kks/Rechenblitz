@@ -179,6 +179,7 @@ class AppController extends ChangeNotifier {
     return progress.isCompatible(
       grade: gradeLevel,
       range: numberRange,
+      currentState: activeProfile.state,
       now: now,
     )
         ? progress
@@ -370,6 +371,7 @@ class AppController extends ChangeNotifier {
         !assessmentProgress!.isCompatible(
           grade: gradeLevel,
           range: numberRange,
+          currentState: activeProfile.state,
         )) {
       assessmentProgress = null;
       await storage.clearAssessmentProgress();
@@ -4538,8 +4540,9 @@ class AppController extends ChangeNotifier {
     await clearSupportSessionProgress();
     await clearCoreTrainingSession();
     final nextRange = grade.recommendedRange;
-    final assessmentContextChanged =
-        grade != gradeLevel || nextRange != numberRange;
+    final assessmentContextChanged = grade != gradeLevel ||
+        nextRange != numberRange ||
+        state != activeProfile.state;
     if (assessmentContextChanged) await clearAssessmentProgress();
     final cleanName = name.trim().isEmpty ? 'Lernprofil' : name.trim();
     gradeLevel = grade;
@@ -4666,6 +4669,7 @@ class AppController extends ChangeNotifier {
   Future<void> setProfileState(GermanState value) async {
     if (profiles.isEmpty || activeProfile.state == value) return;
     await clearGuidedRoundProgress();
+    await clearAssessmentProgress();
     await clearCoreTrainingSession();
     profiles = profiles
         .map(
