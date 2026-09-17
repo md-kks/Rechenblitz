@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../core/assignments/subject_result_envelope.dart';
 import '../models/micro_competency.dart';
 import '../models/teacher_assignment_result.dart';
 import '../models/training.dart';
+import '../subjects/german/german_teacher_assignment_result.dart';
 import '../widgets/qr_camera_panel.dart';
 
 class AssignmentResultScannerScreen extends StatefulWidget {
@@ -17,6 +19,7 @@ class _AssignmentResultScannerScreenState
     extends State<AssignmentResultScannerScreen> {
   final TextEditingController codeController = TextEditingController();
   TeacherAssignmentResult? result;
+  GermanTeacherAssignmentResult? germanResult;
   String? errorText;
   bool handling = false;
 
@@ -28,24 +31,37 @@ class _AssignmentResultScannerScreenState
 
   void _handlePayload(String raw) {
     if (handling) return;
-    final parsed = TeacherAssignmentResult.tryParse(raw);
-    if (parsed == null) {
+    final math = TeacherAssignmentResult.tryParse(raw);
+    if (math != null) {
       setState(() {
-        errorText = 'Das ist kein gültiger Rechenblitz-Ergebniscode.';
+        handling = true;
+        result = math;
+        germanResult = null;
+        errorText = null;
+      });
+      return;
+    }
+
+    final german = GermanTeacherAssignmentResult.tryParse(raw);
+    if (german != null) {
+      setState(() {
+        handling = true;
+        result = null;
+        germanResult = german;
+        errorText = null;
       });
       return;
     }
 
     setState(() {
-      handling = true;
-      result = parsed;
-      errorText = null;
+      errorText = 'Das ist kein gültiger Lernergebniscode.';
     });
   }
 
   void _scanAgain() {
     setState(() {
       result = null;
+      germanResult = null;
       errorText = null;
       handling = false;
       codeController.clear();
@@ -55,6 +71,7 @@ class _AssignmentResultScannerScreenState
   @override
   Widget build(BuildContext context) {
     final current = result;
+    final currentGerman = germanResult;
     return Scaffold(
       appBar: AppBar(title: const Text('Ergebnis scannen')),
       body: ListView(
@@ -70,16 +87,15 @@ class _AssignmentResultScannerScreenState
             ),
           ),
           const SizedBox(height: 14),
-          if (current == null) ...[
+          if (current == null && currentGerman == null) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: SizedBox(
                 height: 310,
                 child: QrCameraPanel(
                   onPayload: (raw) {
-                    if (raw.startsWith(
-                      TeacherAssignmentResult.prefix,
-                    )) {
+                    if (raw.startsWith(TeacherAssignmentResult.prefix) ||
+                        raw.startsWith(SubjectResultEnvelope.prefix)) {
                       _handlePayload(raw);
                     }
                   },
@@ -99,29 +115,33 @@ class _AssignmentResultScannerScreenState
             const SizedBox(height: 18),
             Text(
               'Alternativ Ergebniscode einfügen',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w900),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             TextField(
+              key: const ValueKey('assignment-result-code-input'),
               controller: codeController,
               minLines: 2,
               maxLines: 4,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                hintText: 'RBR1:…',
+                hintText: 'RBR1:… oder LBR1:…',
               ),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
+              key: const ValueKey('assignment-result-code-submit'),
               onPressed: () => _handlePayload(codeController.text),
               icon: const Icon(Icons.input_rounded),
               label: const Text('Ergebniscode prüfen'),
             ),
           ] else ...[
-            _ResultCard(result: current),
+            if (current != null)
+              _ResultCard(result: current)
+            else
+              _GermanResultCard(result: currentGerman!),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: _scanAgain,
@@ -155,18 +175,17 @@ class _ResultCard extends StatelessWidget {
           children: [
             Text(
               'Auftrag ${result.assignmentId}',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w900),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 6),
             Text(
               result.targetCompetency == null
                   ? result.mode.title
-                  : MicroCompetencyCatalog
-                      .definition(result.targetCompetency!)
-                      .label,
+                  : MicroCompetencyCatalog.definition(
+                      result.targetCompetency!,
+                    ).label,
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -186,10 +205,7 @@ class _ResultCard extends StatelessWidget {
                       ? 'keine'
                       : '${result.maxHelpLevel}/3',
                 ),
-                _Metric(
-                  'Hilfebeobachtungen',
-                  '${result.aidedObservations}',
-                ),
+                _Metric('Hilfebeobachtungen', '${result.aidedObservations}'),
               ],
             ),
             if (result.methodsUsed.isNotEmpty) ...[
@@ -199,10 +215,54 @@ class _ResultCard extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),
-              ...result.methodsUsed.map(
-                (method) => Text('• $method'),
-              ),
+              ...result.methodsUsed.map((method) => Text('• $method')),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GermanResultCard extends StatelessWidget {
+  const _GermanResultCard({required this.result});
+
+  final GermanTeacherAssignmentResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = (result.accuracy * 100).round();
+    final seconds = result.averageResponseMs <= 0
+        ? '–'
+        : '${(result.averageResponseMs / 1000).toStringAsFixed(1)} s';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Deutsch-Auftrag ${result.assignmentId}',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            Text(result.targetLabel),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 24,
+              runSpacing: 14,
+              children: <Widget>[
+                _Metric(
+                  'direkt richtig',
+                  '${result.correctFirstTry}/${result.completedTasks}',
+                ),
+                _Metric('Trefferquote', '$percent %'),
+                _Metric('Fehlversuche', '${result.incorrectAttempts}'),
+                _Metric('Ø Antwort', seconds),
+              ],
+            ),
           ],
         ),
       ),
@@ -218,16 +278,15 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          Text(label),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        value,
+        style: Theme.of(
+          context,
+        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+      ),
+      Text(label),
+    ],
+  );
 }

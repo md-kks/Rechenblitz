@@ -10,16 +10,16 @@ import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../services/assignment_launcher.dart';
 import '../subjects/german/german_practice_planner.dart';
+import '../subjects/german/german_session.dart';
 import '../subjects/german/german_storage_service.dart';
+import '../subjects/german/german_teacher_assignment_result.dart';
 import '../subjects/german/german_teacher_assignment.dart';
+import '../subjects/german/screens/german_assignment_result_screen.dart';
 import '../subjects/german/screens/german_training_screen.dart';
 import '../widgets/qr_camera_panel.dart';
 
 class AssignmentScannerScreen extends StatefulWidget {
-  const AssignmentScannerScreen({
-    super.key,
-    required this.controller,
-  });
+  const AssignmentScannerScreen({super.key, required this.controller});
 
   final AppController controller;
 
@@ -71,11 +71,7 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
     );
     if (!mounted) return;
     if (accepted == true) {
-      await launchTeacherAssignment(
-        context,
-        widget.controller,
-        assignment,
-      );
+      await launchTeacherAssignment(context, widget.controller, assignment);
     }
     if (mounted) setState(() => handling = false);
   }
@@ -111,21 +107,37 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
         return;
       }
       if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
+      final germanTheme = LearningAppTheme.build(
+        subject: LearningSubject.german,
+        accessibility: widget.controller.accessibilityPreferences,
+      );
+      final session = await Navigator.of(context).push<GermanSessionResult>(
+        MaterialPageRoute<GermanSessionResult>(
           builder: (_) => Theme(
-            data: LearningAppTheme.build(
-              subject: LearningSubject.german,
-              accessibility: widget.controller.accessibilityPreferences,
-            ),
+            data: germanTheme,
             child: GermanTrainingScreen(
               gradeLevel: assignment.gradeLevel,
               tasks: tasks,
               speak: widget.controller.speakOnDemand,
-              speakCompletion:
-                  widget.controller.accessibilityPreferences.spokenRoundFeedback,
+              speakCompletion: widget
+                  .controller
+                  .accessibilityPreferences
+                  .spokenRoundFeedback,
               onComplete: (result) => unawaited(storage.appendSession(result)),
             ),
+          ),
+        ),
+      );
+      if (!mounted || session == null) return;
+      final assignmentResult = GermanTeacherAssignmentResult.fromSession(
+        assignment: assignment,
+        session: session,
+      );
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Theme(
+            data: germanTheme,
+            child: GermanAssignmentResultScreen(result: assignmentResult),
           ),
         ),
       );
@@ -173,72 +185,71 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Schulauftrag scannen')),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 32),
-          children: [
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Scanne den QR-Code der Lehrkraft. Der Auftrag wird nur für diese Runde verwendet und verändert deine persönlichen Profileinstellungen nicht.',
-                ),
-              ),
+    appBar: AppBar(title: const Text('Schulauftrag scannen')),
+    body: ListView(
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 32),
+      children: [
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Scanne den QR-Code der Lehrkraft. Der Auftrag wird nur für diese Runde verwendet und verändert deine persönlichen Profileinstellungen nicht.',
             ),
-            const SizedBox(height: 14),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: SizedBox(
-                height: 310,
-                child: handling
-                    ? const ColoredBox(color: Colors.black)
-                    : QrCameraPanel(
-                        onPayload: (raw) {
-                          if (raw.startsWith(TeacherAssignment.prefix) ||
-                              raw.startsWith(SubjectAssignmentEnvelope.prefix)) {
-                            _handlePayload(raw);
-                          }
-                        },
-                      ),
-              ),
-            ),
-            if (errorText != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                errorText!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-            const SizedBox(height: 18),
-            Text(
-              'Alternativ Auftragscode einfügen',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              key: const ValueKey('assignment-code-input'),
-              controller: codeController,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'RB1:… oder LB1:…',
-              ),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              key: const ValueKey('assignment-code-submit'),
-              onPressed: () => _handlePayload(codeController.text),
-              icon: const Icon(Icons.input_rounded),
-              label: const Text('Code prüfen'),
-            ),
-          ],
+          ),
         ),
-      );
+        const SizedBox(height: 14),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: SizedBox(
+            height: 310,
+            child: handling
+                ? const ColoredBox(color: Colors.black)
+                : QrCameraPanel(
+                    onPayload: (raw) {
+                      if (raw.startsWith(TeacherAssignment.prefix) ||
+                          raw.startsWith(SubjectAssignmentEnvelope.prefix)) {
+                        _handlePayload(raw);
+                      }
+                    },
+                  ),
+          ),
+        ),
+        if (errorText != null) ...[
+          const SizedBox(height: 10),
+          Text(
+            errorText!,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.error,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+        const SizedBox(height: 18),
+        Text(
+          'Alternativ Auftragscode einfügen',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          key: const ValueKey('assignment-code-input'),
+          controller: codeController,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: 'RB1:… oder LB1:…',
+          ),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          key: const ValueKey('assignment-code-submit'),
+          onPressed: () => _handlePayload(codeController.text),
+          icon: const Icon(Icons.input_rounded),
+          label: const Text('Code prüfen'),
+        ),
+      ],
+    ),
+  );
 }

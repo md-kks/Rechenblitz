@@ -22,11 +22,17 @@ void main() {
     expect(find.text('Klassenstufe'), findsOneWidget);
     expect(find.text('Lernbereich'), findsOneWidget);
     expect(find.text('Lernziel'), findsOneWidget);
+    expect(
+      find.textContaining('Kein Name, keine Profil-ID und kein Lernverlauf'),
+      findsOneWidget,
+    );
 
     expect(find.byKey(const ValueKey('german-teacher-qr')), findsOneWidget);
     expect(find.textContaining('Auftrags-ID:'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pumpAndSettle();
     expect(
-      find.textContaining('Kein Name, keine Profil-ID und kein Lernverlauf'),
+      find.byKey(const ValueKey('german-teacher-scan-result')),
       findsOneWidget,
     );
   });

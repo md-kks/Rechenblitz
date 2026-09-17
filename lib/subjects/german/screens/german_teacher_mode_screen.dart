@@ -8,12 +8,16 @@ import '../../../core/grade_level.dart';
 import '../../../core/learning_app_theme.dart';
 import '../../../core/learning_subject.dart';
 import '../../../services/app_controller.dart';
+import '../../../screens/assignment_result_scanner_screen.dart';
 import '../german_competency.dart';
 import '../german_competency_catalog.dart';
 import '../german_learning_domain.dart';
 import '../german_practice_planner.dart';
+import '../german_session.dart';
 import '../german_storage_service.dart';
+import '../german_teacher_assignment_result.dart';
 import '../german_teacher_assignment.dart';
+import 'german_assignment_result_screen.dart';
 import 'german_training_screen.dart';
 
 class GermanTeacherModeScreen extends StatefulWidget {
@@ -80,8 +84,8 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
       history: history,
     );
     if (!mounted || round.isEmpty) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
+    final session = await Navigator.of(context).push<GermanSessionResult>(
+      MaterialPageRoute<GermanSessionResult>(
         builder: (_) => Theme(
           data: _germanTheme,
           child: GermanTrainingScreen(
@@ -92,6 +96,19 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
                 widget.controller.accessibilityPreferences.spokenRoundFeedback,
             onComplete: (result) => unawaited(storage.appendSession(result)),
           ),
+        ),
+      ),
+    );
+    if (!mounted || session == null) return;
+    final assignmentResult = GermanTeacherAssignmentResult.fromSession(
+      assignment: assignment,
+      session: session,
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Theme(
+          data: _germanTheme,
+          child: GermanAssignmentResultScreen(result: assignmentResult),
         ),
       ),
     );
@@ -242,6 +259,17 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
                 },
                 icon: const Icon(Icons.copy_rounded),
                 label: const Text('Auftragscode kopieren'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: const ValueKey('german-teacher-scan-result'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AssignmentResultScannerScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.fact_check_outlined),
+                label: const Text('Ergebnis-QR scannen'),
               ),
               const SizedBox(height: 8),
               FilledButton.icon(

@@ -55,7 +55,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   Future<void> _openRound(List<GermanTask> tasks) async {
     if (tasks.isEmpty) return;
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      MaterialPageRoute<GermanSessionResult>(
         builder: (_) => Theme(
           data: _germanTheme,
           child: GermanTrainingScreen(

@@ -372,7 +372,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
                 const SizedBox(height: 20),
                 FilledButton(
                   key: const ValueKey('german-round-done'),
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(context).pop(_completedResult),
                   child: const Text('Fertig'),
                 ),
               ],

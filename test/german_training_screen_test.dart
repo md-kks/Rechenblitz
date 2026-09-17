@@ -119,6 +119,46 @@ void main() {
     expect(spoken, hasLength(2));
   });
 
+  testWidgets('completed German round returns its session result to caller', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g2-noun-article-tree',
+    );
+    GermanSessionResult? returned;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async {
+              returned = await Navigator.of(context).push<GermanSessionResult>(
+                MaterialPageRoute<GermanSessionResult>(
+                  builder: (_) => GermanTrainingScreen(
+                    gradeLevel: task.recommendedFromGrade,
+                    tasks: <GermanTask>[task],
+                    speak: (_) async {},
+                  ),
+                ),
+              );
+            },
+            child: const Text('Start'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'der'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('german-round-done')));
+    await tester.pumpAndSettle();
+
+    expect(returned, isNotNull);
+    expect(returned!.total, 1);
+    expect(returned!.correctFirstTry, 1);
+  });
+
   testWidgets('typed answer accepts normalized child input', (tester) async {
     final task = GermanStarterTaskCatalog.tasks.firstWhere(
       (task) => task.interaction == GermanTaskInteraction.typedText,
