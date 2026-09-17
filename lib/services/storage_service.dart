@@ -452,14 +452,16 @@ class StorageService {
           .remove(_profileKey(_stepRecoverySessionKey));
 
   Future<CoreTrainingSessionProgress?> loadCoreTrainingSession() async {
-    final raw = (await SharedPreferences.getInstance())
-        .getString(_profileKey(_coreTrainingSessionKey));
+    final prefs = await SharedPreferences.getInstance();
+    final key = _profileKey(_coreTrainingSessionKey);
+    final raw = prefs.getString(key);
     if (raw == null) return null;
     try {
       return CoreTrainingSessionProgress.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (_) {
+      await prefs.remove(key);
       return null;
     }
   }

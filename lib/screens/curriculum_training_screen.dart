@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../models/cube_net.dart';
 import '../models/curriculum_exercise.dart';
+import '../models/active_response_timer.dart';
 import '../models/adaptive_segment.dart';
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
@@ -54,7 +55,8 @@ class CurriculumTrainingScreen extends StatefulWidget {
       _CurriculumTrainingScreenState();
 }
 
-class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
+class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
+    with WidgetsBindingObserver {
   HelpPreferences get _helpPreferences => widget.controller.helpPreferences;
   HelpLevel? get _manualHelpLevel => _helpPreferences.manualStartLevel;
   bool get _helpAvailable => _helpPreferences.enabled;
@@ -77,7 +79,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   late final CurriculumExerciseGenerator generator;
   late CurriculumExercise current;
   late DateTime startedAt;
-  late DateTime shownAt;
+  late ActiveResponseTimer responseTimer;
   int completed = 0;
   int correctFirstTry = 0;
   int incorrectAttempts = 0;
@@ -132,6 +134,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     generator = widget.exerciseGenerator ?? CurriculumExerciseGenerator();
     final saved = widget.exerciseGenerator == null
         ? widget.controller.resumableCoreTrainingSession(
@@ -167,7 +170,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       hadCheckpointError = saved.hadCheckpointError;
       taskFirstAttemptRecorded = saved.taskFirstAttemptRecorded;
       responseTimes.addAll(saved.responseTimes);
-      shownAt = now;
+      responseTimer = ActiveResponseTimer(startedAt: now);
       resumedFromDraft = true;
       resumeResolvedTask = saved.taskResolved;
       locked = resumeResolvedTask;
@@ -175,7 +178,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
       startedAt = now;
       current = _next();
       _prepareHelpForCurrent();
-      shownAt = now;
+      responseTimer = ActiveResponseTimer(startedAt: now);
       unawaited(_persistSession());
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -186,6 +189,22 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
         unawaited(widget.controller.speak(current.prompt));
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      responseTimer.resume();
+      return;
+    }
+    responseTimer.pause();
+    unawaited(_persistSession());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   CoreTrainingSessionProgress _sessionSnapshot({
@@ -246,7 +265,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     resumeResolvedTask = false;
     setState(() {
       current = _next();
-      shownAt = DateTime.now();
+      responseTimer.reset();
       wrongOnCurrent = 0;
       locked = false;
       _prepareHelpForCurrent();
@@ -436,7 +455,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
 
   Future<void> _answer(int answer) async {
     if (locked || finishing || !_checkpointsComplete) return;
-    final response = DateTime.now().difference(shownAt);
+    final response = responseTimer.elapsed();
     final diagnosedPattern = answer == current.answer
         ? null
         : ErrorClassifier.classify(
@@ -527,7 +546,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen> {
     }
     setState(() {
       current = _next();
-      shownAt = DateTime.now();
+      responseTimer.reset();
       wrongOnCurrent = 0;
       locked = false;
       _prepareHelpForCurrent();

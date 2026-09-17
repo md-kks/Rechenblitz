@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/active_response_timer.dart';
 import '../models/adaptive_segment.dart';
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
@@ -97,7 +98,7 @@ class _TrainingScreenState extends State<TrainingScreen>
           : MicroEvidenceSource.practice;
 
   late MathFact current;
-  late DateTime taskShownAt;
+  late ActiveResponseTimer responseTimer;
   late DateTime startedAt;
   Timer? timer;
   Duration elapsed = Duration.zero;
@@ -243,7 +244,7 @@ class _TrainingScreenState extends State<TrainingScreen>
               recentKeys: widget.controller.recentTaskKeys(widget.mode),
               targetCompetency: widget.targetCompetency,
             );
-      taskShownAt = now;
+      responseTimer = ActiveResponseTimer(startedAt: now);
       resumedFromDraft = true;
       resumeResolvedTask = saved.taskResolved;
       locked = resumeResolvedTask;
@@ -251,7 +252,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       startedAt = now;
       current = _next();
       _prepareHelpForCurrent();
-      taskShownAt = now;
+      responseTimer = ActiveResponseTimer(startedAt: now);
       unawaited(_persistSession());
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -274,16 +275,21 @@ class _TrainingScreenState extends State<TrainingScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      activeClockStartedAt = DateTime.now();
-      activeClockRunning = true;
+      final now = DateTime.now();
+      responseTimer.resume(at: now);
+      if (!activeClockRunning) {
+        activeClockStartedAt = now;
+        activeClockRunning = true;
+      }
       return;
     }
+    responseTimer.pause();
     if (activeClockRunning) {
       activeElapsedBase = _activeElapsed();
       elapsed = activeElapsedBase;
       activeClockRunning = false;
-      unawaited(_persistSession());
     }
+    unawaited(_persistSession());
   }
 
   @override
@@ -565,7 +571,7 @@ class _TrainingScreenState extends State<TrainingScreen>
 
   Future<void> _answer(int answer) async {
     if (locked || finishing || !_checkpointsComplete) return;
-    final response = DateTime.now().difference(taskShownAt);
+    final response = responseTimer.elapsed();
     final correct = answer == _expectedAnswer;
     final diagnosedPattern = correct
         ? null
@@ -711,7 +717,7 @@ class _TrainingScreenState extends State<TrainingScreen>
     if (!mounted || finishing) return;
     setState(() {
       current = _next();
-      taskShownAt = DateTime.now();
+      responseTimer.reset();
       wrongOnCurrent = 0;
       helpCountedForCurrent = false;
       _prepareHelpForCurrent();
