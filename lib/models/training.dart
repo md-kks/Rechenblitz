@@ -1,3 +1,7 @@
+import '../core/grade_level.dart';
+
+export '../core/grade_level.dart';
+
 enum NumberRangeLevel { ten, twenty, hundred, thousand, tenThousand, million }
 
 extension NumberRangeLevelX on NumberRangeLevel {
@@ -20,15 +24,7 @@ extension NumberRangeLevelX on NumberRangeLevel {
       };
 }
 
-enum GradeLevel { first, second, third, fourth }
-
-extension GradeLevelX on GradeLevel {
-  int get number => index + 1;
-
-  String get label => 'Klasse $number';
-
-  String get shortLabel => '$number';
-
+extension MathGradeLevelX on GradeLevel {
   String get description => switch (this) {
         GradeLevel.first => 'Zahlvorstellungen und sichere Grundaufgaben aufbauen.',
         GradeLevel.second =>

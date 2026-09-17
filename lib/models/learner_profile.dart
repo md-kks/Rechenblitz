@@ -1,45 +1,8 @@
+import '../core/german_state.dart';
+import '../core/grade_level.dart';
 import 'help_preferences.dart';
-import 'training.dart';
 
-enum GermanState {
-  badenWuerttemberg,
-  bavaria,
-  berlin,
-  brandenburg,
-  bremen,
-  hamburg,
-  hesse,
-  mecklenburgVorpommern,
-  lowerSaxony,
-  northRhineWestphalia,
-  rhinelandPalatinate,
-  saarland,
-  saxony,
-  saxonyAnhalt,
-  schleswigHolstein,
-  thuringia,
-}
-
-extension GermanStateX on GermanState {
-  String get label => switch (this) {
-        GermanState.badenWuerttemberg => 'Baden-Württemberg',
-        GermanState.bavaria => 'Bayern',
-        GermanState.berlin => 'Berlin',
-        GermanState.brandenburg => 'Brandenburg',
-        GermanState.bremen => 'Bremen',
-        GermanState.hamburg => 'Hamburg',
-        GermanState.hesse => 'Hessen',
-        GermanState.mecklenburgVorpommern => 'Mecklenburg-Vorpommern',
-        GermanState.lowerSaxony => 'Niedersachsen',
-        GermanState.northRhineWestphalia => 'Nordrhein-Westfalen',
-        GermanState.rhinelandPalatinate => 'Rheinland-Pfalz',
-        GermanState.saarland => 'Saarland',
-        GermanState.saxony => 'Sachsen',
-        GermanState.saxonyAnhalt => 'Sachsen-Anhalt',
-        GermanState.schleswigHolstein => 'Schleswig-Holstein',
-        GermanState.thuringia => 'Thüringen',
-      };
-}
+export '../core/german_state.dart';
 
 class LearnerProfile {
   const LearnerProfile({
@@ -70,30 +33,29 @@ class LearnerProfile {
     DateTime? assessmentCompletedAt,
     bool clearAssessment = false,
     HelpPreferences? helpPreferences,
-  }) =>
-      LearnerProfile(
-        id: id,
-        name: name ?? this.name,
-        gradeLevel: gradeLevel ?? this.gradeLevel,
-        createdAt: createdAt,
-        state: state ?? this.state,
-        onboardingComplete: onboardingComplete ?? this.onboardingComplete,
-        assessmentCompletedAt: clearAssessment
-            ? null
-            : assessmentCompletedAt ?? this.assessmentCompletedAt,
-        helpPreferences: helpPreferences ?? this.helpPreferences,
-      );
+  }) => LearnerProfile(
+    id: id,
+    name: name ?? this.name,
+    gradeLevel: gradeLevel ?? this.gradeLevel,
+    createdAt: createdAt,
+    state: state ?? this.state,
+    onboardingComplete: onboardingComplete ?? this.onboardingComplete,
+    assessmentCompletedAt: clearAssessment
+        ? null
+        : assessmentCompletedAt ?? this.assessmentCompletedAt,
+    helpPreferences: helpPreferences ?? this.helpPreferences,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'gradeLevel': gradeLevel.name,
-        'createdAt': createdAt.toIso8601String(),
-        'state': state.name,
-        'onboardingComplete': onboardingComplete,
-        'assessmentCompletedAt': assessmentCompletedAt?.toIso8601String(),
-        'helpPreferences': helpPreferences.toJson(),
-      };
+    'id': id,
+    'name': name,
+    'gradeLevel': gradeLevel.name,
+    'createdAt': createdAt.toIso8601String(),
+    'state': state.name,
+    'onboardingComplete': onboardingComplete,
+    'assessmentCompletedAt': assessmentCompletedAt?.toIso8601String(),
+    'helpPreferences': helpPreferences.toJson(),
+  };
 
   factory LearnerProfile.fromJson(Map<String, dynamic> json) {
     final rawGrade = json['gradeLevel'] as String?;
@@ -120,14 +82,16 @@ class LearnerProfile {
           ? (json['name'] as String).trim()
           : 'Lernprofil',
       gradeLevel: grade ?? GradeLevel.second,
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+      createdAt:
+          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime(2026, 1, 1),
       state: state,
       // Profiles created by versions before Lernstart are considered complete
       // so existing users are never forced through a new onboarding flow.
       onboardingComplete: json['onboardingComplete'] as bool? ?? true,
-      assessmentCompletedAt:
-          DateTime.tryParse(json['assessmentCompletedAt'] as String? ?? ''),
+      assessmentCompletedAt: DateTime.tryParse(
+        json['assessmentCompletedAt'] as String? ?? '',
+      ),
       helpPreferences: HelpPreferences.fromJson(
         json['helpPreferences'] is Map<String, dynamic>
             ? json['helpPreferences'] as Map<String, dynamic>

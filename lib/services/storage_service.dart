@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/learning_subject.dart';
+import '../core/storage/subject_storage_keyspace.dart';
+
 import '../models/accessibility_preferences.dart';
 import '../models/assessment.dart';
 import '../models/beta_feedback.dart';
@@ -42,11 +45,16 @@ class StorageService {
   static const _profilesKey = 'learner_profiles_v1';
   static const _activeProfileKey = 'active_learner_profile_v1';
 
+  static const _mathKeyspace = SubjectStorageKeyspace(
+    LearningSubject.mathematics,
+  );
+
   String _activeProfileId = 'default';
 
   String get activeProfileId => _activeProfileId;
 
-  String _profileKey(String key) => 'profile:$_activeProfileId:$key';
+  String _profileKey(String key) =>
+      _mathKeyspace.profileKey(_activeProfileId, key);
 
   Future<List<LearnerProfile>> initializeProfiles() async {
     final prefs = await SharedPreferences.getInstance();
@@ -74,9 +82,10 @@ class StorageService {
       _recoveredWeakFactsKey,
     ].any(prefs.containsKey);
 
-    final legacyGrade = _parseGrade(prefs.getString(_gradeLevelKey)) ??
-        GradeLevel.second;
-    final legacyRange = _parseRange(prefs.getString(_numberRangeKey)) ??
+    final legacyGrade =
+        _parseGrade(prefs.getString(_gradeLevelKey)) ?? GradeLevel.second;
+    final legacyRange =
+        _parseRange(prefs.getString(_numberRangeKey)) ??
         legacyGrade.recommendedRange;
 
     final profile = LearnerProfile(
@@ -88,10 +97,7 @@ class StorageService {
     );
 
     _activeProfileId = profile.id;
-    await prefs.setString(
-      _profilesKey,
-      jsonEncode([profile.toJson()]),
-    );
+    await prefs.setString(_profilesKey, jsonEncode([profile.toJson()]));
     await prefs.setString(_activeProfileKey, profile.id);
     await prefs.setString(_profileKey(_gradeLevelKey), legacyGrade.name);
     await prefs.setString(_profileKey(_numberRangeKey), legacyRange.name);
@@ -128,25 +134,10 @@ class StorageService {
 
   Future<void> deleteProfileData(String id) async {
     final prefs = await SharedPreferences.getInstance();
-    for (final key in [
-      _factsKey,
-      _historyKey,
-      _numberRangeKey,
-      _gradeLevelKey,
-      _badgesKey,
-      _recoveredWeakFactsKey,
-      _methodsKey,
-      _diagnosticsKey,
-      _remediationKey,
-      _taskDiversityKey,
-      _microCompetencyKey,
-      _guidedRoundKey,
-      _assessmentProgressKey,
-      _remediationSessionKey,
-      _stepRecoverySessionKey,
-      _coreTrainingSessionKey,
-    ]) {
-      await prefs.remove('profile:$id:$key');
+    final prefix = SubjectStorageKeyspace.anySubjectProfilePrefix(id);
+    final profileKeys = prefs.getKeys().where((key) => key.startsWith(prefix));
+    for (final key in profileKeys.toList()) {
+      await prefs.remove(key);
     }
   }
 
@@ -208,9 +199,7 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       _profileKey(_diagnosticsKey),
-      jsonEncode(
-        diagnostics.take(500).map((entry) => entry.toJson()).toList(),
-      ),
+      jsonEncode(diagnostics.take(500).map((entry) => entry.toJson()).toList()),
     );
   }
 
@@ -266,9 +255,7 @@ class StorageService {
     }
   }
 
-  Future<void> saveTaskDiversity(
-    Map<String, List<String>> recentByMode,
-  ) async {
+  Future<void> saveTaskDiversity(Map<String, List<String>> recentByMode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       _profileKey(_taskDiversityKey),
@@ -277,7 +264,7 @@ class StorageService {
   }
 
   Future<List<MicroCompetencyObservation>>
-      loadMicroCompetencyObservations() async {
+  loadMicroCompetencyObservations() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_profileKey(_microCompetencyKey));
     if (raw == null) return [];
@@ -306,9 +293,9 @@ class StorageService {
     await prefs.setString(
       _profileKey(_microCompetencyKey),
       jsonEncode(
-        MicroEvidenceRetention.compact(observations)
-            .map((entry) => entry.toJson())
-            .toList(),
+        MicroEvidenceRetention.compact(
+          observations,
+        ).map((entry) => entry.toJson()).toList(),
       ),
     );
   }
@@ -350,8 +337,9 @@ class StorageService {
       (await SharedPreferences.getInstance()).getBool(_hapticKey) ?? true;
 
   Future<NumberRangeLevel?> numberRange() async {
-    final raw = (await SharedPreferences.getInstance())
-        .getString(_profileKey(_numberRangeKey));
+    final raw = (await SharedPreferences.getInstance()).getString(
+      _profileKey(_numberRangeKey),
+    );
     return _parseRange(raw);
   }
 
@@ -377,8 +365,9 @@ class StorageService {
       );
 
   Future<void> clearGuidedRoundProgress() async =>
-      (await SharedPreferences.getInstance())
-          .remove(_profileKey(_guidedRoundKey));
+      (await SharedPreferences.getInstance()).remove(
+        _profileKey(_guidedRoundKey),
+      );
 
   Future<AssessmentProgress?> loadAssessmentProgress() async {
     final prefs = await SharedPreferences.getInstance();
@@ -402,8 +391,9 @@ class StorageService {
       );
 
   Future<void> clearAssessmentProgress() async =>
-      (await SharedPreferences.getInstance())
-          .remove(_profileKey(_assessmentProgressKey));
+      (await SharedPreferences.getInstance()).remove(
+        _profileKey(_assessmentProgressKey),
+      );
 
   Future<RemediationSessionProgress?> loadRemediationSession() async {
     final prefs = await SharedPreferences.getInstance();
@@ -422,15 +412,15 @@ class StorageService {
 
   Future<void> saveRemediationSession(
     RemediationSessionProgress progress,
-  ) async =>
-      (await SharedPreferences.getInstance()).setString(
-        _profileKey(_remediationSessionKey),
-        jsonEncode(progress.toJson()),
-      );
+  ) async => (await SharedPreferences.getInstance()).setString(
+    _profileKey(_remediationSessionKey),
+    jsonEncode(progress.toJson()),
+  );
 
   Future<void> clearRemediationSession() async =>
-      (await SharedPreferences.getInstance())
-          .remove(_profileKey(_remediationSessionKey));
+      (await SharedPreferences.getInstance()).remove(
+        _profileKey(_remediationSessionKey),
+      );
 
   Future<StepRecoverySessionProgress?> loadStepRecoverySession() async {
     final prefs = await SharedPreferences.getInstance();
@@ -449,15 +439,15 @@ class StorageService {
 
   Future<void> saveStepRecoverySession(
     StepRecoverySessionProgress progress,
-  ) async =>
-      (await SharedPreferences.getInstance()).setString(
-        _profileKey(_stepRecoverySessionKey),
-        jsonEncode(progress.toJson()),
-      );
+  ) async => (await SharedPreferences.getInstance()).setString(
+    _profileKey(_stepRecoverySessionKey),
+    jsonEncode(progress.toJson()),
+  );
 
   Future<void> clearStepRecoverySession() async =>
-      (await SharedPreferences.getInstance())
-          .remove(_profileKey(_stepRecoverySessionKey));
+      (await SharedPreferences.getInstance()).remove(
+        _profileKey(_stepRecoverySessionKey),
+      );
 
   Future<CoreTrainingSessionProgress?> loadCoreTrainingSession() async {
     final prefs = await SharedPreferences.getInstance();
@@ -476,25 +466,27 @@ class StorageService {
 
   Future<void> saveCoreTrainingSession(
     CoreTrainingSessionProgress progress,
-  ) async =>
-      (await SharedPreferences.getInstance()).setString(
-        _profileKey(_coreTrainingSessionKey),
-        jsonEncode(progress.toJson()),
-      );
+  ) async => (await SharedPreferences.getInstance()).setString(
+    _profileKey(_coreTrainingSessionKey),
+    jsonEncode(progress.toJson()),
+  );
 
   Future<void> clearCoreTrainingSession() async =>
-      (await SharedPreferences.getInstance())
-          .remove(_profileKey(_coreTrainingSessionKey));
+      (await SharedPreferences.getInstance()).remove(
+        _profileKey(_coreTrainingSessionKey),
+      );
 
   Future<GradeLevel?> storedGradeLevel() async {
-    final raw = (await SharedPreferences.getInstance())
-        .getString(_profileKey(_gradeLevelKey));
+    final raw = (await SharedPreferences.getInstance()).getString(
+      _profileKey(_gradeLevelKey),
+    );
     return _parseGrade(raw);
   }
 
   Future<MethodPreferences> methodPreferences() async {
-    final raw = (await SharedPreferences.getInstance())
-        .getString(_profileKey(_methodsKey));
+    final raw = (await SharedPreferences.getInstance()).getString(
+      _profileKey(_methodsKey),
+    );
     if (raw == null) return const MethodPreferences();
     try {
       return MethodPreferences.fromJson(
@@ -518,12 +510,16 @@ class StorageService {
       <String>{};
 
   Future<void> setGradeLevel(GradeLevel value) async =>
-      (await SharedPreferences.getInstance())
-          .setString(_profileKey(_gradeLevelKey), value.name);
+      (await SharedPreferences.getInstance()).setString(
+        _profileKey(_gradeLevelKey),
+        value.name,
+      );
 
   Future<void> setNumberRange(NumberRangeLevel value) async =>
-      (await SharedPreferences.getInstance())
-          .setString(_profileKey(_numberRangeKey), value.name);
+      (await SharedPreferences.getInstance()).setString(
+        _profileKey(_numberRangeKey),
+        value.name,
+      );
 
   Future<void> setMethodPreferences(MethodPreferences value) async =>
       (await SharedPreferences.getInstance()).setString(
@@ -538,9 +534,8 @@ class StorageService {
     try {
       return (jsonDecode(raw) as List<dynamic>)
           .map(
-            (entry) => BetaFeedbackEntry.fromJson(
-              entry as Map<String, dynamic>,
-            ),
+            (entry) =>
+                BetaFeedbackEntry.fromJson(entry as Map<String, dynamic>),
           )
           .toList();
     } catch (_) {
@@ -548,9 +543,7 @@ class StorageService {
     }
   }
 
-  Future<void> setBetaFeedback(
-    List<BetaFeedbackEntry> entries,
-  ) async =>
+  Future<void> setBetaFeedback(List<BetaFeedbackEntry> entries) async =>
       (await SharedPreferences.getInstance()).setString(
         _betaFeedbackKey,
         jsonEncode(entries.map((entry) => entry.toJson()).toList()),
@@ -571,11 +564,10 @@ class StorageService {
 
   Future<void> setAccessibilityPreferences(
     AccessibilityPreferences value,
-  ) async =>
-      (await SharedPreferences.getInstance()).setString(
-        _accessibilityKey,
-        jsonEncode(value.toJson()),
-      );
+  ) async => (await SharedPreferences.getInstance()).setString(
+    _accessibilityKey,
+    jsonEncode(value.toJson()),
+  );
 
   Future<void> setSoundEnabled(bool value) async =>
       (await SharedPreferences.getInstance()).setBool(_soundKey, value);
@@ -584,8 +576,10 @@ class StorageService {
       (await SharedPreferences.getInstance()).setBool(_hapticKey, value);
 
   Future<void> setRewardBadges(Set<String> values) async =>
-      (await SharedPreferences.getInstance())
-          .setStringList(_profileKey(_badgesKey), values.toList()..sort());
+      (await SharedPreferences.getInstance()).setStringList(
+        _profileKey(_badgesKey),
+        values.toList()..sort(),
+      );
 
   Future<void> setRecoveredWeakFacts(Set<String> values) async =>
       (await SharedPreferences.getInstance()).setStringList(
@@ -647,10 +641,7 @@ class StorageService {
     return null;
   }
 
-  Future<void> _copyLegacyString(
-    SharedPreferences prefs,
-    String key,
-  ) async {
+  Future<void> _copyLegacyString(SharedPreferences prefs, String key) async {
     final value = prefs.getString(key);
     if (value != null && !prefs.containsKey(_profileKey(key))) {
       await prefs.setString(_profileKey(key), value);

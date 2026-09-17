@@ -67,11 +67,7 @@ void main() {
   });
 
   test('Minus über den Zehner trägt Haupt- und Unterstützungsziel', () {
-    final fact = MathFact(
-      a: 13,
-      b: 5,
-      operation: MathOperation.minus,
-    );
+    final fact = MathFact(a: 13, b: 5, operation: MathOperation.minus);
 
     final tags = MicroCompetencyCatalog.tagsForTask(
       mode: TrainingMode.minus,
@@ -87,11 +83,7 @@ void main() {
   });
 
   test('voller Zehner ist kein künstlicher Minus-Zehnerübergang', () {
-    final fact = MathFact(
-      a: 10,
-      b: 6,
-      operation: MathOperation.minus,
-    );
+    final fact = MathFact(a: 10, b: 6, operation: MathOperation.minus);
 
     final tags = MicroCompetencyCatalog.tagsForTask(
       mode: TrainingMode.minus,
@@ -127,43 +119,37 @@ void main() {
       taskKey: 'written:-:432:111',
     );
 
-    expect(
-      withBorrow.first.id,
-      MicroCompetencyId.writtenRegrouping,
-    );
-    expect(
-      withoutBorrow.map((tag) => tag.id),
-      [MicroCompetencyId.writtenAlignment],
-    );
+    expect(withBorrow.first.id, MicroCompetencyId.writtenRegrouping);
+    expect(withoutBorrow.map((tag) => tag.id), [
+      MicroCompetencyId.writtenAlignment,
+    ]);
   });
 
-  test('erfolgreiche Hilfsantwort zählt weniger Evidenz als freie Antwort',
-      () async {
-    final controller = AppController();
-    await controller.load();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
+  test(
+    'erfolgreiche Hilfsantwort zählt weniger Evidenz als freie Antwort',
+    () async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
 
-    final fact = MathFact(
-      a: 13,
-      b: 5,
-      operation: MathOperation.minus,
-    );
+      final fact = MathFact(a: 13, b: 5, operation: MathOperation.minus);
 
-    await controller.recordDiagnosticAttempt(
-      mode: TrainingMode.minus,
-      taskKey: fact.key,
-      expected: 8,
-      actual: 8,
-      fact: fact,
-      usedHelp: true,
-    );
+      await controller.recordDiagnosticAttempt(
+        mode: TrainingMode.minus,
+        taskKey: fact.key,
+        expected: 8,
+        actual: 8,
+        fact: fact,
+        usedHelp: true,
+      );
 
-    final aided = controller.microObservations.firstWhere(
-      (entry) => entry.id == MicroCompetencyId.subtractionTenBridge,
-    );
-    expect(aided.evidenceWeight, closeTo(0.80, 0.001));
-  });
+      final aided = controller.microObservations.firstWhere(
+        (entry) => entry.id == MicroCompetencyId.subtractionTenBridge,
+      );
+      expect(aided.evidenceWeight, closeTo(0.80, 0.001));
+    },
+  );
 
   test('unsichere Voraussetzung wird vor höherem Teilschritt fokussiert', () {
     final controller = AppController();
@@ -231,8 +217,7 @@ void main() {
     expect(
       plan.any(
         (segment) =>
-            segment.targetCompetency ==
-            MicroCompetencyId.subtractionTenBridge,
+            segment.targetCompetency == MicroCompetencyId.subtractionTenBridge,
       ),
       isTrue,
     );
@@ -293,9 +278,7 @@ void main() {
         fact: fact,
       );
       expect(
-        tags.any(
-          (tag) => tag.id == MicroCompetencyId.additionTenBridge,
-        ),
+        tags.any((tag) => tag.id == MicroCompetencyId.additionTenBridge),
         isTrue,
       );
       expect(needsAdditionTenBridge(fact.a, fact.b), isTrue);
@@ -348,11 +331,7 @@ void main() {
       taskKey: 'minus:13:5',
       expected: 8,
       actual: 9,
-      fact: MathFact(
-        a: 13,
-        b: 5,
-        operation: MathOperation.minus,
-      ),
+      fact: MathFact(a: 13, b: 5, operation: MathOperation.minus),
     );
 
     final reloaded = AppController();
@@ -384,8 +363,9 @@ void main() {
       ),
     );
 
-    final base =
-        controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
+    final base = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
     expect(base.state, MicroCompetencyState.secure);
     expect(base.independentEvidence, closeTo(6, 0.001));
     expect(base.independentAccuracy, closeTo(1, 0.001));
@@ -412,8 +392,9 @@ void main() {
       ),
     );
 
-    final withoutReview =
-        controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
+    final withoutReview = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
     expect(withoutReview.state, MicroCompetencyState.secure);
     expect(withoutReview.transferIndependentEvidence, closeTo(2, 0.001));
 
@@ -436,8 +417,9 @@ void main() {
       ),
     );
 
-    final mastered =
-        controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
+    final mastered = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
     expect(mastered.state, MicroCompetencyState.mastered);
     expect(mastered.reviewIndependentEvidence, closeTo(2, 0.001));
     expect(mastered.reviewIndependentAccuracy, closeTo(1, 0.001));
@@ -445,36 +427,39 @@ void main() {
     expect(mastered.transferIndependentAccuracy, closeTo(1, 0.001));
   });
 
-  test('Hilfe zählt sichtbar, erzeugt aber keine selbstständige Sicherheit', () {
-    final controller = AppController();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
-    controller.microObservations = List.generate(
-      8,
-      (index) => MicroCompetencyObservation(
-        id: MicroCompetencyId.subtractionTenBridge,
-        occurredAt: DateTime(2026, 9, 1, 12, index),
-        correct: true,
-        evidenceWeight: 0.8,
-        source: MicroEvidenceSource.practice,
-        usedHelp: true,
-        helpLevel: 1,
-        mode: TrainingMode.minus,
-        gradeLevel: GradeLevel.second,
-        numberRange: NumberRangeLevel.hundred,
-        taskKey: 'minus:43:18:$index',
-      ),
-    );
+  test(
+    'Hilfe zählt sichtbar, erzeugt aber keine selbstständige Sicherheit',
+    () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
+      controller.microObservations = List.generate(
+        8,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.subtractionTenBridge,
+          occurredAt: DateTime(2026, 9, 1, 12, index),
+          correct: true,
+          evidenceWeight: 0.8,
+          source: MicroEvidenceSource.practice,
+          usedHelp: true,
+          helpLevel: 1,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'minus:43:18:$index',
+        ),
+      );
 
-    final progress = controller.microCompetencyProgress(
-      MicroCompetencyId.subtractionTenBridge,
-    );
+      final progress = controller.microCompetencyProgress(
+        MicroCompetencyId.subtractionTenBridge,
+      );
 
-    expect(progress.aidedObservations, 8);
-    expect(progress.aidedEvidence, greaterThan(0));
-    expect(progress.independentEvidence, 0);
-    expect(progress.state, MicroCompetencyState.practicing);
-  });
+      expect(progress.aidedObservations, 8);
+      expect(progress.aidedEvidence, greaterThan(0));
+      expect(progress.independentEvidence, 0);
+      expect(progress.state, MicroCompetencyState.practicing);
+    },
+  );
 
   test('Abstandskontrolle wird erst nach zwei Tagen fällig', () {
     final controller = AppController();
@@ -507,9 +492,7 @@ void main() {
     );
 
     expect(
-      controller.dueReviewMicroCompetency(
-        now: DateTime(2026, 9, 2, 10),
-      ),
+      controller.dueReviewMicroCompetency(now: DateTime(2026, 9, 2, 10)),
       isNull,
     );
     final due = controller.dueReviewMicroCompetency(
@@ -518,28 +501,17 @@ void main() {
     expect(due, isNotNull);
     expect(due!.definition.id, MicroCompetencyId.subtractionTenBridge);
 
-    final plan = controller.buildMyRound(
-      now: DateTime(2026, 9, 3, 10, 5),
-    );
+    final plan = controller.buildMyRound(now: DateTime(2026, 9, 3, 10, 5));
     expect(plan[2].reviewEmphasis, isTrue);
-    expect(
-      plan[2].targetCompetency,
-      MicroCompetencyId.subtractionTenBridge,
-    );
+    expect(plan[2].targetCompetency, MicroCompetencyId.subtractionTenBridge);
     expect(plan[2].reason, contains('zeitlichem Abstand'));
     expect(
-      [
-        plan[0],
-        plan[1],
-        plan[3],
-      ].every(
+      [plan[0], plan[1], plan[3]].every(
         (segment) =>
-            segment.targetCompetency !=
-            MicroCompetencyId.subtractionTenBridge,
+            segment.targetCompetency != MicroCompetencyId.subtractionTenBridge,
       ),
       isTrue,
-      reason:
-          'Das Abstandsziel darf in derselben Runde nicht vorgeübt werden.',
+      reason: 'Das Abstandsziel darf in derselben Runde nicht vorgeübt werden.',
     );
   });
 
@@ -581,15 +553,11 @@ void main() {
     ];
 
     expect(
-      controller.dueReviewMicroCompetency(
-        now: DateTime(2026, 9, 10, 10),
-      ),
+      controller.dueReviewMicroCompetency(now: DateTime(2026, 9, 10, 10)),
       isNull,
     );
     expect(
-      controller.dueReviewMicroCompetency(
-        now: DateTime(2026, 9, 11, 10, 1),
-      ),
+      controller.dueReviewMicroCompetency(now: DateTime(2026, 9, 11, 10, 1)),
       isNotNull,
     );
   });
@@ -648,8 +616,9 @@ void main() {
       ),
     ];
 
-    final progress =
-        controller.microCompetencyProgress(MicroCompetencyId.additionTenBridge);
+    final progress = controller.microCompetencyProgress(
+      MicroCompetencyId.additionTenBridge,
+    );
 
     expect(progress.transferEvidence, greaterThan(0));
     expect(progress.transferIndependentEvidence, 0);
@@ -691,15 +660,11 @@ void main() {
     ];
 
     expect(
-      controller.dueReviewMicroCompetency(
-        now: DateTime(2026, 9, 5, 9, 59),
-      ),
+      controller.dueReviewMicroCompetency(now: DateTime(2026, 9, 5, 9, 59)),
       isNull,
     );
     expect(
-      controller.dueReviewMicroCompetency(
-        now: DateTime(2026, 9, 5, 10),
-      ),
+      controller.dueReviewMicroCompetency(now: DateTime(2026, 9, 5, 10)),
       isNotNull,
     );
   });
@@ -740,19 +705,16 @@ void main() {
     expect(candidate, isNotNull);
     expect(candidate!.definition.id, MicroCompetencyId.subtractionTenBridge);
 
-    final plan = controller.buildMyRound(
-      now: DateTime(2026, 9, 6, 12),
-    );
+    final plan = controller.buildMyRound(now: DateTime(2026, 9, 6, 12));
     final transfer = plan.last;
     expect(transfer.transferEmphasis, isTrue);
-    expect(
-      transfer.targetCompetency,
-      MicroCompetencyId.subtractionTenBridge,
-    );
+    expect(transfer.targetCompetency, MicroCompetencyId.subtractionTenBridge);
     expect(transfer.mode, TrainingMode.wordProblems);
     expect(transfer.reason, contains('veränderten Aufgabe'));
     expect(
-      plan.take(3).every(
+      plan
+          .take(3)
+          .every(
             (segment) =>
                 segment.targetCompetency !=
                 MicroCompetencyId.subtractionTenBridge,
@@ -762,16 +724,18 @@ void main() {
     );
   });
 
-  test('ohne sichere Kompetenz bleibt der Abschluss Entdeckung statt Transfer',
-      () {
-    final controller = AppController();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
+  test(
+    'ohne sichere Kompetenz bleibt der Abschluss Entdeckung statt Transfer',
+    () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
 
-    final plan = controller.buildMyRound();
+      final plan = controller.buildMyRound();
 
-    expect(plan.last.transferEmphasis, isFalse);
-  });
+      expect(plan.last.transferEmphasis, isFalse);
+    },
+  );
 
   test('Transfer-Evidenz bleibt lokal über Neustart erhalten', () async {
     final controller = AppController();
@@ -781,8 +745,7 @@ void main() {
 
     await controller.recordDiagnosticAttempt(
       mode: TrainingMode.wordProblems,
-      taskKey:
-          'story:transfer:skill:additionTenBridge:+:books:47:38',
+      taskKey: 'story:transfer:skill:additionTenBridge:+:books:47:38',
       expected: 85,
       actual: 85,
       source: MicroEvidenceSource.transfer,
@@ -796,18 +759,13 @@ void main() {
     expect(observation.source, MicroEvidenceSource.transfer);
   });
 
-
   test('Abstandsevidenz bleibt lokal über Neustart erhalten', () async {
     final controller = AppController();
     await controller.load();
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
 
-    final fact = MathFact(
-      a: 12,
-      b: 7,
-      operation: MathOperation.plus,
-    );
+    final fact = MathFact(a: 12, b: 7, operation: MathOperation.plus);
     await controller.recordDiagnosticAttempt(
       mode: TrainingMode.practice,
       taskKey: fact.key,
@@ -838,8 +796,9 @@ void main() {
     expect(observation.source, MicroEvidenceSource.practice);
   });
 
-  testWidgets('Transfer-Runde speichert aus der Oberfläche Transfer-Evidenz',
-      (tester) async {
+  testWidgets('Transfer-Runde speichert aus der Oberfläche Transfer-Evidenz', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -885,120 +844,126 @@ void main() {
     );
   });
 
-  test('Geführte Zwischenschritte erzeugen keine selbstständige Mastery', () async {
-    final controller = AppController();
-    await controller.load();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
+  test(
+    'Geführte Zwischenschritte erzeugen keine selbstständige Mastery',
+    () async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
 
-    for (var i = 0; i < 8; i++) {
+      for (var i = 0; i < 8; i++) {
+        await controller.recordGuidedStepAttempt(
+          mode: TrainingMode.minus,
+          taskKey: 'minus:13:5',
+          methodKey: 'subtraction:bridgeToTen',
+          stepKey: 'bridgeAmount',
+          competencyId: MicroCompetencyId.subtractionTenBridge,
+          correct: true,
+        );
+      }
+
+      final progress = controller.microCompetencyProgress(
+        MicroCompetencyId.subtractionTenBridge,
+      );
+
+      expect(progress.observations, 8);
+      expect(progress.aidedObservations, 8);
+      expect(progress.aidedEvidence, greaterThan(0));
+      expect(progress.independentEvidence, 0);
+      expect(progress.reviewIndependentEvidence, 0);
+      expect(progress.transferIndependentEvidence, 0);
+      expect(progress.state, MicroCompetencyState.practicing);
+    },
+  );
+
+  test(
+    'Geführte Zwischritt-Evidenz bleibt lokal und eindeutig markiert',
+    () async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
+
       await controller.recordGuidedStepAttempt(
         mode: TrainingMode.minus,
         taskKey: 'minus:13:5',
         methodKey: 'subtraction:bridgeToTen',
-        stepKey: 'bridgeAmount',
-        competencyId: MicroCompetencyId.subtractionTenBridge,
-        correct: true,
+        stepKey: 'remainingSubtrahend',
+        competencyId: MicroCompetencyId.numberDecomposition,
+        correct: false,
+        evidenceWeight: 0.35,
       );
-    }
 
-    final progress = controller.microCompetencyProgress(
-      MicroCompetencyId.subtractionTenBridge,
-    );
+      final reloaded = AppController();
+      await reloaded.load();
+      final observation = reloaded.microObservations.firstWhere(
+        (entry) => entry.source == MicroEvidenceSource.guidedStep,
+      );
 
-    expect(progress.observations, 8);
-    expect(progress.aidedObservations, 8);
-    expect(progress.aidedEvidence, greaterThan(0));
-    expect(progress.independentEvidence, 0);
-    expect(progress.reviewIndependentEvidence, 0);
-    expect(progress.transferIndependentEvidence, 0);
-    expect(progress.state, MicroCompetencyState.practicing);
-  });
+      expect(observation.id, MicroCompetencyId.numberDecomposition);
+      expect(observation.correct, isFalse);
+      expect(observation.usedHelp, isTrue);
+      expect(observation.helpLevel, HelpLevel.guided.value);
+      expect(observation.evidenceWeight, closeTo(0.35, 0.001));
+      expect(
+        observation.taskKey,
+        contains('guided:subtraction:bridgeToTen:remainingSubtrahend'),
+      );
+    },
+  );
 
-  test('Geführte Zwischritt-Evidenz bleibt lokal und eindeutig markiert',
-      () async {
-    final controller = AppController();
-    await controller.load();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
-
-    await controller.recordGuidedStepAttempt(
-      mode: TrainingMode.minus,
-      taskKey: 'minus:13:5',
-      methodKey: 'subtraction:bridgeToTen',
-      stepKey: 'remainingSubtrahend',
-      competencyId: MicroCompetencyId.numberDecomposition,
-      correct: false,
-      evidenceWeight: 0.35,
-    );
-
-    final reloaded = AppController();
-    await reloaded.load();
-    final observation = reloaded.microObservations.firstWhere(
-      (entry) => entry.source == MicroEvidenceSource.guidedStep,
-    );
-
-    expect(observation.id, MicroCompetencyId.numberDecomposition);
-    expect(observation.correct, isFalse);
-    expect(observation.usedHelp, isTrue);
-    expect(observation.helpLevel, HelpLevel.guided.value);
-    expect(observation.evidenceWeight, closeTo(0.35, 0.001));
-    expect(
-      observation.taskKey,
-      contains('guided:subtraction:bridgeToTen:remainingSubtrahend'),
-    );
-  });
-
-  test('Viele geführte Schritte verdrängen selbstständige Mastery-Evidenz nicht',
-      () {
-    final controller = AppController();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
-    controller.microObservations = [
-      ...List.generate(
-        30,
-        (index) => MicroCompetencyObservation(
-          id: MicroCompetencyId.subtractionTenBridge,
-          occurredAt: DateTime(2026, 9, 5, 12, index),
-          correct: index.isEven,
-          evidenceWeight: 0.35,
-          source: MicroEvidenceSource.guidedStep,
-          usedHelp: true,
-          helpLevel: HelpLevel.guided.value,
-          methodKey: 'subtraction:bridgeToTen',
-          mode: TrainingMode.minus,
-          gradeLevel: GradeLevel.second,
-          numberRange: NumberRangeLevel.hundred,
-          taskKey: 'guided:subtraction:bridgeToTen:bridgeAmount:$index',
+  test(
+    'Viele geführte Schritte verdrängen selbstständige Mastery-Evidenz nicht',
+    () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
+      controller.microObservations = [
+        ...List.generate(
+          30,
+          (index) => MicroCompetencyObservation(
+            id: MicroCompetencyId.subtractionTenBridge,
+            occurredAt: DateTime(2026, 9, 5, 12, index),
+            correct: index.isEven,
+            evidenceWeight: 0.35,
+            source: MicroEvidenceSource.guidedStep,
+            usedHelp: true,
+            helpLevel: HelpLevel.guided.value,
+            methodKey: 'subtraction:bridgeToTen',
+            mode: TrainingMode.minus,
+            gradeLevel: GradeLevel.second,
+            numberRange: NumberRangeLevel.hundred,
+            taskKey: 'guided:subtraction:bridgeToTen:bridgeAmount:$index',
+          ),
         ),
-      ),
-      ...List.generate(
-        6,
-        (index) => MicroCompetencyObservation(
-          id: MicroCompetencyId.subtractionTenBridge,
-          occurredAt: DateTime(2026, 9, 4, 12, index),
-          correct: true,
-          evidenceWeight: 1,
-          source: MicroEvidenceSource.practice,
-          usedHelp: false,
-          mode: TrainingMode.minus,
-          gradeLevel: GradeLevel.second,
-          numberRange: NumberRangeLevel.hundred,
-          taskKey: 'minus:${20 + index}:7',
+        ...List.generate(
+          6,
+          (index) => MicroCompetencyObservation(
+            id: MicroCompetencyId.subtractionTenBridge,
+            occurredAt: DateTime(2026, 9, 4, 12, index),
+            correct: true,
+            evidenceWeight: 1,
+            source: MicroEvidenceSource.practice,
+            usedHelp: false,
+            mode: TrainingMode.minus,
+            gradeLevel: GradeLevel.second,
+            numberRange: NumberRangeLevel.hundred,
+            taskKey: 'minus:${20 + index}:7',
+          ),
         ),
-      ),
-    ];
+      ];
 
-    final progress = controller.microCompetencyProgress(
-      MicroCompetencyId.subtractionTenBridge,
-    );
+      final progress = controller.microCompetencyProgress(
+        MicroCompetencyId.subtractionTenBridge,
+      );
 
-    expect(progress.independentEvidence, closeTo(6, 0.001));
-    expect(progress.independentAccuracy, closeTo(1, 0.001));
-    expect(progress.aidedObservations, 12);
-    expect(progress.state, MicroCompetencyState.secure);
-  });
-
+      expect(progress.independentEvidence, closeTo(6, 0.001));
+      expect(progress.independentAccuracy, closeTo(1, 0.001));
+      expect(progress.aidedObservations, 12);
+      expect(progress.state, MicroCompetencyState.secure);
+    },
+  );
 
   test('korrekte geführte Schritte erzeugen keinen falschen Mikro-Fokus', () {
     final controller = AppController();
@@ -1035,63 +1000,65 @@ void main() {
     expect(controller.strongestMicroCompetency(), isNull);
   });
 
-  test('wiederholt falscher geführter Zwischenschritt steuert auf Voraussetzung',
-      () {
-    final controller = AppController();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
-    controller.microObservations = [
-      ...List.generate(
-        3,
-        (index) => MicroCompetencyObservation(
-          id: MicroCompetencyId.subtractionTenBridge,
-          occurredAt: DateTime(2026, 9, 5, 12, 10 + index),
-          correct: false,
-          evidenceWeight: 1,
-          source: MicroEvidenceSource.practice,
-          usedHelp: false,
-          mode: TrainingMode.minus,
-          gradeLevel: GradeLevel.second,
-          numberRange: NumberRangeLevel.hundred,
-          taskKey: 'minus:13:5:$index',
+  test(
+    'wiederholt falscher geführter Zwischenschritt steuert auf Voraussetzung',
+    () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
+      controller.microObservations = [
+        ...List.generate(
+          3,
+          (index) => MicroCompetencyObservation(
+            id: MicroCompetencyId.subtractionTenBridge,
+            occurredAt: DateTime(2026, 9, 5, 12, 10 + index),
+            correct: false,
+            evidenceWeight: 1,
+            source: MicroEvidenceSource.practice,
+            usedHelp: false,
+            mode: TrainingMode.minus,
+            gradeLevel: GradeLevel.second,
+            numberRange: NumberRangeLevel.hundred,
+            taskKey: 'minus:13:5:$index',
+          ),
         ),
-      ),
-      ...List.generate(
-        3,
-        (index) => MicroCompetencyObservation(
-          id: MicroCompetencyId.numberDecomposition,
-          occurredAt: DateTime(2026, 9, 5, 12, index),
-          correct: index == 2,
-          evidenceWeight: 0.35,
-          source: MicroEvidenceSource.guidedStep,
-          usedHelp: true,
-          helpLevel: HelpLevel.guided.value,
-          methodKey: 'subtraction:bridgeToTen',
-          mode: TrainingMode.minus,
-          gradeLevel: GradeLevel.second,
-          numberRange: NumberRangeLevel.hundred,
-          taskKey:
-              'guided:subtraction:bridgeToTen:remainingSubtrahend:minus:13:5:$index',
+        ...List.generate(
+          3,
+          (index) => MicroCompetencyObservation(
+            id: MicroCompetencyId.numberDecomposition,
+            occurredAt: DateTime(2026, 9, 5, 12, index),
+            correct: index == 2,
+            evidenceWeight: 0.35,
+            source: MicroEvidenceSource.guidedStep,
+            usedHelp: true,
+            helpLevel: HelpLevel.guided.value,
+            methodKey: 'subtraction:bridgeToTen',
+            mode: TrainingMode.minus,
+            gradeLevel: GradeLevel.second,
+            numberRange: NumberRangeLevel.hundred,
+            taskKey:
+                'guided:subtraction:bridgeToTen:remainingSubtrahend:minus:13:5:$index',
+          ),
         ),
-      ),
-    ];
+      ];
 
-    final guided = controller.guidedStepFocus();
-    expect(guided, isNotNull);
-    expect(guided!.competencyId, MicroCompetencyId.numberDecomposition);
-    expect(guided.stepKey, 'remainingSubtrahend');
-    expect(guided.label, contains('Subtrahenden'));
-    expect(guided.incorrectFirstAttempts, 2);
-    expect(guided.accuracy, closeTo(1 / 3, 0.001));
+      final guided = controller.guidedStepFocus();
+      expect(guided, isNotNull);
+      expect(guided!.competencyId, MicroCompetencyId.numberDecomposition);
+      expect(guided.stepKey, 'remainingSubtrahend');
+      expect(guided.label, contains('Subtrahenden'));
+      expect(guided.incorrectFirstAttempts, 2);
+      expect(guided.accuracy, closeTo(1 / 3, 0.001));
 
-    final focus = controller.currentMicroFocus();
-    expect(focus, isNotNull);
-    expect(focus!.definition.id, MicroCompetencyId.numberDecomposition);
+      final focus = controller.currentMicroFocus();
+      expect(focus, isNotNull);
+      expect(focus!.definition.id, MicroCompetencyId.numberDecomposition);
 
-    final plan = controller.buildMyRound();
-    expect(plan[1].targetCompetency, MicroCompetencyId.numberDecomposition);
-    expect(plan[1].reason, contains('verbleibenden Teil des Subtrahenden'));
-  });
+      final plan = controller.buildMyRound();
+      expect(plan[1].targetCompetency, MicroCompetencyId.numberDecomposition);
+      expect(plan[1].reason, contains('verbleibenden Teil des Subtrahenden'));
+    },
+  );
 
   test('erholte geführte Teilfrage löst keinen guidedStep-Fokus mehr aus', () {
     final controller = AppController();
@@ -1158,7 +1125,6 @@ void main() {
     );
   });
 
-
   test('guidedStep stuft sichere Kompetenz nicht zurück', () {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
@@ -1209,9 +1175,7 @@ void main() {
     expect(controller.currentMicroFocus(), isNull);
   });
 
-
-  test('zwei selbstständige Bestätigungen lösen altes guidedStep-Signal ab',
-      () {
+  test('zwei selbstständige Bestätigungen lösen altes guidedStep-Signal ab', () {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
@@ -1337,69 +1301,73 @@ void main() {
     expect(plan[1].reason, contains('schrittweise zurück'));
   });
 
+  test(
+    'Eigenständige Teilfragen zählen geringer, aber selbstständig',
+    () async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
 
-  test('Eigenständige Teilfragen zählen geringer, aber selbstständig', () async {
-    final controller = AppController();
-    await controller.load();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
+      for (var i = 0; i < 10; i++) {
+        await controller.recordIndependentStepAttempt(
+          mode: TrainingMode.wordProblems,
+          taskKey: 'process:representation:groups:3:4:$i',
+          stepKey: 'groupCount',
+          competencyId: MicroCompetencyId.multiplicationGroups,
+          correct: true,
+          usedHelp: false,
+          helpLevel: 0,
+          evidenceWeight: 0.40,
+        );
+      }
 
-    for (var i = 0; i < 10; i++) {
-      await controller.recordIndependentStepAttempt(
-        mode: TrainingMode.wordProblems,
-        taskKey: 'process:representation:groups:3:4:$i',
-        stepKey: 'groupCount',
-        competencyId: MicroCompetencyId.multiplicationGroups,
-        correct: true,
-        usedHelp: false,
-        helpLevel: 0,
-        evidenceWeight: 0.40,
+      final progress = controller.microCompetencyProgress(
+        MicroCompetencyId.multiplicationGroups,
       );
-    }
 
-    final progress = controller.microCompetencyProgress(
-      MicroCompetencyId.multiplicationGroups,
-    );
+      expect(progress.independentStepObservations, 10);
+      expect(progress.independentStepAccuracy, closeTo(1, 0.001));
+      expect(progress.independentStepEvidence, closeTo(4, 0.001));
+      expect(progress.independentEvidence, closeTo(4, 0.001));
+      expect(progress.aidedObservations, 0);
+      expect(progress.state, MicroCompetencyState.secure);
+    },
+  );
 
-    expect(progress.independentStepObservations, 10);
-    expect(progress.independentStepAccuracy, closeTo(1, 0.001));
-    expect(progress.independentStepEvidence, closeTo(4, 0.001));
-    expect(progress.independentEvidence, closeTo(4, 0.001));
-    expect(progress.aidedObservations, 0);
-    expect(progress.state, MicroCompetencyState.secure);
-  });
+  test(
+    'Teilfrage nach geöffneter Hilfe ist keine selbstständige Evidenz',
+    () async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
 
-  test('Teilfrage nach geöffneter Hilfe ist keine selbstständige Evidenz',
-      () async {
-    final controller = AppController();
-    await controller.load();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
+      for (var i = 0; i < 6; i++) {
+        await controller.recordIndependentStepAttempt(
+          mode: TrainingMode.wordProblems,
+          taskKey: 'process:representation:place:47:$i',
+          stepKey: 'placeDigit:tens',
+          competencyId: MicroCompetencyId.placeValueDigits,
+          correct: true,
+          usedHelp: true,
+          helpLevel: HelpLevel.visual.value,
+          methodKey: 'representation:placeValue',
+          evidenceWeight: 0.40,
+        );
+      }
 
-    for (var i = 0; i < 6; i++) {
-      await controller.recordIndependentStepAttempt(
-        mode: TrainingMode.wordProblems,
-        taskKey: 'process:representation:place:47:$i',
-        stepKey: 'placeDigit:tens',
-        competencyId: MicroCompetencyId.placeValueDigits,
-        correct: true,
-        usedHelp: true,
-        helpLevel: HelpLevel.visual.value,
-        methodKey: 'representation:placeValue',
-        evidenceWeight: 0.40,
+      final progress = controller.microCompetencyProgress(
+        MicroCompetencyId.placeValueDigits,
       );
-    }
 
-    final progress = controller.microCompetencyProgress(
-      MicroCompetencyId.placeValueDigits,
-    );
-
-    expect(progress.independentStepObservations, 6);
-    expect(progress.independentStepEvidence, greaterThan(0));
-    expect(progress.independentEvidence, 0);
-    expect(progress.aidedObservations, 6);
-    expect(progress.state, isNot(MicroCompetencyState.secure));
-  });
+      expect(progress.independentStepObservations, 6);
+      expect(progress.independentStepEvidence, greaterThan(0));
+      expect(progress.independentEvidence, 0);
+      expect(progress.aidedObservations, 6);
+      expect(progress.state, isNot(MicroCompetencyState.secure));
+    },
+  );
 
   test('Eigenständige Teilfragen bleiben lokal eindeutig markiert', () async {
     final controller = AppController();
@@ -1434,63 +1402,62 @@ void main() {
     );
   });
 
-  test('Zwei eigenständige Teilfragen können altes guidedStep-Signal ablösen',
-      () {
-    final controller = AppController();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
-    controller.microObservations = [
-      MicroCompetencyObservation(
-        id: MicroCompetencyId.multiplicationGroups,
-        occurredAt: DateTime(2026, 9, 5, 11, 1),
-        correct: true,
-        evidenceWeight: 0.30,
-        source: MicroEvidenceSource.independentStep,
-        usedHelp: false,
-        mode: TrainingMode.wordProblems,
-        gradeLevel: GradeLevel.second,
-        numberRange: NumberRangeLevel.hundred,
-        taskKey:
-            'independent:groupCount:process:representation:groups:4:3',
-      ),
-      MicroCompetencyObservation(
-        id: MicroCompetencyId.multiplicationGroups,
-        occurredAt: DateTime(2026, 9, 5, 11),
-        correct: true,
-        evidenceWeight: 0.30,
-        source: MicroEvidenceSource.independentStep,
-        usedHelp: false,
-        mode: TrainingMode.wordProblems,
-        gradeLevel: GradeLevel.second,
-        numberRange: NumberRangeLevel.hundred,
-        taskKey:
-            'independent:groupCount:process:representation:groups:3:4',
-      ),
-      ...List.generate(
-        3,
-        (index) => MicroCompetencyObservation(
+  test(
+    'Zwei eigenständige Teilfragen können altes guidedStep-Signal ablösen',
+    () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
+      controller.microObservations = [
+        MicroCompetencyObservation(
           id: MicroCompetencyId.multiplicationGroups,
-          occurredAt: DateTime(2026, 9, 5, 10, index),
-          correct: index == 2,
-          evidenceWeight: 0.35,
-          source: MicroEvidenceSource.guidedStep,
-          usedHelp: true,
-          helpLevel: HelpLevel.guided.value,
-          methodKey: 'representation:equalGroups',
+          occurredAt: DateTime(2026, 9, 5, 11, 1),
+          correct: true,
+          evidenceWeight: 0.30,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
           mode: TrainingMode.wordProblems,
           gradeLevel: GradeLevel.second,
           numberRange: NumberRangeLevel.hundred,
-          taskKey:
-              'guided:representation:equalGroups:groupCount:process:representation:groups:3:4:$index',
+          taskKey: 'independent:groupCount:process:representation:groups:4:3',
         ),
-      ),
-    ];
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationGroups,
+          occurredAt: DateTime(2026, 9, 5, 11),
+          correct: true,
+          evidenceWeight: 0.30,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'independent:groupCount:process:representation:groups:3:4',
+        ),
+        ...List.generate(
+          3,
+          (index) => MicroCompetencyObservation(
+            id: MicroCompetencyId.multiplicationGroups,
+            occurredAt: DateTime(2026, 9, 5, 10, index),
+            correct: index == 2,
+            evidenceWeight: 0.35,
+            source: MicroEvidenceSource.guidedStep,
+            usedHelp: true,
+            helpLevel: HelpLevel.guided.value,
+            methodKey: 'representation:equalGroups',
+            mode: TrainingMode.wordProblems,
+            gradeLevel: GradeLevel.second,
+            numberRange: NumberRangeLevel.hundred,
+            taskKey:
+                'guided:representation:equalGroups:groupCount:process:representation:groups:3:4:$index',
+          ),
+        ),
+      ];
 
-    expect(controller.guidedStepFocus(), isNull);
-  });
+      expect(controller.guidedStepFocus(), isNull);
+    },
+  );
 
-  test('Anderer eigenständiger Teilsschritt löscht guidedStep-Signal nicht',
-      () {
+  test('Anderer eigenständiger Teilsschritt löscht guidedStep-Signal nicht', () {
     final controller = AppController();
     controller.gradeLevel = GradeLevel.second;
     controller.numberRange = NumberRangeLevel.hundred;
@@ -1536,92 +1503,95 @@ void main() {
     expect(guided!.stepKey, 'groupCount');
   });
 
-  testWidgets('Repräsentationsaufgabe speichert ersten Teilversuch außerhalb Hilfe',
-      (tester) async {
-    final controller = AppController();
-    await controller.load();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
+  testWidgets(
+    'Repräsentationsaufgabe speichert ersten Teilversuch außerhalb Hilfe',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: StructuredTrainingScreen(
-          controller: controller,
-          mode: TrainingMode.wordProblems,
-          targetTasks: 2,
-          targetCompetency: MicroCompetencyId.representationTranslation,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StructuredTrainingScreen(
+            controller: controller,
+            mode: TrainingMode.wordProblems,
+            targetTasks: 2,
+            targetCompetency: MicroCompetencyId.representationTranslation,
+          ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    expect(find.textContaining('Schritt 1 von'), findsOneWidget);
-    final buttons = find.byType(FilledButton);
-    expect(buttons, findsWidgets);
+      expect(find.textContaining('Schritt 1 von'), findsOneWidget);
+      final buttons = find.byType(FilledButton);
+      expect(buttons, findsWidgets);
 
-    await tester.tap(buttons.first);
-    await tester.pump(const Duration(milliseconds: 420));
+      await tester.tap(buttons.first);
+      await tester.pump(const Duration(milliseconds: 420));
 
-    final observation = controller.microObservations.firstWhere(
-      (entry) => entry.source == MicroEvidenceSource.independentStep,
-    );
-    expect(observation.usedHelp, isFalse);
-    expect(
-      observation.id == MicroCompetencyId.placeValueDigits ||
-          observation.id == MicroCompetencyId.multiplicationGroups,
-      isTrue,
-    );
-  });
+      final observation = controller.microObservations.firstWhere(
+        (entry) => entry.source == MicroEvidenceSource.independentStep,
+      );
+      expect(observation.usedHelp, isFalse);
+      expect(
+        observation.id == MicroCompetencyId.placeValueDigits ||
+            observation.id == MicroCompetencyId.multiplicationGroups,
+        isTrue,
+      );
+    },
+  );
 
-  test('Viele Teilfragen verdrängen vollständige Aufgaben nicht aus Mastery-Fenster',
-      () {
-    final controller = AppController();
-    controller.gradeLevel = GradeLevel.second;
-    controller.numberRange = NumberRangeLevel.hundred;
-    controller.microObservations = [
-      ...List.generate(
-        30,
-        (index) => MicroCompetencyObservation(
-          id: MicroCompetencyId.multiplicationGroups,
-          occurredAt: DateTime(2026, 9, 5, 12, index),
-          correct: true,
-          evidenceWeight: 0.25,
-          source: MicroEvidenceSource.independentStep,
-          usedHelp: false,
-          mode: TrainingMode.wordProblems,
-          gradeLevel: GradeLevel.second,
-          numberRange: NumberRangeLevel.hundred,
-          taskKey:
-              'independent:groupCount:process:representation:groups:${3 + index % 3}:4:$index',
+  test(
+    'Viele Teilfragen verdrängen vollständige Aufgaben nicht aus Mastery-Fenster',
+    () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
+      controller.microObservations = [
+        ...List.generate(
+          30,
+          (index) => MicroCompetencyObservation(
+            id: MicroCompetencyId.multiplicationGroups,
+            occurredAt: DateTime(2026, 9, 5, 12, index),
+            correct: true,
+            evidenceWeight: 0.25,
+            source: MicroEvidenceSource.independentStep,
+            usedHelp: false,
+            mode: TrainingMode.wordProblems,
+            gradeLevel: GradeLevel.second,
+            numberRange: NumberRangeLevel.hundred,
+            taskKey:
+                'independent:groupCount:process:representation:groups:${3 + index % 3}:4:$index',
+          ),
         ),
-      ),
-      ...List.generate(
-        6,
-        (index) => MicroCompetencyObservation(
-          id: MicroCompetencyId.multiplicationGroups,
-          occurredAt: DateTime(2026, 9, 4, 12, index),
-          correct: true,
-          evidenceWeight: 1,
-          source: MicroEvidenceSource.practice,
-          usedHelp: false,
-          mode: TrainingMode.multiply,
-          gradeLevel: GradeLevel.second,
-          numberRange: NumberRangeLevel.hundred,
-          taskKey: 'multiply:${3 + index}:4',
+        ...List.generate(
+          6,
+          (index) => MicroCompetencyObservation(
+            id: MicroCompetencyId.multiplicationGroups,
+            occurredAt: DateTime(2026, 9, 4, 12, index),
+            correct: true,
+            evidenceWeight: 1,
+            source: MicroEvidenceSource.practice,
+            usedHelp: false,
+            mode: TrainingMode.multiply,
+            gradeLevel: GradeLevel.second,
+            numberRange: NumberRangeLevel.hundred,
+            taskKey: 'multiply:${3 + index}:4',
+          ),
         ),
-      ),
-    ];
+      ];
 
-    final progress = controller.microCompetencyProgress(
-      MicroCompetencyId.multiplicationGroups,
-    );
+      final progress = controller.microCompetencyProgress(
+        MicroCompetencyId.multiplicationGroups,
+      );
 
-    expect(progress.independentStepObservations, 12);
-    expect(progress.independentStepEvidence, closeTo(3, 0.001));
-    expect(progress.independentEvidence, closeTo(9, 0.001));
-    expect(progress.observations, 18);
-  });
-
+      expect(progress.independentStepObservations, 12);
+      expect(progress.independentStepEvidence, closeTo(3, 0.001));
+      expect(progress.independentEvidence, closeTo(9, 0.001));
+      expect(progress.observations, 18);
+    },
+  );
 
   test('identische Aufgaben koennen Sicherheit nicht kuenstlich aufblasen', () {
     final controller = AppController()
@@ -1652,38 +1622,45 @@ void main() {
     expect(progress.independentTaskVariety, 1);
     expect(progress.state, MicroCompetencyState.practicing);
     expect(
-      controller.microEvidenceConfidence(MicroCompetencyId.additionTenBridge).detail,
+      controller
+          .microEvidenceConfidence(MicroCompetencyId.additionTenBridge)
+          .detail,
       contains('1 unterschiedliche Aufgaben'),
     );
   });
 
-  test('drei unterschiedliche selbststaendige Aufgaben ermoeglichen Sicher', () {
-    final controller = AppController()
-      ..gradeLevel = GradeLevel.second
-      ..numberRange = NumberRangeLevel.hundred;
-    controller.microObservations = <MicroCompetencyObservation>[
-      for (var index = 0; index < 4; index++)
-        MicroCompetencyObservation(
-          id: MicroCompetencyId.additionTenBridge,
-          occurredAt: DateTime(2026, 9, 16, 11, index),
-          correct: true,
-          evidenceWeight: 1,
-          source: MicroEvidenceSource.practice,
-          usedHelp: false,
-          mode: TrainingMode.practice,
-          gradeLevel: GradeLevel.second,
-          numberRange: NumberRangeLevel.hundred,
-          taskKey: index == 3 ? 'plus:47:8' : 'plus:4${index + 4}:${8 - index}',
-        ),
-    ];
+  test(
+    'drei unterschiedliche selbststaendige Aufgaben ermoeglichen Sicher',
+    () {
+      final controller = AppController()
+        ..gradeLevel = GradeLevel.second
+        ..numberRange = NumberRangeLevel.hundred;
+      controller.microObservations = <MicroCompetencyObservation>[
+        for (var index = 0; index < 4; index++)
+          MicroCompetencyObservation(
+            id: MicroCompetencyId.additionTenBridge,
+            occurredAt: DateTime(2026, 9, 16, 11, index),
+            correct: true,
+            evidenceWeight: 1,
+            source: MicroEvidenceSource.practice,
+            usedHelp: false,
+            mode: TrainingMode.practice,
+            gradeLevel: GradeLevel.second,
+            numberRange: NumberRangeLevel.hundred,
+            taskKey: index == 3
+                ? 'plus:47:8'
+                : 'plus:4${index + 4}:${8 - index}',
+          ),
+      ];
 
-    final progress = controller.microCompetencyProgress(
-      MicroCompetencyId.additionTenBridge,
-    );
+      final progress = controller.microCompetencyProgress(
+        MicroCompetencyId.additionTenBridge,
+      );
 
-    expect(progress.independentTaskVariety, 4);
-    expect(progress.state, MicroCompetencyState.secure);
-  });
+      expect(progress.independentTaskVariety, 4);
+      expect(progress.state, MicroCompetencyState.secure);
+    },
+  );
 
   test('Gemeistert verlangt Vielfalt auch in Review und Transfer', () {
     final controller = AppController()
@@ -1782,9 +1759,12 @@ void main() {
       for (final step in <String>['groupCount', 'groupSize', 'groupCount'])
         MicroCompetencyObservation(
           id: MicroCompetencyId.multiplicationGroups,
-          occurredAt: DateTime(2026, 9, 16, 12).add(
-            Duration(minutes: step == 'groupSize' ? 1 : 0),
-          ),
+          occurredAt: DateTime(
+            2026,
+            9,
+            16,
+            12,
+          ).add(Duration(minutes: step == 'groupSize' ? 1 : 0)),
           correct: true,
           evidenceWeight: 0.5,
           source: MicroEvidenceSource.independentStep,
@@ -1802,55 +1782,58 @@ void main() {
     expect(progress.independentTaskVariety, 1);
   });
 
-  test('Mikro-Fokus bevorzugt bei gleicher Quote die geringere Aufgabenvielfalt', () {
-    final controller = AppController()
-      ..gradeLevel = GradeLevel.second
-      ..numberRange = NumberRangeLevel.hundred;
+  test(
+    'Mikro-Fokus bevorzugt bei gleicher Quote die geringere Aufgabenvielfalt',
+    () {
+      final controller = AppController()
+        ..gradeLevel = GradeLevel.second
+        ..numberRange = NumberRangeLevel.hundred;
 
-    MicroCompetencyObservation observation(
-      MicroCompetencyId id,
-      String key,
-      int minute,
-    ) => MicroCompetencyObservation(
-      id: id,
-      occurredAt: DateTime(2026, 9, 16, 13, minute),
-      correct: true,
-      evidenceWeight: 1,
-      source: MicroEvidenceSource.practice,
-      usedHelp: false,
-      mode: id == MicroCompetencyId.additionNoBridge
-          ? TrainingMode.practice
-          : TrainingMode.minus,
-      gradeLevel: GradeLevel.second,
-      numberRange: NumberRangeLevel.hundred,
-      taskKey: key,
-    );
+      MicroCompetencyObservation observation(
+        MicroCompetencyId id,
+        String key,
+        int minute,
+      ) => MicroCompetencyObservation(
+        id: id,
+        occurredAt: DateTime(2026, 9, 16, 13, minute),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.practice,
+        usedHelp: false,
+        mode: id == MicroCompetencyId.additionNoBridge
+            ? TrainingMode.practice
+            : TrainingMode.minus,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        taskKey: key,
+      );
 
-    controller.microObservations = <MicroCompetencyObservation>[
-      observation(MicroCompetencyId.additionNoBridge, 'plus:14:3', 0),
-      observation(MicroCompetencyId.additionNoBridge, 'plus:14:3', 1),
-      observation(MicroCompetencyId.additionNoBridge, 'plus:15:2', 2),
-      observation(MicroCompetencyId.additionNoBridge, 'plus:15:2', 3),
-      observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 4),
-      observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 5),
-      observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 6),
-      observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 7),
-    ];
+      controller.microObservations = <MicroCompetencyObservation>[
+        observation(MicroCompetencyId.additionNoBridge, 'plus:14:3', 0),
+        observation(MicroCompetencyId.additionNoBridge, 'plus:14:3', 1),
+        observation(MicroCompetencyId.additionNoBridge, 'plus:15:2', 2),
+        observation(MicroCompetencyId.additionNoBridge, 'plus:15:2', 3),
+        observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 4),
+        observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 5),
+        observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 6),
+        observation(MicroCompetencyId.subtractionNoBridge, 'minus:17:3', 7),
+      ];
 
-    final addition = controller.microCompetencyProgress(
-      MicroCompetencyId.additionNoBridge,
-    );
-    final subtraction = controller.microCompetencyProgress(
-      MicroCompetencyId.subtractionNoBridge,
-    );
-    expect(addition.independentTaskVariety, 2);
-    expect(subtraction.independentTaskVariety, 1);
-    expect(addition.independentAccuracy, subtraction.independentAccuracy);
-    expect(
-      controller.currentMicroFocus()?.definition.id,
-      MicroCompetencyId.subtractionNoBridge,
-    );
-  });
+      final addition = controller.microCompetencyProgress(
+        MicroCompetencyId.additionNoBridge,
+      );
+      final subtraction = controller.microCompetencyProgress(
+        MicroCompetencyId.subtractionNoBridge,
+      );
+      expect(addition.independentTaskVariety, 2);
+      expect(subtraction.independentTaskVariety, 1);
+      expect(addition.independentAccuracy, subtraction.independentAccuracy);
+      expect(
+        controller.currentMicroFocus()?.definition.id,
+        MicroCompetencyId.subtractionNoBridge,
+      );
+    },
+  );
 
   test('Mikro-Beobachtung speichert Antwortzeit rueckwaertskompatibel', () {
     final observation = MicroCompetencyObservation(
@@ -2035,7 +2018,6 @@ void main() {
     expect(controller.microObservations.first.responseMs, 3456);
   });
 
-
   test('Automatisierung bewertet nur das aktuelle Zeitfenster', () {
     final controller = AppController()
       ..gradeLevel = GradeLevel.second
@@ -2065,33 +2047,36 @@ void main() {
     expect(progress.fluencyState, MicroFluencyState.fluent);
   });
 
-  test('Sachaufgabenzeit wird nicht als Kopfrechen-Automatisierung gewertet', () {
-    final controller = AppController()
-      ..gradeLevel = GradeLevel.second
-      ..numberRange = NumberRangeLevel.hundred;
-    controller.microObservations = List<MicroCompetencyObservation>.generate(
-      4,
-      (index) => MicroCompetencyObservation(
-        id: MicroCompetencyId.additionNoBridge,
-        occurredAt: DateTime(2026, 9, 16, 20, index),
-        correct: true,
-        evidenceWeight: 1,
-        source: MicroEvidenceSource.transfer,
-        usedHelp: false,
-        mode: TrainingMode.wordProblems,
-        gradeLevel: GradeLevel.second,
-        numberRange: NumberRangeLevel.hundred,
-        taskKey: 'story:+:books:${14 + index}:3',
-        responseMs: 12000,
-      ),
-    );
+  test(
+    'Sachaufgabenzeit wird nicht als Kopfrechen-Automatisierung gewertet',
+    () {
+      final controller = AppController()
+        ..gradeLevel = GradeLevel.second
+        ..numberRange = NumberRangeLevel.hundred;
+      controller.microObservations = List<MicroCompetencyObservation>.generate(
+        4,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 16, 20, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.transfer,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'story:+:books:${14 + index}:3',
+          responseMs: 12000,
+        ),
+      );
 
-    final progress = controller.microCompetencyProgress(
-      MicroCompetencyId.additionNoBridge,
-    );
-    expect(progress.fluencySamples, 0);
-    expect(progress.fluencyState, MicroFluencyState.notMeasured);
-  });
+      final progress = controller.microCompetencyProgress(
+        MicroCompetencyId.additionNoBridge,
+      );
+      expect(progress.fluencySamples, 0);
+      expect(progress.fluencyState, MicroFluencyState.notMeasured);
+    },
+  );
 
   test('Meine Runde nutzt Automatisierung erst nach fachlicher Sicherheit', () {
     final controller = AppController()
@@ -2207,7 +2192,6 @@ void main() {
     expect(plan[1].fluencyEmphasis, isFalse);
   });
 
-
   test('wiederholte identische Aufgabe reicht nicht fuer Fluency', () {
     final controller = AppController()
       ..gradeLevel = GradeLevel.second
@@ -2269,36 +2253,39 @@ void main() {
     expect(progress.fluencyState, MicroFluencyState.building);
   });
 
-  test('ein einzelner langsamer Ausreisser verzerrt typische Fluency nicht', () {
-    final controller = AppController()
-      ..gradeLevel = GradeLevel.second
-      ..numberRange = NumberRangeLevel.hundred;
-    const times = <int>[2500, 2600, 2700, 15000];
-    controller.microObservations = List.generate(
-      times.length,
-      (index) => MicroCompetencyObservation(
-        id: MicroCompetencyId.multiplicationFacts,
-        occurredAt: DateTime(2026, 9, 17, 9, index),
-        correct: true,
-        evidenceWeight: 1,
-        source: MicroEvidenceSource.practice,
-        usedHelp: false,
-        mode: TrainingMode.multiply,
-        gradeLevel: GradeLevel.second,
-        numberRange: NumberRangeLevel.hundred,
-        taskKey: 'multiply:${3 + index}:4',
-        responseMs: times[index],
-      ),
-    );
+  test(
+    'ein einzelner langsamer Ausreisser verzerrt typische Fluency nicht',
+    () {
+      final controller = AppController()
+        ..gradeLevel = GradeLevel.second
+        ..numberRange = NumberRangeLevel.hundred;
+      const times = <int>[2500, 2600, 2700, 15000];
+      controller.microObservations = List.generate(
+        times.length,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.multiplicationFacts,
+          occurredAt: DateTime(2026, 9, 17, 9, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'multiply:${3 + index}:4',
+          responseMs: times[index],
+        ),
+      );
 
-    final progress = controller.microCompetencyProgress(
-      MicroCompetencyId.multiplicationFacts,
-    );
-    expect(progress.averageFluencyResponseMs, greaterThan(5000));
-    expect(progress.typicalFluencyResponseMs, closeTo(2650, 0.001));
-    expect(progress.fluencyAccuracy, 1);
-    expect(progress.fluencyState, MicroFluencyState.fluent);
-  });
+      final progress = controller.microCompetencyProgress(
+        MicroCompetencyId.multiplicationFacts,
+      );
+      expect(progress.averageFluencyResponseMs, greaterThan(5000));
+      expect(progress.typicalFluencyResponseMs, closeTo(2650, 0.001));
+      expect(progress.fluencyAccuracy, 1);
+      expect(progress.fluencyState, MicroFluencyState.fluent);
+    },
+  );
 
   test('neue Fehler koennen zuvor fluessigen Abruf wieder herabstufen', () {
     final controller = AppController()
@@ -2345,12 +2332,13 @@ void main() {
     expect(progress.fluencyState, MicroFluencyState.building);
   });
 
-
   test('Vorlesen pausiert nur die Fluency-Zeitmessung', () async {
     final controller = AppController()
       ..gradeLevel = GradeLevel.second
       ..numberRange = NumberRangeLevel.hundred
-      ..accessibilityPreferences = const AccessibilityPreferences(readAloud: true);
+      ..accessibilityPreferences = const AccessibilityPreferences(
+        readAloud: true,
+      );
     await controller.recordDiagnosticAttempt(
       mode: TrainingMode.practice,
       taskKey: 'plus:14:3',
@@ -2372,30 +2360,34 @@ void main() {
     expect(progress.fluencyAttempts, 0);
   });
 
-  test('lange Unterbrechung wird nicht als langsame Fluency gewertet', () async {
-    final controller = AppController()
-      ..gradeLevel = GradeLevel.second
-      ..numberRange = NumberRangeLevel.hundred;
-    await controller.recordDiagnosticAttempt(
-      mode: TrainingMode.minus,
-      taskKey: 'minus:18:3',
-      expected: 15,
-      actual: 15,
-      fact: MathFact(a: 18, b: 3, operation: MathOperation.minus),
-      responseTime: const Duration(seconds: 31),
-    );
+  test(
+    'lange Unterbrechung wird nicht als langsame Fluency gewertet',
+    () async {
+      final controller = AppController()
+        ..gradeLevel = GradeLevel.second
+        ..numberRange = NumberRangeLevel.hundred;
+      await controller.recordDiagnosticAttempt(
+        mode: TrainingMode.minus,
+        taskKey: 'minus:18:3',
+        expected: 15,
+        actual: 15,
+        fact: MathFact(a: 18, b: 3, operation: MathOperation.minus),
+        responseTime: const Duration(seconds: 31),
+      );
 
-    final observation = controller.microObservations.firstWhere(
-      (entry) => entry.id == MicroCompetencyId.subtractionNoBridge,
-    );
-    expect(observation.correct, isTrue);
-    expect(observation.responseMs, isNull);
-    expect(
-      controller.microCompetencyProgress(MicroCompetencyId.subtractionNoBridge)
-          .independentEvidence,
-      greaterThan(0),
-    );
-  });
+      final observation = controller.microObservations.firstWhere(
+        (entry) => entry.id == MicroCompetencyId.subtractionNoBridge,
+      );
+      expect(observation.correct, isTrue);
+      expect(observation.responseMs, isNull);
+      expect(
+        controller
+            .microCompetencyProgress(MicroCompetencyId.subtractionNoBridge)
+            .independentEvidence,
+        greaterThan(0),
+      );
+    },
+  );
 
   test('Remediation-Zeiten sind kein Fluency-Nachweis', () {
     final controller = AppController()
@@ -2427,45 +2419,50 @@ void main() {
     expect(progress.fluencyState, MicroFluencyState.notMeasured);
   });
 
-  test('Vorlesen unterdrueckt Fluency-Fokus ohne Lernfortschritt zu loeschen', () {
-    final controller = AppController()
-      ..gradeLevel = GradeLevel.second
-      ..numberRange = NumberRangeLevel.hundred;
-    controller.microObservations = List.generate(
-      5,
-      (index) => MicroCompetencyObservation(
-        id: MicroCompetencyId.additionNoBridge,
-        occurredAt: DateTime(2026, 9, 17, 13, index),
-        correct: true,
-        evidenceWeight: 1,
-        source: MicroEvidenceSource.practice,
-        usedHelp: false,
-        mode: TrainingMode.practice,
-        gradeLevel: GradeLevel.second,
-        numberRange: NumberRangeLevel.hundred,
-        taskKey: 'plus:${12 + index}:3',
-        responseMs: 8200,
-      ),
-    );
-    expect(
-      controller.microCompetencyProgress(MicroCompetencyId.additionNoBridge)
-          .fluencyState,
-      MicroFluencyState.building,
-    );
-    expect(controller.fluencyFocusMicroCompetency(), isNotNull);
+  test(
+    'Vorlesen unterdrueckt Fluency-Fokus ohne Lernfortschritt zu loeschen',
+    () {
+      final controller = AppController()
+        ..gradeLevel = GradeLevel.second
+        ..numberRange = NumberRangeLevel.hundred;
+      controller.microObservations = List.generate(
+        5,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 17, 13, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:${12 + index}:3',
+          responseMs: 8200,
+        ),
+      );
+      expect(
+        controller
+            .microCompetencyProgress(MicroCompetencyId.additionNoBridge)
+            .fluencyState,
+        MicroFluencyState.building,
+      );
+      expect(controller.fluencyFocusMicroCompetency(), isNotNull);
 
-    controller.accessibilityPreferences =
-        const AccessibilityPreferences(readAloud: true);
-    expect(controller.fluencyFocusMicroCompetency(), isNull);
-    final plan = controller.buildMyRound(now: DateTime(2026, 9, 17, 14));
-    expect(plan.any((segment) => segment.fluencyEmphasis), isFalse);
-    expect(
-      controller.microCompetencyProgress(MicroCompetencyId.additionNoBridge)
-          .state,
-      MicroCompetencyState.secure,
-    );
-  });
-
+      controller.accessibilityPreferences = const AccessibilityPreferences(
+        readAloud: true,
+      );
+      expect(controller.fluencyFocusMicroCompetency(), isNull);
+      final plan = controller.buildMyRound(now: DateTime(2026, 9, 17, 14));
+      expect(plan.any((segment) => segment.fluencyEmphasis), isFalse);
+      expect(
+        controller
+            .microCompetencyProgress(MicroCompetencyId.additionNoBridge)
+            .state,
+        MicroCompetencyState.secure,
+      );
+    },
+  );
 
   test('mehrstellige Plusaufgaben liefern keine Fluency-Evidenz', () {
     final controller = AppController()
@@ -2496,40 +2493,43 @@ void main() {
     expect(progress.fluencyState, MicroFluencyState.notMeasured);
   });
 
-  test('explizite Zeitdruckmodi zaehlen nicht fuer die Lernlandkarten-Fluency', () {
-    final controller = AppController()
-      ..gradeLevel = GradeLevel.second
-      ..numberRange = NumberRangeLevel.hundred;
-    const modes = <TrainingMode>[
-      TrainingMode.speed,
-      TrainingMode.tempo,
-      TrainingMode.blitz,
-      TrainingMode.speed,
-    ];
-    controller.microObservations = List.generate(
-      modes.length,
-      (index) => MicroCompetencyObservation(
-        id: MicroCompetencyId.additionNoBridge,
-        occurredAt: DateTime(2026, 9, 18, 9, index),
-        correct: true,
-        evidenceWeight: 1,
-        source: MicroEvidenceSource.practice,
-        usedHelp: false,
-        mode: modes[index],
-        gradeLevel: GradeLevel.second,
-        numberRange: NumberRangeLevel.hundred,
-        taskKey: 'plus:${12 + index}:3',
-        responseMs: 1600,
-      ),
-    );
+  test(
+    'explizite Zeitdruckmodi zaehlen nicht fuer die Lernlandkarten-Fluency',
+    () {
+      final controller = AppController()
+        ..gradeLevel = GradeLevel.second
+        ..numberRange = NumberRangeLevel.hundred;
+      const modes = <TrainingMode>[
+        TrainingMode.speed,
+        TrainingMode.tempo,
+        TrainingMode.blitz,
+        TrainingMode.speed,
+      ];
+      controller.microObservations = List.generate(
+        modes.length,
+        (index) => MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: DateTime(2026, 9, 18, 9, index),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: modes[index],
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          taskKey: 'plus:${12 + index}:3',
+          responseMs: 1600,
+        ),
+      );
 
-    final progress = controller.microCompetencyProgress(
-      MicroCompetencyId.additionNoBridge,
-    );
-    expect(progress.state, MicroCompetencyState.secure);
-    expect(progress.fluencyAttempts, 0);
-    expect(progress.fluencyState, MicroFluencyState.notMeasured);
-  });
+      final progress = controller.microCompetencyProgress(
+        MicroCompetencyId.additionNoBridge,
+      );
+      expect(progress.state, MicroCompetencyState.secure);
+      expect(progress.fluencyAttempts, 0);
+      expect(progress.fluencyState, MicroFluencyState.notMeasured);
+    },
+  );
 
   test('normale gemischte Grundaufgaben duerfen Fluency belegen', () {
     final controller = AppController()
@@ -2596,61 +2596,72 @@ void main() {
     ];
 
     expect(
-      controller.microCompetencyProgress(MicroCompetencyId.multiplicationFacts)
+      controller
+          .microCompetencyProgress(MicroCompetencyId.multiplicationFacts)
           .fluencyAttempts,
       0,
     );
     expect(
-      controller.microCompetencyProgress(MicroCompetencyId.divisionFacts)
+      controller
+          .microCompetencyProgress(MicroCompetencyId.divisionFacts)
           .fluencyAttempts,
       0,
     );
   });
 
+  testWidgets(
+    'Fluency-Fokus erzeugt auch im grossen Zahlenraum nur Grundaufgaben',
+    (tester) async {
+      for (var seed = 0; seed < 12; seed++) {
+        final controller =
+            AppController(engine: AdaptiveEngine(random: Random(seed)))
+              ..gradeLevel = GradeLevel.fourth
+              ..numberRange = NumberRangeLevel.million
+              ..facts = AdaptiveEngine.buildFactPool(maxValue: 100);
+        for (final fact in controller.facts.take(40)) {
+          fact.attempts = 6;
+          fact.correctAttempts = 6;
+        }
 
-  testWidgets('Fluency-Fokus erzeugt auch im grossen Zahlenraum nur Grundaufgaben', (tester) async {
-    for (var seed = 0; seed < 12; seed++) {
-      final controller = AppController(engine: AdaptiveEngine(random: Random(seed)))
-        ..gradeLevel = GradeLevel.fourth
-        ..numberRange = NumberRangeLevel.million
-        ..facts = AdaptiveEngine.buildFactPool(maxValue: 100);
-      for (final fact in controller.facts.take(40)) {
-        fact.attempts = 6;
-        fact.correctAttempts = 6;
-      }
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: TrainingScreen(
-            controller: controller,
-            mode: TrainingMode.practice,
-            targetTasks: 1,
-            targetCompetency: MicroCompetencyId.additionNoBridge,
-            fluencyEmphasis: true,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: TrainingScreen(
+              controller: controller,
+              mode: TrainingMode.practice,
+              targetTasks: 1,
+              targetCompetency: MicroCompetencyId.additionNoBridge,
+              fluencyEmphasis: true,
+            ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      final taskTexts = tester
-          .widgetList<Text>(find.byType(Text))
-          .map((widget) => widget.data ?? '')
-          .where((text) => RegExp(r'^\d+ [＋+−-] \d+ = \?$').hasMatch(text))
-          .toList();
-      expect(taskTexts, isNotEmpty, reason: 'seed $seed');
-      final numbers = RegExp(r'\d+')
-          .allMatches(taskTexts.first)
-          .map((match) => int.parse(match.group(0)!))
-          .toList();
-      expect(numbers, hasLength(2));
-      expect(numbers[0] + numbers[1], lessThanOrEqualTo(20), reason: taskTexts.first);
+        final taskTexts = tester
+            .widgetList<Text>(find.byType(Text))
+            .map((widget) => widget.data ?? '')
+            .where((text) => RegExp(r'^\d+ [＋+−-] \d+ = \?$').hasMatch(text))
+            .toList();
+        expect(taskTexts, isNotEmpty, reason: 'seed $seed');
+        final numbers = RegExp(r'\d+')
+            .allMatches(taskTexts.first)
+            .map((match) => int.parse(match.group(0)!))
+            .toList();
+        expect(numbers, hasLength(2));
+        expect(
+          numbers[0] + numbers[1],
+          lessThanOrEqualTo(20),
+          reason: taskTexts.first,
+        );
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
-    }
-  });
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+      }
+    },
+  );
 
-  testWidgets('Fluency-Fokus startet Minus nicht automatisch mit Hilfe', (tester) async {
+  testWidgets('Fluency-Fokus startet Minus nicht automatisch mit Hilfe', (
+    tester,
+  ) async {
     final controller = AppController(engine: AdaptiveEngine(random: Random(44)))
       ..gradeLevel = GradeLevel.second
       ..numberRange = NumberRangeLevel.hundred
@@ -2672,5 +2683,4 @@ void main() {
     expect(find.byType(GuidedMethodPanel), findsNothing);
     expect(find.text('Ich brauche Hilfe'), findsOneWidget);
   });
-
 }

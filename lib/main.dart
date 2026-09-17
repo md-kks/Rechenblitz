@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core/learning_app_shell.dart';
+import 'core/learning_subject.dart';
 import 'services/app_controller.dart';
 import 'screens/home_screen.dart';
 import 'screens/learning_start_screen.dart';
@@ -18,36 +20,16 @@ class RechenblitzApp extends StatelessWidget {
   final AppController controller;
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        final accessibility = controller.accessibilityPreferences;
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'Rechenblitz',
-          builder: (context, child) {
-            final media = MediaQuery.of(context);
-            return MediaQuery(
-              data: media.copyWith(
-                textScaler: TextScaler.linear(
-                  accessibility.largeText ? 1.25 : 1.0,
-                ),
-                disableAnimations: accessibility.reducedMotion,
-              ),
-              child: child ?? const SizedBox.shrink(),
-            );
-          },
-          theme: AppTheme.light(
-            highContrast: accessibility.highContrast,
-          ),
-          home: _AppRoot(controller: controller),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => LearningAppShell(
+    title: 'Rechenblitz',
+    subject: LearningSubject.mathematics,
+    settingsListenable: controller,
+    accessibilityPreferences: () => controller.accessibilityPreferences,
+    themeBuilder: (accessibility) =>
+        AppTheme.light(highContrast: accessibility.highContrast),
+    home: _AppRoot(controller: controller),
+  );
 }
-
 
 class _AppRoot extends StatelessWidget {
   const _AppRoot({required this.controller});
@@ -56,9 +38,9 @@ class _AppRoot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-        animation: controller,
-        builder: (context, _) => controller.needsOnboarding
-            ? LearningStartScreen(controller: controller)
-            : HomeScreen(controller: controller),
-      );
+    animation: controller,
+    builder: (context, _) => controller.needsOnboarding
+        ? LearningStartScreen(controller: controller)
+        : HomeScreen(controller: controller),
+  );
 }
