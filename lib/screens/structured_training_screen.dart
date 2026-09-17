@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/active_response_timer.dart';
 import '../models/adaptive_segment.dart';
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
@@ -53,7 +54,8 @@ class StructuredTrainingScreen extends StatefulWidget {
       _StructuredTrainingScreenState();
 }
 
-class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
+class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
+    with WidgetsBindingObserver {
   HelpPreferences get _helpPreferences => widget.controller.helpPreferences;
   HelpLevel? get _manualHelpLevel => _helpPreferences.manualStartLevel;
   bool get _helpAvailable => _helpPreferences.enabled;
@@ -80,7 +82,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   late final StructuredExerciseGenerator generator;
   late StructuredExercise current;
   late DateTime startedAt;
-  late DateTime shownAt;
+  late ActiveResponseTimer responseTimer;
   int completed = 0;
   int correctFirstTry = 0;
   int incorrectAttempts = 0;
@@ -137,6 +139,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     generator = widget.exerciseGenerator ?? StructuredExerciseGenerator();
     final saved = widget.exerciseGenerator == null
         ? widget.controller.resumableCoreTrainingSession(
@@ -172,7 +175,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       hadCheckpointError = saved.hadCheckpointError;
       taskFirstAttemptRecorded = saved.taskFirstAttemptRecorded;
       responseTimes.addAll(saved.responseTimes);
-      shownAt = now;
+      responseTimer = ActiveResponseTimer(startedAt: now);
       resumedFromDraft = true;
       resumeResolvedTask = saved.taskResolved;
       locked = resumeResolvedTask;
@@ -180,7 +183,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
       startedAt = now;
       current = _next();
       _prepareHelpForCurrent();
-      shownAt = now;
+      responseTimer = ActiveResponseTimer(startedAt: now);
       unawaited(_persistSession());
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -191,6 +194,22 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
         unawaited(widget.controller.speak(current.prompt));
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      responseTimer.resume();
+      return;
+    }
+    responseTimer.pause();
+    unawaited(_persistSession());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   CoreTrainingSessionProgress _sessionSnapshot({
@@ -251,7 +270,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     resumeResolvedTask = false;
     setState(() {
       current = _next();
-      shownAt = DateTime.now();
+      responseTimer.reset();
       wrongOnCurrent = 0;
       locked = false;
       _prepareHelpForCurrent();
@@ -421,7 +440,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
 
   Future<void> _answer(int answer) async {
     if (locked || finishing || !_checkpointsComplete) return;
-    final response = DateTime.now().difference(shownAt);
+    final response = responseTimer.elapsed();
     final diagnosedPattern = answer == current.answer
         ? null
         : ErrorClassifier.classify(
@@ -523,7 +542,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen> {
     }
     setState(() {
       current = _next();
-      shownAt = DateTime.now();
+      responseTimer.reset();
       wrongOnCurrent = 0;
       locked = false;
       _prepareHelpForCurrent();

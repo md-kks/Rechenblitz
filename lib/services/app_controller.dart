@@ -395,7 +395,8 @@ class AppController extends ChangeNotifier {
     coreTrainingSessionProgress = await storage.loadCoreTrainingSession();
     final coreTrainingSession = coreTrainingSessionProgress;
     if (coreTrainingSession != null &&
-        (coreTrainingSession.gradeLevel != gradeLevel ||
+        (!coreTrainingSession.hasSaneState() ||
+            coreTrainingSession.gradeLevel != gradeLevel ||
             coreTrainingSession.numberRange != numberRange ||
             coreTrainingSession.teacherAssignmentActive ||
             DateTime.now().difference(coreTrainingSession.updatedAt) >

@@ -102,6 +102,56 @@ class CoreTrainingSessionProgress {
   final int divideCorrect;
   final bool taskResolved;
 
+  bool hasSaneState({DateTime? now}) {
+    final reference = now ?? DateTime.now();
+    bool validCounterPair(int total, int correct) =>
+        total >= 0 && correct >= 0 && correct <= total;
+
+    if (targetTasks <= 0 || currentTask.isEmpty) return false;
+    if (startedAt.isAfter(updatedAt) || updatedAt.isAfter(reference)) return false;
+    if (timeLimitMs != null && timeLimitMs! <= 0) return false;
+    if (elapsedActiveMs < 0 ||
+        completed < 0 ||
+        completed > targetTasks ||
+        correctFirstTry < 0 ||
+        correctFirstTry > completed ||
+        incorrectAttempts < 0 ||
+        wrongOnCurrent < 0 ||
+        helpLevel < 0 ||
+        helpLevel > 3 ||
+        checkpointIndex < 0) {
+      return false;
+    }
+    if (checkpointAttempted.any((index) => index < 0) ||
+        checkpointWrongAttempts.entries.any(
+          (entry) => entry.key < 0 || entry.value < 0,
+        ) ||
+        responseTimes.any((value) => value < 0)) {
+      return false;
+    }
+    if (!validCounterPair(plusTotal, plusCorrect) ||
+        !validCounterPair(minusTotal, minusCorrect) ||
+        !validCounterPair(multiplyTotal, multiplyCorrect) ||
+        !validCounterPair(divideTotal, divideCorrect)) {
+      return false;
+    }
+
+    try {
+      switch (kind) {
+        case CoreTrainingKind.fact:
+          final key = currentTask['key'];
+          if (key is! String || key.trim().isEmpty) return false;
+        case CoreTrainingKind.structured:
+          if (decodeStructuredExercise(currentTask).mode != mode) return false;
+        case CoreTrainingKind.curriculum:
+          if (decodeCurriculumExercise(currentTask).mode != mode) return false;
+      }
+    } catch (_) {
+      return false;
+    }
+    return true;
+  }
+
   bool isCompatible({
     required CoreTrainingKind kind,
     required TrainingMode mode,
@@ -119,7 +169,8 @@ class CoreTrainingSessionProgress {
     DateTime? now,
   }) {
     final reference = now ?? DateTime.now();
-    return this.kind == kind &&
+    return hasSaneState(now: reference) &&
+        this.kind == kind &&
         this.mode == mode &&
         this.targetTasks == targetTasks &&
         this.targetCompetency == targetCompetency &&
