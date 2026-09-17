@@ -13,6 +13,7 @@ class GermanRoundDraft {
     required this.completedResults,
     this.incorrectAttempts = 0,
     this.assignmentPayload,
+    this.sessionKind = GermanSessionKind.practice,
   });
 
   static const maxAge = Duration(days: 7);
@@ -25,6 +26,7 @@ class GermanRoundDraft {
   final List<GermanTaskResult> completedResults;
   final int incorrectAttempts;
   final String? assignmentPayload;
+  final GermanSessionKind sessionKind;
 
   int get totalTasks => taskIds.length;
   int get nextTaskNumber => currentIndex + 1;
@@ -66,6 +68,7 @@ class GermanRoundDraft {
         .toList(),
     'incorrectAttempts': incorrectAttempts,
     'assignmentPayload': assignmentPayload,
+    'sessionKind': sessionKind.name,
   };
 
   factory GermanRoundDraft.fromJson(Map<String, dynamic> json) {
@@ -88,6 +91,16 @@ class GermanRoundDraft {
           .toList(growable: false),
       incorrectAttempts: (json['incorrectAttempts'] as num?)?.toInt() ?? 0,
       assignmentPayload: json['assignmentPayload'] as String?,
+      sessionKind: _parseSessionKind(json['sessionKind']),
     );
+  }
+
+  static GermanSessionKind _parseSessionKind(Object? raw) {
+    if (raw is String) {
+      for (final value in GermanSessionKind.values) {
+        if (value.name == raw) return value;
+      }
+    }
+    return GermanSessionKind.practice;
   }
 }

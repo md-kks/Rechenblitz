@@ -6,6 +6,7 @@ import '../../../core/grade_level.dart';
 import '../../../core/learning_app_theme.dart';
 import '../../../core/learning_subject.dart';
 import '../../../services/app_controller.dart';
+import '../german_assessment.dart';
 import '../german_competency.dart';
 import '../german_competency_catalog.dart';
 import '../german_learning_domain.dart';
@@ -17,6 +18,7 @@ import '../german_storage_service.dart';
 import '../german_teacher_assignment.dart';
 import '../german_teacher_assignment_result.dart';
 import '../german_task.dart';
+import 'german_assessment_result_screen.dart';
 import 'german_assignment_result_screen.dart';
 import 'german_competency_map_screen.dart';
 import 'german_training_screen.dart';
@@ -67,6 +69,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   Future<void> _openRound(
     List<GermanTask> tasks, {
     GermanRoundDraft? draft,
+    GermanSessionKind sessionKind = GermanSessionKind.practice,
   }) async {
     if (tasks.isEmpty) return;
     final activeDraft =
@@ -78,6 +81,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
           startedAt: DateTime.now(),
           updatedAt: DateTime.now(),
           completedResults: const <GermanTaskResult>[],
+          sessionKind: sessionKind,
         );
     await _storage.saveRoundDraft(activeDraft);
     if (!mounted) return;
@@ -93,6 +97,9 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
             speak: widget.controller.speakOnDemand,
             speakCompletion:
                 widget.controller.accessibilityPreferences.spokenRoundFeedback,
+            sessionKind: activeDraft.sessionKind,
+            supportEnabled:
+                activeDraft.sessionKind != GermanSessionKind.assessment,
             draft: activeDraft,
             onDraftChanged: _saveDraft,
             onComplete: _saveResult,
@@ -101,6 +108,20 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       ),
     );
     if (!mounted || session == null) return;
+
+    if (session.kind == GermanSessionKind.assessment) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Theme(
+            data: _germanTheme,
+            child: GermanAssessmentResultScreen(
+              summary: GermanAssessmentSummary.fromSession(session),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
 
     final payload = activeDraft.assignmentPayload;
     if (payload != null) {
@@ -149,7 +170,22 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       if (mounted) setState(() => _draft = null);
       return;
     }
-    await _openRound(tasks, draft: draft);
+    await _openRound(tasks, draft: draft, sessionKind: draft.sessionKind);
+  }
+
+  void _startAssessment() {
+    if (_draft != null) return;
+    final tasks = GermanAssessmentPlanner.buildRound(
+      widget.controller.gradeLevel,
+    );
+    unawaited(_openRound(tasks, sessionKind: GermanSessionKind.assessment));
+  }
+
+  GermanSessionResult? get _latestAssessment {
+    for (final session in _history) {
+      if (session.kind == GermanSessionKind.assessment) return session;
+    }
+    return null;
   }
 
   void _startDailyRound() {
@@ -260,6 +296,27 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
         icon: const Icon(Icons.route_rounded),
         label: const Text('Lernlandkarte ansehen'),
       ),
+      const SizedBox(height: 18),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text('Lerncheck', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 6),
+              Text(_assessmentSummaryText()),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const ValueKey('german-assessment-start'),
+                onPressed: _draft == null ? _startAssessment : null,
+                icon: const Icon(Icons.fact_check_outlined),
+                label: const Text('Lerncheck starten'),
+              ),
+            ],
+          ),
+        ),
+      ),
       const SizedBox(height: 24),
       Text('Lernbereiche', style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 12),
@@ -290,9 +347,11 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   String _roundSummary() {
     final draft = _draft;
     if (draft != null) {
-      final kind = draft.assignmentPayload == null
-          ? 'Deine angefangene Runde'
-          : 'Dein angefangener Schulauftrag';
+      final kind = switch (draft.sessionKind) {
+        GermanSessionKind.practice => 'Deine angefangene Runde',
+        GermanSessionKind.assessment => 'Dein angefangener Lerncheck',
+        GermanSessionKind.teacherAssignment => 'Dein angefangener Schulauftrag',
+      };
       return '$kind wartet: Aufgabe ${draft.nextTaskNumber} von ${draft.totalTasks}.';
     }
     if (_history.isEmpty) {
@@ -304,6 +363,15 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       weakest.competencyId,
     ).label;
     return 'Heute bekommt „$label“ etwas mehr Übungszeit.';
+  }
+
+  String _assessmentSummaryText() {
+    final latest = _latestAssessment;
+    if (latest == null) {
+      return 'Eine kurze Momentaufnahme über alle Deutsch-Lernbereiche – ohne Note.';
+    }
+    final percent = (latest.accuracy * 100).round();
+    return 'Letzter Lerncheck: ${latest.correctFirstTry} von ${latest.total} direkt richtig · $percent %.';
   }
 
   GermanCompetencyProgress? _weakestProgress() {

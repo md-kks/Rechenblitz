@@ -42,7 +42,7 @@ void main() {
     await tester.tap(find.text('Auftrag starten'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Deutsch üben'), findsOneWidget);
+    expect(find.text('Deutsch-Schulauftrag'), findsOneWidget);
     expect(find.text('1 von 5'), findsOneWidget);
   });
 }

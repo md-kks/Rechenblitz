@@ -116,6 +116,7 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
         updatedAt: DateTime.now(),
         completedResults: const <GermanTaskResult>[],
         assignmentPayload: assignment.toPayload(),
+        sessionKind: GermanSessionKind.teacherAssignment,
       );
       await storage.saveRoundDraft(draft);
       if (!mounted) return;
@@ -135,6 +136,7 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
                   .controller
                   .accessibilityPreferences
                   .spokenRoundFeedback,
+              sessionKind: GermanSessionKind.teacherAssignment,
               draft: draft,
               onDraftChanged: (value) =>
                   unawaited(storage.saveRoundDraft(value)),

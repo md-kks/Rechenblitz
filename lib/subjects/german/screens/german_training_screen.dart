@@ -20,6 +20,8 @@ class GermanTrainingScreen extends StatefulWidget {
     required this.tasks,
     required this.speak,
     this.speakCompletion = false,
+    this.sessionKind = GermanSessionKind.practice,
+    this.supportEnabled = true,
     this.draft,
     this.onDraftChanged,
     this.onComplete,
@@ -29,6 +31,8 @@ class GermanTrainingScreen extends StatefulWidget {
   final List<GermanTask> tasks;
   final GermanSpeak speak;
   final bool speakCompletion;
+  final GermanSessionKind sessionKind;
+  final bool supportEnabled;
   final GermanRoundDraft? draft;
   final GermanDraftChanged? onDraftChanged;
   final GermanSessionComplete? onComplete;
@@ -58,6 +62,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
     final draft = widget.draft;
     if (draft != null &&
         draft.gradeLevel == widget.gradeLevel &&
+        draft.sessionKind == widget.sessionKind &&
         draft.taskIds.length == widget.tasks.length &&
         draft.taskIds.asMap().entries.every(
           (entry) => widget.tasks[entry.key].id == entry.value,
@@ -95,6 +100,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
         completedResults: List<GermanTaskResult>.unmodifiable(_results),
         incorrectAttempts: _incorrectAttempts,
         assignmentPayload: widget.draft?.assignmentPayload,
+        sessionKind: widget.sessionKind,
       ),
     );
   }
@@ -127,6 +133,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
         startedAt: _startedAt,
         finishedAt: now,
         taskResults: List<GermanTaskResult>.unmodifiable(_results),
+        kind: widget.sessionKind,
       );
       setState(() {
         _completed = true;
@@ -153,11 +160,23 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
     _emitDraft(now);
   }
 
+  String get _screenTitle => switch (widget.sessionKind) {
+    GermanSessionKind.practice => 'Deutsch üben',
+    GermanSessionKind.assessment => 'Deutsch-Lerncheck',
+    GermanSessionKind.teacherAssignment => 'Deutsch-Schulauftrag',
+  };
+
+  String get _completionTitle => switch (widget.sessionKind) {
+    GermanSessionKind.practice => 'Runde geschafft',
+    GermanSessionKind.assessment => 'Lerncheck geschafft',
+    GermanSessionKind.teacherAssignment => 'Schulauftrag geschafft',
+  };
+
   @override
   Widget build(BuildContext context) {
     if (_completed) return _buildCompleted(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Deutsch üben')),
+      appBar: AppBar(title: Text(_screenTitle)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -197,7 +216,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
                 ),
               ),
             ],
-            if (_incorrectAttempts > 0) ...<Widget>[
+            if (widget.supportEnabled && _incorrectAttempts > 0) ...<Widget>[
               const SizedBox(height: 12),
               _buildSupportCard(context),
             ],
@@ -369,7 +388,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
     final percent = (result.accuracy * 100).round();
     final feedback = GermanRoundFeedback.forSession(result);
     return Scaffold(
-      appBar: AppBar(title: const Text('Runde geschafft')),
+      appBar: AppBar(title: Text(_completionTitle)),
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -380,7 +399,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen> {
                 const Icon(Icons.check_circle_outline_rounded, size: 72),
                 const SizedBox(height: 20),
                 Text(
-                  'Runde geschafft',
+                  _completionTitle,
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 10),

@@ -6,6 +6,7 @@ import '../../../core/grade_level.dart';
 import '../../../core/learning_app_theme.dart';
 import '../../../core/learning_subject.dart';
 import '../../../services/app_controller.dart';
+import '../german_assessment.dart';
 import '../german_competency_catalog.dart';
 import '../german_learning_domain.dart';
 import '../german_parent_overview.dart';
@@ -87,6 +88,7 @@ class _GermanParentOverviewScreenState
               runSpacing: 18,
               children: <Widget>[
                 _Metric('Runden', '${overview.sessionCount}'),
+                _Metric('Lernchecks', '${overview.assessmentCount}'),
                 _Metric('Aufgaben', '${overview.totalTasks}'),
                 _Metric('direkt richtig', '$percent %'),
                 _Metric(
@@ -97,6 +99,14 @@ class _GermanParentOverviewScreenState
             ),
           ),
         ),
+        if (overview.latestAssessment != null) ...<Widget>[
+          const SizedBox(height: 16),
+          _AssessmentSnapshot(
+            summary: GermanAssessmentSummary.fromSession(
+              overview.latestAssessment!,
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         _InsightSection(
           title: 'Das klappt gut',
@@ -241,6 +251,38 @@ class _Metric extends StatelessWidget {
         ),
         Text(label),
       ],
+    ),
+  );
+}
+
+class _AssessmentSnapshot extends StatelessWidget {
+  const _AssessmentSnapshot({required this.summary});
+
+  final GermanAssessmentSummary summary;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Letzter Lerncheck',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${summary.session.correctFirstTry} von ${summary.session.total} direkt richtig. Keine Note – eine Momentaufnahme für die nächste Übungsplanung.',
+          ),
+          if (summary.nextDomains.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 10),
+            Text(
+              'Nächster Fokus: ${summary.nextDomains.map((entry) => entry.domain.label).join(' · ')}',
+            ),
+          ],
+        ],
+      ),
     ),
   );
 }

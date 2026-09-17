@@ -34,6 +34,8 @@ class GermanParentOverview {
     required this.incorrectAttempts,
     required this.progress,
     required this.domains,
+    this.assessmentCount = 0,
+    this.latestAssessment,
   });
 
   final GradeLevel gradeLevel;
@@ -43,6 +45,8 @@ class GermanParentOverview {
   final int incorrectAttempts;
   final List<GermanCompetencyProgress> progress;
   final List<GermanDomainProgressSummary> domains;
+  final int assessmentCount;
+  final GermanSessionResult? latestAssessment;
 
   double get accuracy => totalTasks == 0 ? 0 : correctFirstTry / totalTasks;
 
@@ -89,6 +93,10 @@ class GermanParentOverview {
     final sessions = history
         .where((session) => session.gradeLevel == gradeLevel)
         .toList(growable: false);
+    final assessments = sessions
+        .where((session) => session.kind == GermanSessionKind.assessment)
+        .toList(growable: false);
+    assessments.sort((a, b) => b.finishedAt.compareTo(a.finishedAt));
     final definitions = GermanCompetencyCatalog.recommendedFor(gradeLevel);
     final progress = definitions
         .map(
@@ -142,6 +150,8 @@ class GermanParentOverview {
       ),
       progress: progress,
       domains: domains,
+      assessmentCount: assessments.length,
+      latestAssessment: assessments.isEmpty ? null : assessments.first,
     );
   }
 }

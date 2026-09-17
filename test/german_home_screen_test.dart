@@ -19,6 +19,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Meine Deutsch-Runde'), findsOneWidget);
+    expect(find.text('Lerncheck'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Lesen'), 180);
     expect(find.text('Lesen'), findsOneWidget);
     expect(find.text('Rechtschreibung'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Sprache untersuchen'), 180);
@@ -88,5 +90,22 @@ void main() {
 
     expect(find.text('Deutsch üben'), findsOneWidget);
     expect(find.text('1 von 6'), findsOneWidget);
+  });
+  testWidgets('German home starts a support-free Lerncheck', (tester) async {
+    final controller = AppController();
+    await controller.load();
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    final button = find.byKey(const ValueKey('german-assessment-start'));
+    await tester.scrollUntilVisible(button, 180);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Deutsch-Lerncheck'), findsOneWidget);
+    expect(find.text('1 von 12'), findsOneWidget);
   });
 }

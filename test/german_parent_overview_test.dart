@@ -13,10 +13,12 @@ GermanSessionResult _session({
   required GermanCompetencyId competency,
   required List<bool> correct,
   int minute = 0,
+  GermanSessionKind kind = GermanSessionKind.practice,
 }) => GermanSessionResult(
   gradeLevel: GradeLevel.second,
   startedAt: DateTime(2026, 9, 17, 10, minute),
   finishedAt: DateTime(2026, 9, 17, 10, minute + 1),
+  kind: kind,
   taskResults: <GermanTaskResult>[
     for (var i = 0; i < correct.length; i++)
       GermanTaskResult(
@@ -59,6 +61,28 @@ void main() {
       overview.practiceNeeds.first.competencyId,
       GermanCompetencyId.wordRecognition,
     );
+  });
+
+  test('parent overview tracks the latest Lerncheck separately', () {
+    final overview = GermanParentOverview.analyze(
+      gradeLevel: GradeLevel.second,
+      history: <GermanSessionResult>[
+        _session(
+          competency: GermanCompetencyId.wordRecognition,
+          correct: const <bool>[true, false],
+          kind: GermanSessionKind.assessment,
+          minute: 10,
+        ),
+        _session(
+          competency: GermanCompetencyId.nounArticle,
+          correct: const <bool>[true],
+        ),
+      ],
+    );
+
+    expect(overview.assessmentCount, 1);
+    expect(overview.latestAssessment, isNotNull);
+    expect(overview.latestAssessment!.kind, GermanSessionKind.assessment);
   });
 
   testWidgets('German parent overview reads only local profile progress', (
