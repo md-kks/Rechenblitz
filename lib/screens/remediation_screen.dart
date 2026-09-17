@@ -7,6 +7,7 @@ import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
 import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
+import '../models/support_session_progress.dart';
 import '../models/training.dart';
 import '../models/touch_interaction.dart';
 import '../services/app_controller.dart';
@@ -40,6 +41,8 @@ class _RemediationScreenState extends State<RemediationScreen> {
   int checkTotal = 0;
   bool locked = false;
   bool submitting = false;
+  bool firstAttemptRecorded = false;
+  bool resumedFromDraft = false;
   bool finishing = false;
   bool showHint = false;
   bool useTouchInput = true;
@@ -80,21 +83,51 @@ class _RemediationScreenState extends State<RemediationScreen> {
   void initState() {
     super.initState();
     reviewOnly = widget.controller.remediationReviewOnly(widget.pattern);
-    plan = RemediationGenerator().generate(
+    final saved = widget.controller.resumableRemediationSession(
       pattern: widget.pattern,
-      preferredMode: widget.preferredMode,
-      grade: widget.controller.gradeLevel,
-      range: widget.controller.numberRange,
-      methods: widget.controller.effectiveMethodPreferences,
+      mode: widget.preferredMode,
       reviewOnly: reviewOnly,
     );
-    _scheduleCurrentTask();
-    unawaited(
-      widget.controller.startRemediation(
-        widget.pattern,
+    final pendingFinish = saved != null && saved.index >= saved.tasks.length;
+    if (saved != null) {
+      plan = RemediationPlan(
+        pattern: widget.pattern,
+        mode: widget.preferredMode,
+        tasks: saved.tasks,
+      );
+      index = pendingFinish ? saved.tasks.length - 1 : saved.index;
+      wrongOnCurrent = saved.wrongOnCurrent;
+      firstAttemptRecorded = saved.firstAttemptRecorded;
+      checkCorrect = saved.checkCorrect;
+      checkTotal = saved.checkTotal;
+      showHint = saved.showHint;
+      resumedFromDraft = true;
+      locked = pendingFinish;
+    } else {
+      plan = RemediationGenerator().generate(
+        pattern: widget.pattern,
+        preferredMode: widget.preferredMode,
+        grade: widget.controller.gradeLevel,
+        range: widget.controller.numberRange,
+        methods: widget.controller.effectiveMethodPreferences,
         reviewOnly: reviewOnly,
-      ),
-    );
+      );
+      unawaited(_persistSession());
+    }
+    _scheduleCurrentTask();
+    if (saved == null) {
+      unawaited(
+        widget.controller.startRemediation(
+          widget.pattern,
+          reviewOnly: reviewOnly,
+        ),
+      );
+    }
+    if (pendingFinish) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_finish());
+      });
+    }
   }
 
   @override
@@ -120,6 +153,47 @@ class _RemediationScreenState extends State<RemediationScreen> {
     });
   }
 
+  RemediationSessionProgress _sessionSnapshot({
+    int? indexOverride,
+    int? wrongOnCurrentOverride,
+    bool? firstAttemptRecordedOverride,
+    bool? showHintOverride,
+  }) => RemediationSessionProgress(
+    pattern: widget.pattern,
+    mode: widget.preferredMode,
+    gradeLevel: widget.controller.gradeLevel,
+    numberRange: widget.controller.numberRange,
+    reviewOnly: reviewOnly,
+    tasks: plan.tasks,
+    index: indexOverride ?? index,
+    wrongOnCurrent: wrongOnCurrentOverride ?? wrongOnCurrent,
+    firstAttemptRecorded: firstAttemptRecordedOverride ?? firstAttemptRecorded,
+    checkCorrect: checkCorrect,
+    checkTotal: checkTotal,
+    showHint: showHintOverride ?? showHint,
+    updatedAt: DateTime.now(),
+  );
+
+  Future<void> _persistSession({
+    int? indexOverride,
+    int? wrongOnCurrentOverride,
+    bool? firstAttemptRecordedOverride,
+    bool? showHintOverride,
+  }) => widget.controller.saveRemediationSession(
+    _sessionSnapshot(
+      indexOverride: indexOverride,
+      wrongOnCurrentOverride: wrongOnCurrentOverride,
+      firstAttemptRecordedOverride: firstAttemptRecordedOverride,
+      showHintOverride: showHintOverride,
+    ),
+  );
+
+  void _revealHint() {
+    if (showHint) return;
+    setState(() => showHint = true);
+    unawaited(_persistSession());
+  }
+
   Future<void> _answer(int answer) async {
     if (locked || submitting || finishing) return;
     final answeredIndex = index;
@@ -127,7 +201,9 @@ class _RemediationScreenState extends State<RemediationScreen> {
     setState(() => submitting = true);
 
     try {
-      if (wrongOnCurrent == 0) {
+      if (!firstAttemptRecorded) {
+        firstAttemptRecorded = true;
+        await _persistSession();
         await widget.controller.recordDiagnosticAttempt(
           mode: answeredTask.mode,
           taskKey: answeredTask.taskKey,
@@ -157,6 +233,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
             : 'Nutze den Hinweis und probiere es noch einmal.';
         showHint = true;
       });
+      await _persistSession();
       return;
     }
 
@@ -178,17 +255,25 @@ class _RemediationScreenState extends State<RemediationScreen> {
           : 'Geschafft. Der richtige Weg ist jetzt klar.';
     });
 
+    final nextIndex = index + 1;
+    await _persistSession(
+      indexOverride: nextIndex,
+      wrongOnCurrentOverride: 0,
+      firstAttemptRecordedOverride: false,
+      showHintOverride: false,
+    );
     await Future<void>.delayed(const Duration(milliseconds: 550));
     if (!mounted || finishing) return;
 
-    if (index + 1 >= plan.tasks.length) {
+    if (nextIndex >= plan.tasks.length) {
       await _finish();
       return;
     }
 
     setState(() {
-      index += 1;
+      index = nextIndex;
       wrongOnCurrent = 0;
+      firstAttemptRecorded = false;
       locked = false;
       showHint = false;
       useTouchInput = true;
@@ -206,6 +291,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
       checkTotal: checkTotal,
       reviewOnly: reviewOnly,
     );
+    await widget.controller.clearRemediationSession();
 
     if (!mounted) return;
     await showDialog<void>(
@@ -265,7 +351,9 @@ class _RemediationScreenState extends State<RemediationScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Aufgabe ${index + 1} von ${plan.tasks.length}',
+              resumedFromDraft
+                  ? 'Aufgabe ${index + 1} von ${plan.tasks.length} · fortgesetzt'
+                  : 'Aufgabe ${index + 1} von ${plan.tasks.length}',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -312,7 +400,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
             ],
             if (!autoHint && !showHint && stage != RemediationStage.check)
               TextButton.icon(
-                onPressed: () => setState(() => showHint = true),
+                onPressed: _revealHint,
                 icon: const Icon(Icons.lightbulb_outline_rounded),
                 label: const Text('Hinweis anzeigen'),
               ),

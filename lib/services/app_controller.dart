@@ -16,6 +16,7 @@ import '../models/method_key_label.dart';
 import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/reward_badge.dart';
+import '../models/support_session_progress.dart';
 import '../models/training.dart';
 import '../models/task_diversity.dart';
 import '../models/teacher_assignment.dart';
@@ -129,6 +130,8 @@ class AppController extends ChangeNotifier {
   List<RewardBadge> lastSessionNewBadges = const [];
   GuidedRoundProgress? guidedRoundProgress;
   AssessmentProgress? assessmentProgress;
+  RemediationSessionProgress? remediationSessionProgress;
+  StepRecoverySessionProgress? stepRecoverySessionProgress;
 
   int get maxValue => numberRange.maxValue;
 
@@ -187,6 +190,74 @@ class AppController extends ChangeNotifier {
   Future<void> clearAssessmentProgress() async {
     assessmentProgress = null;
     await storage.clearAssessmentProgress();
+  }
+
+  RemediationSessionProgress? resumableRemediationSession({
+    required ErrorPattern pattern,
+    required TrainingMode mode,
+    required bool reviewOnly,
+    DateTime? now,
+  }) {
+    final progress = remediationSessionProgress;
+    if (progress == null) return null;
+    return progress.isCompatible(
+      pattern: pattern,
+      mode: mode,
+      grade: gradeLevel,
+      range: numberRange,
+      reviewOnly: reviewOnly,
+      now: now,
+    )
+        ? progress
+        : null;
+  }
+
+  Future<void> saveRemediationSession(
+    RemediationSessionProgress progress,
+  ) async {
+    remediationSessionProgress = progress;
+    await storage.saveRemediationSession(progress);
+  }
+
+  Future<void> clearRemediationSession() async {
+    remediationSessionProgress = null;
+    await storage.clearRemediationSession();
+  }
+
+  StepRecoverySessionProgress? resumableStepRecoverySession(
+    IndependentStepRecoveryFocus focus, {
+    DateTime? now,
+  }) {
+    final progress = stepRecoverySessionProgress;
+    if (progress == null) return null;
+    return progress.isCompatible(
+      focus: focus,
+      range: numberRange,
+      now: now,
+    )
+        ? progress
+        : null;
+  }
+
+  Future<void> saveStepRecoverySession(
+    StepRecoverySessionProgress progress,
+  ) async {
+    stepRecoverySessionProgress = progress;
+    await storage.saveStepRecoverySession(progress);
+  }
+
+  Future<void> clearStepRecoverySession() async {
+    stepRecoverySessionProgress = null;
+    await storage.clearStepRecoverySession();
+  }
+
+  Future<void> clearSupportSessionProgress() async {
+    remediationSessionProgress = null;
+    stepRecoverySessionProgress = null;
+    await Future.wait([
+      storage.clearRemediationSession(),
+      storage.clearStepRecoverySession(),
+    ]);
   }
 
   void beginTeacherAssignment(TeacherAssignment assignment) {
@@ -252,6 +323,25 @@ class AppController extends ChangeNotifier {
         )) {
       assessmentProgress = null;
       await storage.clearAssessmentProgress();
+    }
+    remediationSessionProgress = await storage.loadRemediationSession();
+    final remediationSession = remediationSessionProgress;
+    if (remediationSession != null &&
+        (remediationSession.gradeLevel != gradeLevel ||
+            remediationSession.numberRange != numberRange ||
+            DateTime.now().difference(remediationSession.updatedAt) >
+                RemediationSessionProgress.maxAge)) {
+      remediationSessionProgress = null;
+      await storage.clearRemediationSession();
+    }
+    stepRecoverySessionProgress = await storage.loadStepRecoverySession();
+    final stepRecoverySession = stepRecoverySessionProgress;
+    if (stepRecoverySession != null &&
+        (stepRecoverySession.numberRange != numberRange ||
+            DateTime.now().difference(stepRecoverySession.updatedAt) >
+                StepRecoverySessionProgress.maxAge)) {
+      stepRecoverySessionProgress = null;
+      await storage.clearStepRecoverySession();
     }
     methodPreferences = await storage.methodPreferences();
     unlockedBadges = await storage.rewardBadges();
@@ -4125,6 +4215,7 @@ class AppController extends ChangeNotifier {
     if (gradeChanged) {
       activeTeacherAssignment = null;
       await clearAssessmentProgress();
+      await clearSupportSessionProgress();
     }
     await clearGuidedRoundProgress();
     gradeLevel = value;
@@ -4223,6 +4314,7 @@ class AppController extends ChangeNotifier {
   Future<void> setMethodSelectionPreference(
     MethodSelectionPreference value,
   ) async {
+    await clearSupportSessionProgress();
     methodPreferences =
         methodPreferences.copyWith(selectionPreference: value);
     notifyListeners();
@@ -4230,12 +4322,14 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> setSubtractionStrategy(SubtractionStrategy value) async {
+    await clearSupportSessionProgress();
     methodPreferences = methodPreferences.copyWith(subtraction: value);
     notifyListeners();
     await storage.setMethodPreferences(methodPreferences);
   }
 
   Future<void> setMultiplicationStrategy(MultiplicationStrategy value) async {
+    await clearSupportSessionProgress();
     methodPreferences = methodPreferences.copyWith(multiplication: value);
     notifyListeners();
     await storage.setMethodPreferences(methodPreferences);
@@ -4244,6 +4338,7 @@ class AppController extends ChangeNotifier {
   Future<void> setWrittenSubtractionStrategy(
     WrittenSubtractionStrategy value,
   ) async {
+    await clearSupportSessionProgress();
     methodPreferences =
         methodPreferences.copyWith(writtenSubtraction: value);
     notifyListeners();
@@ -4256,6 +4351,7 @@ class AppController extends ChangeNotifier {
     required GermanState state,
   }) async {
     await clearGuidedRoundProgress();
+    await clearSupportSessionProgress();
     final nextRange = grade.recommendedRange;
     final assessmentContextChanged =
         grade != gradeLevel || nextRange != numberRange;
@@ -4398,6 +4494,7 @@ class AppController extends ChangeNotifier {
       activeTeacherAssignment = null;
       await clearGuidedRoundProgress();
       await clearAssessmentProgress();
+      await clearSupportSessionProgress();
       recentTaskKeysByMode = <String, List<String>>{};
       await storage.saveTaskDiversity(recentTaskKeysByMode);
     }
@@ -4505,6 +4602,8 @@ class AppController extends ChangeNotifier {
     recoveredWeakFacts = <String>{};
     guidedRoundProgress = null;
     assessmentProgress = null;
+    remediationSessionProgress = null;
+    stepRecoverySessionProgress = null;
     activeTeacherAssignment = null;
     _pendingBadgeIds.clear();
     lastSessionNewBadges = const [];
