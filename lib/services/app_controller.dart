@@ -4698,6 +4698,14 @@ class AppController extends ChangeNotifier {
     await storage.setMethodPreferences(methodPreferences);
   }
 
+  Future<void> setAdditionStrategy(AdditionStrategy value) async {
+    await clearSupportSessionProgress();
+    await clearCoreTrainingSession();
+    methodPreferences = methodPreferences.copyWith(addition: value);
+    notifyListeners();
+    await storage.setMethodPreferences(methodPreferences);
+  }
+
   Future<void> setSubtractionStrategy(SubtractionStrategy value) async {
     await clearSupportSessionProgress();
     await clearCoreTrainingSession();

@@ -40,6 +40,7 @@ class LearningVisualAid extends StatelessWidget {
     }
     if (methodKey == 'addition:toFullTen' ||
         methodKey == 'addition:direct' ||
+        methodKey == 'addition:compensate' ||
         methodKey == 'numberFriends:decomposition' ||
         taskKey.startsWith('gap:') ||
         taskKey.startsWith('neighbor:') ||
@@ -138,6 +139,8 @@ class LearningVisualAid extends StatelessWidget {
             ? _additionDirectAid()
             : methodKey == 'addition:toFullTen'
                 ? _additionToFullTenAid()
+                : methodKey == 'addition:compensate'
+                    ? _additionCompensationAid()
             : taskKey.startsWith('double:') || taskKey.startsWith('half:')
                 ? _doubleHalfAid(context)
                 : taskKey.startsWith('family:')
@@ -811,6 +814,32 @@ class LearningVisualAid extends StatelessWidget {
       nodeLabels: const ['Start', 'voller Zehner'],
       operations: ['+$b'],
       footer: '$a + $b = $expected',
+    );
+  }
+
+  Widget _additionCompensationAid() {
+    final numbers = _numbers(taskKey);
+    if (numbers.length < 2) {
+      return const _AidLabel(
+        title: 'Runden & ausgleichen',
+        text:
+            'Rechne zuerst mit einem vollen Zehner und gleiche das Zuviel danach wieder aus.',
+      );
+    }
+    final a = numbers[numbers.length - 2];
+    final b = numbers.last;
+    final roundedAddend = ((b + 9) ~/ 10) * 10;
+    final adjustment = roundedAddend - b;
+    if (adjustment <= 0) return _additionToFullTenAid();
+    final helperSum = a + roundedAddend;
+    return _ProcessAid(
+      title: 'Runden & ausgleichen',
+      text:
+          'Aus +$b wird kurz +$roundedAddend. Danach nimmst du das Zuviel wieder weg.',
+      nodes: [a, helperSum, expected],
+      nodeLabels: const ['Start', 'Hilfssumme', 'Ergebnis'],
+      operations: ['+$roundedAddend', '−$adjustment'],
+      footer: '$a + $b = $helperSum − $adjustment = $expected',
     );
   }
 

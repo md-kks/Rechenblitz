@@ -4,6 +4,7 @@ import 'training.dart';
 abstract final class MethodKeyLabel {
   static const Map<String, String> _exact = {
     'addition:bridgeToTen': 'Erst zum Zehner',
+    'addition:compensate': 'Runden & ausgleichen',
     'addition:toFullTen': 'Zum vollen Zehner',
     'arithmeticLaws:structure': 'Rechenvorteil erkennen',
     'calendar:week-remainder': 'Kalendersprung in Wochen und Resttage zerlegen',
