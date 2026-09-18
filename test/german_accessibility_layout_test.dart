@@ -70,7 +70,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Meine Deutsch-Runde'), findsOneWidget);
+    expect(find.byKey(const ValueKey('subject-switch-german')), findsOneWidget);
+    final round = find.text('Meine Deutsch-Runde');
+    await tester.scrollUntilVisible(
+      round,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(tester.takeException(), isNull);
+    expect(round, findsOneWidget);
   });
 
   testWidgets('alle Deutsch-Aufgabentypen bleiben kompakt zugänglich', (

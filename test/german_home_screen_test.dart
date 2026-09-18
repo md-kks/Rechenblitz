@@ -24,16 +24,22 @@ void main() {
 
     expect(find.text('Meine Deutsch-Runde'), findsOneWidget);
     expect(find.text('Lerncheck'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Lesen'), 180);
-    expect(find.text('Lesen'), findsOneWidget);
-    expect(find.text('Rechtschreibung'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Sprache untersuchen'), 180);
-    expect(find.text('Sprache untersuchen'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Wörter & Wortschatz'), 180);
-    expect(find.text('Wörter & Wortschatz'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Schreiben'), 180);
-    expect(find.text('Sprechen & Zuhören'), findsOneWidget);
-    expect(find.text('Schreiben'), findsOneWidget);
+    for (final label in <String>[
+      'Lesen',
+      'Rechtschreibung',
+      'Sprache untersuchen',
+      'Wörter & Wortschatz',
+      'Sprechen & Zuhören',
+      'Schreiben',
+    ]) {
+      final item = find.text(label);
+      await tester.scrollUntilVisible(
+        item,
+        220,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(item, findsOneWidget);
+    }
   });
 
   testWidgets('German home opens the competency map', (tester) async {
@@ -127,7 +133,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final button = find.byKey(const ValueKey('german-assessment-start'));
-    await tester.scrollUntilVisible(button, 180);
+    await tester.scrollUntilVisible(
+      button,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
     await tester.tap(button);
     await tester.pumpAndSettle();
 

@@ -6,6 +6,7 @@ import '../../../core/german_state.dart';
 import '../../../core/grade_level.dart';
 import '../../../core/learning_app_theme.dart';
 import '../../../core/learning_subject.dart';
+import '../../../core/widgets/learning_subject_switcher.dart';
 import '../../../services/app_controller.dart';
 import '../german_assessment.dart';
 import '../german_competency.dart';
@@ -264,10 +265,20 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     ),
   );
 
+  Widget _buildSubjectSwitcher() => LearningSubjectSwitcher(
+    current: LearningSubject.german,
+    onMathematics: () {
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) navigator.pop();
+    },
+    onGerman: () {},
+  );
+
   Widget _buildIntro(BuildContext context) => ListView(
     padding: const EdgeInsets.all(20),
     children: <Widget>[
-      const SizedBox(height: 18),
+      _buildSubjectSwitcher(),
+      const SizedBox(height: 24),
       Icon(
         Icons.auto_stories_rounded,
         size: 68,
@@ -332,6 +343,8 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
         '${widget.controller.gradeLevel.label} · Deutsch · ${widget.controller.activeProfile.state.label}',
         style: Theme.of(context).textTheme.bodyLarge,
       ),
+      const SizedBox(height: 12),
+      _buildSubjectSwitcher(),
       const SizedBox(height: 20),
       Card(
         child: Padding(

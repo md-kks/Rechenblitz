@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/learning_subject.dart';
+import '../core/widgets/learning_subject_switcher.dart';
 import '../models/error_diagnosis.dart';
 import '../models/support_session_progress.dart';
 import '../models/training.dart';
@@ -471,6 +473,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? 'Hallo!'
                   : 'Hallo, ${controller.activeProfileName}!',
               style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 12),
+            LearningSubjectSwitcher(
+              current: LearningSubject.mathematics,
+              onMathematics: () {},
+              onGerman: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => GermanHomeScreen(controller: controller),
+                ),
+              ),
             ),
             const SizedBox(height: 18),
             if (resumeActivity != null) ...[

@@ -15,8 +15,8 @@ class LearningSubjectVisuals {
 extension LearningSubjectVisualsX on LearningSubject {
   LearningSubjectVisuals get visuals => switch (this) {
     LearningSubject.mathematics => const LearningSubjectVisuals(
-      seedColor: Color.fromARGB(255, 107, 93, 211),
-      scaffoldBackground: Color.fromARGB(255, 248, 247, 252),
+      seedColor: Color(0xFF3D73D9),
+      scaffoldBackground: Color(0xFFF5F7FA),
     ),
     LearningSubject.german => const LearningSubjectVisuals(
       seedColor: Color.fromARGB(255, 198, 40, 40),
