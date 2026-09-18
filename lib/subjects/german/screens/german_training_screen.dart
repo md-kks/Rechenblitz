@@ -333,14 +333,25 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
             const SizedBox(height: 6),
             Text(hint),
             const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                key: const ValueKey('german-hint-speak'),
-                onPressed: () => unawaited(_speakWithoutTiming(hint)),
-                icon: const Icon(Icons.volume_up_outlined),
-                label: const Text('Hinweis anhören'),
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: <Widget>[
+                if (_task.requiresSpeech)
+                  TextButton.icon(
+                    key: const ValueKey('german-listening-replay-hint'),
+                    onPressed: () =>
+                        unawaited(_speakWithoutTiming(_task.spokenText!)),
+                    icon: const Icon(Icons.replay_rounded),
+                    label: const Text('Aufgabe noch einmal anhören'),
+                  ),
+                TextButton.icon(
+                  key: const ValueKey('german-hint-speak'),
+                  onPressed: () => unawaited(_speakWithoutTiming(hint)),
+                  icon: const Icon(Icons.volume_up_outlined),
+                  label: const Text('Hinweis anhören'),
+                ),
+              ],
             ),
           ],
         ),

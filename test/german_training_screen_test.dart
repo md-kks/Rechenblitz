@@ -8,6 +8,7 @@ import 'package:rechenblitz/core/learning_subject.dart';
 import 'package:rechenblitz/subjects/german/german_round_draft.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_starter_task_catalog.dart';
+import 'package:rechenblitz/subjects/german/german_support_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_task.dart';
 import 'package:rechenblitz/subjects/german/screens/german_training_screen.dart';
 
@@ -103,6 +104,50 @@ void main() {
     await tester.tap(find.text('Anhören'));
     await tester.pump();
     expect(spoken, task.spokenText);
+  });
+
+  testWidgets('listening hint can replay the task without scrolling back', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.interaction == GermanTaskInteraction.listeningChoice,
+    );
+    final spoken = <String>[];
+    await tester.pumpWidget(
+      _app(task: task, speak: (text) async => spoken.add(text)),
+    );
+
+    final wrong = task.choices.firstWhere(
+      (choice) => !task.acceptedAnswers.contains(choice),
+    );
+    final wrongButton = find.widgetWithText(FilledButton, wrong);
+    await tester.ensureVisible(wrongButton);
+    await tester.pump();
+    await tester.tap(wrongButton);
+    await tester.pump();
+
+    final replay = find.byKey(const ValueKey('german-listening-replay-hint'));
+    await tester.scrollUntilVisible(
+      replay,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Denkhinweis'), findsOneWidget);
+    expect(replay.hitTestable(), findsOneWidget);
+    await tester.tap(replay);
+    await tester.pump();
+
+    expect(spoken, <String>[task.spokenText!]);
+
+    final hintSpeak = find.byKey(const ValueKey('german-hint-speak'));
+    await tester.ensureVisible(hintSpeak);
+    await tester.tap(hintSpeak);
+    await tester.pump();
+
+    expect(spoken, hasLength(2));
+    expect(spoken.last, GermanSupportCatalog.firstHintForTask(task));
   });
 
   testWidgets('listening time is not counted as answer time', (tester) async {
