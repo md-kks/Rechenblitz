@@ -117,17 +117,22 @@ void main() {
           gradeLevel: task.recommendedFromGrade,
           tasks: <GermanTask>[task],
           speak: (_) async {},
+          now: () => DateTime(2026, 9, 18, 10, 0, 2),
         ),
       ),
     );
     await tester.pumpAndSettle();
+    final taskList = find.byType(ListView);
+    expect(taskList, findsOneWidget);
+    await tester.drag(taskList, const Offset(0, -480));
+    await tester.pumpAndSettle();
     final answer = find.text(task.acceptedAnswers.first);
-    await tester.scrollUntilVisible(
-      answer,
-      220,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(answer);
+    expect(answer, findsOneWidget);
+    await tester.ensureVisible(answer);
+    await tester.pumpAndSettle();
+    final visibleAnswer = answer.hitTestable();
+    expect(visibleAnswer, findsOneWidget);
+    await tester.tap(visibleAnswer);
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
