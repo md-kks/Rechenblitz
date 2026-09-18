@@ -178,6 +178,18 @@ class GermanPracticePlanner {
       final aDistance = gradeLevel.index - a.recommendedFromGrade.index;
       final bDistance = gradeLevel.index - b.recommendedFromGrade.index;
       if (aDistance != bDistance) return aDistance.compareTo(bDistance);
+
+      final aCompetencyGrade = GermanCompetencyCatalog.definition(
+        a.competencyId,
+      ).recommendedFromGrade;
+      final bCompetencyGrade = GermanCompetencyCatalog.definition(
+        b.competencyId,
+      ).recommendedFromGrade;
+      final aCompetencyDistance = gradeLevel.index - aCompetencyGrade.index;
+      final bCompetencyDistance = gradeLevel.index - bCompetencyGrade.index;
+      if (aCompetencyDistance != bCompetencyDistance) {
+        return aCompetencyDistance.compareTo(bCompetencyDistance);
+      }
     }
 
     final aPrerequisites = _unmetPrerequisites(a.competencyId, history);

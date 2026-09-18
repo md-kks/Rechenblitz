@@ -143,6 +143,21 @@ void main() {
     }
   });
 
+  test('upper-primary domains all have current-grade practice', () {
+    for (final grade in <GradeLevel>[GradeLevel.third, GradeLevel.fourth]) {
+      for (final domain in GermanLearningDomain.values) {
+        final currentGradeTasks = GermanTaskCatalog.forDomain(domain, grade)
+            .where((task) => task.recommendedFromGrade == grade)
+            .toList(growable: false);
+        expect(
+          currentGradeTasks.length,
+          greaterThanOrEqualTo(2),
+          reason: '${grade.name} / ${domain.name}',
+        );
+      }
+    }
+  });
+
   test('combined German task catalog covers every competency', () {
     final ids = <String>{};
     for (final task in GermanTaskCatalog.tasks) {

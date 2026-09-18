@@ -243,6 +243,30 @@ void main() {
   });
 
   test(
+    'new fourth-grade daily round stays age-appropriate in every domain',
+    () {
+      final round = GermanPracticePlanner.buildDailyRound(
+        gradeLevel: GradeLevel.fourth,
+        history: const <GermanSessionResult>[],
+      );
+
+      for (final domain in GermanLearningDomain.values) {
+        final domainTasks = round
+            .where((task) => _domainFor(task.competencyId) == domain)
+            .toList(growable: false);
+        expect(domainTasks, hasLength(2), reason: domain.name);
+        expect(
+          domainTasks.every(
+            (task) => task.recommendedFromGrade == GradeLevel.fourth,
+          ),
+          isTrue,
+          reason: domain.name,
+        );
+      }
+    },
+  );
+
+  test(
     'new fourth-grader starts with age-appropriate upper-primary skills',
     () {
       final round = GermanPracticePlanner.buildDailyRound(

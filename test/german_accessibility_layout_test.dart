@@ -103,6 +103,37 @@ void main() {
     }
   });
 
+  testWidgets('langer Klasse-4-Lesetext bleibt bei großer Schrift bedienbar', (
+    tester,
+  ) async {
+    _compactLargeText(tester);
+    final task = GermanTaskCatalog.tasks.firstWhere(
+      (candidate) => candidate.id == 'g4-inference-wet-dog',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GermanTrainingScreen(
+          gradeLevel: GradeLevel.fourth,
+          tasks: <GermanTask>[task],
+          speak: (_) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final answer = find.text(task.acceptedAnswers.first);
+    await tester.scrollUntilVisible(
+      answer,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(answer, findsOneWidget);
+    expect(answer.hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Deutsch-Rundenabschluss ist bei großer Schrift scrollbar', (
     tester,
   ) async {
