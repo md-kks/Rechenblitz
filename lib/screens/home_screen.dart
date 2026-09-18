@@ -739,18 +739,22 @@ class _PracticeCatalog extends StatelessWidget {
                   subtitle: 'mit Hilfen',
                   onTap: () => onOpenMode(TrainingMode.minus),
                 ),
-                _LearningTile(
-                  icon: Icons.close_rounded,
-                  title: 'Malnehmen',
-                  subtitle: 'Einmaleins aufbauen',
-                  onTap: () => onOpenMode(TrainingMode.multiply),
-                ),
-                _LearningTile(
-                  icon: Icons.horizontal_rule_rounded,
-                  title: 'Teilen',
-                  subtitle: 'Umkehraufgaben nutzen',
-                  onTap: () => onOpenMode(TrainingMode.divide),
-                ),
+                if (controller
+                    .isModeAvailableInActiveCurriculum(TrainingMode.multiply))
+                  _LearningTile(
+                    icon: Icons.close_rounded,
+                    title: 'Malnehmen',
+                    subtitle: 'Einmaleins aufbauen',
+                    onTap: () => onOpenMode(TrainingMode.multiply),
+                  ),
+                if (controller
+                    .isModeAvailableInActiveCurriculum(TrainingMode.divide))
+                  _LearningTile(
+                    icon: Icons.horizontal_rule_rounded,
+                    title: 'Teilen',
+                    subtitle: 'Umkehraufgaben nutzen',
+                    onTap: () => onOpenMode(TrainingMode.divide),
+                  ),
                 _LearningTile(
                   icon: Icons.shuffle_rounded,
                   title: 'Gemischt',
@@ -858,6 +862,51 @@ class _PracticeCatalog extends StatelessWidget {
                 ),
               ],
             ),
+            if (controller.gradeLevel.index < GradeLevel.third.index &&
+                (controller.isModeAvailableInActiveCurriculum(
+                      TrainingMode.dataCharts,
+                    ) ||
+                    controller.isModeAvailableInActiveCurriculum(
+                      TrainingMode.probability,
+                    ) ||
+                    controller.isModeAvailableInActiveCurriculum(
+                      TrainingMode.combinatorics,
+                    ))) ...[
+              const SizedBox(height: 24),
+              const _SectionTitle(title: 'Daten & Zufall · Lehrplan'),
+              const SizedBox(height: 10),
+              _LearningGrid(
+                children: [
+                  if (controller.isModeAvailableInActiveCurriculum(
+                    TrainingMode.dataCharts,
+                  ))
+                    _LearningTile(
+                      icon: Icons.bar_chart_rounded,
+                      title: 'Daten & Diagramme',
+                      subtitle: 'lesen & auswerten',
+                      onTap: () => onOpenMode(TrainingMode.dataCharts),
+                    ),
+                  if (controller.isModeAvailableInActiveCurriculum(
+                    TrainingMode.probability,
+                  ))
+                    _LearningTile(
+                      icon: Icons.casino_outlined,
+                      title: 'Wahrscheinlichkeit',
+                      subtitle: 'Chancen einschätzen',
+                      onTap: () => onOpenMode(TrainingMode.probability),
+                    ),
+                  if (controller.isModeAvailableInActiveCurriculum(
+                    TrainingMode.combinatorics,
+                  ))
+                    _LearningTile(
+                      icon: Icons.account_tree_outlined,
+                      title: 'Kombinatorik',
+                      subtitle: 'Möglichkeiten finden',
+                      onTap: () => onOpenMode(TrainingMode.combinatorics),
+                    ),
+                ],
+              ),
+            ],
             if (controller.gradeLevel.index >= GradeLevel.third.index) ...[
               const SizedBox(height: 28),
               _SectionTitle(
