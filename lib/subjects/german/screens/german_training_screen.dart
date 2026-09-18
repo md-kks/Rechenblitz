@@ -321,8 +321,8 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
 
   Widget _buildSupportCard(BuildContext context) {
     final hint = _incorrectAttempts >= 2
-        ? GermanSupportCatalog.secondHint(_task.competencyId)
-        : GermanSupportCatalog.firstHint(_task.competencyId);
+        ? GermanSupportCatalog.secondHintForTask(_task)
+        : GermanSupportCatalog.firstHintForTask(_task);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),

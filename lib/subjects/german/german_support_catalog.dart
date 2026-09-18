@@ -1,4 +1,5 @@
 import 'german_competency.dart';
+import 'german_task.dart';
 
 class GermanSupportCatalog {
   const GermanSupportCatalog._();
@@ -78,26 +79,101 @@ class GermanSupportCatalog {
       'Trenne Begleitsatz und wörtliche Rede und prüfe Doppelpunkt, Anführungszeichen und Satzzeichen.',
   };
 
+  static String firstHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.wordOrder &&
+        task.instruction.toLowerCase().contains('beginnt')) {
+      return 'Nutze zuerst den vorgegebenen Satzanfang. Im Aussagesatz steht '
+          'das gebeugte Verb meist an zweiter Stelle.';
+    }
+    return firstHint(task.competencyId);
+  }
+
+  static String secondHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.wordOrder) {
+      if (task.instruction.toLowerCase().contains('beginnt')) {
+        return 'Lass den vorgegebenen Anfang stehen. Setze danach das Verb '
+            'an die zweite Stelle. Bei trennbaren Verben kann ein Teil wie '
+            '„auf“ oder „vor“ am Satzende stehen.';
+      }
+      return 'Suche zuerst Wer oder was handelt. Danach kommt im einfachen '
+          'Aussagesatz meist das Verb. Ergänze dann die übrigen Wörter.';
+    }
+    return secondHint(task.competencyId);
+  }
+
   static String secondHint(GermanCompetencyId id) => switch (id) {
     GermanCompetencyId.letterSoundMatch ||
     GermanCompetencyId.vowelConsonantRecognition ||
     GermanCompetencyId.syllableSegmentation ||
     GermanCompetencyId.wordRecognition =>
       'Sprich oder lies noch einmal langsam. Du musst nicht raten.',
-    GermanCompetencyId.sentenceComprehension ||
-    GermanCompetencyId.textInformation ||
-    GermanCompetencyId.listeningComprehension ||
-    GermanCompetencyId.conversationRules ||
-    GermanCompetencyId.oralRetelling ||
-    GermanCompetencyId.presentationStructure ||
-    GermanCompetencyId.discussionReasoning =>
-      'Hör den Beitrag noch einmal. Achte auf Reihenfolge, Gesprächsziel und einen passenden nächsten Satz.',
+    GermanCompetencyId.alphabeticalOrder ||
+    GermanCompetencyId.dictionarySkills =>
+      'Vergleiche die Wörter Buchstabe für Buchstabe von links nach rechts.',
+    GermanCompetencyId.wordBuilding ||
+    GermanCompetencyId.wordFamilies ||
+    GermanCompetencyId.compoundWords =>
+      'Markiere den Wortstamm oder die einzelnen Wortteile. Prüfe dann, '
+          'welche Teile wirklich zusammengehören.',
+    GermanCompetencyId.nounArticle ||
+    GermanCompetencyId.singularPlural ||
+    GermanCompetencyId.adjectiveRecognition ||
+    GermanCompetencyId.verbRecognition ||
+    GermanCompetencyId.verbInflection =>
+      'Bestimme zuerst die Aufgabe des Wortes im Satz und prüfe danach seine '
+          'passende Form.',
     GermanCompetencyId.sentenceWordOrder ||
     GermanCompetencyId.sentencePunctuation ||
     GermanCompetencyId.sentenceTypes ||
     GermanCompetencyId.sentenceWriting =>
-      'Baue zuerst einen verständlichen Satz und prüfe danach seine Form.',
-    _ =>
-      'Prüfe jedes Wort einzeln und schließe Antworten aus, die nicht passen.',
+      'Baue zuerst einen verständlichen Satz und prüfe danach Reihenfolge, '
+          'Großschreibung und Satzzeichen.',
+    GermanCompetencyId.sentenceComprehension ||
+    GermanCompetencyId.textInformation =>
+      'Lies die Frage noch einmal und markiere im Satz oder Text genau die '
+          'Stelle, die deine Antwort belegt.',
+    GermanCompetencyId.readingInference =>
+      'Suche mindestens zwei Hinweise im Text. Deine Antwort muss zu beiden '
+          'passen, auch wenn sie nicht wörtlich dasteht.',
+    GermanCompetencyId.textSequence =>
+      'Ordne zuerst Anfang und Schluss. Setze danach die Zwischenschritte '
+          'mithilfe von Zeit- und Reihenfolgewörtern ein.',
+    GermanCompetencyId.textMainIdea =>
+      'Streiche Antworten, die nur ein Detail nennen. Gesucht ist die '
+          'Aussage, die möglichst viel vom ganzen Text erklärt.',
+    GermanCompetencyId.listeningComprehension ||
+    GermanCompetencyId.listeningMainIdeas =>
+      'Hör noch einmal. Konzentriere dich diesmal nur auf die Frage und die '
+          'wichtigste Aussage, nicht auf jedes Detail.',
+    GermanCompetencyId.conversationRules ||
+    GermanCompetencyId.discussionReasoning =>
+      'Hör auf den letzten Beitrag. Deine Antwort soll dazu passen und einen '
+          'verständlichen Grund oder Anschluss enthalten.',
+    GermanCompetencyId.oralRetelling =>
+      'Hör noch einmal und merke dir nur drei Punkte: Anfang, wichtigstes '
+          'Ereignis und Ende.',
+    GermanCompetencyId.presentationStructure =>
+      'Prüfe die Reihenfolge: kurze Einleitung, wichtige Punkte in sinnvoller '
+          'Ordnung und ein klarer Abschluss.',
+    GermanCompetencyId.spellingStrategies =>
+      'Probiere gezielt eine Strategie: verlängern, ableiten oder ein '
+          'verwandtes Wort suchen.',
+    GermanCompetencyId.subjectPredicate =>
+      'Finde zuerst mit „Wer oder was?“ das Subjekt. Suche dann alle Teile '
+          'des Prädikats, auch einen abgetrennten Verbteil.',
+    GermanCompetencyId.sentenceConstituents =>
+      'Stelle die passende W-Frage und verschiebe den vermuteten Satzteil '
+          'als ganzen Block.',
+    GermanCompetencyId.verbTenses =>
+      'Suche das Zeitwort und prüfe Hilfsverb und Verbform gemeinsam.',
+    GermanCompetencyId.sentenceConnections =>
+      'Entscheide zuerst: Grund, Folge oder Gegensatz? Wähle danach ein '
+          'Verbindungswort, das genau diese Beziehung ausdrückt.',
+    GermanCompetencyId.textRevision =>
+      'Überarbeite nur eine Sache nach der anderen: zuerst Reihenfolge, dann '
+          'Wiederholungen, danach genaue Wörter.',
+    GermanCompetencyId.directSpeechPunctuation =>
+      'Finde zuerst Begleitsatz und wörtliche Rede. Setze dann Doppelpunkt, '
+          'Anführungszeichen und das Satzzeichen der Rede.',
   };
 }
