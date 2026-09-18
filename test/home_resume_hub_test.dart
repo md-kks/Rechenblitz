@@ -4,7 +4,10 @@ import 'package:rechenblitz/main.dart';
 import 'package:rechenblitz/models/accessibility_preferences.dart';
 import 'package:rechenblitz/models/assessment.dart';
 import 'package:rechenblitz/models/learning_path.dart';
+import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/math_fact.dart';
+import 'package:rechenblitz/models/micro_competency.dart';
+import 'package:rechenblitz/models/teacher_assignment.dart';
 import 'package:rechenblitz/models/training.dart';
 import 'package:rechenblitz/models/training_session_progress.dart';
 import 'package:rechenblitz/screens/assessment_screen.dart';
@@ -182,6 +185,91 @@ void main() {
 
       expect(find.text('Heutige Runde ansehen'), findsOneWidget);
       expect(find.text('Runde starten'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Lehrerauftrag setzt nach Neustart mit vorgegebener Methode fort',
+    (tester) async {
+      final first = AppController();
+      await first.load();
+      final fact = MathFact(
+        a: 8,
+        b: 7,
+        operation: MathOperation.plus,
+      );
+      final now = DateTime.now();
+      const assignment = TeacherAssignment(
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.twenty,
+        mode: TrainingMode.practice,
+        tasks: 8,
+        targetCompetency: MicroCompetencyId.additionTenBridge,
+        methods: MethodPreferences(
+          addition: AdditionStrategy.compensate,
+        ),
+      );
+      final startedAt = now.subtract(const Duration(minutes: 4));
+      await first.beginTeacherAssignment(
+        assignment,
+        startedAt: startedAt,
+      );
+      await first.saveCoreTrainingSession(
+        CoreTrainingSessionProgress(
+        kind: CoreTrainingKind.fact,
+        mode: TrainingMode.practice,
+        targetTasks: 8,
+        targetCompetency: MicroCompetencyId.additionTenBridge,
+        gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.twenty,
+          teacherAssignmentActive: true,
+          teacherAssignmentId: assignment.assignmentId,
+          startedAt: startedAt,
+          updatedAt: now,
+          currentTask: {'key': fact.key},
+          completed: 2,
+        ),
+      );
+
+      final controller = AppController();
+      await controller.load();
+      controller.profiles = controller.profiles
+          .map((profile) => profile.copyWith(onboardingComplete: true))
+          .toList();
+      controller.facts = [fact];
+
+      expect(controller.resumableTeacherAssignmentSession(), isNotNull);
+      expect(controller.hasTeacherAssignment, isFalse);
+      expect(controller.hasResumableTeacherAssignment, isTrue);
+
+      await tester.pumpWidget(RechenblitzApp(controller: controller));
+      await tester.pump();
+
+      expect(find.text('Lehrerauftrag fortsetzen'), findsOneWidget);
+      expect(find.text('Plus & Minus · Aufgabe 3 von 8'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('home-resume-core')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TrainingScreen), findsOneWidget);
+      expect(controller.hasTeacherAssignment, isTrue);
+      expect(
+        controller.effectiveMethodPreferences.addition,
+        AdditionStrategy.compensate,
+      );
+
+      final help = find.text('Ich brauche Hilfe');
+      await tester.ensureVisible(help);
+      await tester.tap(help);
+      await tester.pump();
+
+      expect(find.text('Hilfe · Runden & ausgleichen'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(controller.hasTeacherAssignment, isFalse);
+      expect(controller.coreTrainingSessionProgress, isNull);
     },
   );
 

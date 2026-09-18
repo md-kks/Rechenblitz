@@ -15,6 +15,7 @@ import '../models/remediation_path.dart';
 import '../models/support_session_progress.dart';
 import '../models/training_session_progress.dart';
 import '../models/training.dart';
+import '../models/teacher_assignment.dart';
 import 'micro_evidence_retention.dart';
 
 class StorageService {
@@ -36,6 +37,7 @@ class StorageService {
   static const _remediationSessionKey = 'remediation_session_v1';
   static const _stepRecoverySessionKey = 'step_recovery_session_v1';
   static const _coreTrainingSessionKey = 'core_training_session_v1';
+  static const _activeTeacherAssignmentKey = 'active_teacher_assignment_v1';
   static const _accessibilityKey = 'accessibility_preferences_v1';
   static const _betaFeedbackKey = 'beta_feedback_v1';
 
@@ -145,6 +147,7 @@ class StorageService {
       _remediationSessionKey,
       _stepRecoverySessionKey,
       _coreTrainingSessionKey,
+      _activeTeacherAssignmentKey,
     ]) {
       await prefs.remove('profile:$id:$key');
     }
@@ -486,6 +489,42 @@ class StorageService {
       (await SharedPreferences.getInstance())
           .remove(_profileKey(_coreTrainingSessionKey));
 
+  Future<({TeacherAssignment assignment, DateTime startedAt})?>
+      loadActiveTeacherAssignment() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _profileKey(_activeTeacherAssignmentKey);
+    final raw = prefs.getString(key);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final assignment = TeacherAssignment.tryParse(
+        decoded['payload'] as String,
+      );
+      final startedAt = DateTime.parse(decoded['startedAt'] as String);
+      if (assignment == null) throw const FormatException('assignment');
+      return (assignment: assignment, startedAt: startedAt);
+    } catch (_) {
+      await prefs.remove(key);
+      return null;
+    }
+  }
+
+  Future<void> saveActiveTeacherAssignment(
+    TeacherAssignment assignment,
+    DateTime startedAt,
+  ) async =>
+      (await SharedPreferences.getInstance()).setString(
+        _profileKey(_activeTeacherAssignmentKey),
+        jsonEncode({
+          'payload': assignment.toPayload(),
+          'startedAt': startedAt.toIso8601String(),
+        }),
+      );
+
+  Future<void> clearActiveTeacherAssignment() async =>
+      (await SharedPreferences.getInstance())
+          .remove(_profileKey(_activeTeacherAssignmentKey));
+
   Future<GradeLevel?> storedGradeLevel() async {
     final raw = (await SharedPreferences.getInstance())
         .getString(_profileKey(_gradeLevelKey));
@@ -608,6 +647,7 @@ class StorageService {
     await prefs.remove(_profileKey(_remediationSessionKey));
     await prefs.remove(_profileKey(_stepRecoverySessionKey));
     await prefs.remove(_profileKey(_coreTrainingSessionKey));
+    await prefs.remove(_profileKey(_activeTeacherAssignmentKey));
   }
 
   List<LearnerProfile> _decodeProfiles(String raw) {

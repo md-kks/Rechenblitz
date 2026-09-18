@@ -43,8 +43,38 @@ Future<void> launchTeacherAssignment(
     return;
   }
 
-  final startedAt = DateTime.now();
-  controller.beginTeacherAssignment(assignment);
+  final active = controller.activeTeacherAssignment;
+  final resumable = controller.resumableTeacherAssignment;
+  final resumeActive = active != null &&
+      active.assignmentId == assignment.assignmentId &&
+      controller.activeTeacherAssignmentStartedAt != null;
+  final resumePersisted = !resumeActive &&
+      resumable != null &&
+      resumable.assignmentId == assignment.assignmentId &&
+      controller.resumableTeacherAssignmentStartedAt != null;
+  final startedAt = resumeActive
+      ? controller.activeTeacherAssignmentStartedAt!
+      : resumePersisted
+          ? controller.resumableTeacherAssignmentStartedAt!
+          : DateTime.now();
+
+  if (resumePersisted) {
+    await controller.activateResumableTeacherAssignment();
+  } else if (!resumeActive) {
+    if (controller.hasTeacherAssignment ||
+        controller.hasResumableTeacherAssignment) {
+      await controller.endTeacherAssignment(clearTrainingProgress: true);
+    }
+    await controller.beginTeacherAssignment(
+      assignment,
+      startedAt: startedAt,
+    );
+  }
+
+  if (!context.mounted) {
+    await controller.endTeacherAssignment(clearTrainingProgress: true);
+    return;
+  }
 
   try {
     await _openAssignmentTraining(
@@ -53,7 +83,7 @@ Future<void> launchTeacherAssignment(
       assignment,
     );
   } finally {
-    controller.endTeacherAssignment();
+    await controller.endTeacherAssignment(clearTrainingProgress: true);
   }
 
   if (!context.mounted) return;

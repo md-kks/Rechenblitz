@@ -48,7 +48,7 @@ void main() {
       );
       await controller.saveRemediationSession(remediation);
       await controller.saveStepRecoverySession(recovery);
-      controller.beginTeacherAssignment(
+      await controller.beginTeacherAssignment(
         const TeacherAssignment(
           gradeLevel: GradeLevel.second,
           numberRange: NumberRangeLevel.hundred,
@@ -82,7 +82,7 @@ void main() {
   test('Lernstart beendet ebenfalls einen temporären Schulauftrag', () async {
     final controller = AppController();
     await controller.load();
-    controller.beginTeacherAssignment(
+    await controller.beginTeacherAssignment(
       const TeacherAssignment(
         gradeLevel: GradeLevel.second,
         numberRange: NumberRangeLevel.hundred,

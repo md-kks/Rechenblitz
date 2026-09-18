@@ -7,6 +7,7 @@ import '../models/support_session_progress.dart';
 import '../models/training.dart';
 import '../models/training_session_progress.dart';
 import '../services/app_controller.dart';
+import '../services/assignment_launcher.dart';
 import 'assessment_screen.dart';
 import 'assignment_scanner_screen.dart';
 import 'competency_map_screen.dart';
@@ -197,6 +198,25 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   _ResumeActivity? _standaloneResumeActivity() {
+    final teacherDraft =
+        widget.controller.resumableTeacherAssignmentSession();
+    if (teacherDraft != null) {
+      final nextTask = teacherDraft.completed >= teacherDraft.targetTasks
+          ? teacherDraft.targetTasks
+          : teacherDraft.completed + 1;
+      return _ResumeActivity(
+        kind: _ResumeKind.core,
+        updatedAt: teacherDraft.updatedAt,
+        title: 'Lehrerauftrag fortsetzen',
+        subtitle:
+            teacherDraft.taskResolved &&
+                    teacherDraft.completed >= teacherDraft.targetTasks
+                ? 'Letzte Aufgabe gelöst · Abschluss anzeigen'
+                : '${teacherDraft.mode.title} · Aufgabe $nextTask von ${teacherDraft.targetTasks}',
+        payload: teacherDraft,
+      );
+    }
+
     final guidedRound = widget.controller.resumableGuidedRound();
     if (guidedRound != null && !guidedRound.isComplete) return null;
 
@@ -282,7 +302,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       case _ResumeKind.core:
-        await _openCoreDraft(activity.payload as CoreTrainingSessionProgress);
+        final draft = activity.payload as CoreTrainingSessionProgress;
+        if (draft.teacherAssignmentActive) {
+          final assignment = controller.resumableTeacherAssignment;
+          if (assignment != null) {
+            await launchTeacherAssignment(context, controller, assignment);
+          }
+        } else {
+          await _openCoreDraft(draft);
+        }
       case _ResumeKind.remediation:
         final draft = activity.payload as RemediationSessionProgress;
         await Navigator.of(context).push(

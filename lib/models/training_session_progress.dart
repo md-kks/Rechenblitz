@@ -147,6 +147,7 @@ class CoreTrainingSessionProgress {
     this.scaffoldFading = false,
     this.adaptiveLength = false,
     this.teacherAssignmentActive = false,
+    this.teacherAssignmentId,
     this.timeLimitMs,
     this.elapsedActiveMs = 0,
     this.completed = 0,
@@ -195,6 +196,7 @@ class CoreTrainingSessionProgress {
   final GradeLevel gradeLevel;
   final NumberRangeLevel numberRange;
   final bool teacherAssignmentActive;
+  final String? teacherAssignmentId;
   final int? timeLimitMs;
   final DateTime startedAt;
   final DateTime updatedAt;
@@ -310,6 +312,7 @@ class CoreTrainingSessionProgress {
     required GradeLevel gradeLevel,
     required NumberRangeLevel numberRange,
     required bool teacherAssignmentActive,
+    String? teacherAssignmentId,
     required Duration? timeLimit,
     DateTime? now,
   }) {
@@ -327,6 +330,7 @@ class CoreTrainingSessionProgress {
         this.gradeLevel == gradeLevel &&
         this.numberRange == numberRange &&
         this.teacherAssignmentActive == teacherAssignmentActive &&
+        this.teacherAssignmentId == teacherAssignmentId &&
         timeLimitMs == timeLimit?.inMilliseconds &&
         completed <= targetTasks &&
         !updatedAt.isAfter(reference) &&
@@ -346,6 +350,7 @@ class CoreTrainingSessionProgress {
     'gradeLevel': gradeLevel.name,
     'numberRange': numberRange.name,
     'teacherAssignmentActive': teacherAssignmentActive,
+    if (teacherAssignmentId != null) 'teacherAssignmentId': teacherAssignmentId,
     'timeLimitMs': timeLimitMs,
     'startedAt': startedAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
@@ -413,6 +418,7 @@ class CoreTrainingSessionProgress {
       ),
       teacherAssignmentActive:
           json['teacherAssignmentActive'] as bool? ?? false,
+      teacherAssignmentId: json['teacherAssignmentId'] as String?,
       timeLimitMs: json['timeLimitMs'] as int?,
       startedAt: DateTime.parse(json['startedAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
