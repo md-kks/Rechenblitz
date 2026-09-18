@@ -232,6 +232,13 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
+                      if (assignment.targetCompetency == null) ...<Widget>[
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Die Aufgaben werden über mehrere passende Lernziele verteilt.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       Text(
                         'Auftrags-ID: ${assignment.assignmentId}',

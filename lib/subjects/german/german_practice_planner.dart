@@ -170,19 +170,102 @@ class GermanPracticePlanner {
     required Iterable<GermanSessionResult> history,
     DateTime? now,
   }) {
-    final source = assignment.targetCompetency == null
-        ? GermanTaskCatalog.forDomain(assignment.domain, assignment.gradeLevel)
-        : GermanTaskCatalog.forCompetency(assignment.targetCompetency!);
+    final target = assignment.targetCompetency;
+    if (target != null) {
+      final source = GermanTaskCatalog.forCompetency(target).where(
+        (task) =>
+            task.recommendedFromGrade.index <= assignment.gradeLevel.index,
+      );
+      final ranked = _ranked(
+        source,
+        history,
+        gradeLevel: assignment.gradeLevel,
+        now: now,
+      );
+      return _takeBalancedAssignmentTasks(
+        rankedByCompetency: <GermanCompetencyId, List<GermanTask>>{
+          target: ranked,
+        },
+        competencyOrder: <GermanCompetencyId>[target],
+        taskCount: assignment.tasks,
+      );
+    }
+
     final ranked = _ranked(
-      source,
+      GermanTaskCatalog.forDomain(assignment.domain, assignment.gradeLevel),
       history,
       gradeLevel: assignment.gradeLevel,
       now: now,
     );
     if (ranked.isEmpty) return const <GermanTask>[];
+
+    final competencyOrder = <GermanCompetencyId>[];
+    final rankedByCompetency = <GermanCompetencyId, List<GermanTask>>{};
+    for (final task in ranked) {
+      if (!rankedByCompetency.containsKey(task.competencyId)) {
+        competencyOrder.add(task.competencyId);
+        rankedByCompetency[task.competencyId] = <GermanTask>[];
+      }
+      rankedByCompetency[task.competencyId]!.add(task);
+    }
+
+    final activeCompetencies = competencyOrder
+        .take(
+          assignment.tasks < competencyOrder.length
+              ? assignment.tasks
+              : competencyOrder.length,
+        )
+        .toList(growable: false);
+    return _takeBalancedAssignmentTasks(
+      rankedByCompetency: rankedByCompetency,
+      competencyOrder: activeCompetencies,
+      taskCount: assignment.tasks,
+    );
+  }
+
+  static List<GermanTask> _takeBalancedAssignmentTasks({
+    required Map<GermanCompetencyId, List<GermanTask>> rankedByCompetency,
+    required List<GermanCompetencyId> competencyOrder,
+    required int taskCount,
+  }) {
+    if (taskCount < 1 || competencyOrder.isEmpty) {
+      return const <GermanTask>[];
+    }
+
     final selected = <GermanTask>[];
-    for (var index = 0; index < assignment.tasks; index++) {
-      selected.add(ranked[index % ranked.length]);
+    final offsets = <GermanCompetencyId, int>{
+      for (final competency in competencyOrder) competency: 0,
+    };
+
+    // Use every distinct task before repeating any task.
+    while (selected.length < taskCount) {
+      var added = false;
+      for (final competency in competencyOrder) {
+        final tasks = rankedByCompetency[competency] ?? const <GermanTask>[];
+        final offset = offsets[competency] ?? 0;
+        if (offset >= tasks.length) continue;
+        selected.add(tasks[offset]);
+        offsets[competency] = offset + 1;
+        added = true;
+        if (selected.length == taskCount) return selected;
+      }
+      if (!added) break;
+    }
+
+    // Very large assignments may exceed the curated unique pool. Repeat only
+    // after all selected competencies have exhausted their distinct tasks.
+    var repeatRound = 0;
+    while (selected.length < taskCount) {
+      var added = false;
+      for (final competency in competencyOrder) {
+        final tasks = rankedByCompetency[competency] ?? const <GermanTask>[];
+        if (tasks.isEmpty) continue;
+        selected.add(tasks[repeatRound % tasks.length]);
+        added = true;
+        if (selected.length == taskCount) return selected;
+      }
+      if (!added) break;
+      repeatRound += 1;
     }
     return selected;
   }

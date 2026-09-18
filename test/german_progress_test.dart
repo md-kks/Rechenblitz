@@ -435,6 +435,83 @@ void main() {
     expect(round.first.id, isNot(recent.id));
   });
 
+  test('targeted teacher assignment never leaks future-grade tasks', () {
+    const assignment = GermanTeacherAssignment(
+      gradeLevel: GradeLevel.first,
+      domain: GermanLearningDomain.writing,
+      tasks: 8,
+      targetCompetency: GermanCompetencyId.sentenceWordOrder,
+    );
+
+    final round = GermanPracticePlanner.buildAssignmentRound(
+      assignment: assignment,
+      history: const <GermanSessionResult>[],
+    );
+
+    expect(round, hasLength(8));
+    expect(
+      round.every(
+        (task) =>
+            task.competencyId == GermanCompetencyId.sentenceWordOrder &&
+            task.recommendedFromGrade == GradeLevel.first,
+      ),
+      isTrue,
+    );
+    expect(round.map((task) => task.id).toSet(), hasLength(6));
+  });
+
+  test('domain teacher assignment mixes and balances learning goals', () {
+    const assignment = GermanTeacherAssignment(
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      tasks: 8,
+    );
+
+    final round = GermanPracticePlanner.buildAssignmentRound(
+      assignment: assignment,
+      history: const <GermanSessionResult>[],
+    );
+    final competencyCounts = <GermanCompetencyId, int>{};
+    for (final task in round) {
+      competencyCounts[task.competencyId] =
+          (competencyCounts[task.competencyId] ?? 0) + 1;
+    }
+
+    expect(round, hasLength(8));
+    expect(
+      round.every(
+        (task) =>
+            _domainFor(task.competencyId) == GermanLearningDomain.reading &&
+            task.recommendedFromGrade.index <= GradeLevel.fourth.index,
+      ),
+      isTrue,
+    );
+    expect(competencyCounts, hasLength(6));
+    expect(
+      competencyCounts.values.reduce((a, b) => a > b ? a : b) -
+          competencyCounts.values.reduce((a, b) => a < b ? a : b),
+      lessThanOrEqualTo(1),
+    );
+    expect(round.map((task) => task.id).toSet(), hasLength(8));
+  });
+
+  test('short domain assignment uses distinct learning goals first', () {
+    const assignment = GermanTeacherAssignment(
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      tasks: 5,
+    );
+
+    final round = GermanPracticePlanner.buildAssignmentRound(
+      assignment: assignment,
+      history: const <GermanSessionResult>[],
+    );
+
+    expect(round, hasLength(5));
+    expect(round.map((task) => task.competencyId).toSet(), hasLength(5));
+    expect(round.map((task) => task.id).toSet(), hasLength(5));
+  });
+
   test('teacher assignment keeps its requested task count offline', () {
     final assignment = GermanTeacherAssignment(
       gradeLevel: GradeLevel.second,
