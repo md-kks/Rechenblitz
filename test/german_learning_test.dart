@@ -228,6 +228,50 @@ void main() {
     }
   });
 
+  test('word recognition uses a clue instead of copying the answer', () {
+    final tasks = GermanTaskCatalog.forCompetency(
+      GermanCompetencyId.wordRecognition,
+    );
+
+    expect(tasks, hasLength(greaterThanOrEqualTo(6)));
+    for (final task in tasks) {
+      expect(task.prompt, startsWith('Bild:'));
+      for (final answer in task.acceptedAnswers) {
+        expect(
+          task.prompt.toLowerCase(),
+          isNot(contains(answer.toLowerCase())),
+          reason: task.id,
+        );
+      }
+    }
+  });
+
+  test('German catalog contains no exact semantic task duplicates', () {
+    String normalize(String value) =>
+        value.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    final signatures = <String>{};
+    for (final task in GermanTaskCatalog.tasks) {
+      final accepted = task.acceptedAnswers.map(normalize).toList()..sort();
+      final choices = task.choices.map(normalize).toList()..sort();
+      final signature = <String>[
+        task.competencyId.name,
+        task.recommendedFromGrade.name,
+        task.interaction.name,
+        normalize(task.instruction),
+        normalize(task.prompt),
+        accepted.join('||'),
+        choices.join('||'),
+        normalize(task.spokenText ?? ''),
+      ].join('|');
+      expect(
+        signatures.add(signature),
+        isTrue,
+        reason: 'duplicate semantic task content: ${task.id}',
+      );
+    }
+  });
+
   test('combined catalog has varied practice instead of one fixed task', () {
     expect(GermanTaskCatalog.tasks.length, greaterThanOrEqualTo(215));
     expect(

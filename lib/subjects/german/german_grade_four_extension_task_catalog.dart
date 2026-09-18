@@ -231,5 +231,29 @@ class GermanGradeFourExtensionTaskCatalog {
         'Regen – Schlange',
       ],
     ),
+    GermanTask(
+      id: 'g4-spelling-extension-wald',
+      competencyId: GermanCompetencyId.spellingStrategies,
+      recommendedFromGrade: GradeLevel.fourth,
+      instruction: 'Welches verwandte Wort hilft dir beim letzten Laut?',
+      prompt: 'Wal_',
+      interaction: GermanTaskInteraction.singleChoice,
+      acceptedAnswers: <String>['Wälder'],
+      choices: <String>['Wälder', 'Wale', 'Waldweg'],
+    ),
+    GermanTask(
+      id: 'g4-dictionary-guide-schraubenzieher',
+      competencyId: GermanCompetencyId.dictionarySkills,
+      recommendedFromGrade: GradeLevel.fourth,
+      instruction: 'Zwischen welchen Leitwörtern findest du „Schraubenzieher“?',
+      prompt: 'Vergleiche die Wörter alphabetisch.',
+      interaction: GermanTaskInteraction.singleChoice,
+      acceptedAnswers: <String>['Schrank – Schule'],
+      choices: <String>[
+        'Schrank – Schule',
+        'Schlange – Schrank',
+        'Schule – See',
+      ],
+    ),
   ];
 }

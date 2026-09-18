@@ -126,45 +126,25 @@ void main() {
     );
   });
 
-  test(
-    'single-task extension can confirm through two independent attempts',
-    () {
-      final history = _securePriorHistory(
-        competency: GermanCompetencyId.spellingStrategies,
-        sourceGrade: GradeLevel.third,
-        currentGrade: GradeLevel.fourth,
-      );
-      final currentTasks = _currentGradeTasks(
-        GermanCompetencyId.spellingStrategies,
-        GradeLevel.fourth,
-      );
-      expect(currentTasks, hasLength(1));
-      history
-        ..add(
-          _session(
-            grade: GradeLevel.fourth,
-            taskIds: <String>[currentTasks.single],
-          ),
-        )
-        ..add(
-          _session(
-            grade: GradeLevel.fourth,
-            taskIds: <String>[currentTasks.single],
-            minute: 4,
-          ),
+  test('every grade extension offers two distinct bridge tasks', () {
+    for (final competency in GermanCompetencyId.values) {
+      final tasks = GermanTaskCatalog.forCompetency(competency);
+      for (final grade in GradeLevel.values.skip(1)) {
+        final earlier = tasks.where(
+          (task) => task.recommendedFromGrade.index < grade.index,
         );
-
-      final bridge = GermanGradeBridgeAnalyzer.forCompetency(
-        competencyId: GermanCompetencyId.spellingStrategies,
-        currentGrade: GradeLevel.fourth,
-        history: history,
-      );
-
-      expect(bridge.state, GermanGradeBridgeState.confirmed);
-      expect(bridge.currentGradeAttempts, 2);
-      expect(bridge.currentGradeDistinctTasks, 1);
-    },
-  );
+        final extension = tasks.where(
+          (task) => task.recommendedFromGrade == grade,
+        );
+        if (earlier.isEmpty || extension.isEmpty) continue;
+        expect(
+          extension.length,
+          greaterThanOrEqualTo(2),
+          reason: '${competency.name} / ${grade.name}',
+        );
+      }
+    }
+  });
 
   test('failed bridge keeps remediation on the newer task level', () {
     final history = _securePriorHistory(
