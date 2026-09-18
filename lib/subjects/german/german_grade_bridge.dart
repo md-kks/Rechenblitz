@@ -71,25 +71,43 @@ class GermanGradeBridgeAnalyzer {
       return _notNeeded(competencyId: competencyId, currentGrade: currentGrade);
     }
 
-    GradeLevel? sourceGrade;
-    for (final session in priorSessions) {
-      if (!session.taskResults.any(
-        (result) => result.competencyId == competencyId,
-      )) {
-        continue;
-      }
-      if (sourceGrade == null || session.gradeLevel.index > sourceGrade.index) {
-        sourceGrade = session.gradeLevel;
-      }
-    }
-    if (sourceGrade == null) {
+    final competencyTasks = GermanTaskCatalog.forCompetency(competencyId);
+    if (competencyTasks.isEmpty) {
       return _notNeeded(competencyId: competencyId, currentGrade: currentGrade);
     }
 
-    final newerTasks = GermanTaskCatalog.forCompetency(competencyId)
+    var sourceGrade = competencyTasks.first.recommendedFromGrade;
+    for (final task in competencyTasks.skip(1)) {
+      if (task.recommendedFromGrade.index < sourceGrade.index) {
+        sourceGrade = task.recommendedFromGrade;
+      }
+    }
+
+    for (final grade in GradeLevel.values) {
+      if (grade.index <= sourceGrade.index) continue;
+      if (grade.index >= currentGrade.index) break;
+      final extensionTasks = competencyTasks
+          .where((task) => task.recommendedFromGrade == grade)
+          .toList(growable: false);
+      if (extensionTasks.isEmpty) {
+        sourceGrade = grade;
+        continue;
+      }
+      if (_extensionConfirmed(
+        competencyId: competencyId,
+        taskIds: extensionTasks.map((task) => task.id).toSet(),
+        taskCount: extensionTasks.length,
+        sessions: priorSessions,
+        minimumSessionGrade: grade,
+      )) {
+        sourceGrade = grade;
+      }
+    }
+
+    final newerTasks = competencyTasks
         .where(
           (task) =>
-              task.recommendedFromGrade.index > sourceGrade!.index &&
+              task.recommendedFromGrade.index > sourceGrade.index &&
               task.recommendedFromGrade.index <= currentGrade.index,
         )
         .toList(growable: false);
@@ -149,6 +167,31 @@ class GermanGradeBridgeAnalyzer {
       currentGradeCorrectFirstTry: correct,
       currentGradeDistinctTasks: distinct,
     );
+  }
+
+  static bool _extensionConfirmed({
+    required GermanCompetencyId competencyId,
+    required Set<String> taskIds,
+    required int taskCount,
+    required Iterable<GermanSessionResult> sessions,
+    required GradeLevel minimumSessionGrade,
+  }) {
+    final results = <GermanTaskResult>[];
+    for (final session in sessions) {
+      if (session.gradeLevel.index < minimumSessionGrade.index) continue;
+      for (final result in session.taskResults) {
+        if (result.competencyId == competencyId &&
+            taskIds.contains(result.taskId)) {
+          results.add(result);
+        }
+      }
+    }
+    if (results.length < 2) return false;
+    final distinct = results.map((result) => result.taskId).toSet().length;
+    final requiredDistinct = taskCount < 2 ? 1 : 2;
+    if (distinct < requiredDistinct) return false;
+    final correct = results.where((result) => result.correctFirstTry).length;
+    return correct / results.length >= 0.75;
   }
 
   static GermanGradeBridgeStatus _notNeeded({

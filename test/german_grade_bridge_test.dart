@@ -126,6 +126,65 @@ void main() {
     );
   });
 
+  test('partial intermediate extension does not advance bridge source', () {
+    final history = _securePriorHistory(
+      competency: GermanCompetencyId.sentenceWordOrder,
+      sourceGrade: GradeLevel.second,
+      currentGrade: GradeLevel.fourth,
+    );
+    final gradeThreeTasks = _currentGradeTasks(
+      GermanCompetencyId.sentenceWordOrder,
+      GradeLevel.third,
+    );
+    history.add(
+      _session(
+        grade: GradeLevel.third,
+        taskIds: <String>[gradeThreeTasks.first],
+        minute: 4,
+      ),
+    );
+
+    final bridge = GermanGradeBridgeAnalyzer.forCompetency(
+      competencyId: GermanCompetencyId.sentenceWordOrder,
+      currentGrade: GradeLevel.fourth,
+      history: history,
+    );
+
+    expect(bridge.state, GermanGradeBridgeState.pending);
+    expect(bridge.sourceGrade, GradeLevel.second);
+    expect(bridge.bridgeTaskGrade, GradeLevel.third);
+    expect(bridge.currentGradeAttempts, 0);
+  });
+
+  test('confirmed intermediate extension carries into the next grade', () {
+    final history = _securePriorHistory(
+      competency: GermanCompetencyId.sentenceWordOrder,
+      sourceGrade: GradeLevel.second,
+      currentGrade: GradeLevel.fourth,
+    );
+    final gradeThreeTasks = _currentGradeTasks(
+      GermanCompetencyId.sentenceWordOrder,
+      GradeLevel.third,
+    );
+    history.add(
+      _session(
+        grade: GradeLevel.third,
+        taskIds: gradeThreeTasks.take(2).toList(growable: false),
+        minute: 4,
+      ),
+    );
+
+    final bridge = GermanGradeBridgeAnalyzer.forCompetency(
+      competencyId: GermanCompetencyId.sentenceWordOrder,
+      currentGrade: GradeLevel.fourth,
+      history: history,
+    );
+
+    expect(bridge.state, GermanGradeBridgeState.notNeeded);
+    expect(bridge.sourceGrade, GradeLevel.third);
+    expect(bridge.bridgeTaskGrade, isNull);
+  });
+
   test('every grade extension offers two distinct bridge tasks', () {
     for (final competency in GermanCompetencyId.values) {
       final tasks = GermanTaskCatalog.forCompetency(competency);
