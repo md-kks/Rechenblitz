@@ -588,6 +588,8 @@ class _ParentScreenState extends State<ParentScreen> {
                                     RemediationStatus.recurring;
                             final reviewOnly =
                                 c.remediationReviewOnly(summary.pattern);
+                            final focus =
+                                c.remediationTargetCompetency(summary.pattern);
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 16),
                               child: Row(
@@ -617,6 +619,15 @@ class _ParentScreenState extends State<ParentScreen> {
                                             ),
                                           ],
                                         ),
+                                        if (focus != null) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Konkreter Fokus: ${MicroCompetencyCatalog.definition(focus).label}',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall,
+                                          ),
+                                        ],
                                         const SizedBox(height: 2),
                                         Text(
                                           '${summary.confidenceLabel} · ${summary.errors} Beobachtungen',

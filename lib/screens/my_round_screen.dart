@@ -264,6 +264,12 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
     final reviewOnly = remediation == null
         ? false
         : widget.controller.remediationReviewOnly(remediation.pattern);
+    final remediationFocus = remediation == null
+        ? null
+        : widget.controller.remediationTargetCompetency(remediation.pattern);
+    final remediationLabel = remediationFocus == null
+        ? remediation?.pattern.label
+        : MicroCompetencyCatalog.definition(remediationFocus).label;
     final recoveryIncluded = recoveryRequired;
     final regularDoneTasks = plan
         .where(_isCompleted)
@@ -480,8 +486,8 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                     const SizedBox(height: 8),
                     Text(
                       reviewOnly
-                          ? 'Zwei Aufgaben zeigen, ob „${remediation.pattern.label}“ schon sicher klappt.'
-                          : 'Wir üben „${remediation.pattern.label}“ zuerst mit Hilfe.',
+                          ? 'Zwei Aufgaben zeigen, ob „$remediationLabel“ schon sicher klappt.'
+                          : 'Wir üben „$remediationLabel“ zuerst mit Hilfe.',
                     ),
                     const SizedBox(height: 14),
                     FilledButton.icon(
