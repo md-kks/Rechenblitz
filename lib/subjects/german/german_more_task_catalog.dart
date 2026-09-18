@@ -194,7 +194,10 @@ class GermanMoreTaskCatalog {
       instruction: 'Schreibe aus den Wörtern einen vollständigen Satz.',
       prompt: 'wir · spielen · im Garten',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Wir spielen im Garten.'],
+      acceptedAnswers: <String>[
+        'Wir spielen im Garten.',
+        'Im Garten spielen wir.',
+      ],
     ),
   ];
 }

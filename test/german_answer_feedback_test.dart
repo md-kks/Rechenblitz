@@ -24,6 +24,26 @@ void main() {
     expect(feedback, contains('Satzzeichen am Ende'));
   });
 
+  test('typed feedback checks every accepted sentence variant', () {
+    expect(task.acceptedAnswers.length, greaterThanOrEqualTo(2));
+
+    final capitalization = GermanAnswerFeedback.forIncorrect(
+      task,
+      'es regnet heute.',
+    );
+    final punctuation = GermanAnswerFeedback.forIncorrect(
+      task,
+      'Es regnet heute',
+    );
+
+    expect(capitalization, contains('Groß- und Kleinschreibung'));
+    expect(punctuation, contains('Satzzeichen am Ende'));
+    for (final answer in task.acceptedAnswers) {
+      expect(capitalization, isNot(contains(answer)));
+      expect(punctuation, isNot(contains(answer)));
+    }
+  });
+
   test('typed feedback identifies word-order problems', () {
     final feedback = GermanAnswerFeedback.forIncorrect(
       task,

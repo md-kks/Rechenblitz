@@ -12,20 +12,22 @@ class GermanAnswerFeedback {
     }
 
     final given = _spaces(answer);
-    final expected = _spaces(task.acceptedAnswers.first);
+    final expected = task.acceptedAnswers.map(_spaces).toList(growable: false);
 
-    if (given.toLowerCase() == expected.toLowerCase()) {
+    if (expected.any((value) => given.toLowerCase() == value.toLowerCase())) {
       return 'Fast richtig. Prüfe die Groß- und Kleinschreibung.';
     }
 
-    if (_withoutEnding(given).toLowerCase() ==
-        _withoutEnding(expected).toLowerCase()) {
+    if (expected.any(
+      (value) =>
+          _withoutEnding(given).toLowerCase() ==
+          _withoutEnding(value).toLowerCase(),
+    )) {
       return 'Fast richtig. Prüfe das Satzzeichen am Ende.';
     }
 
     final givenWords = _words(given);
-    final expectedWords = _words(expected);
-    if (_sameWordBag(givenWords, expectedWords)) {
+    if (expected.any((value) => _sameWordBag(givenWords, _words(value)))) {
       return 'Die passenden Wörter sind da. Prüfe ihre Reihenfolge.';
     }
 

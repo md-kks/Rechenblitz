@@ -13,7 +13,10 @@ class GermanWritingProductionTaskCatalog {
       instruction: 'Schreibe aus den Satzbausteinen einen vollständigen Satz.',
       prompt: 'am Nachmittag · baut Leo · einen hohen Turm',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Am Nachmittag baut Leo einen hohen Turm.'],
+      acceptedAnswers: <String>[
+        'Am Nachmittag baut Leo einen hohen Turm.',
+        'Leo baut am Nachmittag einen hohen Turm.',
+      ],
     ),
     GermanTask(
       id: 'g3-write-science-feather',
@@ -24,6 +27,7 @@ class GermanWritingProductionTaskCatalog {
       interaction: GermanTaskInteraction.typedText,
       acceptedAnswers: <String>[
         'Im Sachunterricht untersucht die Klasse eine Feder.',
+        'Die Klasse untersucht im Sachunterricht eine Feder.',
       ],
     ),
     GermanTask(
@@ -33,7 +37,10 @@ class GermanWritingProductionTaskCatalog {
       instruction: 'Schreibe aus den Satzbausteinen einen vollständigen Satz.',
       prompt: 'morgen · bringt Sara · ihr Lieblingsbuch · mit',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Morgen bringt Sara ihr Lieblingsbuch mit.'],
+      acceptedAnswers: <String>[
+        'Morgen bringt Sara ihr Lieblingsbuch mit.',
+        'Sara bringt morgen ihr Lieblingsbuch mit.',
+      ],
     ),
     GermanTask(
       id: 'g3-write-after-rain',
@@ -42,7 +49,10 @@ class GermanWritingProductionTaskCatalog {
       instruction: 'Schreibe aus den Satzbausteinen einen vollständigen Satz.',
       prompt: 'nach dem Regen · glänzen · die Straßen',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Nach dem Regen glänzen die Straßen.'],
+      acceptedAnswers: <String>[
+        'Nach dem Regen glänzen die Straßen.',
+        'Die Straßen glänzen nach dem Regen.',
+      ],
     ),
     GermanTask(
       id: 'g4-connect-rain-write',
@@ -54,6 +64,7 @@ class GermanWritingProductionTaskCatalog {
       interaction: GermanTaskInteraction.typedText,
       acceptedAnswers: <String>[
         'Es regnet stark. Deshalb nimmt Mia einen Schirm mit.',
+        'Es regnet stark. Mia nimmt deshalb einen Schirm mit.',
       ],
     ),
     GermanTask(
@@ -65,6 +76,7 @@ class GermanWritingProductionTaskCatalog {
       interaction: GermanTaskInteraction.typedText,
       acceptedAnswers: <String>[
         'Ben bleibt heute zu Hause, weil er krank ist.',
+        'Weil Ben krank ist, bleibt er heute zu Hause.',
       ],
     ),
     GermanTask(
@@ -76,6 +88,7 @@ class GermanWritingProductionTaskCatalog {
       interaction: GermanTaskInteraction.typedText,
       acceptedAnswers: <String>[
         'Es regnet stark, aber die Kinder spielen draußen weiter.',
+        'Die Kinder spielen draußen weiter, aber es regnet stark.',
       ],
     ),
     GermanTask(
@@ -86,7 +99,10 @@ class GermanWritingProductionTaskCatalog {
           'Überarbeite den zweiten Satz. Ersetze die Wiederholung durch „er“.',
       prompt: 'Der Hund läuft zum Tor. Der Hund wartet dort.',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Der Hund läuft zum Tor. Er wartet dort.'],
+      acceptedAnswers: <String>[
+        'Der Hund läuft zum Tor. Er wartet dort.',
+        'Der Hund läuft zum Tor. Dort wartet er.',
+      ],
     ),
     GermanTask(
       id: 'g4-revision-precise-write',
@@ -96,7 +112,10 @@ class GermanWritingProductionTaskCatalog {
           'Überarbeite den Satz. Ersetze „bewegte sich sehr schnell“ durch „rannte“.',
       prompt: 'Der Fuchs bewegte sich sehr schnell über die Wiese.',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Der Fuchs rannte über die Wiese.'],
+      acceptedAnswers: <String>[
+        'Der Fuchs rannte über die Wiese.',
+        'Über die Wiese rannte der Fuchs.',
+      ],
     ),
     GermanTask(
       id: 'g4-revision-sequence-write',

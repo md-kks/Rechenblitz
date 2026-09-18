@@ -662,7 +662,10 @@ class GermanLowerPrimaryTaskCatalog {
       instruction: 'Schreibe aus den Wörtern einen vollständigen Satz.',
       prompt: 'der Hund · schläft · im Korb',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Der Hund schläft im Korb.'],
+      acceptedAnswers: <String>[
+        'Der Hund schläft im Korb.',
+        'Im Korb schläft der Hund.',
+      ],
     ),
     GermanTask(
       id: 'g2-write-sentence-book',
@@ -671,7 +674,7 @@ class GermanLowerPrimaryTaskCatalog {
       instruction: 'Schreibe aus den Wörtern einen vollständigen Satz.',
       prompt: 'Mia · liest · ein Buch',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Mia liest ein Buch.'],
+      acceptedAnswers: <String>['Mia liest ein Buch.', 'Ein Buch liest Mia.'],
     ),
     GermanTask(
       id: 'g2-write-sentence-playground',
@@ -680,7 +683,10 @@ class GermanLowerPrimaryTaskCatalog {
       instruction: 'Schreibe aus den Wörtern einen vollständigen Satz.',
       prompt: 'die Kinder · spielen · auf dem Hof',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Die Kinder spielen auf dem Hof.'],
+      acceptedAnswers: <String>[
+        'Die Kinder spielen auf dem Hof.',
+        'Auf dem Hof spielen die Kinder.',
+      ],
     ),
   ];
 }

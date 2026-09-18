@@ -186,7 +186,7 @@ class GermanStarterTaskCatalog {
       instruction: 'Schreibe aus den Wörtern einen vollständigen Satz.',
       prompt: 'heute · regnet · es',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Heute regnet es.'],
+      acceptedAnswers: <String>['Heute regnet es.', 'Es regnet heute.'],
     ),
   ];
 

@@ -204,7 +204,10 @@ class GermanExtraTaskCatalog {
       instruction: 'Schreibe aus den Wörtern einen vollständigen Satz.',
       prompt: 'Lina · geht · zur Schule',
       interaction: GermanTaskInteraction.typedText,
-      acceptedAnswers: <String>['Lina geht zur Schule.'],
+      acceptedAnswers: <String>[
+        'Lina geht zur Schule.',
+        'Zur Schule geht Lina.',
+      ],
     ),
   ];
 }

@@ -111,8 +111,31 @@ void main() {
       (task) => task.interaction == GermanTaskInteraction.typedText,
     );
     expect(task.accepts('  Heute   regnet es. '), isTrue);
+    expect(task.accepts('Es regnet heute.'), isTrue);
     expect(task.accepts('heute regnet es.'), isFalse);
     expect(task.accepts('Heute regnet es'), isFalse);
+  });
+
+  test('typed German writing accepts curated grammatical alternatives', () {
+    final gradeThree = GermanTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g3-write-afternoon-tower',
+    );
+    final gradeFour = GermanTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g4-connect-sick-write',
+    );
+
+    expect(
+      gradeThree.accepts('Leo baut am Nachmittag einen hohen Turm.'),
+      isTrue,
+    );
+    expect(
+      gradeFour.accepts('Weil Ben krank ist, bleibt er heute zu Hause.'),
+      isTrue,
+    );
+    expect(
+      gradeFour.accepts('weil Ben krank ist, bleibt er heute zu Hause.'),
+      isFalse,
+    );
   });
   test('upper-primary writing includes real text production', () {
     final gradeThreeWriting =
