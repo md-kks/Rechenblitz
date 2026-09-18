@@ -4,6 +4,7 @@ import '../../../core/grade_level.dart';
 import '../german_competency.dart';
 import '../german_competency_catalog.dart';
 import '../german_grade_bridge.dart';
+import '../german_history_scope.dart';
 import '../german_learning_domain.dart';
 import '../german_progress.dart';
 import '../german_prerequisites.dart';
@@ -23,11 +24,14 @@ class GermanCompetencyMapScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scopedHistory = GermanHistoryScope.throughGrade(history, gradeLevel);
     final definitions = GermanCompetencyCatalog.recommendedFor(gradeLevel);
     final progress = definitions
         .map(
-          (definition) =>
-              GermanProgressAnalyzer.forCompetency(definition.id, history),
+          (definition) => GermanProgressAnalyzer.forCompetency(
+            definition.id,
+            scopedHistory,
+          ),
         )
         .toList(growable: false);
     final now = referenceNow ?? DateTime.now();
@@ -37,7 +41,7 @@ class GermanCompetencyMapScreen extends StatelessWidget {
         definition.id: GermanGradeBridgeAnalyzer.forCompetency(
           competencyId: definition.id,
           currentGrade: gradeLevel,
-          history: history,
+          history: scopedHistory,
         ),
     };
     final pendingBridgeIds = bridges.entries
@@ -95,7 +99,8 @@ class GermanCompetencyMapScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ...GermanLearningDomain.values.expand(
-            (domain) => _domainSection(context, domain, now, bridges),
+            (domain) =>
+                _domainSection(context, domain, now, bridges, scopedHistory),
           ),
         ],
       ),
@@ -107,6 +112,7 @@ class GermanCompetencyMapScreen extends StatelessWidget {
     GermanLearningDomain domain,
     DateTime now,
     Map<GermanCompetencyId, GermanGradeBridgeStatus> bridges,
+    List<GermanSessionResult> scopedHistory,
   ) {
     final definitions = GermanCompetencyCatalog.forDomain(domain, gradeLevel);
     if (definitions.isEmpty) return const <Widget>[];
@@ -121,11 +127,11 @@ class GermanCompetencyMapScreen extends StatelessWidget {
       ...definitions.map((definition) {
         final progress = GermanProgressAnalyzer.forCompetency(
           definition.id,
-          history,
+          scopedHistory,
         );
         final unlock = GermanPrerequisiteResolver.status(
           definition.id,
-          history,
+          scopedHistory,
           currentGrade: gradeLevel,
         );
         final bridge = bridges[definition.id]!;

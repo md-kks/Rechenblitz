@@ -1,6 +1,7 @@
 import '../../core/grade_level.dart';
 import 'german_competency.dart';
 import 'german_grade_bridge.dart';
+import 'german_history_scope.dart';
 import 'german_competency_catalog.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
@@ -34,17 +35,20 @@ class GermanPrerequisiteResolver {
     Iterable<GermanSessionResult> history, {
     GradeLevel? currentGrade,
   }) {
+    final scopedHistory = currentGrade == null
+        ? history.toList(growable: false)
+        : GermanHistoryScope.throughGrade(history, currentGrade);
     final definition = GermanCompetencyCatalog.definition(id);
     final prerequisites = definition.prerequisites
         .map(GermanCompetencyCatalog.definition)
         .toList(growable: false);
-    final ownProgress = GermanProgressAnalyzer.forCompetency(id, history);
+    final ownProgress = GermanProgressAnalyzer.forCompetency(id, scopedHistory);
     final ownBridge = currentGrade == null
         ? null
         : GermanGradeBridgeAnalyzer.forCompetency(
             competencyId: id,
             currentGrade: currentGrade,
-            history: history,
+            history: scopedHistory,
           );
     final confirmedByOwnEvidence =
         prerequisites.isNotEmpty &&
@@ -66,7 +70,7 @@ class GermanPrerequisiteResolver {
         .where(
           (prerequisite) => !_competencyAndPrerequisitesReady(
             prerequisite,
-            history,
+            scopedHistory,
             <GermanCompetencyId>{},
             currentGrade: currentGrade,
           ),
@@ -75,7 +79,7 @@ class GermanPrerequisiteResolver {
         .toList(growable: false);
     final nextId = _nextUnmetPrerequisite(
       id,
-      history,
+      scopedHistory,
       <GermanCompetencyId>{},
       currentGrade: currentGrade,
     );

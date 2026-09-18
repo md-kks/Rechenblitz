@@ -13,6 +13,7 @@ import '../german_assessment.dart';
 import '../german_competency.dart';
 import '../german_competency_catalog.dart';
 import '../german_grade_bridge.dart';
+import '../german_history_scope.dart';
 import '../german_learning_domain.dart';
 import '../german_practice_planner.dart';
 import '../german_progress.dart';
@@ -52,6 +53,9 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
 
   GermanStorageService get _storage =>
       GermanStorageService(profileId: widget.controller.activeProfileId);
+
+  List<GermanSessionResult> get _gradeHistory =>
+      GermanHistoryScope.throughGrade(_history, widget.controller.gradeLevel);
 
   @override
   void initState() {
@@ -306,7 +310,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     if (_draft != null) return;
     final tasks = GermanAssessmentPlanner.buildRound(
       widget.controller.gradeLevel,
-      history: _history,
+      history: _gradeHistory,
     );
     unawaited(_openRound(tasks, sessionKind: GermanSessionKind.assessment));
   }
@@ -324,7 +328,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   void _startDailyRound() {
     final tasks = GermanPracticePlanner.buildDailyRound(
       gradeLevel: widget.controller.gradeLevel,
-      history: _history,
+      history: _gradeHistory,
       now: widget.now(),
     );
     unawaited(_openRound(tasks));
@@ -334,7 +338,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     final tasks = GermanPracticePlanner.buildDomainRound(
       gradeLevel: widget.controller.gradeLevel,
       domain: domain,
-      history: _history,
+      history: _gradeHistory,
     );
     unawaited(_openRound(tasks));
   }
@@ -350,31 +354,35 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
           data: _germanTheme,
           child: GermanCompetencyMapScreen(
             gradeLevel: widget.controller.gradeLevel,
-            history: _history,
+            history: _gradeHistory,
             referenceNow: widget.now(),
           ),
         ),
       ),
     );
     if (!mounted || competency == null) return;
-    final progress = GermanProgressAnalyzer.forCompetency(competency, _history);
+    final gradeHistory = _gradeHistory;
+    final progress = GermanProgressAnalyzer.forCompetency(
+      competency,
+      gradeHistory,
+    );
     final bridge = GermanGradeBridgeAnalyzer.forCompetency(
       competencyId: competency,
       currentGrade: widget.controller.gradeLevel,
-      history: _history,
+      history: gradeHistory,
     );
     final tasks =
         progress.state == GermanCompetencyState.secure && bridge.isPending
         ? GermanPracticePlanner.buildGradeBridgeRound(
             gradeLevel: widget.controller.gradeLevel,
             competencyId: competency,
-            history: _history,
+            history: gradeHistory,
             now: widget.now(),
           )
         : GermanPracticePlanner.buildCompetencyRound(
             gradeLevel: widget.controller.gradeLevel,
             competencyId: competency,
-            history: _history,
+            history: gradeHistory,
             now: widget.now(),
           );
     await _openRound(tasks);
@@ -571,11 +579,11 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
           ),
         ),
       ),
-      if (_history.isNotEmpty) ...<Widget>[
+      if (_gradeHistory.isNotEmpty) ...<Widget>[
         const SizedBox(height: 14),
         Text('Zuletzt', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 10),
-        _LastGermanRoundCard(result: _history.first),
+        _LastGermanRoundCard(result: _gradeHistory.first),
       ],
     ],
   );
@@ -590,7 +598,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       };
       return '$kind wartet: Aufgabe ${draft.nextTaskNumber} von ${draft.totalTasks}.';
     }
-    if (_history.isEmpty) {
+    if (_gradeHistory.isEmpty) {
       return '12 kurze Aufgaben aus allen sechs Deutsch-Lernbereichen.';
     }
     final focus = _practiceFocus();
@@ -626,19 +634,20 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
 
   _GermanPracticeFocus? _practiceFocus() {
     final now = widget.now();
+    final gradeHistory = _gradeHistory;
     final focuses = <_GermanPracticeFocus>[];
     for (final definition in GermanCompetencyCatalog.recommendedFor(
       widget.controller.gradeLevel,
     )) {
       final progress = GermanProgressAnalyzer.forCompetency(
         definition.id,
-        _history,
+        gradeHistory,
       );
       final attention = progress.attention(now: now);
       final bridge = GermanGradeBridgeAnalyzer.forCompetency(
         competencyId: definition.id,
         currentGrade: widget.controller.gradeLevel,
-        history: _history,
+        history: gradeHistory,
       );
       if (attention == GermanPracticeAttention.needsPractice) {
         focuses.add(_GermanPracticeFocus(progress: progress, priority: 0));
@@ -666,6 +675,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   }
 
   String _domainSummary(GermanLearningDomain domain) {
+    final gradeHistory = _gradeHistory;
     final definitions = GermanCompetencyCatalog.forDomain(
       domain,
       widget.controller.gradeLevel,
@@ -673,7 +683,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     final practiced = definitions
         .map(
           (definition) =>
-              GermanProgressAnalyzer.forCompetency(definition.id, _history),
+              GermanProgressAnalyzer.forCompetency(definition.id, gradeHistory),
         )
         .toList();
     final progressById = {
@@ -686,7 +696,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
           return GermanGradeBridgeAnalyzer.forCompetency(
             competencyId: definition.id,
             currentGrade: widget.controller.gradeLevel,
-            history: _history,
+            history: gradeHistory,
           ).isPending;
         })
         .map((definition) => definition.id)

@@ -183,7 +183,11 @@ void main() {
 
   test('daily round puts a proven weak skill ahead of new skills', () {
     final history = <GermanSessionResult>[
-      _session(GermanCompetencyId.wordRecognition, correct: false),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        gradeLevel: GradeLevel.first,
+      ),
     ];
 
     final round = GermanPracticePlanner.buildDailyRound(
@@ -569,10 +573,11 @@ GermanSessionResult _session(
   int incorrectAttempts = 0,
   String? taskId,
   DateTime? finishedAt,
+  GradeLevel gradeLevel = GradeLevel.second,
 }) {
   final finished = finishedAt ?? DateTime(2026, 9, 17, 12);
   return GermanSessionResult(
-    gradeLevel: GradeLevel.second,
+    gradeLevel: gradeLevel,
     startedAt: finished.subtract(const Duration(minutes: 1)),
     finishedAt: finished,
     taskResults: <GermanTaskResult>[

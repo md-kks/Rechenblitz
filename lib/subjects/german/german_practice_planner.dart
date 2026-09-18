@@ -2,6 +2,7 @@ import '../../core/grade_level.dart';
 import 'german_competency.dart';
 import 'german_competency_catalog.dart';
 import 'german_grade_bridge.dart';
+import 'german_history_scope.dart';
 import 'german_learning_domain.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
@@ -19,9 +20,10 @@ class GermanPracticePlanner {
     DateTime? now,
   }) {
     if (taskCount < 1) return const <GermanTask>[];
+    final scopedHistory = GermanHistoryScope.throughGrade(history, gradeLevel);
     final ranked = _ranked(
       GermanTaskCatalog.forGrade(gradeLevel),
-      history,
+      scopedHistory,
       gradeLevel: gradeLevel,
       now: now,
     );
@@ -39,12 +41,12 @@ class GermanPracticePlanner {
     for (final task in ranked) {
       final progress = GermanProgressAnalyzer.forCompetency(
         task.competencyId,
-        history,
+        scopedHistory,
       );
       if (_taskPriorityBucket(
             task,
             progress,
-            history,
+            scopedHistory,
             gradeLevel: gradeLevel,
             now: now,
           ) <=
@@ -145,9 +147,10 @@ class GermanPracticePlanner {
     int taskCount = 6,
     DateTime? now,
   }) {
+    final scopedHistory = GermanHistoryScope.throughGrade(history, gradeLevel);
     final ranked = _ranked(
       GermanTaskCatalog.forDomain(domain, gradeLevel),
-      history,
+      scopedHistory,
       gradeLevel: gradeLevel,
       now: now,
     );
@@ -161,10 +164,16 @@ class GermanPracticePlanner {
     int taskCount = 6,
     DateTime? now,
   }) {
+    final scopedHistory = GermanHistoryScope.throughGrade(history, gradeLevel);
     final source = GermanTaskCatalog.forCompetency(
       competencyId,
     ).where((task) => task.recommendedFromGrade.index <= gradeLevel.index);
-    final ranked = _ranked(source, history, gradeLevel: gradeLevel, now: now);
+    final ranked = _ranked(
+      source,
+      scopedHistory,
+      gradeLevel: gradeLevel,
+      now: now,
+    );
     if (ranked.isEmpty) return const <GermanTask>[];
     return List<GermanTask>.generate(
       taskCount,
@@ -181,10 +190,11 @@ class GermanPracticePlanner {
     DateTime? now,
   }) {
     if (taskCount < 1) return const <GermanTask>[];
+    final scopedHistory = GermanHistoryScope.throughGrade(history, gradeLevel);
     final bridge = GermanGradeBridgeAnalyzer.forCompetency(
       competencyId: competencyId,
       currentGrade: gradeLevel,
-      history: history,
+      history: scopedHistory,
     );
     final bridgeTaskGrade = bridge.bridgeTaskGrade;
     if (!bridge.isPending || bridgeTaskGrade == null) {
@@ -193,7 +203,12 @@ class GermanPracticePlanner {
     final source = GermanTaskCatalog.forCompetency(
       competencyId,
     ).where((task) => task.recommendedFromGrade == bridgeTaskGrade);
-    final ranked = _ranked(source, history, gradeLevel: gradeLevel, now: now);
+    final ranked = _ranked(
+      source,
+      scopedHistory,
+      gradeLevel: gradeLevel,
+      now: now,
+    );
     if (ranked.isEmpty) return const <GermanTask>[];
     return List<GermanTask>.generate(
       taskCount,
@@ -207,6 +222,10 @@ class GermanPracticePlanner {
     required Iterable<GermanSessionResult> history,
     DateTime? now,
   }) {
+    final scopedHistory = GermanHistoryScope.throughGrade(
+      history,
+      assignment.gradeLevel,
+    );
     final target = assignment.targetCompetency;
     if (target != null) {
       final source = GermanTaskCatalog.forCompetency(target).where(
@@ -215,7 +234,7 @@ class GermanPracticePlanner {
       );
       final ranked = _ranked(
         source,
-        history,
+        scopedHistory,
         gradeLevel: assignment.gradeLevel,
         now: now,
       );
@@ -230,7 +249,7 @@ class GermanPracticePlanner {
 
     final ranked = _ranked(
       GermanTaskCatalog.forDomain(assignment.domain, assignment.gradeLevel),
-      history,
+      scopedHistory,
       gradeLevel: assignment.gradeLevel,
       now: now,
     );
