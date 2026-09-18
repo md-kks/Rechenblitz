@@ -55,7 +55,7 @@ void main() {
       isTrue,
     );
 
-    await controller.setProfileState(GermanState.lowerSaxony);
+    await controller.setProfileState(GermanState.thuringia);
 
     expect(
       controller.isModeAvailableInActiveCurriculum(TrainingMode.dataCharts),
@@ -167,7 +167,7 @@ void main() {
     expect(find.text('Wahrscheinlichkeit'), findsOneWidget);
     expect(find.text('Kombinatorik'), findsOneWidget);
 
-    await controller.setProfileState(GermanState.lowerSaxony);
+    await controller.setProfileState(GermanState.thuringia);
     await tester.pumpAndSettle();
 
     expect(find.text('Daten & Zufall · Lehrplan'), findsNothing);
@@ -199,7 +199,7 @@ void main() {
     expect(find.text(TrainingMode.probability.title), findsOneWidget);
     expect(find.text(TrainingMode.combinatorics.title), findsOneWidget);
 
-    await controller.setProfileState(GermanState.lowerSaxony);
+    await controller.setProfileState(GermanState.thuringia);
     await tester.pumpAndSettle();
 
     expect(find.text('Daten & Zufall · Landeslehrplan'), findsNothing);
