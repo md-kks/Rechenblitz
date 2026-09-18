@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/german_state.dart';
+import '../../../core/grade_level.dart';
 import '../../../core/learning_app_theme.dart';
 import '../../../core/learning_subject.dart';
 import '../../../services/app_controller.dart';
 import '../german_competency.dart';
 import '../german_curriculum.dart';
+import '../german_grade_bridge.dart';
 import '../german_learning_domain.dart';
 import '../german_progress.dart';
 import '../german_session.dart';
@@ -47,6 +49,9 @@ class _GermanCurriculumAuditScreenState
     final profile = GermanCurriculumRegistry.forState(state);
     final summary = GermanCurriculumAudit.summarize(grade);
     final definitions = profile.competenciesFor(grade);
+    final eligibleHistory = _history
+        ?.where((session) => session.gradeLevel.index <= grade.index)
+        .toList(growable: false);
     final byDomain = <GermanLearningDomain, List<GermanCompetencyDefinition>>{};
     for (final definition in definitions) {
       byDomain
@@ -86,7 +91,8 @@ class _GermanCurriculumAuditScreenState
                         child: _DomainCard(
                           title: entry.key.label,
                           definitions: entry.value,
-                          history: _history!,
+                          history: eligibleHistory!,
+                          gradeLevel: grade,
                         ),
                       ),
                     ),
@@ -138,11 +144,13 @@ class _DomainCard extends StatelessWidget {
     required this.title,
     required this.definitions,
     required this.history,
+    required this.gradeLevel,
   });
 
   final String title;
   final List<GermanCompetencyDefinition> definitions;
   final List<GermanSessionResult> history;
+  final GradeLevel gradeLevel;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -163,15 +171,30 @@ class _DomainCard extends StatelessWidget {
               definition.id,
               history,
             );
+            final bridge = GermanGradeBridgeAnalyzer.forCompetency(
+              competencyId: definition.id,
+              currentGrade: gradeLevel,
+              history: history,
+            );
             final coverage = GermanCurriculumAudit.coverageFor(definition.id);
             return ExpansionTile(
+              key: ValueKey('german-curriculum-${definition.id.name}'),
               tilePadding: EdgeInsets.zero,
               childrenPadding: const EdgeInsets.only(bottom: 10),
               title: Text(
                 definition.label,
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
-              subtitle: Text(_progressLabel(progress)),
+              subtitle: Text(
+                _progressLabel(
+                  progress,
+                  bridge:
+                      progress.state == GermanCompetencyState.secure &&
+                          bridge.isPending
+                      ? bridge
+                      : null,
+                ),
+              ),
               trailing: Chip(label: Text(coverage.label)),
               children: <Widget>[
                 Align(
@@ -197,8 +220,16 @@ class _DomainCard extends StatelessWidget {
   );
 }
 
-String _progressLabel(GermanCompetencyProgress progress) {
+String _progressLabel(
+  GermanCompetencyProgress progress, {
+  GermanGradeBridgeStatus? bridge,
+}) {
   if (progress.attempts == 0) return 'Noch keine Lernbeobachtung';
+  if (bridge != null) {
+    final source = bridge.sourceGrade?.label ?? 'früherer Klasse';
+    return 'Klassenstufe bestätigen · Grundlage aus $source sicher · '
+        '${bridge.currentGrade.label} noch offen';
+  }
   final overall = (progress.accuracy * 100).round();
   final recent = (progress.recentAccuracy * 100).round();
   final accuracy =
