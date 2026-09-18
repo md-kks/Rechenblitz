@@ -7,6 +7,22 @@ extension MethodSelectionPreferenceX on MethodSelectionPreference {
       };
 }
 
+enum AdditionStrategy { bridgeToTen, compensate }
+
+extension AdditionStrategyX on AdditionStrategy {
+  String get label => switch (this) {
+        AdditionStrategy.bridgeToTen => 'Erst zum Zehner',
+        AdditionStrategy.compensate => 'Runden & ausgleichen',
+      };
+
+  String get description => switch (this) {
+        AdditionStrategy.bridgeToTen =>
+          'Den zweiten Summanden so zerlegen, dass zuerst der nächste volle Zehner erreicht wird.',
+        AdditionStrategy.compensate =>
+          'Den zweiten Summanden zum nächsten Zehner aufrunden, die leichtere Hilfsaufgabe rechnen und den Überschuss wieder abziehen.',
+      };
+}
+
 enum SubtractionStrategy { bridgeToTen, takeAway, complement }
 
 extension SubtractionStrategyX on SubtractionStrategy {
@@ -63,24 +79,28 @@ extension WrittenSubtractionStrategyX on WrittenSubtractionStrategy {
 
 class MethodPreferences {
   const MethodPreferences({
+    this.addition = AdditionStrategy.bridgeToTen,
     this.subtraction = SubtractionStrategy.bridgeToTen,
     this.multiplication = MultiplicationStrategy.groups,
     this.writtenSubtraction = WrittenSubtractionStrategy.regroup,
     this.selectionPreference = MethodSelectionPreference.schoolMethod,
   });
 
+  final AdditionStrategy addition;
   final SubtractionStrategy subtraction;
   final MultiplicationStrategy multiplication;
   final WrittenSubtractionStrategy writtenSubtraction;
   final MethodSelectionPreference selectionPreference;
 
   MethodPreferences copyWith({
+    AdditionStrategy? addition,
     SubtractionStrategy? subtraction,
     MultiplicationStrategy? multiplication,
     WrittenSubtractionStrategy? writtenSubtraction,
     MethodSelectionPreference? selectionPreference,
   }) =>
       MethodPreferences(
+        addition: addition ?? this.addition,
         subtraction: subtraction ?? this.subtraction,
         multiplication: multiplication ?? this.multiplication,
         writtenSubtraction: writtenSubtraction ?? this.writtenSubtraction,
@@ -88,6 +108,7 @@ class MethodPreferences {
       );
 
   Map<String, dynamic> toJson() => {
+        'addition': addition.name,
         'subtraction': subtraction.name,
         'multiplication': multiplication.name,
         'writtenSubtraction': writtenSubtraction.name,
@@ -96,6 +117,10 @@ class MethodPreferences {
 
   factory MethodPreferences.fromJson(Map<String, dynamic> json) =>
       MethodPreferences(
+        addition: AdditionStrategy.values.firstWhere(
+          (value) => value.name == json['addition'],
+          orElse: () => AdditionStrategy.bridgeToTen,
+        ),
         subtraction: SubtractionStrategy.values.firstWhere(
           (value) => value.name == json['subtraction'],
           orElse: () => SubtractionStrategy.bridgeToTen,
@@ -113,6 +138,15 @@ class MethodPreferences {
           orElse: () => MethodSelectionPreference.schoolMethod,
         ),
       );
+  AdditionStrategy effectiveAddition({required String taskKey}) {
+    if (selectionPreference == MethodSelectionPreference.schoolMethod) {
+      return addition;
+    }
+    // Der Zehnerstopp ist der sichere automatische Einstieg. Weitere Wege
+    // bleiben in der geöffneten Hilfe bewusst auswählbar.
+    return AdditionStrategy.bridgeToTen;
+  }
+
   SubtractionStrategy effectiveSubtraction({required String taskKey}) {
     if (selectionPreference == MethodSelectionPreference.schoolMethod) {
       return subtraction;

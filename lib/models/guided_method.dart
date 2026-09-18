@@ -259,7 +259,7 @@ class GuidedMethodFactory {
 
     if (fact != null && fact.operation == MathOperation.plus) {
       if (_landsOnNextTen(fact)) return _additionToFullTen(fact);
-      if (_needsAdditionBridge(fact)) return _additionBridge(fact);
+      if (_needsAdditionBridge(fact)) return _additionBridge(fact, preferences);
       return _additionWithoutBridge(fact);
     }
 
@@ -574,7 +574,18 @@ class GuidedMethodFactory {
       }
     }
 
-    if (fact?.operation == MathOperation.minus) {
+    if (fact?.operation == MathOperation.plus &&
+        _needsAdditionBridge(fact!) &&
+        !_landsOnNextTen(fact)) {
+      for (final strategy in AdditionStrategy.values) {
+        add(
+          preferences.copyWith(
+            addition: strategy,
+            selectionPreference: MethodSelectionPreference.schoolMethod,
+          ),
+        );
+      }
+    } else if (fact?.operation == MathOperation.minus) {
       for (final strategy in SubtractionStrategy.values) {
         add(
           preferences.copyWith(
@@ -669,7 +680,7 @@ class GuidedMethodFactory {
       if (!_needsAdditionBridge(fact)) {
         return const <GuidedMethodStep>[];
       }
-      guide = _additionBridge(fact);
+      guide = _additionBridge(fact, preferences);
     } else {
       if (!_needsSubtractionBridge(fact) || fact.a % 10 == 0) {
         return const <GuidedMethodStep>[];
@@ -1528,7 +1539,17 @@ class GuidedMethodFactory {
     );
   }
 
-  static GuidedMethodGuide _additionBridge(MathFact fact) {
+  static GuidedMethodGuide _additionBridge(
+    MathFact fact,
+    MethodPreferences preferences,
+  ) {
+    return switch (preferences.effectiveAddition(taskKey: fact.key)) {
+      AdditionStrategy.bridgeToTen => _additionBridgeToTen(fact),
+      AdditionStrategy.compensate => _additionCompensation(fact),
+    };
+  }
+
+  static GuidedMethodGuide _additionBridgeToTen(MathFact fact) {
     final a = fact.a;
     final b = fact.b;
     final result = a + b;
@@ -1575,6 +1596,64 @@ class GuidedMethodFactory {
         GuidedMethodStep(
           title: 'Weiterrechnen',
           instruction: '$bridge + $rest = $result.',
+          question: 'Wie lautet das Ergebnis?',
+          choices: resultChoices,
+          correctChoice: resultChoices.indexOf('$result'),
+        ),
+      ],
+    );
+  }
+
+  static GuidedMethodGuide _additionCompensation(MathFact fact) {
+    final a = fact.a;
+    final b = fact.b;
+    final result = a + b;
+    final roundedAddend = ((b + 9) ~/ 10) * 10;
+    final adjustment = roundedAddend - b;
+    if (adjustment <= 0) return _additionBridgeToTen(fact);
+    final helperSum = a + roundedAddend;
+    final helperChoices = _numberChoices(
+      helperSum,
+      maxValue: max(20, helperSum),
+    );
+    final adjustmentChoices = _numberChoices(
+      adjustment,
+      maxValue: max(10, roundedAddend),
+    );
+    final resultChoices = _numberChoices(
+      result,
+      maxValue: max(20, helperSum),
+    );
+
+    return GuidedMethodGuide(
+      methodKey: 'addition:compensate',
+      methodLabel: 'Runden & ausgleichen',
+      nudge:
+          'Mach aus +$b zuerst die leichtere Hilfsaufgabe +$roundedAddend. Danach nimmst du das Zuviel wieder weg.',
+      steps: [
+        GuidedMethodStep(
+          title: 'Leichtere Hilfsaufgabe',
+          instruction:
+              'Rechne zuerst $a + $roundedAddend. Das ist leichter, weil $roundedAddend ein voller Zehner ist.',
+          question: 'Wie viel ist $a + $roundedAddend?',
+          choices: helperChoices,
+          correctChoice: helperChoices.indexOf('$helperSum'),
+          evidenceKey: 'compensationHelperSum',
+          evidenceCompetency: MicroCompetencyId.additionTenBridge,
+        ),
+        GuidedMethodStep(
+          title: 'Zuviel bestimmen',
+          instruction:
+              'Du wolltest nur $b addieren, hast aber $roundedAddend addiert.',
+          question: 'Wie viel hast du zu viel addiert?',
+          choices: adjustmentChoices,
+          correctChoice: adjustmentChoices.indexOf('$adjustment'),
+          evidenceKey: 'compensationAdjustment',
+          evidenceCompetency: MicroCompetencyId.numberDecomposition,
+        ),
+        GuidedMethodStep(
+          title: 'Ausgleichen',
+          instruction: '$helperSum − $adjustment = $result.',
           question: 'Wie lautet das Ergebnis?',
           choices: resultChoices,
           correctChoice: resultChoices.indexOf('$result'),

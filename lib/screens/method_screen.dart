@@ -94,6 +94,33 @@ class _MethodScreenState extends State<MethodScreen> {
           ),
           const SizedBox(height: 16),
           _MethodCard(
+            title: 'Addition über den Zehner',
+            icon: Icons.add_circle_outline_rounded,
+            description: methods.addition.description,
+            child: DropdownButtonFormField<AdditionStrategy>(
+              key: const ValueKey('method-addition-strategy'),
+              initialValue: methods.addition,
+              decoration: const InputDecoration(
+                labelText: 'Methode',
+                border: OutlineInputBorder(),
+              ),
+              items: AdditionStrategy.values
+                  .map(
+                    (value) => DropdownMenuItem(
+                      value: value,
+                      child: Text(value.label),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  widget.controller.setAdditionStrategy(value);
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+          _MethodCard(
             title: 'Subtraktion über den Zehner',
             icon: Icons.remove_circle_outline_rounded,
             description: methods.subtraction.description,
