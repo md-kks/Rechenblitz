@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/core/grade_level.dart';
 import 'package:rechenblitz/subjects/german/german_assessment.dart';
+import 'package:rechenblitz/subjects/german/german_competency.dart';
 import 'package:rechenblitz/subjects/german/german_competency_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_learning_domain.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
@@ -24,6 +25,34 @@ void main() {
       );
     }
   });
+  test('upper-primary Lernchecks use current-grade tasks first', () {
+    for (final grade in <GradeLevel>[GradeLevel.third, GradeLevel.fourth]) {
+      final tasks = GermanAssessmentPlanner.buildRound(grade);
+
+      expect(tasks, hasLength(12));
+      expect(
+        tasks.every((task) => task.recommendedFromGrade == grade),
+        isTrue,
+        reason: grade.name,
+      );
+    }
+
+    final fourth = GermanAssessmentPlanner.buildRound(GradeLevel.fourth);
+    expect(
+      fourth.any(
+        (task) => task.competencyId == GermanCompetencyId.textMainIdea,
+      ),
+      isTrue,
+    );
+    expect(
+      fourth.any(
+        (task) =>
+            task.competencyId == GermanCompetencyId.directSpeechPunctuation,
+      ),
+      isTrue,
+    );
+  });
+
   test('repeated Lernchecks rotate away from recently used tasks', () {
     final first = GermanAssessmentPlanner.buildRound(GradeLevel.second);
     final firstSession = GermanSessionResult(

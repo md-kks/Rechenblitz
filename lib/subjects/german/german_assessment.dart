@@ -24,6 +24,7 @@ class GermanAssessmentPlanner {
         GermanTaskCatalog.forDomain(domain, gradeLevel),
         usage,
         usedCompetencies,
+        gradeLevel: gradeLevel,
       );
       if (candidates.isEmpty) continue;
       final task = candidates.first;
@@ -42,6 +43,7 @@ class GermanAssessmentPlanner {
           ).where((task) => !usedIds.contains(task.id)),
           usage,
           usedCompetencies,
+          gradeLevel: gradeLevel,
         );
         if (candidates.isEmpty) continue;
         final task = candidates.first;
@@ -59,8 +61,9 @@ class GermanAssessmentPlanner {
   static List<GermanTask> _rankCandidates(
     Iterable<GermanTask> source,
     Map<String, ({int count, DateTime lastSeen})> usage,
-    Set<Object> usedCompetencies,
-  ) {
+    Set<Object> usedCompetencies, {
+    required GradeLevel gradeLevel,
+  }) {
     final result = source.toList();
     result.sort((a, b) {
       final aUsedCompetency = usedCompetencies.contains(a.competencyId);
@@ -68,6 +71,25 @@ class GermanAssessmentPlanner {
       if (aUsedCompetency != bUsedCompetency) {
         return aUsedCompetency ? 1 : -1;
       }
+
+      final aTaskDistance = gradeLevel.index - a.recommendedFromGrade.index;
+      final bTaskDistance = gradeLevel.index - b.recommendedFromGrade.index;
+      if (aTaskDistance != bTaskDistance) {
+        return aTaskDistance.compareTo(bTaskDistance);
+      }
+
+      final aCompetencyGrade = GermanCompetencyCatalog.definition(
+        a.competencyId,
+      ).recommendedFromGrade;
+      final bCompetencyGrade = GermanCompetencyCatalog.definition(
+        b.competencyId,
+      ).recommendedFromGrade;
+      final aCompetencyDistance = gradeLevel.index - aCompetencyGrade.index;
+      final bCompetencyDistance = gradeLevel.index - bCompetencyGrade.index;
+      if (aCompetencyDistance != bCompetencyDistance) {
+        return aCompetencyDistance.compareTo(bCompetencyDistance);
+      }
+
       final aUsage = usage[a.id];
       final bUsage = usage[b.id];
       final aCount = aUsage?.count ?? 0;
