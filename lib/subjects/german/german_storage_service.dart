@@ -15,6 +15,8 @@ class GermanStorageService {
   static const _historyKey = 'history_v1';
   static const _roundDraftKey = 'round_draft_v1';
   static const _introCompleteKey = 'intro_complete_v1';
+  static final Map<String, Future<void>> _historyMutations =
+      <String, Future<void>>{};
 
   final String profileId;
 
@@ -25,6 +27,18 @@ class GermanStorageService {
       _keyspace.profileKey(profileId, _introCompleteKey);
 
   Future<List<GermanSessionResult>> loadHistory() async {
+    final pending = _historyMutations[_profileHistoryKey];
+    if (pending != null) {
+      try {
+        await pending;
+      } catch (_) {
+        // A failed prior write must not make local progress unreadable.
+      }
+    }
+    return _loadHistoryUnlocked();
+  }
+
+  Future<List<GermanSessionResult>> _loadHistoryUnlocked() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_profileHistoryKey);
     if (raw == null) return <GermanSessionResult>[];
@@ -49,7 +63,14 @@ class GermanStorageService {
     }
   }
 
-  Future<void> saveHistory(Iterable<GermanSessionResult> history) async {
+  Future<void> saveHistory(Iterable<GermanSessionResult> history) {
+    final snapshot = history.toList(growable: false);
+    return _enqueueHistoryMutation(() => _saveHistoryUnlocked(snapshot));
+  }
+
+  Future<void> _saveHistoryUnlocked(
+    Iterable<GermanSessionResult> history,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final values = GermanHistoryScope.unique(history)
       ..sort((a, b) => b.finishedAt.compareTo(a.finishedAt));
@@ -59,14 +80,31 @@ class GermanStorageService {
     );
   }
 
-  Future<void> appendSession(GermanSessionResult result) async {
-    final history = await loadHistory();
-    if (history.any(
-      (existing) => existing.evidenceIdentity == result.evidenceIdentity,
-    )) {
-      return;
-    }
-    await saveHistory(<GermanSessionResult>[result, ...history]);
+  Future<void> appendSession(GermanSessionResult result) =>
+      _enqueueHistoryMutation(() async {
+        final history = await _loadHistoryUnlocked();
+        if (history.any(
+          (existing) => existing.evidenceIdentity == result.evidenceIdentity,
+        )) {
+          return;
+        }
+        await _saveHistoryUnlocked(<GermanSessionResult>[result, ...history]);
+      });
+
+  Future<void> _enqueueHistoryMutation(Future<void> Function() mutation) {
+    final key = _profileHistoryKey;
+    final previous = _historyMutations[key] ?? Future<void>.value();
+    late final Future<void> operation;
+    operation = previous
+        .catchError((_) {})
+        .then((_) => mutation())
+        .whenComplete(() {
+          if (identical(_historyMutations[key], operation)) {
+            _historyMutations.remove(key);
+          }
+        });
+    _historyMutations[key] = operation;
+    return operation;
   }
 
   Future<GermanRoundDraft?> loadRoundDraft() async {
@@ -104,8 +142,11 @@ class GermanStorageService {
   }
 
   Future<void> clear() async {
+    await _enqueueHistoryMutation(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_profileHistoryKey);
+    });
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_profileHistoryKey);
     await prefs.remove(_profileRoundDraftKey);
     await prefs.remove(_profileIntroCompleteKey);
   }

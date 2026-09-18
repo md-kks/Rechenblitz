@@ -82,6 +82,67 @@ void main() {
     expect(history.single.taskResults.single.taskId, 'same-round');
   });
 
+  test(
+    'concurrent German session appends preserve every distinct round',
+    () async {
+      final storage = GermanStorageService(profileId: 'child');
+      final sessions = List<GermanSessionResult>.generate(
+        24,
+        (index) => _session(
+          GermanCompetencyId.wordRecognition,
+          correct: index.isEven,
+          taskId: 'parallel-$index',
+          finishedAt: DateTime(2026, 9, 18, 12).add(Duration(minutes: index)),
+        ),
+      );
+
+      await Future.wait<void>(sessions.map(storage.appendSession));
+
+      final history = await storage.loadHistory();
+      expect(history, hasLength(24));
+      expect(
+        history.map((session) => session.taskResults.single.taskId).toSet(),
+        sessions.map((session) => session.taskResults.single.taskId).toSet(),
+      );
+    },
+  );
+
+  test('concurrent duplicate appends still store one German round', () async {
+    final storage = GermanStorageService(profileId: 'child');
+    final session = _session(
+      GermanCompetencyId.wordRecognition,
+      correct: true,
+      taskId: 'parallel-same',
+      finishedAt: DateTime(2026, 9, 18, 12),
+    );
+
+    await Future.wait<void>(
+      List<Future<void>>.generate(12, (_) => storage.appendSession(session)),
+    );
+
+    expect(await storage.loadHistory(), hasLength(1));
+  });
+
+  test('clear waits for queued German history writes', () async {
+    final storage = GermanStorageService(profileId: 'child');
+    final writes = List<Future<void>>.generate(
+      8,
+      (index) => storage.appendSession(
+        _session(
+          GermanCompetencyId.wordRecognition,
+          correct: true,
+          taskId: 'before-clear-$index',
+          finishedAt: DateTime(2026, 9, 18, 12).add(Duration(minutes: index)),
+        ),
+      ),
+    );
+
+    final clear = storage.clear();
+    await Future.wait<void>(<Future<void>>[...writes, clear]);
+
+    expect(await storage.loadHistory(), isEmpty);
+  });
+
   test('duplicate session cannot inflate competency evidence', () {
     final session = _session(
       GermanCompetencyId.wordRecognition,
