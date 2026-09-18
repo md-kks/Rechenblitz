@@ -14,6 +14,7 @@ extension CurriculumCoverageX on CurriculumCoverage {
 
 enum CurriculumDomainScheme {
   standardFour,
+  standardFivePatterns,
   thuringia,
   berlinBrandenburg,
   hamburgFive,
@@ -24,6 +25,7 @@ enum CurriculumProgressionModel {
   gradePairs,
   observedGradePair,
   schoolEntryPhaseThenAnnual,
+  schoolEntryPhaseThenPrimaryEnd,
   frameworkLevels,
   primaryEnd,
 }
@@ -37,6 +39,8 @@ extension CurriculumProgressionModelX on CurriculumProgressionModel {
       'Beobachtung Ende 2 / Anforderungen Ende 4',
     CurriculumProgressionModel.schoolEntryPhaseThenAnnual =>
       'Schuleingangsphase 1/2, danach Jahrgang 3 und 4',
+    CurriculumProgressionModel.schoolEntryPhaseThenPrimaryEnd =>
+      'Schuleingangsphase 1/2, danach Anforderungen Ende Klasse 4',
     CurriculumProgressionModel.frameworkLevels =>
       'Niveaustufen über Jahrgangsbänder',
     CurriculumProgressionModel.primaryEnd =>
@@ -246,11 +250,14 @@ class CurriculumAuditCatalog {
       state: GermanState.lowerSaxony,
       code: 'NI',
       sourceTitle: 'Kerncurriculum Mathematik – Primarbereich',
-      sourceVersion: 'in Kraft seit 01.08.2025',
+      sourceVersion: 'Kerncurriculum 2025, gültig seit 01.08.2025',
       authority: 'Niedersächsische Kultusverwaltung',
       structureNote:
-          'Das Kerncurriculum verbindet prozessbezogene und inhaltsbezogene Kompetenzen auf Grundlage der aktuellen Bildungsstandards.',
+          'Das Kerncurriculum verbindet prozessbezogene und inhaltsbezogene Kompetenzen und formuliert verbindliche Ergebnisse am Ende der Schuljahrgänge 2 und 4.',
       domainScheme: CurriculumDomainScheme.standardFour,
+      progressionModel: CurriculumProgressionModel.gradePairs,
+      earlyProgressionNote:
+          'Bis Ende Klasse 2 werden Daten in Strichlisten, Tabellen und einfachen Diagrammen erfasst und gelesen; einfache Kombinatorik und Zufallsexperimente mit sicher, möglich und unmöglich sind ebenfalls vorgesehen.',
     ),
     GermanState.northRhineWestphalia: CurriculumStateProfile(
       state: GermanState.northRhineWestphalia,
@@ -282,11 +289,14 @@ class CurriculumAuditCatalog {
       state: GermanState.saarland,
       code: 'SL',
       sourceTitle: 'Kernlehrplan Mathematik Grundschule',
-      sourceVersion: 'neue Fassung ab 01.08.2026',
+      sourceVersion: 'Kernlehrplan 2026, gültig seit 01.08.2026',
       authority: 'Ministerium für Bildung und Kultur Saarland',
       structureNote:
-          'Der aktuelle Kernlehrplan greift die Bildungsstandards auf und ordnet die Kompetenzentwicklung für die Grundschule.',
-      domainScheme: CurriculumDomainScheme.standardFour,
+          'Der Kernlehrplan bündelt die Kompetenzerwartungen für die Klassenstufen 1/2 und 3/4 und gliedert die Inhalte unter anderem in Zahlen und Operationen, Größen und Messen, Muster und Strukturen, Raum und Form sowie Daten und Zufall.',
+      domainScheme: CurriculumDomainScheme.standardFivePatterns,
+      progressionModel: CurriculumProgressionModel.gradePairs,
+      earlyProgressionNote:
+          'Für Klasse 1/2 sind das Lesen und Darstellen von Daten, einfache kombinatorische Aufgaben sowie grundlegende Zufallsexperimente und Wahrscheinlichkeitsaussagen vorgesehen.',
     ),
     GermanState.saxony: CurriculumStateProfile(
       state: GermanState.saxony,
@@ -304,12 +314,16 @@ class CurriculumAuditCatalog {
       state: GermanState.saxonyAnhalt,
       code: 'ST',
       sourceTitle: 'Fachlehrplan Grundschule – Mathematik',
-      sourceVersion: 'überarbeitete Fassung, in Kraft seit 01.08.2026',
+      sourceVersion: 'Stand 01.08.2026, in Kraft seit 01.08.2026',
       authority:
           'Landesinstitut für Schulqualität und Lehrerbildung Sachsen-Anhalt',
       structureNote:
-          'Inhaltsbezogene Kompetenzen sind nach Zahlen und Operationen, Größen und Messen, Raum und Form sowie Daten, Häufigkeit und Wahrscheinlichkeit gegliedert.',
-      domainScheme: CurriculumDomainScheme.standardFour,
+          'Der Fachlehrplan gliedert die inhaltsbezogenen Kompetenzen in Zahl und Operation, Raum und Form, Muster, Strukturen und funktionaler Zusammenhang, Größen und Messen sowie Daten und Zufall. Erwartungshorizonte werden für die Schuleingangsphase und das Ende der Grundschule gebündelt.',
+      domainScheme: CurriculumDomainScheme.standardFivePatterns,
+      progressionModel:
+          CurriculumProgressionModel.schoolEntryPhaseThenPrimaryEnd,
+      earlyProgressionNote:
+          'In der Schuleingangsphase werden Daten mit Strichlisten, Tabellen und Diagrammen erfasst, einfache kombinatorische Aufgaben bearbeitet und Zufallsexperimente mit sicher, möglich und unmöglich untersucht.',
     ),
     GermanState.schleswigHolstein: CurriculumStateProfile(
       state: GermanState.schleswigHolstein,
@@ -329,12 +343,18 @@ class CurriculumAuditCatalog {
       state: GermanState.thuringia,
       code: 'TH',
       sourceTitle:
-          'Lehrplan für die Grundschule und Förderschule mit Bildungsgang Grundschule – Mathematik',
-      sourceVersion: '2010',
-      authority: 'Thüringer Kultusverwaltung / ThILLM',
+          'Lehrplan Mathematik Grundschule – Übergang im Schuljahr 2026/27',
+      sourceVersion:
+          'Erprobungsfassung 2026 für Klassen 1/3; Lehrplan 2010 für Klassen 2/4',
+      authority:
+          'Thüringer Ministerium für Bildung, Wissenschaft und Kultur / ThILLM',
       structureNote:
-          'Drei Lernbereiche: Arithmetik, Größen und Geometrie. Die KMK-Leitideen einschließlich Daten und Zufall sind darin integriert.',
+          'Die Erprobungsfassung 2026 arbeitet mit den fünf Leitideen einschließlich Daten und Zufall; der auslaufende Lehrplan 2010 ordnet dieselben Bildungsstandards in Arithmetik, Größen und Geometrie ein.',
       domainScheme: CurriculumDomainScheme.thuringia,
+      transitionNote:
+          'Im Schuljahr 2026/27 wächst der neue Lehrplan jahrgangsweise auf: Klassen 1 und 3 arbeiten mit der Erprobungsfassung 2026, Klassen 2 und 4 weiterhin mit dem Lehrplan 2010. Rechenblitz hält deshalb die Klassenstufenfolge konservativ und erfindet keine gemeinsamen 1/2- oder 3/4-Checkpoints.',
+      earlyProgressionNote:
+          'Die neue Erprobungsfassung enthält bereits in Klasse 1 Daten und Zufall. Wegen des gemischten Übergangsjahres wird daraus bewusst keine pauschale Freigabe für das gesamte Lernband 1/2 abgeleitet.',
     ),
   };
 
@@ -384,6 +404,12 @@ class CurriculumAuditCatalog {
       MicroCompetencyId.probabilityReasoning: GradeLevel.second,
       MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
     },
+    GermanState.lowerSaxony: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
     GermanState.northRhineWestphalia: {
       MicroCompetencyId.dataReading: GradeLevel.second,
       MicroCompetencyId.tallyTableReading: GradeLevel.second,
@@ -401,7 +427,19 @@ class CurriculumAuditCatalog {
       MicroCompetencyId.tallyTableReading: GradeLevel.second,
       MicroCompetencyId.probabilityReasoning: GradeLevel.second,
     },
+    GermanState.saarland: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
     GermanState.saxony: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
+    GermanState.saxonyAnhalt: {
       MicroCompetencyId.dataReading: GradeLevel.second,
       MicroCompetencyId.tallyTableReading: GradeLevel.second,
       MicroCompetencyId.probabilityReasoning: GradeLevel.second,
@@ -462,6 +500,10 @@ class CurriculumAuditCatalog {
             : GradeLevel.fourth,
       CurriculumProgressionModel.schoolEntryPhaseThenAnnual =>
         earliest.index <= GradeLevel.second.index ? GradeLevel.second : earliest,
+      CurriculumProgressionModel.schoolEntryPhaseThenPrimaryEnd =>
+        earliest.index <= GradeLevel.second.index
+            ? GradeLevel.second
+            : GradeLevel.fourth,
       CurriculumProgressionModel.primaryEnd => GradeLevel.fourth,
       CurriculumProgressionModel.stateSequence => earliest,
     };
@@ -504,6 +546,10 @@ class CurriculumAuditCatalog {
           checkpoint == GradeLevel.second
               ? 'bis Ende der Schuleingangsphase sichern'
               : 'im Jahrgang ${checkpoint.label} sichern',
+        CurriculumProgressionModel.schoolEntryPhaseThenPrimaryEnd =>
+          checkpoint == GradeLevel.second
+              ? 'bis Ende der Schuleingangsphase sichern'
+              : 'bis Ende Klasse 4 sichern',
         CurriculumProgressionModel.frameworkLevels =>
           'Niveaustufe des Jahrgangsbands sichern',
         CurriculumProgressionModel.primaryEnd => 'bis Ende Klasse 4 sichern',
@@ -528,6 +574,10 @@ class CurriculumAuditCatalog {
         checkpoint == GradeLevel.second
             ? 'in der Schuleingangsphase bis Ende Klasse 2 aufbauen'
             : 'im Jahrgang ${checkpoint.label} aufbauen',
+      CurriculumProgressionModel.schoolEntryPhaseThenPrimaryEnd =>
+        checkpoint == GradeLevel.second
+            ? 'in der Schuleingangsphase bis Ende Klasse 2 aufbauen'
+            : 'auf die Anforderungen Ende Klasse 4 aufbauen',
       CurriculumProgressionModel.frameworkLevels =>
         'im aktuellen Niveaustufen-Band aufbauen',
       CurriculumProgressionModel.primaryEnd =>
@@ -622,7 +672,10 @@ class CurriculumAuditCatalog {
       return 'Gleichungen und Funktionen';
     }
 
-    if (profile.domainScheme == CurriculumDomainScheme.hamburgFive &&
+    if (const {
+          CurriculumDomainScheme.hamburgFive,
+          CurriculumDomainScheme.standardFivePatterns,
+        }.contains(profile.domainScheme) &&
         const {
           MicroCompetencyId.numberPatterns,
           MicroCompetencyId.numberRelations,

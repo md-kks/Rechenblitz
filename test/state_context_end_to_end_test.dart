@@ -62,10 +62,10 @@ void main() {
 
     expect(earlyData.isCompatibleWithState(GermanState.bavaria), isTrue);
     expect(
-      earlyData.isCompatibleWithState(GermanState.lowerSaxony),
+      earlyData.isCompatibleWithState(GermanState.thuringia),
       isFalse,
     );
-    expect(generic.isCompatibleWithState(GermanState.lowerSaxony), isTrue);
+    expect(generic.isCompatibleWithState(GermanState.thuringia), isTrue);
     expect(earlyData.toJson().containsKey('state'), isFalse);
     expect(generic.toJson().containsKey('state'), isFalse);
 
@@ -78,7 +78,7 @@ void main() {
     );
     expect(legacyModeOnly.isCompatibleWithState(GermanState.bavaria), isTrue);
     expect(
-      legacyModeOnly.isCompatibleWithState(GermanState.lowerSaxony),
+      legacyModeOnly.isCompatibleWithState(GermanState.thuringia),
       isFalse,
     );
   });
@@ -190,21 +190,21 @@ void main() {
     expect(dataGroup, findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
-    final lowerSaxony = AppController();
-    await lowerSaxony.load();
-    lowerSaxony.gradeLevel = GradeLevel.second;
-    lowerSaxony.numberRange = NumberRangeLevel.hundred;
-    await lowerSaxony.setProfileState(GermanState.lowerSaxony);
+    final thuringia = AppController();
+    await thuringia.load();
+    thuringia.gradeLevel = GradeLevel.second;
+    thuringia.numberRange = NumberRangeLevel.hundred;
+    await thuringia.setProfileState(GermanState.thuringia);
     expect(
-      lowerSaxony.learningModesForGrade(GradeLevel.second),
+      thuringia.learningModesForGrade(GradeLevel.second),
       isNot(contains(TrainingMode.dataCharts)),
     );
     expect(
-      lowerSaxony.learningModesForGrade(GradeLevel.second),
+      thuringia.learningModesForGrade(GradeLevel.second),
       isNot(contains(TrainingMode.probability)),
     );
     expect(
-      lowerSaxony.learningModesForGrade(GradeLevel.second),
+      thuringia.learningModesForGrade(GradeLevel.second),
       isNot(contains(TrainingMode.combinatorics)),
     );
   });

@@ -80,9 +80,12 @@ void main() {
       GermanState.hamburg,
       GermanState.hesse,
       GermanState.mecklenburgVorpommern,
+      GermanState.lowerSaxony,
       GermanState.northRhineWestphalia,
       GermanState.rhinelandPalatinate,
+      GermanState.saarland,
       GermanState.saxony,
+      GermanState.saxonyAnhalt,
       GermanState.schleswigHolstein,
     };
 
@@ -103,10 +106,6 @@ void main() {
       );
     }
 
-    expect(
-      CurriculumAuditCatalog.earlyStateCompetencies(GermanState.lowerSaxony),
-      isEmpty,
-    );
     expect(
       CurriculumAuditCatalog.earlyStateCompetencies(GermanState.thuringia),
       isEmpty,
@@ -230,54 +229,151 @@ void main() {
     expect(combo.checkpointGrade, GradeLevel.second);
   });
 
-  test('Mecklenburg-Vorpommern bildet Schuleingangsphase plus Jahrgänge ab', () {
-    final profile = CurriculumAuditCatalog.profileFor(
-      GermanState.mecklenburgVorpommern,
-    );
-    expect(
-      profile.progressionModel,
-      CurriculumProgressionModel.schoolEntryPhaseThenAnnual,
-    );
+  test(
+    'Mecklenburg-Vorpommern bildet Schuleingangsphase plus Jahrgänge ab',
+    () {
+      final profile = CurriculumAuditCatalog.profileFor(
+        GermanState.mecklenburgVorpommern,
+      );
+      expect(
+        profile.progressionModel,
+        CurriculumProgressionModel.schoolEntryPhaseThenAnnual,
+      );
 
-    final entryPhase = CurriculumAuditCatalog.progressionFor(
-      GermanState.mecklenburgVorpommern,
-      GradeLevel.second,
+      final entryPhase = CurriculumAuditCatalog.progressionFor(
+        GermanState.mecklenburgVorpommern,
+        GradeLevel.second,
+        MicroCompetencyId.probabilityReasoning,
+      );
+      expect(entryPhase.stage, CurriculumProgressionStage.dueNow);
+      expect(entryPhase.checkpointGrade, GradeLevel.second);
+      expect(entryPhase.label, contains('Schuleingangsphase'));
+
+      final gradeThree = CurriculumAuditCatalog.progressionFor(
+        GermanState.mecklenburgVorpommern,
+        GradeLevel.third,
+        MicroCompetencyId.writtenAlignment,
+      );
+      expect(gradeThree.stage, CurriculumProgressionStage.dueNow);
+      expect(gradeThree.checkpointGrade, GradeLevel.third);
+      expect(gradeThree.label, contains('Klasse 3'));
+    },
+  );
+
+  test(
+    'Hessen öffnet frühe Lernwelten ohne künstlichen Klasse-2-Regelstandard',
+    () {
+      final profile = CurriculumAuditCatalog.profileFor(GermanState.hesse);
+      expect(profile.progressionModel, CurriculumProgressionModel.primaryEnd);
+      expect(profile.earlyProgressionNote, isNotEmpty);
+
+      final data = CurriculumAuditCatalog.progressionFor(
+        GermanState.hesse,
+        GradeLevel.second,
+        MicroCompetencyId.dataReading,
+      );
+      expect(data.stage, CurriculumProgressionStage.building);
+      expect(data.checkpointGrade, GradeLevel.fourth);
+
+      final combo = CurriculumAuditCatalog.progressionFor(
+        GermanState.hesse,
+        GradeLevel.second,
+        MicroCompetencyId.combinatoricsSystematic,
+      );
+      expect(combo.stage, CurriculumProgressionStage.building);
+      expect(combo.checkpointGrade, GradeLevel.fourth);
+    },
+  );
+
+  test('Niedersachsen nutzt die verbindlichen Checkpoints Ende 2 und 4', () {
+    final profile = CurriculumAuditCatalog.profileFor(GermanState.lowerSaxony);
+    expect(profile.sourceVersion, contains('2025'));
+    expect(profile.progressionModel, CurriculumProgressionModel.gradePairs);
+
+    for (final id in <MicroCompetencyId>[
+      MicroCompetencyId.dataReading,
+      MicroCompetencyId.tallyTableReading,
       MicroCompetencyId.probabilityReasoning,
-    );
-    expect(entryPhase.stage, CurriculumProgressionStage.dueNow);
-    expect(entryPhase.checkpointGrade, GradeLevel.second);
-    expect(entryPhase.label, contains('Schuleingangsphase'));
-
-    final gradeThree = CurriculumAuditCatalog.progressionFor(
-      GermanState.mecklenburgVorpommern,
-      GradeLevel.third,
-      MicroCompetencyId.writtenAlignment,
-    );
-    expect(gradeThree.stage, CurriculumProgressionStage.dueNow);
-    expect(gradeThree.checkpointGrade, GradeLevel.third);
-    expect(gradeThree.label, contains('Klasse 3'));
+      MicroCompetencyId.combinatoricsSystematic,
+    ]) {
+      final progression = CurriculumAuditCatalog.progressionFor(
+        GermanState.lowerSaxony,
+        GradeLevel.second,
+        id,
+      );
+      expect(progression.stage, CurriculumProgressionStage.dueNow);
+      expect(progression.checkpointGrade, GradeLevel.second);
+    }
   });
 
-  test('Hessen öffnet frühe Lernwelten ohne künstlichen Klasse-2-Regelstandard', () {
-    final profile = CurriculumAuditCatalog.profileFor(GermanState.hesse);
-    expect(profile.progressionModel, CurriculumProgressionModel.primaryEnd);
-    expect(profile.earlyProgressionNote, isNotEmpty);
-
-    final data = CurriculumAuditCatalog.progressionFor(
-      GermanState.hesse,
-      GradeLevel.second,
-      MicroCompetencyId.dataReading,
-    );
-    expect(data.stage, CurriculumProgressionStage.building);
-    expect(data.checkpointGrade, GradeLevel.fourth);
+  test('Saarland bildet den aktuellen Kernlehrplan als Doppeljahrgang ab', () {
+    final profile = CurriculumAuditCatalog.profileFor(GermanState.saarland);
+    expect(profile.sourceVersion, contains('2026'));
+    expect(profile.progressionModel, CurriculumProgressionModel.gradePairs);
 
     final combo = CurriculumAuditCatalog.progressionFor(
-      GermanState.hesse,
+      GermanState.saarland,
       GradeLevel.second,
       MicroCompetencyId.combinatoricsSystematic,
     );
-    expect(combo.stage, CurriculumProgressionStage.building);
-    expect(combo.checkpointGrade, GradeLevel.fourth);
+    expect(combo.stage, CurriculumProgressionStage.dueNow);
+    expect(combo.checkpointGrade, GradeLevel.second);
+
+    final patterns = CurriculumAuditCatalog.objectivesFor(GermanState.saarland)
+        .firstWhere(
+          (objective) =>
+              objective.competency == MicroCompetencyId.numberPatterns,
+        );
+    expect(patterns.domain, 'Muster, Strukturen und funktionaler Zusammenhang');
+  });
+
+  test('Sachsen-Anhalt bündelt Schuleingangsphase und Abschluss Ende 4', () {
+    final profile = CurriculumAuditCatalog.profileFor(GermanState.saxonyAnhalt);
+    expect(
+      profile.progressionModel,
+      CurriculumProgressionModel.schoolEntryPhaseThenPrimaryEnd,
+    );
+    expect(profile.sourceVersion, contains('01.08.2026'));
+
+    final early = CurriculumAuditCatalog.progressionFor(
+      GermanState.saxonyAnhalt,
+      GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning,
+    );
+    expect(early.stage, CurriculumProgressionStage.dueNow);
+    expect(early.checkpointGrade, GradeLevel.second);
+    expect(early.label, contains('Schuleingangsphase'));
+
+    final later = CurriculumAuditCatalog.progressionFor(
+      GermanState.saxonyAnhalt,
+      GradeLevel.third,
+      MicroCompetencyId.writtenAlignment,
+    );
+    expect(later.stage, CurriculumProgressionStage.building);
+    expect(later.checkpointGrade, GradeLevel.fourth);
+    expect(later.label, contains('Ende Klasse 4'));
+
+    final patterns =
+        CurriculumAuditCatalog.objectivesFor(
+          GermanState.saxonyAnhalt,
+        ).firstWhere(
+          (objective) =>
+              objective.competency == MicroCompetencyId.numberPatterns,
+        );
+    expect(patterns.domain, 'Muster, Strukturen und funktionaler Zusammenhang');
+  });
+
+  test('Thüringen bildet das gemischte Übergangsjahr konservativ ab', () {
+    final profile = CurriculumAuditCatalog.profileFor(GermanState.thuringia);
+    expect(profile.progressionModel, CurriculumProgressionModel.stateSequence);
+    expect(profile.sourceVersion, contains('Klassen 1/3'));
+    expect(profile.sourceVersion, contains('Klassen 2/4'));
+    expect(profile.transitionNote, contains('2026/27'));
+    expect(profile.earlyProgressionNote, contains('keine pauschale Freigabe'));
+    expect(
+      CurriculumAuditCatalog.earlyStateCompetencies(GermanState.thuringia),
+      isEmpty,
+    );
   });
 
   testWidgets('Lehrplan-Audit erklärt Hamburgs frühe Progression sichtbar', (
@@ -303,12 +399,12 @@ void main() {
     expect(find.textContaining('18.09.2026'), findsOneWidget);
   });
 
-  testWidgets('Lehrplan-Audit zeigt ohne Sonderfreigabe keinen Frühhinweis', (
+  testWidgets('Lehrplan-Audit zeigt Thüringens Übergang 2026/27 sichtbar', (
     tester,
   ) async {
     final controller = AppController();
     await controller.load();
-    await controller.setProfileState(GermanState.lowerSaxony);
+    await controller.setProfileState(GermanState.thuringia);
 
     await tester.pumpWidget(
       MaterialApp(home: CurriculumAuditScreen(controller: controller)),
@@ -317,7 +413,9 @@ void main() {
 
     expect(
       find.byKey(const ValueKey('curriculum-early-progression-note')),
-      findsNothing,
+      findsOneWidget,
     );
+    expect(find.textContaining('Klassen 1 und 3'), findsOneWidget);
+    expect(find.textContaining('Klassen 2 und 4'), findsOneWidget);
   });
 }

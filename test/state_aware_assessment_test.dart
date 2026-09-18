@@ -22,21 +22,21 @@ void main() {
       range: NumberRangeLevel.hundred,
       state: GermanState.bavaria,
     );
-    final lowerSaxony = AssessmentGenerator(random: Random(4201)).generate(
+    final thuringia = AssessmentGenerator(random: Random(4201)).generate(
       grade: GradeLevel.second,
       range: NumberRangeLevel.hundred,
-      state: GermanState.lowerSaxony,
+      state: GermanState.thuringia,
     );
 
     expect(bavaria, hasLength(12));
-    expect(lowerSaxony, hasLength(12));
+    expect(thuringia, hasLength(12));
     final bavariaModes = bavaria.map((task) => task.mode).toSet();
-    final lowerSaxonyModes = lowerSaxony.map((task) => task.mode).toSet();
+    final thuringiaModes = thuringia.map((task) => task.mode).toSet();
 
     expect(bavariaModes, contains(TrainingMode.dataCharts));
     expect(bavariaModes, contains(TrainingMode.probability));
-    expect(lowerSaxonyModes, isNot(contains(TrainingMode.dataCharts)));
-    expect(lowerSaxonyModes, isNot(contains(TrainingMode.probability)));
+    expect(thuringiaModes, isNot(contains(TrainingMode.dataCharts)));
+    expect(thuringiaModes, isNot(contains(TrainingMode.probability)));
   });
 
   test('Landesziele erzeugen passende Mikro-Kompetenz-Evidenz', () {
@@ -109,7 +109,7 @@ void main() {
     final progress = AssessmentProgress(
       gradeLevel: GradeLevel.second,
       numberRange: NumberRangeLevel.hundred,
-      state: GermanState.lowerSaxony,
+      state: GermanState.thuringia,
       tasks: const <AssessmentTask>[
         AssessmentTask(
           mode: TrainingMode.probability,

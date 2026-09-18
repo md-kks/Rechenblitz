@@ -116,9 +116,12 @@ void main() {
         GermanState.hamburg,
         GermanState.hesse,
         GermanState.mecklenburgVorpommern,
+        GermanState.lowerSaxony,
         GermanState.northRhineWestphalia,
         GermanState.rhinelandPalatinate,
+        GermanState.saarland,
         GermanState.saxony,
+        GermanState.saxonyAnhalt,
         GermanState.schleswigHolstein,
       ];
       for (final state in earlyStates) {
@@ -149,9 +152,6 @@ void main() {
       }
 
       for (final state in <GermanState>[
-        GermanState.lowerSaxony,
-        GermanState.saarland,
-        GermanState.saxonyAnhalt,
         GermanState.thuringia,
       ]) {
         final ids = CurriculumAuditCatalog.definitionsForGrade(
@@ -176,8 +176,11 @@ void main() {
       GermanState.hamburg,
       GermanState.hesse,
       GermanState.mecklenburgVorpommern,
+      GermanState.lowerSaxony,
       GermanState.northRhineWestphalia,
+      GermanState.saarland,
       GermanState.saxony,
+      GermanState.saxonyAnhalt,
       GermanState.schleswigHolstein,
     ]) {
       expect(
@@ -235,14 +238,14 @@ void main() {
     expect(bavarianModes, contains(TrainingMode.probability));
     expect(bavarianModes, contains(TrainingMode.combinatorics));
 
-    final lowerSaxony = AppController();
-    await lowerSaxony.load();
-    await lowerSaxony.setProfileState(GermanState.lowerSaxony);
-    final lowerSaxonyModes =
-        lowerSaxony.learningModesForGrade(GradeLevel.second);
-    expect(lowerSaxonyModes, isNot(contains(TrainingMode.dataCharts)));
-    expect(lowerSaxonyModes, isNot(contains(TrainingMode.probability)));
-    expect(lowerSaxonyModes, isNot(contains(TrainingMode.combinatorics)));
+    final thuringia = AppController();
+    await thuringia.load();
+    await thuringia.setProfileState(GermanState.thuringia);
+    final thuringiaModes =
+        thuringia.learningModesForGrade(GradeLevel.second);
+    expect(thuringiaModes, isNot(contains(TrainingMode.dataCharts)));
+    expect(thuringiaModes, isNot(contains(TrainingMode.probability)));
+    expect(thuringiaModes, isNot(contains(TrainingMode.combinatorics)));
   });
 
   test('Controller sieht landesspezifisch vorgezogene Ziele', () async {
@@ -252,11 +255,11 @@ void main() {
     bavaria.numberRange = NumberRangeLevel.hundred;
     await bavaria.setProfileState(GermanState.bavaria);
 
-    final lowerSaxony = AppController();
-    await lowerSaxony.load();
-    lowerSaxony.gradeLevel = GradeLevel.second;
-    lowerSaxony.numberRange = NumberRangeLevel.hundred;
-    await lowerSaxony.setProfileState(GermanState.lowerSaxony);
+    final thuringia = AppController();
+    await thuringia.load();
+    thuringia.gradeLevel = GradeLevel.second;
+    thuringia.numberRange = NumberRangeLevel.hundred;
+    await thuringia.setProfileState(GermanState.thuringia);
 
     expect(
       bavaria
@@ -265,7 +268,7 @@ void main() {
       contains(MicroCompetencyId.probabilityReasoning),
     );
     expect(
-      lowerSaxony.microCompetenciesForMode(TrainingMode.probability),
+      thuringia.microCompetenciesForMode(TrainingMode.probability),
       isEmpty,
     );
   });
@@ -304,13 +307,13 @@ void main() {
         MicroCompetencyId.probabilityReasoning,
       );
 
-      final lowerSaxony = AppController();
-      await lowerSaxony.load();
-      lowerSaxony.gradeLevel = GradeLevel.second;
-      lowerSaxony.numberRange = NumberRangeLevel.hundred;
-      await lowerSaxony.setProfileState(GermanState.lowerSaxony);
+      final thuringia = AppController();
+      await thuringia.load();
+      thuringia.gradeLevel = GradeLevel.second;
+      thuringia.numberRange = NumberRangeLevel.hundred;
+      await thuringia.setProfileState(GermanState.thuringia);
       expect(
-        lowerSaxony.nextNewMicroCompetency(excluding: excluded),
+        thuringia.nextNewMicroCompetency(excluding: excluded),
         isNull,
       );
     },
