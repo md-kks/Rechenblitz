@@ -33,7 +33,21 @@ class GermanPracticePlanner {
         )
         .toSet();
     final evenShare = (taskCount / domains.length).ceil();
-    final domainCap = evenShare < 2 ? 2 : evenShare;
+    final balancedDomainCap = evenShare < 1 ? 1 : evenShare;
+    final focusedDomains = <GermanLearningDomain>{};
+    for (final task in ranked) {
+      final progress = GermanProgressAnalyzer.forCompetency(
+        task.competencyId,
+        history,
+      );
+      if (_priorityBucket(progress, now: now) <= 1) {
+        focusedDomains.add(
+          GermanCompetencyCatalog.definition(task.competencyId).domain,
+        );
+      }
+    }
+    final hasAdaptiveFocus = focusedDomains.isNotEmpty;
+    final adaptiveDomainCap = balancedDomainCap + 1;
     final selected = <GermanTask>[];
     final selectedIds = <String>{};
     final domainCount = <GermanLearningDomain, int>{};
@@ -50,11 +64,37 @@ class GermanPracticePlanner {
           (competencyCount[task.competencyId] ?? 0) + 1;
     }
 
+    // First guarantee broad subject coverage before adding adaptive extras.
     for (final task in ranked) {
       final domain = GermanCompetencyCatalog.definition(
         task.competencyId,
       ).domain;
-      if ((domainCount[domain] ?? 0) >= domainCap) continue;
+      if ((domainCount[domain] ?? 0) > 0) continue;
+      add(task);
+      if (selected.length == taskCount) return selected;
+    }
+
+    if (hasAdaptiveFocus) {
+      for (final task in ranked) {
+        if (selectedIds.contains(task.id)) continue;
+        final domain = GermanCompetencyCatalog.definition(
+          task.competencyId,
+        ).domain;
+        if (!focusedDomains.contains(domain)) continue;
+        if ((domainCount[domain] ?? 0) >= adaptiveDomainCap) continue;
+        if ((competencyCount[task.competencyId] ?? 0) >= 3) continue;
+        add(task);
+        if (selected.length == taskCount) return selected;
+      }
+    }
+
+    // Fill non-focus space evenly so adaptivity does not crowd out whole areas.
+    for (final task in ranked) {
+      if (selectedIds.contains(task.id)) continue;
+      final domain = GermanCompetencyCatalog.definition(
+        task.competencyId,
+      ).domain;
+      if ((domainCount[domain] ?? 0) >= balancedDomainCap) continue;
       if ((competencyCount[task.competencyId] ?? 0) >= 1) continue;
       add(task);
       if (selected.length == taskCount) return selected;
@@ -65,9 +105,21 @@ class GermanPracticePlanner {
       final domain = GermanCompetencyCatalog.definition(
         task.competencyId,
       ).domain;
-      if ((domainCount[domain] ?? 0) >= domainCap) continue;
+      if ((domainCount[domain] ?? 0) >= balancedDomainCap) continue;
       add(task);
       if (selected.length == taskCount) return selected;
+    }
+
+    if (hasAdaptiveFocus) {
+      for (final task in ranked) {
+        if (selectedIds.contains(task.id)) continue;
+        final domain = GermanCompetencyCatalog.definition(
+          task.competencyId,
+        ).domain;
+        if ((domainCount[domain] ?? 0) >= adaptiveDomainCap) continue;
+        add(task);
+        if (selected.length == taskCount) return selected;
+      }
     }
 
     for (final task in ranked) {

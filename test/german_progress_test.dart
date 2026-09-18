@@ -217,6 +217,44 @@ void main() {
     expect(round.map((task) => task.id).toSet(), hasLength(12));
   });
 
+  test('daily round gives real weak evidence extra practice time', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        incorrectAttempts: 1,
+        finishedAt: DateTime(2026, 9, 18, 9),
+      ),
+    ];
+    final round = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.second,
+      history: history,
+      now: DateTime(2026, 9, 18, 10),
+    );
+    final domainCounts = <GermanLearningDomain, int>{};
+    for (final task in round) {
+      final domain = _domainFor(task.competencyId);
+      domainCounts[domain] = (domainCounts[domain] ?? 0) + 1;
+    }
+
+    expect(round, hasLength(12));
+    expect(domainCounts, hasLength(GermanLearningDomain.values.length));
+    expect(
+      domainCounts.values.every((count) => count >= 1 && count <= 3),
+      isTrue,
+    );
+    expect(domainCounts[GermanLearningDomain.reading], 3);
+    expect(
+      round
+          .where(
+            (task) => task.competencyId == GermanCompetencyId.wordRecognition,
+          )
+          .length,
+      3,
+    );
+    expect(round.map((task) => task.id).toSet(), hasLength(12));
+  });
+
   test('fourth-grade daily round includes productive writing', () {
     final round = GermanPracticePlanner.buildDailyRound(
       gradeLevel: GradeLevel.fourth,
