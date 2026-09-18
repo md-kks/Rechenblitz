@@ -1376,7 +1376,27 @@ class AppController extends ChangeNotifier {
       TrainingMode.proportionality,
       TrainingMode.volumeCubes,
     ];
-    return common;
+    final activeModes = CurriculumAuditCatalog.definitionsForGrade(
+      activeProfile.state,
+      grade,
+    ).map((definition) => definition.preferredMode).toSet();
+    return common.where(activeModes.contains).toList(growable: false);
+  }
+
+  bool isModeAvailableInActiveCurriculum(
+    TrainingMode mode, {
+    GradeLevel? grade,
+    NumberRangeLevel? range,
+  }) {
+    final mappedSomewhere = MicroCompetencyCatalog.definitions.any(
+      (definition) => definition.preferredMode == mode,
+    );
+    if (!mappedSomewhere) return true;
+    return CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
+      grade ?? gradeLevel,
+      range ?? numberRange,
+    ).any((definition) => definition.preferredMode == mode);
   }
 
   List<TrainingMode> learningModesForGrade(GradeLevel grade) {
@@ -4025,7 +4045,11 @@ class AppController extends ChangeNotifier {
       gradeLevel,
       numberRange,
     ).where((definition) => definition.preferredMode == mode).toList();
-    if (definitions.isEmpty) return true;
+    if (definitions.isEmpty) {
+      return !MicroCompetencyCatalog.definitions.any(
+        (definition) => definition.preferredMode == mode,
+      );
+    }
     return definitions.any(
       (definition) => _microCompetencyIsUnlocked(definition.id),
     );

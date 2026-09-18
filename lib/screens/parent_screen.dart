@@ -98,6 +98,13 @@ class _ParentScreenState extends State<ParentScreen> {
   Widget build(BuildContext context) {
     final c = widget.controller;
     final recommendation = c.recommendationText();
+    final earlyDataModes = <TrainingMode>[
+      TrainingMode.dataCharts,
+      TrainingMode.probability,
+      TrainingMode.combinatorics,
+    ]
+        .where(c.isModeAvailableInActiveCurriculum)
+        .toList(growable: false);
     final rangeReadiness = c.numberRangeReadiness();
     final gradeBridge = c.gradeBridgeStatus();
     final rangeBridge = c.numberRangeBridgeStatus();
@@ -854,6 +861,23 @@ class _ParentScreenState extends State<ParentScreen> {
                   .toList(),
             ),
           ),
+          if (c.gradeLevel.index < GradeLevel.third.index &&
+              earlyDataModes.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _Section(
+              title: 'Daten & Zufall · Landeslehrplan',
+              child: Column(
+                children: earlyDataModes
+                    .map(
+                      (mode) => _PercentBar(
+                        label: mode.title,
+                        value: c.modeAccuracy(mode),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
           if (c.gradeLevel.index >= GradeLevel.third.index) ...[
             const SizedBox(height: 14),
             _Section(
