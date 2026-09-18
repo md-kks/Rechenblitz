@@ -172,7 +172,7 @@ void main() {
         completedTaskCounts: const {GuidedRoundRole.warmUp: 2},
         gradeLevel: GradeLevel.second,
         numberRange: NumberRangeLevel.hundred,
-        startedAt: now.subtract(const Duration(minutes: 8)),
+        startedAt: now,
         updatedAt: now,
         recoveryRequired: false,
       );
