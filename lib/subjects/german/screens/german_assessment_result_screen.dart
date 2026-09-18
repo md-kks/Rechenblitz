@@ -38,6 +38,12 @@ class GermanAssessmentResultScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text('$percent % beim ersten Versuch'),
+                    if (summary.solvedAfterRetry > 0) ...<Widget>[
+                      const SizedBox(height: 6),
+                      Text(
+                        '${summary.solvedAfterRetry} ${summary.solvedAfterRetry == 1 ? 'Aufgabe' : 'Aufgaben'} nach weiteren Versuchen gelöst',
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -52,7 +58,9 @@ class GermanAssessmentResultScreen extends StatelessWidget {
                     child: ListTile(
                       title: Text(entry.domain.label),
                       subtitle: Text(
-                        '${entry.correctFirstTry} von ${entry.total} direkt richtig',
+                        entry.solvedAfterRetry == 0
+                            ? '${entry.correctFirstTry} von ${entry.total} direkt richtig'
+                            : '${entry.correctFirstTry} direkt · ${entry.solvedAfterRetry} nach weiteren Versuchen',
                       ),
                       trailing: Text('${(entry.accuracy * 100).round()} %'),
                     ),
@@ -69,6 +77,16 @@ class GermanAssessmentResultScreen extends StatelessWidget {
                 summary.nextDomains
                     .map((entry) => entry.domain.label)
                     .join(' · '),
+              ),
+              const SizedBox(height: 18),
+            ] else ...<Widget>[
+              Text(
+                'Heute direkt gelungen',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'In diesem Lerncheck waren alle Aufgaben beim ersten Versuch richtig.',
               ),
               const SizedBox(height: 18),
             ],

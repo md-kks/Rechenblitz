@@ -116,6 +116,77 @@ void main() {
     expect(summary.session.kind, GermanSessionKind.assessment);
     expect(summary.nextDomains, isNotEmpty);
   });
+  test('perfect Lerncheck does not invent a next practice domain', () {
+    final session = GermanSessionResult(
+      gradeLevel: GradeLevel.second,
+      startedAt: DateTime(2026, 9, 18, 10),
+      finishedAt: DateTime(2026, 9, 18, 10, 5),
+      kind: GermanSessionKind.assessment,
+      taskResults: const <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: 'read-perfect',
+          competencyId: GermanCompetencyId.wordRecognition,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 1000,
+        ),
+        GermanTaskResult(
+          taskId: 'language-perfect',
+          competencyId: GermanCompetencyId.nounArticle,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 1000,
+        ),
+      ],
+    );
+
+    final summary = GermanAssessmentSummary.fromSession(session);
+
+    expect(summary.solvedAfterRetry, 0);
+    expect(summary.nextDomains, isEmpty);
+    expect(
+      summary.domains
+          .where((entry) => entry.total > 0)
+          .every((entry) => entry.solvedAfterRetry == 0),
+      isTrue,
+    );
+  });
+
+  test('Lerncheck next focus only contains domains that needed retries', () {
+    final session = GermanSessionResult(
+      gradeLevel: GradeLevel.second,
+      startedAt: DateTime(2026, 9, 18, 10),
+      finishedAt: DateTime(2026, 9, 18, 10, 5),
+      kind: GermanSessionKind.assessment,
+      taskResults: const <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: 'read-retry',
+          competencyId: GermanCompetencyId.wordRecognition,
+          correctFirstTry: false,
+          incorrectAttempts: 2,
+          responseMs: 1800,
+        ),
+        GermanTaskResult(
+          taskId: 'language-direct',
+          competencyId: GermanCompetencyId.nounArticle,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+        ),
+      ],
+    );
+
+    final summary = GermanAssessmentSummary.fromSession(session);
+    final reading = summary.domains.firstWhere(
+      (entry) => entry.domain == GermanLearningDomain.reading,
+    );
+
+    expect(summary.solvedAfterRetry, 1);
+    expect(reading.solvedAfterRetry, 1);
+    expect(summary.nextDomains, hasLength(1));
+    expect(summary.nextDomains.single.domain, GermanLearningDomain.reading);
+  });
+
   test('old German session JSON defaults to normal practice', () {
     final session = GermanSessionResult.fromJson(<String, dynamic>{
       'gradeLevel': 'first',

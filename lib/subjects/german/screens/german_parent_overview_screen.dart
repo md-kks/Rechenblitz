@@ -313,7 +313,9 @@ class _AssessmentSnapshot extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '${summary.session.correctFirstTry} von ${summary.session.total} direkt richtig. Keine Note – eine Momentaufnahme für die nächste Übungsplanung.',
+            summary.solvedAfterRetry == 0
+                ? '${summary.session.correctFirstTry} von ${summary.session.total} direkt richtig. Keine Note – eine Momentaufnahme für die nächste Übungsplanung.'
+                : '${summary.session.correctFirstTry} von ${summary.session.total} direkt richtig; ${summary.solvedAfterRetry} ${summary.solvedAfterRetry == 1 ? 'Aufgabe' : 'Aufgaben'} nach weiteren Versuchen gelöst. Keine Note – eine Momentaufnahme für die nächste Übungsplanung.',
           ),
           if (summary.nextDomains.isNotEmpty) ...<Widget>[
             const SizedBox(height: 10),

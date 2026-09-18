@@ -138,6 +138,8 @@ class GermanAssessmentDomainResult {
   final int total;
   final int correctFirstTry;
 
+  int get solvedAfterRetry => total - correctFirstTry;
+
   double get accuracy => total == 0 ? 0 : correctFirstTry / total;
 }
 
@@ -153,9 +155,21 @@ class GermanAssessmentSummary {
     return values.take(2).toList(growable: false);
   }
 
+  int get solvedAfterRetry => session.total - session.correctFirstTry;
+
   List<GermanAssessmentDomainResult> get nextDomains {
-    final values = domains.where((value) => value.total > 0).toList();
-    values.sort((a, b) => a.accuracy.compareTo(b.accuracy));
+    final values = domains
+        .where(
+          (value) => value.total > 0 && value.correctFirstTry < value.total,
+        )
+        .toList();
+    values.sort((a, b) {
+      final accuracy = a.accuracy.compareTo(b.accuracy);
+      if (accuracy != 0) return accuracy;
+      final retries = b.solvedAfterRetry.compareTo(a.solvedAfterRetry);
+      if (retries != 0) return retries;
+      return a.domain.index.compareTo(b.domain.index);
+    });
     return values.take(2).toList(growable: false);
   }
 
