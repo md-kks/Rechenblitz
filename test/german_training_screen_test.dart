@@ -16,6 +16,7 @@ Widget _app({
   Future<void> Function(String)? autoSpeak,
   void Function(GermanSessionResult)? onComplete,
   bool speakCompletion = false,
+  bool supportEnabled = true,
   DateTime Function()? now,
 }) => MaterialApp(
   theme: LearningAppTheme.build(
@@ -28,6 +29,7 @@ Widget _app({
     speak: speak,
     autoSpeak: autoSpeak,
     speakCompletion: speakCompletion,
+    supportEnabled: supportEnabled,
     now: now ?? DateTime.now,
     onComplete: onComplete,
   ),
@@ -253,5 +255,40 @@ void main() {
     await tester.pump();
 
     expect(find.text('Runde geschafft'), findsWidgets);
+  });
+
+  testWidgets('typed answer gets a concrete non-spoiling correction hint', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.interaction == GermanTaskInteraction.typedText,
+    );
+    await tester.pumpWidget(_app(task: task, speak: (_) async {}));
+
+    await tester.enterText(find.byType(TextField), 'heute regnet es.');
+    await tester.tap(find.text('Prüfen'));
+    await tester.pump();
+
+    expect(find.textContaining('Groß- und Kleinschreibung'), findsOneWidget);
+    expect(find.text('Denkhinweis'), findsOneWidget);
+    expect(find.text(task.acceptedAnswers.first), findsNothing);
+  });
+
+  testWidgets('support-free round keeps wrong-answer feedback neutral', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.interaction == GermanTaskInteraction.typedText,
+    );
+    await tester.pumpWidget(
+      _app(task: task, speak: (_) async {}, supportEnabled: false),
+    );
+
+    await tester.enterText(find.byType(TextField), 'heute regnet es.');
+    await tester.tap(find.text('Prüfen'));
+    await tester.pump();
+
+    expect(find.text('Noch nicht. Versuch es noch einmal.'), findsOneWidget);
+    expect(find.text('Denkhinweis'), findsNothing);
   });
 }

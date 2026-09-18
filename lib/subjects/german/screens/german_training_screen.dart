@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/grade_level.dart';
 import '../../../models/active_response_timer.dart';
+import '../german_answer_feedback.dart';
 import '../german_round_draft.dart';
 import '../german_round_feedback.dart';
 import '../german_session.dart';
@@ -157,7 +158,9 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     if (!_task.accepts(answer)) {
       setState(() {
         _incorrectAttempts += 1;
-        _feedback = 'Noch nicht. Versuch es noch einmal.';
+        _feedback = widget.supportEnabled
+            ? GermanAnswerFeedback.forIncorrect(_task, answer)
+            : GermanAnswerFeedback.retry;
       });
       _emitDraft();
       return;

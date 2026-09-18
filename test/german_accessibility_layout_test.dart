@@ -142,6 +142,46 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Deutsch-Schreibfeedback bleibt bei großer Schrift erreichbar', (
+    tester,
+  ) async {
+    _compactLargeText(tester);
+    final task = GermanTaskCatalog.tasks.firstWhere(
+      (candidate) => candidate.interaction == GermanTaskInteraction.typedText,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GermanTrainingScreen(
+          gradeLevel: task.recommendedFromGrade,
+          tasks: <GermanTask>[task],
+          speak: (_) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final taskList = find.byType(ListView);
+    final input = find.byType(TextField);
+    await tester.dragUntilVisible(input, taskList, const Offset(0, -220));
+    await tester.pumpAndSettle();
+    expect(input, findsOneWidget);
+    await tester.enterText(input, 'heute regnet es.');
+    final submit = find.text('Prüfen');
+    final submitButton = find.ancestor(
+      of: submit,
+      matching: find.byType(FilledButton),
+    );
+    expect(submitButton, findsOneWidget);
+    final button = tester.widget<FilledButton>(submitButton);
+    button.onPressed!.call();
+    await tester.pumpAndSettle();
+
+    await tester.drag(taskList, const Offset(0, -1000));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Groß- und Kleinschreibung'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Deutsch-Lernlandkarte zeigt Grundlagen ohne Layoutfehler', (
     tester,
   ) async {
