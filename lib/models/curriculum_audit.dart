@@ -22,6 +22,7 @@ enum CurriculumDomainScheme {
 enum CurriculumProgressionModel {
   stateSequence,
   gradePairs,
+  observedGradePair,
   frameworkLevels,
   primaryEnd,
 }
@@ -31,6 +32,8 @@ extension CurriculumProgressionModelX on CurriculumProgressionModel {
     CurriculumProgressionModel.stateSequence =>
       'Rechenblitz-Klassenstufenfolge auf Landesgrundlage',
     CurriculumProgressionModel.gradePairs => 'Lernbänder 1/2 und 3/4',
+    CurriculumProgressionModel.observedGradePair =>
+      'Beobachtung Ende 2 / Anforderungen Ende 4',
     CurriculumProgressionModel.frameworkLevels =>
       'Niveaustufen über Jahrgangsbänder',
     CurriculumProgressionModel.primaryEnd =>
@@ -65,6 +68,7 @@ class CurriculumStateProfile {
     required this.domainScheme,
     this.progressionModel = CurriculumProgressionModel.stateSequence,
     this.transitionNote,
+    this.earlyProgressionNote,
   });
 
   final GermanState state;
@@ -76,6 +80,7 @@ class CurriculumStateProfile {
   final CurriculumDomainScheme domainScheme;
   final CurriculumProgressionModel progressionModel;
   final String? transitionNote;
+  final String? earlyProgressionNote;
 }
 
 class CurriculumObjective {
@@ -123,7 +128,7 @@ class CurriculumAuditSummary {
 class CurriculumAuditCatalog {
   const CurriculumAuditCatalog._();
 
-  static const reviewedOn = '17.09.2026';
+  static const reviewedOn = '18.09.2026';
 
   static const Map<GermanState, CurriculumStateProfile> profiles = {
     GermanState.badenWuerttemberg: CurriculumStateProfile(
@@ -136,6 +141,8 @@ class CurriculumAuditCatalog {
           'Inhaltsbezogene Kompetenzen sind nach Zahlen und Operationen, Raum und Form, Größen und Messen sowie Daten und Zufall gegliedert.',
       domainScheme: CurriculumDomainScheme.standardFour,
       progressionModel: CurriculumProgressionModel.gradePairs,
+      earlyProgressionNote:
+          'Bis Ende Klasse 2 sind Daten sowie erste Zufallsexperimente ausdrücklich vorgesehen.',
     ),
     GermanState.bavaria: CurriculumStateProfile(
       state: GermanState.bavaria,
@@ -147,6 +154,8 @@ class CurriculumAuditCatalog {
           'Die Lernbereiche sind Zahlen und Operationen, Raum und Form, Größen und Messen sowie Daten und Zufall; Muster und Strukturen wirken übergreifend.',
       domainScheme: CurriculumDomainScheme.standardFour,
       progressionModel: CurriculumProgressionModel.gradePairs,
+      earlyProgressionNote:
+          'Im Lernband 1/2 sind Daten, einfache Zufallsexperimente und erste kombinatorische Aufgaben vorgesehen.',
     ),
     GermanState.berlin: CurriculumStateProfile(
       state: GermanState.berlin,
@@ -158,6 +167,8 @@ class CurriculumAuditCatalog {
           'Fünf Leitideen: Zahlen und Operationen, Größen und Messen, Raum und Form, Gleichungen und Funktionen sowie Daten und Zufall.',
       domainScheme: CurriculumDomainScheme.berlinBrandenburg,
       progressionModel: CurriculumProgressionModel.frameworkLevels,
+      earlyProgressionNote:
+          'Niveaustufe B umfasst Daten, einfache Zufallsexperimente und kombinatorische Fragestellungen.',
     ),
     GermanState.brandenburg: CurriculumStateProfile(
       state: GermanState.brandenburg,
@@ -169,6 +180,8 @@ class CurriculumAuditCatalog {
           'Fünf Leitideen: Zahlen und Operationen, Größen und Messen, Raum und Form, Gleichungen und Funktionen sowie Daten und Zufall.',
       domainScheme: CurriculumDomainScheme.berlinBrandenburg,
       progressionModel: CurriculumProgressionModel.frameworkLevels,
+      earlyProgressionNote:
+          'Niveaustufe B umfasst Daten, einfache Zufallsexperimente und kombinatorische Fragestellungen.',
     ),
     GermanState.bremen: CurriculumStateProfile(
       state: GermanState.bremen,
@@ -190,6 +203,9 @@ class CurriculumAuditCatalog {
       structureNote:
           'Fünf Leitideen: Zahl und Operation, Muster/Strukturen/funktionaler Zusammenhang, Größen und Messen, Raum und Form sowie Daten und Zufall.',
       domainScheme: CurriculumDomainScheme.hamburgFive,
+      progressionModel: CurriculumProgressionModel.observedGradePair,
+      earlyProgressionNote:
+          'Die Beobachtungskriterien am Ende von Klasse 2 umfassen Daten, erste kombinatorische Fragestellungen und einfache Zufallsexperimente.',
     ),
     GermanState.hesse: CurriculumStateProfile(
       state: GermanState.hesse,
@@ -234,6 +250,8 @@ class CurriculumAuditCatalog {
           'Der Lehrplan beschreibt Kompetenzbereiche, verbindliche Inhalte und Kompetenzerwartungen für die Primarstufe.',
       domainScheme: CurriculumDomainScheme.standardFour,
       progressionModel: CurriculumProgressionModel.gradePairs,
+      earlyProgressionNote:
+          'Bis Ende Klasse 2 sind Daten, Wahrscheinlichkeit und einfache kombinatorische Fragestellungen vorgesehen.',
     ),
     GermanState.rhinelandPalatinate: CurriculumStateProfile(
       state: GermanState.rhinelandPalatinate,
@@ -244,6 +262,9 @@ class CurriculumAuditCatalog {
       structureNote:
           'Der Teilrahmenplan konkretisiert die mathematische Kompetenzentwicklung für die Grundschule.',
       domainScheme: CurriculumDomainScheme.standardFour,
+      progressionModel: CurriculumProgressionModel.gradePairs,
+      earlyProgressionNote:
+          'Die Kompetenzerwartungen am Ende des 2. Schuljahres umfassen Daten sowie erste Wahrscheinlichkeitsaussagen und einfache Zufallsexperimente.',
     ),
     GermanState.saarland: CurriculumStateProfile(
       state: GermanState.saarland,
@@ -259,11 +280,13 @@ class CurriculumAuditCatalog {
       state: GermanState.saxony,
       code: 'SN',
       sourceTitle: 'Lehrplan Grundschule – Mathematik',
-      sourceVersion: 'aktuelle Fassung der dynamischen Lehrplandatenbank',
+      sourceVersion: '2004/2009/2019/2025/2026, Anpassung 2026',
       authority: 'Sächsisches Landesamt für Schule und Bildung',
       structureNote:
           'Die jeweils gültigen Ziele und Inhalte werden in der dynamischen Lehrplandatenbank des Freistaates geführt.',
       domainScheme: CurriculumDomainScheme.standardFour,
+      earlyProgressionNote:
+          'Die Klassenstufen 1/2 enthalten Daten, einfache Kombinatorik und erste Zufallsexperimente.',
     ),
     GermanState.saxonyAnhalt: CurriculumStateProfile(
       state: GermanState.saxonyAnhalt,
@@ -286,6 +309,9 @@ class CurriculumAuditCatalog {
       structureNote:
           'Die Fachanforderungen wurden auf Grundlage der KMK-Bildungsstandards 2022 für die Primarstufe überarbeitet.',
       domainScheme: CurriculumDomainScheme.standardFour,
+      progressionModel: CurriculumProgressionModel.gradePairs,
+      earlyProgressionNote:
+          'Die Eingangsphase umfasst Daten, einfache Zufallsexperimente und kombinatorische Fragestellungen durch Probieren.',
     ),
     GermanState.thuringia: CurriculumStateProfile(
       state: GermanState.thuringia,
@@ -334,7 +360,37 @@ class CurriculumAuditCatalog {
       MicroCompetencyId.probabilityReasoning: GradeLevel.second,
       MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
     },
+    GermanState.hamburg: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
+    GermanState.rhinelandPalatinate: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+    },
+    GermanState.saxony: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
+    GermanState.schleswigHolstein: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
   };
+
+  static Map<MicroCompetencyId, GradeLevel> earlyStateCompetencies(
+    GermanState state,
+  ) => Map.unmodifiable(
+        _earlierStateCompetencies[state] ??
+            const <MicroCompetencyId, GradeLevel>{},
+      );
 
   static GradeLevel effectiveMinGrade(
     GermanState state,
@@ -369,6 +425,7 @@ class CurriculumAuditCatalog {
     final earliest = effectiveMinGrade(state, definition.id);
     return switch (model) {
       CurriculumProgressionModel.gradePairs ||
+      CurriculumProgressionModel.observedGradePair ||
       CurriculumProgressionModel.frameworkLevels =>
         earliest.index <= GradeLevel.second.index
             ? GradeLevel.second
@@ -407,6 +464,10 @@ class CurriculumAuditCatalog {
       final label = switch (profile.progressionModel) {
         CurriculumProgressionModel.gradePairs =>
           'bis Ende ${checkpoint.label} im Lernband sichern',
+        CurriculumProgressionModel.observedGradePair =>
+          checkpoint == GradeLevel.second
+              ? 'Beobachtungskriterien bis Ende Klasse 2 berücksichtigen'
+              : 'Regelanforderungen bis Ende Klasse 4 sichern',
         CurriculumProgressionModel.frameworkLevels =>
           'Niveaustufe des Jahrgangsbands sichern',
         CurriculumProgressionModel.primaryEnd => 'bis Ende Klasse 4 sichern',
@@ -423,6 +484,10 @@ class CurriculumAuditCatalog {
     final label = switch (profile.progressionModel) {
       CurriculumProgressionModel.gradePairs =>
         'im Lernband bis ${checkpoint.label} aufbauen',
+      CurriculumProgressionModel.observedGradePair =>
+        checkpoint == GradeLevel.second
+            ? 'auf die Beobachtungskriterien Ende Klasse 2 hinarbeiten'
+            : 'auf die Regelanforderungen Ende Klasse 4 hinarbeiten',
       CurriculumProgressionModel.frameworkLevels =>
         'im aktuellen Niveaustufen-Band aufbauen',
       CurriculumProgressionModel.primaryEnd =>
