@@ -53,6 +53,37 @@ void main() {
     );
   });
 
+  test('assessment rotation ignores evidence from another grade', () {
+    final baseline = GermanAssessmentPlanner.buildRound(GradeLevel.second);
+    final foreignGradeSession = GermanSessionResult(
+      gradeLevel: GradeLevel.first,
+      startedAt: DateTime(2026, 9, 17, 9),
+      finishedAt: DateTime(2026, 9, 17, 9, 5),
+      kind: GermanSessionKind.assessment,
+      taskResults: baseline
+          .map(
+            (task) => GermanTaskResult(
+              taskId: task.id,
+              competencyId: task.competencyId,
+              correctFirstTry: true,
+              incorrectAttempts: 0,
+              responseMs: 1000,
+            ),
+          )
+          .toList(growable: false),
+    );
+
+    final withForeignHistory = GermanAssessmentPlanner.buildRound(
+      GradeLevel.second,
+      history: <GermanSessionResult>[foreignGradeSession],
+    );
+
+    expect(
+      withForeignHistory.map((task) => task.id).toList(growable: false),
+      baseline.map((task) => task.id).toList(growable: false),
+    );
+  });
+
   test('repeated Lernchecks rotate away from recently used tasks', () {
     final first = GermanAssessmentPlanner.buildRound(GradeLevel.second);
     final firstSession = GermanSessionResult(

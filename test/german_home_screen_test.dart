@@ -184,6 +184,57 @@ void main() {
     expect(find.text('1 von 2'), findsOneWidget);
   });
 
+  testWidgets('locked upper-grade skill routes to its pending grade bridge', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(true);
+    await storage.saveHistory(_secureWordFamilyGradeTwoHistory());
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('german-competency-map')));
+    await tester.pumpAndSettle();
+
+    final compoundButton = find.byKey(
+      const ValueKey('german-competency-practice-compoundWords'),
+    );
+    await tester.scrollUntilVisible(
+      compoundButton,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.descendant(
+        of: compoundButton,
+        matching: find.text('Grundlage üben'),
+      ),
+      findsOneWidget,
+    );
+    final compoundCard = find.byKey(
+      const ValueKey('german-competency-card-compoundWords'),
+    );
+    expect(
+      find.descendant(
+        of: compoundCard,
+        matching: find.textContaining('Zuerst: Wortfamilien erkennen'),
+      ),
+      findsOneWidget,
+    );
+
+    tester.widget<OutlinedButton>(compoundButton).onPressed!.call();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Deutsch üben'), findsOneWidget);
+    expect(find.text('1 von 2'), findsOneWidget);
+  });
+
   testWidgets('German home opens the competency map', (tester) async {
     final controller = AppController();
     await controller.load();

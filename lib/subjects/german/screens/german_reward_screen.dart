@@ -102,7 +102,7 @@ class GermanRewardScreen extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.all(18),
               child: Text(
-                'Diese Erfolge entstehen nur aus Deutsch-Runden dieses Lernprofils. Mathe-Sterne und Mathe-Abzeichen werden hier nicht mitgezählt.',
+                'Diese Erfolge entstehen aus den Deutsch-Runden dieses Lernprofils und bleiben beim Wechsel in eine höhere Klassenstufe erhalten. Mathe-Sterne und Mathe-Abzeichen werden hier nicht mitgezählt.',
                 textAlign: TextAlign.center,
               ),
             ),
@@ -125,6 +125,7 @@ class _GermanBadgeCard extends StatelessWidget {
     'domains' => Icons.auto_stories_rounded,
     'secure' => Icons.check_circle_rounded,
     'mastery' => Icons.workspace_premium_rounded,
+    'stairs' => Icons.stairs_rounded,
     'rounds' => Icons.repeat_rounded,
     'perfect' => Icons.star_rounded,
     _ => Icons.emoji_events_rounded,

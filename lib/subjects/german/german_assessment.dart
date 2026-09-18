@@ -14,7 +14,7 @@ class GermanAssessmentPlanner {
     Iterable<GermanSessionResult> history = const <GermanSessionResult>[],
   }) {
     if (taskCount < 1) return const <GermanTask>[];
-    final usage = _assessmentUsage(history);
+    final usage = _assessmentUsage(history, gradeLevel);
     final selected = <GermanTask>[];
     final usedIds = <String>{};
     final usedCompetencies = <Object>{};
@@ -109,10 +109,14 @@ class GermanAssessmentPlanner {
 
   static Map<String, ({int count, DateTime lastSeen})> _assessmentUsage(
     Iterable<GermanSessionResult> history,
+    GradeLevel gradeLevel,
   ) {
     final result = <String, ({int count, DateTime lastSeen})>{};
     for (final session in history) {
-      if (session.kind != GermanSessionKind.assessment) continue;
+      if (session.kind != GermanSessionKind.assessment ||
+          session.gradeLevel != gradeLevel) {
+        continue;
+      }
       for (final task in session.taskResults) {
         final previous = result[task.taskId];
         result[task.taskId] = (

@@ -1,4 +1,6 @@
+import '../../core/grade_level.dart';
 import 'german_competency.dart';
+import 'german_grade_bridge.dart';
 import 'german_competency_catalog.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
@@ -29,16 +31,25 @@ class GermanPrerequisiteResolver {
 
   static GermanCompetencyUnlockStatus status(
     GermanCompetencyId id,
-    Iterable<GermanSessionResult> history,
-  ) {
+    Iterable<GermanSessionResult> history, {
+    GradeLevel? currentGrade,
+  }) {
     final definition = GermanCompetencyCatalog.definition(id);
     final prerequisites = definition.prerequisites
         .map(GermanCompetencyCatalog.definition)
         .toList(growable: false);
     final ownProgress = GermanProgressAnalyzer.forCompetency(id, history);
+    final ownBridge = currentGrade == null
+        ? null
+        : GermanGradeBridgeAnalyzer.forCompetency(
+            competencyId: id,
+            currentGrade: currentGrade,
+            history: history,
+          );
     final confirmedByOwnEvidence =
         prerequisites.isNotEmpty &&
-        ownProgress.state == GermanCompetencyState.secure;
+        ownProgress.state == GermanCompetencyState.secure &&
+        !(ownBridge?.isPending ?? false);
     if (confirmedByOwnEvidence) {
       return GermanCompetencyUnlockStatus(
         definition: definition,
@@ -57,11 +68,17 @@ class GermanPrerequisiteResolver {
             prerequisite,
             history,
             <GermanCompetencyId>{},
+            currentGrade: currentGrade,
           ),
         )
         .map(GermanCompetencyCatalog.definition)
         .toList(growable: false);
-    final nextId = _nextUnmetPrerequisite(id, history, <GermanCompetencyId>{});
+    final nextId = _nextUnmetPrerequisite(
+      id,
+      history,
+      <GermanCompetencyId>{},
+      currentGrade: currentGrade,
+    );
     final next = nextId == null
         ? null
         : GermanCompetencyCatalog.definition(nextId);
@@ -86,17 +103,34 @@ class GermanPrerequisiteResolver {
   static bool _competencyAndPrerequisitesReady(
     GermanCompetencyId id,
     Iterable<GermanSessionResult> history,
-    Set<GermanCompetencyId> visiting,
-  ) {
+    Set<GermanCompetencyId> visiting, {
+    GradeLevel? currentGrade,
+  }) {
     if (!visiting.add(id)) return false;
     final progress = GermanProgressAnalyzer.forCompetency(id, history);
     if (progress.state != GermanCompetencyState.secure) {
       visiting.remove(id);
       return false;
     }
+    if (currentGrade != null) {
+      final bridge = GermanGradeBridgeAnalyzer.forCompetency(
+        competencyId: id,
+        currentGrade: currentGrade,
+        history: history,
+      );
+      if (bridge.isPending) {
+        visiting.remove(id);
+        return false;
+      }
+    }
     final definition = GermanCompetencyCatalog.definition(id);
     for (final prerequisite in definition.prerequisites) {
-      if (!_competencyAndPrerequisitesReady(prerequisite, history, visiting)) {
+      if (!_competencyAndPrerequisitesReady(
+        prerequisite,
+        history,
+        visiting,
+        currentGrade: currentGrade,
+      )) {
         visiting.remove(id);
         return false;
       }
@@ -108,8 +142,9 @@ class GermanPrerequisiteResolver {
   static GermanCompetencyId? _nextUnmetPrerequisite(
     GermanCompetencyId id,
     Iterable<GermanSessionResult> history,
-    Set<GermanCompetencyId> visiting,
-  ) {
+    Set<GermanCompetencyId> visiting, {
+    GradeLevel? currentGrade,
+  }) {
     if (!visiting.add(id)) return null;
     final definition = GermanCompetencyCatalog.definition(id);
     for (final prerequisite in definition.prerequisites) {
@@ -117,10 +152,16 @@ class GermanPrerequisiteResolver {
         prerequisite,
         history,
         <GermanCompetencyId>{},
+        currentGrade: currentGrade,
       )) {
         continue;
       }
-      final deeper = _nextUnmetPrerequisite(prerequisite, history, visiting);
+      final deeper = _nextUnmetPrerequisite(
+        prerequisite,
+        history,
+        visiting,
+        currentGrade: currentGrade,
+      );
       visiting.remove(id);
       return deeper ?? prerequisite;
     }

@@ -126,6 +126,7 @@ class GermanCompetencyMapScreen extends StatelessWidget {
         final unlock = GermanPrerequisiteResolver.status(
           definition.id,
           history,
+          currentGrade: gradeLevel,
         );
         final bridge = bridges[definition.id]!;
         final bridgePending =

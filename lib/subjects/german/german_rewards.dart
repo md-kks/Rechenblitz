@@ -1,5 +1,7 @@
 import '../../core/grade_level.dart';
+import 'german_competency.dart';
 import 'german_competency_catalog.dart';
+import 'german_grade_bridge.dart';
 import 'german_learning_domain.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
@@ -30,7 +32,7 @@ class GermanRewardSummary {
     final sessions = history
         .where(
           (session) =>
-              session.gradeLevel == gradeLevel &&
+              session.gradeLevel.index <= gradeLevel.index &&
               session.kind != GermanSessionKind.assessment,
         )
         .toList(growable: false);
@@ -49,15 +51,31 @@ class GermanRewardSummary {
     final domains = competencyIds
         .map((id) => GermanCompetencyCatalog.definition(id).domain)
         .toSet();
-    final progress = GermanCompetencyCatalog.recommendedFor(gradeLevel)
-        .map(
-          (definition) =>
-              GermanProgressAnalyzer.forCompetency(definition.id, sessions),
-        )
-        .toList(growable: false);
-    final secureCount = progress
-        .where((entry) => entry.state == GermanCompetencyState.secure)
-        .length;
+    final everSecure = <GermanCompetencyId>{};
+    var everConfirmedGradeBridge = false;
+    for (final grade in GradeLevel.values) {
+      if (grade.index > gradeLevel.index) break;
+      final gradeHistory = sessions
+          .where((session) => session.gradeLevel.index <= grade.index)
+          .toList(growable: false);
+      for (final definition in GermanCompetencyCatalog.recommendedFor(grade)) {
+        final progress = GermanProgressAnalyzer.forCompetency(
+          definition.id,
+          gradeHistory,
+        );
+        final bridge = GermanGradeBridgeAnalyzer.forCompetency(
+          competencyId: definition.id,
+          currentGrade: grade,
+          history: gradeHistory,
+        );
+        if (bridge.isConfirmed) everConfirmedGradeBridge = true;
+        if (progress.state == GermanCompetencyState.secure &&
+            !bridge.isPending) {
+          everSecure.add(definition.id);
+        }
+      }
+    }
+    final secureCount = everSecure.length;
 
     final badges = <GermanRewardBadge>[];
     void add(String id, String title, String description, String iconKey) {
@@ -101,6 +119,14 @@ class GermanRewardSummary {
         'Deutsch-Entdecker',
         'Du hast in allen Deutsch-Lernbereichen gearbeitet.',
         'domains',
+      );
+    }
+    if (everConfirmedGradeBridge) {
+      add(
+        'grade_step',
+        'Stufensteiger',
+        'Du hast einen bekannten Deutsch-Lernschritt auf einer höheren Klassenstufe bestätigt.',
+        'stairs',
       );
     }
     if (secureCount >= 1) {
