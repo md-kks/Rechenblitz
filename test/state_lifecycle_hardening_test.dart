@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/assessment.dart';
+import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
+import 'package:rechenblitz/models/learning_path.dart';
 import 'package:rechenblitz/models/learner_profile.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
@@ -12,6 +14,7 @@ import 'package:rechenblitz/models/support_session_progress.dart';
 import 'package:rechenblitz/models/teacher_assignment.dart';
 import 'package:rechenblitz/models/teacher_assignment_result.dart';
 import 'package:rechenblitz/models/training.dart';
+import 'package:rechenblitz/models/training_session_progress.dart';
 import 'package:rechenblitz/screens/assignment_result_scanner_screen.dart';
 import 'package:rechenblitz/screens/assignment_result_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
@@ -152,6 +155,109 @@ void main() {
       );
       expect(
         prefs.containsKey('profile:default:step_recovery_session_v1'),
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'alte landesfremde Meine-Runde-Planung wird beim Laden selbst geheilt',
+    () async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
+      await controller.setProfileState(GermanState.bavaria);
+      final now = DateTime.now();
+
+      await controller.saveGuidedRoundProgress(
+        GuidedRoundProgress(
+          plan: const <GuidedRoundSegment>[
+            GuidedRoundSegment(
+              role: GuidedRoundRole.focus,
+              mode: TrainingMode.dataCharts,
+              tasks: 5,
+              reason: 'Frühes Landesziel festigen.',
+              targetCompetency: MicroCompetencyId.dataReading,
+            ),
+          ],
+          completedRoles: const <GuidedRoundRole>{},
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          startedAt: now.subtract(const Duration(minutes: 1)),
+          updatedAt: now,
+          recoveryRequired: false,
+        ),
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      final rawProfiles = prefs.getString('learner_profiles_v1')!;
+      final profiles = jsonDecode(rawProfiles) as List<dynamic>;
+      final first = Map<String, dynamic>.from(
+        profiles.first as Map<String, dynamic>,
+      );
+      first['state'] = GermanState.thuringia.name;
+      profiles[0] = first;
+      await prefs.setString('learner_profiles_v1', jsonEncode(profiles));
+
+      final reloaded = AppController();
+      await reloaded.load();
+
+      expect(reloaded.activeProfile.state, GermanState.thuringia);
+      expect(reloaded.guidedRoundProgress, isNull);
+      expect(prefs.containsKey('profile:default:guided_round_v1'), isFalse);
+    },
+  );
+
+  test(
+    'alter landesfremder Trainingsentwurf wird beim Laden selbst geheilt',
+    () async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.hundred;
+      await controller.setProfileState(GermanState.bavaria);
+      final now = DateTime.now();
+      const exercise = CurriculumExercise(
+        mode: TrainingMode.dataCharts,
+        prompt: 'Lies das Diagramm.',
+        answer: 3,
+        hint: 'Vergleiche die Balken.',
+        key: 'data:bar:legacy-state-resume',
+        maxAnswerValue: 10,
+      );
+
+      await controller.saveCoreTrainingSession(
+        CoreTrainingSessionProgress(
+          kind: CoreTrainingKind.curriculum,
+          mode: TrainingMode.dataCharts,
+          targetTasks: 5,
+          targetCompetency: MicroCompetencyId.dataReading,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.hundred,
+          startedAt: now.subtract(const Duration(minutes: 1)),
+          updatedAt: now,
+          currentTask: encodeCurriculumExercise(exercise),
+        ),
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      final rawProfiles = prefs.getString('learner_profiles_v1')!;
+      final profiles = jsonDecode(rawProfiles) as List<dynamic>;
+      final first = Map<String, dynamic>.from(
+        profiles.first as Map<String, dynamic>,
+      );
+      first['state'] = GermanState.thuringia.name;
+      profiles[0] = first;
+      await prefs.setString('learner_profiles_v1', jsonEncode(profiles));
+
+      final reloaded = AppController();
+      await reloaded.load();
+
+      expect(reloaded.activeProfile.state, GermanState.thuringia);
+      expect(reloaded.coreTrainingSessionProgress, isNull);
+      expect(
+        prefs.containsKey('profile:default:core_training_session_v1'),
         isFalse,
       );
     },

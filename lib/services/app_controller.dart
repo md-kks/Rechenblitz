@@ -153,7 +153,9 @@ class AppController extends ChangeNotifier {
 
   GuidedRoundProgress? resumableGuidedRound({DateTime? now}) {
     final progress = guidedRoundProgress;
-    if (progress == null) return null;
+    if (progress == null || !_guidedRoundFitsActiveCurriculum(progress)) {
+      return null;
+    }
     return progress.isCompatible(
       grade: gradeLevel,
       range: numberRange,
@@ -306,7 +308,10 @@ class AppController extends ChangeNotifier {
     DateTime? now,
   }) {
     final progress = coreTrainingSessionProgress;
-    if (progress == null) return null;
+    if (progress == null ||
+        !_coreTrainingSessionFitsActiveCurriculum(progress)) {
+      return null;
+    }
     return progress.isCompatible(
       kind: kind,
       mode: mode,
@@ -385,6 +390,50 @@ class AppController extends ChangeNotifier {
     return !GermanState.values.any(availableIn);
   }
 
+  bool _guidedRoundFitsActiveCurriculum(GuidedRoundProgress progress) {
+    final definitions = CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
+      progress.gradeLevel,
+      progress.numberRange,
+    );
+    final activeCompetencies = definitions.map((entry) => entry.id).toSet();
+
+    for (final segment in progress.plan) {
+      if (!isModeAvailableInActiveCurriculum(
+        segment.mode,
+        grade: progress.gradeLevel,
+        range: progress.numberRange,
+      )) {
+        return false;
+      }
+      final target = segment.targetCompetency;
+      if (target != null && !activeCompetencies.contains(target)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _coreTrainingSessionFitsActiveCurriculum(
+    CoreTrainingSessionProgress progress,
+  ) {
+    if (!isModeAvailableInActiveCurriculum(
+      progress.mode,
+      grade: progress.gradeLevel,
+      range: progress.numberRange,
+    )) {
+      return false;
+    }
+    final target = progress.targetCompetency;
+    if (target == null) return true;
+
+    return CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
+      progress.gradeLevel,
+      progress.numberRange,
+    ).any((definition) => definition.id == target);
+  }
+
   bool _remediationSessionFitsActiveCurriculum(
     RemediationSessionProgress progress,
   ) {
@@ -419,10 +468,11 @@ class AppController extends ChangeNotifier {
     }
     guidedRoundProgress = await storage.loadGuidedRoundProgress();
     if (guidedRoundProgress != null &&
-        !guidedRoundProgress!.isCompatible(
-          grade: gradeLevel,
-          range: numberRange,
-        )) {
+        (!_guidedRoundFitsActiveCurriculum(guidedRoundProgress!) ||
+            !guidedRoundProgress!.isCompatible(
+              grade: gradeLevel,
+              range: numberRange,
+            ))) {
       guidedRoundProgress = null;
       await storage.clearGuidedRoundProgress();
     }
@@ -462,6 +512,7 @@ class AppController extends ChangeNotifier {
         (!coreTrainingSession.hasSaneState() ||
             coreTrainingSession.gradeLevel != gradeLevel ||
             coreTrainingSession.numberRange != numberRange ||
+            !_coreTrainingSessionFitsActiveCurriculum(coreTrainingSession) ||
             coreTrainingSession.teacherAssignmentActive ||
             DateTime.now().difference(coreTrainingSession.updatedAt) >
                 CoreTrainingSessionProgress.maxAge)) {
