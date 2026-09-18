@@ -62,6 +62,7 @@ class GermanMoreTaskCatalog {
       recommendedFromGrade: GradeLevel.first,
       instruction: 'Welches Wort passt zum Bild?',
       prompt: 'Bild: 🌧️',
+      accessiblePrompt: 'Viele Wassertropfen fallen aus den Wolken.',
       interaction: GermanTaskInteraction.singleChoice,
       acceptedAnswers: <String>['Regen'],
       choices: <String>['Regen', 'Rabe', 'Rose'],

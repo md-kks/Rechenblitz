@@ -90,6 +90,39 @@ void main() {
     expect(spoken.single, contains(task.prompt));
   });
 
+  testWidgets('visual word clue uses non-spoiling accessibility text', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g1-read-word-sonne',
+    );
+    final spoken = <String>[];
+
+    await tester.pumpWidget(
+      _app(
+        task: task,
+        speak: (_) async {},
+        autoSpeak: (text) async => spoken.add(text),
+      ),
+    );
+    await tester.pump();
+
+    expect(task.accessiblePrompt, isNotNull);
+    expect(spoken, hasLength(1));
+    expect(spoken.single, contains(task.accessiblePrompt!));
+    expect(spoken.single, isNot(contains(task.prompt)));
+    expect(spoken.single, isNot(contains(task.acceptedAnswers.single)));
+
+    final visualPrompt = find.text(task.prompt);
+    final semanticsFinder = find.ancestor(
+      of: visualPrompt,
+      matching: find.byType(Semantics),
+    );
+    final semantics = tester.widget<Semantics>(semanticsFinder.first);
+    expect(semantics.properties.label, task.accessiblePrompt);
+    expect(semantics.excludeSemantics, isTrue);
+  });
+
   testWidgets('listening task uses supplied local speech callback', (
     tester,
   ) async {

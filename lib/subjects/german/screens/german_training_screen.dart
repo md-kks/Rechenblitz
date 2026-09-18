@@ -190,7 +190,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     if (speaker == null || _completed) return;
     final text = _task.requiresSpeech
         ? _task.spokenText!
-        : '${_task.instruction} ${_task.prompt}';
+        : '${_task.instruction} ${_task.promptForSpeech}';
     await _speakWith(speaker, text);
   }
 
@@ -289,10 +289,14 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Text(
-                  _task.prompt,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium,
+                child: Semantics(
+                  label: _task.accessiblePrompt,
+                  excludeSemantics: _task.accessiblePrompt != null,
+                  child: Text(
+                    _task.prompt,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
                 ),
               ),
             ),

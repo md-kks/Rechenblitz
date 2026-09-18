@@ -72,6 +72,7 @@ class GermanExtraTaskCatalog {
       recommendedFromGrade: GradeLevel.first,
       instruction: 'Welches Wort passt zum Bild?',
       prompt: 'Bild: 🌼',
+      accessiblePrompt: 'Etwas wächst im Beet und hat oft bunte Blüten.',
       interaction: GermanTaskInteraction.singleChoice,
       acceptedAnswers: <String>['Blume'],
       choices: <String>['Blume', 'Baum', 'Brot'],

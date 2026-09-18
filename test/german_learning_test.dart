@@ -236,11 +236,19 @@ void main() {
     expect(tasks, hasLength(greaterThanOrEqualTo(6)));
     for (final task in tasks) {
       expect(task.prompt, startsWith('Bild:'));
+      expect(task.accessiblePrompt, isNotNull, reason: task.id);
+      expect(task.accessiblePrompt, isNotEmpty, reason: task.id);
       for (final answer in task.acceptedAnswers) {
+        final normalizedAnswer = answer.toLowerCase();
         expect(
           task.prompt.toLowerCase(),
-          isNot(contains(answer.toLowerCase())),
+          isNot(contains(normalizedAnswer)),
           reason: task.id,
+        );
+        expect(
+          task.accessiblePrompt!.toLowerCase(),
+          isNot(contains(normalizedAnswer)),
+          reason: '${task.id} accessibility clue',
         );
       }
     }
@@ -263,6 +271,7 @@ void main() {
         accepted.join('||'),
         choices.join('||'),
         normalize(task.spokenText ?? ''),
+        normalize(task.accessiblePrompt ?? ''),
       ].join('|');
       expect(
         signatures.add(signature),

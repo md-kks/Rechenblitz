@@ -104,6 +104,17 @@ void main() {
     expect(invalid.isWellFormed, isFalse);
   });
 
+  test('task rejects blank accessible prompt', () {
+    final invalid = _task(
+      interaction: GermanTaskInteraction.singleChoice,
+      acceptedAnswers: const <String>['Hund'],
+      choices: const <String>['Hund', 'Katze'],
+      accessiblePrompt: '   ',
+    );
+
+    expect(invalid.isWellFormed, isFalse);
+  });
+
   test('task rejects blank prompt or blank answers', () {
     final blankPrompt = _task(
       interaction: GermanTaskInteraction.typedText,
@@ -126,6 +137,7 @@ GermanTask _task({
   List<String> choices = const <String>[],
   String prompt = 'Aufgabe',
   String? spokenText,
+  String? accessiblePrompt,
 }) => GermanTask(
   id: 'test-task',
   competencyId: GermanCompetencyId.wordRecognition,
@@ -136,4 +148,5 @@ GermanTask _task({
   acceptedAnswers: acceptedAnswers,
   choices: choices,
   spokenText: spokenText,
+  accessiblePrompt: accessiblePrompt,
 );

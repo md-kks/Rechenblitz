@@ -54,6 +54,7 @@ class GermanStarterTaskCatalog {
       recommendedFromGrade: GradeLevel.first,
       instruction: 'Welches Wort passt zum Bild?',
       prompt: 'Bild: ☀️',
+      accessiblePrompt: 'Etwas am Himmel macht es tagsüber hell und warm.',
       interaction: GermanTaskInteraction.singleChoice,
       acceptedAnswers: <String>['Sonne'],
       choices: <String>['Sonne', 'Mond', 'Stern'],

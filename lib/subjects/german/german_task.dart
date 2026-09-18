@@ -19,6 +19,7 @@ class GermanTask {
     required this.acceptedAnswers,
     this.choices = const <String>[],
     this.spokenText,
+    this.accessiblePrompt,
   });
 
   final String id;
@@ -30,6 +31,13 @@ class GermanTask {
   final List<String> acceptedAnswers;
   final List<String> choices;
   final String? spokenText;
+
+  /// Optional non-visual description for prompts such as symbols or images.
+  ///
+  /// It is used for semantics and automatic read-aloud instead of [prompt].
+  final String? accessiblePrompt;
+
+  String get promptForSpeech => accessiblePrompt ?? prompt;
 
   bool get requiresSpeech =>
       interaction == GermanTaskInteraction.listeningChoice;
@@ -60,6 +68,9 @@ class GermanTask {
       return false;
     }
     if (requiresSpeech && (spokenText?.trim().isEmpty ?? true)) return false;
+    if (accessiblePrompt != null && accessiblePrompt!.trim().isEmpty) {
+      return false;
+    }
 
     switch (interaction) {
       case GermanTaskInteraction.singleChoice:
