@@ -3196,6 +3196,185 @@ void main() {
     }
   });
 
+  test('dominante Mikro-Kompetenz steuert den breiten Förderpfad', () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.fourth;
+    controller.numberRange = NumberRangeLevel.million;
+    controller.diagnostics = [
+      DiagnosticAttempt(
+        occurredAt: DateTime(2026, 9, 18, 12, 4),
+        mode: TrainingMode.geometryRelations,
+        taskKey: 'geomrel:circle:center:context0:fourth',
+        expected: 2,
+        actual: 0,
+        correct: false,
+        gradeLevel: GradeLevel.fourth,
+        numberRange: NumberRangeLevel.million,
+        pattern: ErrorPattern.geometryProperty,
+      ),
+      DiagnosticAttempt(
+        occurredAt: DateTime(2026, 9, 18, 12, 3),
+        mode: TrainingMode.geometryRelations,
+        taskKey: 'geomrel:circle:radius:context1:fourth',
+        expected: 0,
+        actual: 1,
+        correct: false,
+        gradeLevel: GradeLevel.fourth,
+        numberRange: NumberRangeLevel.million,
+        pattern: ErrorPattern.geometryProperty,
+      ),
+      DiagnosticAttempt(
+        occurredAt: DateTime(2026, 9, 18, 12, 2),
+        mode: TrainingMode.geometryRelations,
+        taskKey: 'geomrel:circle:diameter:context0:fourth',
+        expected: 1,
+        actual: 0,
+        correct: false,
+        gradeLevel: GradeLevel.fourth,
+        numberRange: NumberRangeLevel.million,
+        pattern: ErrorPattern.geometryProperty,
+      ),
+      DiagnosticAttempt(
+        occurredAt: DateTime(2026, 9, 18, 12, 1),
+        mode: TrainingMode.geometryRelations,
+        taskKey: 'geomrel:lines:parallel:context0:fourth',
+        expected: 0,
+        actual: 1,
+        correct: false,
+        gradeLevel: GradeLevel.fourth,
+        numberRange: NumberRangeLevel.million,
+        pattern: ErrorPattern.geometryProperty,
+      ),
+    ];
+
+    final focus =
+        controller.remediationTargetCompetency(ErrorPattern.geometryProperty);
+    expect(focus, MicroCompetencyId.circleParts);
+
+    controller.diagnostics.insert(
+      0,
+      DiagnosticAttempt(
+        occurredAt: DateTime(2026, 9, 18, 12, 5),
+        mode: TrainingMode.doublesHalves,
+        taskKey: 'double:8',
+        expected: 16,
+        actual: 15,
+        correct: false,
+        gradeLevel: GradeLevel.fourth,
+        numberRange: NumberRangeLevel.million,
+        pattern: ErrorPattern.numberBond,
+      ),
+    );
+    expect(
+      controller.remediationTargetCompetency(ErrorPattern.numberBond),
+      MicroCompetencyId.doublesHalves,
+    );
+
+    final plan = RemediationGenerator(random: Random(91901)).generate(
+      pattern: ErrorPattern.geometryProperty,
+      preferredMode: TrainingMode.geometryRelations,
+      grade: GradeLevel.fourth,
+      range: NumberRangeLevel.million,
+      methods: const MethodPreferences(),
+      targetCompetency: focus,
+    );
+    expect(plan.tasks, hasLength(8));
+    for (final task in plan.tasks) {
+      expect(task.targetCompetency, MicroCompetencyId.circleParts);
+      expect(task.sourceTaskKey, startsWith('geomrel:circle:'));
+    }
+  });
+
+  testWidgets('Förderbildschirm nennt den konkreten Lernfokus', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.fourth;
+    controller.numberRange = NumberRangeLevel.million;
+    controller.diagnostics = [
+      DiagnosticAttempt(
+        occurredAt: DateTime(2026, 9, 18, 13),
+        mode: TrainingMode.dataCharts,
+        taskKey: 'data:representation:4:1',
+        expected: 1,
+        actual: 0,
+        correct: false,
+        gradeLevel: GradeLevel.fourth,
+        numberRange: NumberRangeLevel.million,
+        pattern: ErrorPattern.dataReading,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RemediationScreen(
+          controller: controller,
+          pattern: ErrorPattern.dataReading,
+          preferredMode: TrainingMode.dataCharts,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final label = MicroCompetencyCatalog.definition(
+      MicroCompetencyId.dataRepresentationChoice,
+    ).label;
+    expect(
+      find.text(
+        'Heute üben wir: $label · ${ErrorPattern.dataReading.label}',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  test('breite Fehlermuster fördern die erkannte Unterkompetenz exakt', () {
+    const cases = <(ErrorPattern, TrainingMode, MicroCompetencyId)>[
+      (ErrorPattern.numberBond, TrainingMode.doublesHalves, MicroCompetencyId.doublesHalves),
+      (ErrorPattern.placeValue, TrainingMode.largeNumbers, MicroCompetencyId.numberWordReading),
+      (ErrorPattern.unitConversion, TrainingMode.advancedMeasures, MicroCompetencyId.secondsConversion),
+      (ErrorPattern.mentalStrategy, TrainingMode.mentalStrategies, MicroCompetencyId.strategyChoice),
+      (ErrorPattern.writtenProcedure, TrainingMode.writtenAddSub, MicroCompetencyId.errorChecking),
+      (ErrorPattern.estimation, TrainingMode.estimation, MicroCompetencyId.plausibilityCheck),
+      (ErrorPattern.arithmeticLaw, TrainingMode.arithmeticLaws, MicroCompetencyId.reasoningJustification),
+      (ErrorPattern.timeDuration, TrainingMode.timeDurations, MicroCompetencyId.calendarDate),
+      (ErrorPattern.dataReading, TrainingMode.dataCharts, MicroCompetencyId.dataRepresentationChoice),
+      (ErrorPattern.probabilityReasoning, TrainingMode.probability, MicroCompetencyId.probabilityExperiment),
+      (ErrorPattern.perimeterArea, TrainingMode.perimeterArea, MicroCompetencyId.area),
+      (ErrorPattern.geometryProperty, TrainingMode.geometryRelations, MicroCompetencyId.circleParts),
+      (ErrorPattern.spatialReasoning, TrainingMode.geometryBodies, MicroCompetencyId.cubeNetFoldability),
+      (ErrorPattern.planScale, TrainingMode.plansAndOrientation, MicroCompetencyId.scale),
+    ];
+
+    for (var i = 0; i < cases.length; i++) {
+      final entry = cases[i];
+      final plan = RemediationGenerator(random: Random(92000 + i)).generate(
+        pattern: entry.$1,
+        preferredMode: entry.$2,
+        grade: GradeLevel.fourth,
+        range: NumberRangeLevel.million,
+        methods: const MethodPreferences(),
+        targetCompetency: entry.$3,
+      );
+      for (final task in plan.tasks) {
+        expect(task.targetCompetency, entry.$3, reason: entry.$1.name);
+        expect(
+          task.mode,
+          MicroCompetencyCatalog.definition(entry.$3).preferredMode,
+          reason: entry.$1.name,
+        );
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: task.mode,
+          taskKey: task.sourceTaskKey,
+        );
+        expect(
+          tags.map((tag) => tag.id),
+          contains(entry.$3),
+          reason: '${entry.$1.name}: ${task.sourceTaskKey}',
+        );
+      }
+    }
+  });
+
   test('Förder-Evidenz bewahrt Unterkompetenzen breiter Lernbereiche', () {
     const cases = <(String, TrainingMode, MicroCompetencyId)>[
       ('remediation:dataReading:data:tally:17', TrainingMode.dataCharts, MicroCompetencyId.tallyTableReading),

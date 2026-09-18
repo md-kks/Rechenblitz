@@ -4216,6 +4216,7 @@ class RemediationGenerator {
     required GradeLevel grade,
     required NumberRangeLevel range,
     required MethodPreferences methods,
+    MicroCompetencyId? targetCompetency,
     bool reviewOnly = false,
   }) {
     final tasks = <RemediationTask>[];
@@ -4234,6 +4235,7 @@ class RemediationGenerator {
             grade: grade,
             range: range,
             methods: methods,
+            targetCompetency: targetCompetency,
           );
           chosen ??= candidate;
           if (usedKeys.add(candidate.taskKey)) {
@@ -4258,8 +4260,18 @@ class RemediationGenerator {
     required GradeLevel grade,
     required NumberRangeLevel range,
     required MethodPreferences methods,
-  }) =>
-      switch (pattern) {
+    MicroCompetencyId? targetCompetency,
+  }) {
+    final focused = _targetedFocusTask(
+      pattern: pattern,
+      stage: stage,
+      targetCompetency: targetCompetency,
+      grade: grade,
+      range: range,
+    );
+    if (focused != null) return focused;
+
+    return switch (pattern) {
         ErrorPattern.tenBridge ||
         ErrorPattern.carryOmitted ||
         ErrorPattern.borrowAvoided =>
@@ -4464,6 +4476,118 @@ class RemediationGenerator {
             range: range,
           ),
       };
+  }
+
+  static const Map<ErrorPattern, Set<MicroCompetencyId>>
+      _focusableCompetencies = {
+    ErrorPattern.numberBond: {
+      MicroCompetencyId.doublesHalves,
+    },
+    ErrorPattern.placeValue: {
+      MicroCompetencyId.placeValueDigits,
+      MicroCompetencyId.placeValueDecompose,
+      MicroCompetencyId.largeNumberCompare,
+      MicroCompetencyId.largeNumberOrder,
+      MicroCompetencyId.numberWordReading,
+    },
+    ErrorPattern.unitConversion: {
+      MicroCompetencyId.measurementCalculation,
+      MicroCompetencyId.unitConversion,
+      MicroCompetencyId.secondsConversion,
+    },
+    ErrorPattern.geometryProperty: {
+      MicroCompetencyId.shapeProperties,
+      MicroCompetencyId.lineRelations,
+      MicroCompetencyId.rightAngle,
+      MicroCompetencyId.figureClassification,
+      MicroCompetencyId.circleParts,
+    },
+    ErrorPattern.mentalStrategy: {
+      MicroCompetencyId.mentalStrategy,
+      MicroCompetencyId.strategyChoice,
+    },
+    ErrorPattern.writtenProcedure: {
+      MicroCompetencyId.writtenAlignment,
+      MicroCompetencyId.errorChecking,
+      MicroCompetencyId.writtenMultiplyProcedure,
+      MicroCompetencyId.writtenDivideProcedure,
+    },
+    ErrorPattern.estimation: {
+      MicroCompetencyId.estimation,
+      MicroCompetencyId.plausibilityCheck,
+    },
+    ErrorPattern.arithmeticLaw: {
+      MicroCompetencyId.arithmeticLaw,
+      MicroCompetencyId.reasoningJustification,
+    },
+    ErrorPattern.timeDuration: {
+      MicroCompetencyId.timeDuration,
+      MicroCompetencyId.calendarDate,
+    },
+    ErrorPattern.dataReading: {
+      MicroCompetencyId.dataReading,
+      MicroCompetencyId.tallyTableReading,
+      MicroCompetencyId.dataRepresentationChoice,
+    },
+    ErrorPattern.probabilityReasoning: {
+      MicroCompetencyId.probabilityReasoning,
+      MicroCompetencyId.probabilityExperiment,
+    },
+    ErrorPattern.perimeterArea: {
+      MicroCompetencyId.perimeter,
+      MicroCompetencyId.area,
+    },
+    ErrorPattern.spatialReasoning: {
+      MicroCompetencyId.geometryBodies,
+      MicroCompetencyId.cubeNetFoldability,
+    },
+    ErrorPattern.planScale: {
+      MicroCompetencyId.planDirections,
+      MicroCompetencyId.scale,
+    },
+  };
+
+  RemediationTask? _targetedFocusTask({
+    required ErrorPattern pattern,
+    required RemediationStage stage,
+    required MicroCompetencyId? targetCompetency,
+    required GradeLevel grade,
+    required NumberRangeLevel range,
+  }) {
+    final focusable = _focusableCompetencies[pattern];
+    if (targetCompetency == null ||
+        focusable == null ||
+        !focusable.contains(targetCompetency)) {
+      return null;
+    }
+    final definition = MicroCompetencyCatalog.definition(targetCompetency);
+    if (!definition.appliesTo(grade) ||
+        !definition.appliesToNumberRange(range)) {
+      return null;
+    }
+    final mode = definition.preferredMode;
+    if (mode.isStructured) {
+      return _targetedStructuredRemediation(
+        stage: stage,
+        pattern: pattern,
+        mode: mode,
+        competency: targetCompetency,
+        grade: grade,
+        range: range,
+      );
+    }
+    if (mode.isUpperPrimary) {
+      return _targetedCurriculumRemediation(
+        stage: stage,
+        pattern: pattern,
+        mode: mode,
+        competency: targetCompetency,
+        grade: grade,
+        range: range,
+      );
+    }
+    return null;
+  }
 
   RemediationTask _tenBridge(
     RemediationStage stage,

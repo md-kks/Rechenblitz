@@ -110,6 +110,8 @@ class _RemediationScreenState extends State<RemediationScreen> {
         grade: widget.controller.gradeLevel,
         range: widget.controller.numberRange,
         methods: widget.controller.effectiveMethodPreferences,
+        targetCompetency:
+            widget.controller.remediationTargetCompetency(widget.pattern),
         reviewOnly: reviewOnly,
       );
       unawaited(_persistSession());
@@ -333,6 +335,13 @@ class _RemediationScreenState extends State<RemediationScreen> {
     final progress = (index + 1) / plan.tasks.length;
     final autoHint =
         stage == RemediationStage.guided || stage == RemediationStage.supported;
+    final focus = current.effectiveTargetCompetency;
+    final focusLabel = focus == null
+        ? widget.pattern.label
+        : MicroCompetencyCatalog.definition(focus).label;
+    final focusText = focusLabel == widget.pattern.label
+        ? focusLabel
+        : '$focusLabel · ${widget.pattern.label}';
 
     return Scaffold(
       appBar: AppBar(
@@ -365,7 +374,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Heute üben wir: ${widget.pattern.label}',
+              'Heute üben wir: $focusText',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

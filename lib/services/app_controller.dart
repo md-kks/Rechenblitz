@@ -1318,6 +1318,49 @@ class AppController extends ChangeNotifier {
     return summaries;
   }
 
+  MicroCompetencyId? remediationTargetCompetency(
+    ErrorPattern pattern, {
+    int maxAttempts = 80,
+  }) {
+    final activeIds = CurriculumAuditCatalog.definitionsForContext(
+      activeProfile.state,
+      gradeLevel,
+      numberRange,
+    ).map((definition) => definition.id).toSet();
+    final scores = <MicroCompetencyId, double>{};
+    final latest = <MicroCompetencyId, DateTime>{};
+
+    for (final entry in diagnostics
+        .where((entry) =>
+            !entry.correct &&
+            entry.pattern == pattern &&
+            entry.gradeLevel == gradeLevel &&
+            entry.numberRange == numberRange)
+        .take(maxAttempts)) {
+      final tags = MicroCompetencyCatalog.tagsForTask(
+        mode: entry.mode,
+        taskKey: entry.taskKey,
+      );
+      for (final tag in tags) {
+        if (!activeIds.contains(tag.id)) continue;
+        scores[tag.id] = (scores[tag.id] ?? 0) + tag.weight;
+        final seen = latest[tag.id];
+        if (seen == null || entry.occurredAt.isAfter(seen)) {
+          latest[tag.id] = entry.occurredAt;
+        }
+      }
+    }
+
+    if (scores.isEmpty) return null;
+    final candidates = scores.keys.toList()
+      ..sort((a, b) {
+        final byScore = scores[b]!.compareTo(scores[a]!);
+        if (byScore != 0) return byScore;
+        return latest[b]!.compareTo(latest[a]!);
+      });
+    return candidates.first;
+  }
+
   DiagnosticSummary? topDiagnosticForMode(TrainingMode mode) {
     final activeDefinitions = CurriculumAuditCatalog.definitionsForContext(
       activeProfile.state,
