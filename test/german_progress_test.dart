@@ -9,6 +9,7 @@ import 'package:rechenblitz/subjects/german/german_practice_planner.dart';
 import 'package:rechenblitz/subjects/german/german_progress.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_storage_service.dart';
+import 'package:rechenblitz/subjects/german/german_task.dart';
 import 'package:rechenblitz/subjects/german/german_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_teacher_assignment.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -214,6 +215,31 @@ void main() {
     expect(counts, hasLength(GermanLearningDomain.values.length));
     expect(counts.values.every((count) => count == 2), isTrue);
     expect(round.map((task) => task.id).toSet(), hasLength(12));
+  });
+
+  test('fourth-grade daily round includes productive writing', () {
+    final round = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.fourth,
+      history: const <GermanSessionResult>[],
+    );
+    final writing = round
+        .where(
+          (task) =>
+              _domainFor(task.competencyId) == GermanLearningDomain.writing,
+        )
+        .toList(growable: false);
+
+    expect(writing, hasLength(2));
+    expect(
+      writing.every(
+        (task) => task.interaction == GermanTaskInteraction.typedText,
+      ),
+      isTrue,
+    );
+    expect(
+      round.any((task) => task.interaction != GermanTaskInteraction.typedText),
+      isTrue,
+    );
   });
 
   test(

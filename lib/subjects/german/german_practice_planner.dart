@@ -194,6 +194,16 @@ class GermanPracticePlanner {
       if (aTaskLast != null && bTaskLast != null && aTaskLast != bTaskLast) {
         return aTaskLast.compareTo(bTaskLast);
       }
+
+      final domain = GermanCompetencyCatalog.definition(a.competencyId).domain;
+      if (domain == GermanLearningDomain.writing) {
+        final interaction = _writingInteractionPriority(
+          a.interaction,
+        ).compareTo(_writingInteractionPriority(b.interaction));
+        if (interaction != 0) return interaction;
+      }
+      final idOrder = a.id.compareTo(b.id);
+      if (idOrder != 0) return idOrder;
     }
 
     final aLast = aProgress.lastPracticedAt;
@@ -221,6 +231,14 @@ class GermanPracticePlanner {
       GermanCompetencyState.secure => 4,
     };
   }
+
+  static int _writingInteractionPriority(GermanTaskInteraction interaction) =>
+      switch (interaction) {
+        GermanTaskInteraction.typedText => 0,
+        GermanTaskInteraction.wordOrder => 1,
+        GermanTaskInteraction.singleChoice => 2,
+        GermanTaskInteraction.listeningChoice => 3,
+      };
 
   static DateTime? _lastPracticedTaskAt(
     String taskId,

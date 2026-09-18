@@ -114,6 +114,35 @@ void main() {
     expect(task.accepts('heute regnet es.'), isFalse);
     expect(task.accepts('Heute regnet es'), isFalse);
   });
+  test('upper-primary writing includes real text production', () {
+    final gradeThreeWriting =
+        GermanTaskCatalog.forDomain(
+          GermanLearningDomain.writing,
+          GradeLevel.third,
+        ).where(
+          (task) =>
+              task.recommendedFromGrade == GradeLevel.third &&
+              task.interaction == GermanTaskInteraction.typedText,
+        );
+    expect(gradeThreeWriting.length, greaterThanOrEqualTo(4));
+
+    for (final competency in <GermanCompetencyId>[
+      GermanCompetencyId.sentenceConnections,
+      GermanCompetencyId.textRevision,
+    ]) {
+      final productive = GermanTaskCatalog.forCompetency(competency).where(
+        (task) =>
+            task.recommendedFromGrade == GradeLevel.fourth &&
+            task.interaction == GermanTaskInteraction.typedText,
+      );
+      expect(
+        productive.length,
+        greaterThanOrEqualTo(3),
+        reason: competency.name,
+      );
+    }
+  });
+
   test('combined German task catalog covers every competency', () {
     final ids = <String>{};
     for (final task in GermanTaskCatalog.tasks) {
