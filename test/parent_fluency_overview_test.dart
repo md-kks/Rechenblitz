@@ -106,11 +106,12 @@ void main() {
 
   testWidgets('Elternstart uebernimmt Fluency-Fokus ohne Countdown', (tester) async {
     final controller = await _controller();
+    final now = DateTime.now();
     controller.microObservations = <MicroCompetencyObservation>[
       for (var index = 0; index < 4; index++)
         MicroCompetencyObservation(
           id: MicroCompetencyId.additionNoBridge,
-          occurredAt: DateTime(2026, 9, 16, 9, index),
+          occurredAt: now.subtract(Duration(minutes: 60 - index)),
           correct: true,
           evidenceWeight: 1,
           source: MicroEvidenceSource.practice,
@@ -123,7 +124,7 @@ void main() {
         ),
       MicroCompetencyObservation(
         id: MicroCompetencyId.additionNoBridge,
-        occurredAt: DateTime(2026, 9, 16, 9, 4),
+        occurredAt: now.subtract(const Duration(minutes: 10)),
         correct: true,
         evidenceWeight: 1,
         source: MicroEvidenceSource.review,
@@ -135,7 +136,7 @@ void main() {
       ),
       MicroCompetencyObservation(
         id: MicroCompetencyId.additionNoBridge,
-        occurredAt: DateTime(2026, 9, 16, 9, 5),
+        occurredAt: now.subtract(const Duration(minutes: 5)),
         correct: true,
         evidenceWeight: 1,
         source: MicroEvidenceSource.transfer,
