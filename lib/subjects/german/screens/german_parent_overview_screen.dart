@@ -14,6 +14,7 @@ import '../german_parent_overview.dart';
 import '../german_progress.dart';
 import '../german_storage_service.dart';
 import 'german_curriculum_audit_screen.dart';
+import 'german_teacher_mode_screen.dart';
 
 class GermanParentOverviewScreen extends StatefulWidget {
   const GermanParentOverviewScreen({super.key, required this.controller});
@@ -57,7 +58,7 @@ class _GermanParentOverviewScreenState
     ),
     child: Builder(
       builder: (context) => Scaffold(
-        appBar: AppBar(title: const Text('Deutsch-Lernstand')),
+        appBar: AppBar(title: const Text('Elternbereich · Deutsch')),
         body: SafeArea(
           child: _overview == null
               ? const Center(child: CircularProgressIndicator())
@@ -131,6 +132,20 @@ class _GermanParentOverviewScreenState
           ),
         ),
         const SizedBox(height: 16),
+        OutlinedButton.icon(
+          key: const ValueKey('german-parent-teacher-assignment'),
+          onPressed: () => unawaited(
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    GermanTeacherModeScreen(controller: widget.controller),
+              ),
+            ),
+          ),
+          icon: const Icon(Icons.qr_code_2_rounded),
+          label: const Text('Deutsch-Lehrerauftrag erstellen'),
+        ),
+        const SizedBox(height: 10),
         OutlinedButton.icon(
           key: const ValueKey('german-curriculum-audit'),
           onPressed: () => unawaited(

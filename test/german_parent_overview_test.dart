@@ -118,7 +118,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Deutsch-Lernstand'), findsOneWidget);
+    expect(find.text('Elternbereich · Deutsch'), findsOneWidget);
     expect(find.text('2'), findsWidgets);
     expect(find.text('3'), findsWidgets);
     expect(find.text('100 %'), findsWidgets);

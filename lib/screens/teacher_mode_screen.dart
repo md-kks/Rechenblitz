@@ -7,7 +7,6 @@ import '../models/teacher_assignment.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import '../services/assignment_launcher.dart';
-import '../subjects/german/screens/german_teacher_mode_screen.dart';
 import 'assignment_result_scanner_screen.dart';
 
 class TeacherModeScreen extends StatefulWidget {
@@ -110,19 +109,6 @@ class _TeacherModeScreenState extends State<TeacherModeScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            key: const ValueKey('teacher-open-german'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) =>
-                    GermanTeacherModeScreen(controller: widget.controller),
-              ),
-            ),
-            icon: const Icon(Icons.menu_book_rounded),
-            label: const Text('Deutsch-Auftrag erstellen'),
-          ),
-          const SizedBox(height: 12),
           DropdownButtonFormField<GradeLevel>(
             initialValue: grade,
             decoration: const InputDecoration(

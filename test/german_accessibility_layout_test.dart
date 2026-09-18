@@ -177,7 +177,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Deutsch-Lernstand'), findsOneWidget);
+    expect(find.text('Elternbereich · Deutsch'), findsOneWidget);
   });
 
   testWidgets('Deutsch-Lehrerauftrag bleibt auf schmalem Handy stabil', (

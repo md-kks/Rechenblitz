@@ -9,7 +9,6 @@ import '../models/micro_competency.dart';
 import '../models/remediation_path.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
-import '../subjects/german/screens/german_parent_overview_screen.dart';
 import 'competency_map_screen.dart';
 import 'teacher_mode_screen.dart';
 import 'curriculum_audit_screen.dart';
@@ -153,7 +152,7 @@ class _ParentScreenState extends State<ParentScreen> {
         roundDecision.primary?.competencyId == fluencyFocus.definition.id;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Elternbereich')),
+      appBar: AppBar(title: const Text('Elternbereich · Mathe')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 10, 18, 34),
         children: [
@@ -544,17 +543,6 @@ class _ParentScreenState extends State<ParentScreen> {
                   ),
                   icon: const Icon(Icons.qr_code_2_rounded),
                   label: const Text('Lehrerauftrag erstellen'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  key: const ValueKey('parent-german-overview'),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => GermanParentOverviewScreen(controller: c),
-                    ),
-                  ),
-                  icon: const Icon(Icons.menu_book_rounded),
-                  label: const Text('Deutsch-Lernstand'),
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(

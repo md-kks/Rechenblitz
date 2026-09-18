@@ -189,7 +189,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 2100));
     await tester.pumpAndSettle();
 
-    expect(find.text('Elternbereich'), findsOneWidget);
+    expect(find.text('Elternbereich · Mathe'), findsOneWidget);
     await gesture.up();
 
     final parentScroll = find.byType(Scrollable).first;

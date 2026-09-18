@@ -7,6 +7,7 @@ import '../../../core/grade_level.dart';
 import '../../../core/learning_app_theme.dart';
 import '../../../core/learning_subject.dart';
 import '../../../core/widgets/learning_subject_switcher.dart';
+import '../../../screens/assignment_scanner_screen.dart';
 import '../../../services/app_controller.dart';
 import '../german_assessment.dart';
 import '../german_competency.dart';
@@ -23,6 +24,8 @@ import '../german_task.dart';
 import 'german_assessment_result_screen.dart';
 import 'german_assignment_result_screen.dart';
 import 'german_competency_map_screen.dart';
+import 'german_parent_overview_screen.dart';
+import 'german_reward_screen.dart';
 import 'german_training_screen.dart';
 
 class GermanHomeScreen extends StatefulWidget {
@@ -35,6 +38,7 @@ class GermanHomeScreen extends StatefulWidget {
 }
 
 class _GermanHomeScreenState extends State<GermanHomeScreen> {
+  Timer? _parentGateTimer;
   List<GermanSessionResult> _history = const <GermanSessionResult>[];
   GermanRoundDraft? _draft;
   bool _introComplete = false;
@@ -47,6 +51,12 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   void initState() {
     super.initState();
     unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    _parentGateTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -74,6 +84,100 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     subject: LearningSubject.german,
     accessibility: widget.controller.accessibilityPreferences,
   );
+
+  void _startParentGate(BuildContext sheetContext) {
+    _parentGateTimer?.cancel();
+    _parentGateTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      _parentGateTimer = null;
+      unawaited(_openParentArea(sheetContext));
+    });
+  }
+
+  void _cancelParentGate() {
+    _parentGateTimer?.cancel();
+    _parentGateTimer = null;
+  }
+
+  Future<void> _openParentArea(BuildContext sheetContext) async {
+    if (Navigator.of(sheetContext).canPop()) {
+      Navigator.of(sheetContext).pop();
+      await Future<void>.delayed(Duration.zero);
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            GermanParentOverviewScreen(controller: widget.controller),
+      ),
+    );
+  }
+
+  Future<void> _showMoreMenu() async {
+    _cancelParentGate();
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                key: const ValueKey('german-more-school-assignment'),
+                leading: const Icon(Icons.qr_code_scanner_rounded),
+                title: const Text('Schulauftrag'),
+                subtitle: const Text('Deutsch-Auftrag per QR-Code öffnen'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => AssignmentScannerScreen(
+                        controller: widget.controller,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              Listener(
+                key: const ValueKey('german-parent-gate'),
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (_) => _startParentGate(sheetContext),
+                onPointerUp: (_) => _cancelParentGate(),
+                onPointerCancel: (_) => _cancelParentGate(),
+                child: Semantics(
+                  button: true,
+                  label: 'Elternbereich Deutsch – 2 Sekunden gedrückt halten',
+                  child: ListTile(
+                    leading: Icon(Icons.lock_outline_rounded),
+                    title: Text('Elternbereich'),
+                    subtitle: Text('Deutsch · 2 Sekunden gedrückt halten'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    _cancelParentGate();
+  }
+
+  Future<void> _openRewards() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Theme(
+          data: _germanTheme,
+          child: GermanRewardScreen(
+            gradeLevel: widget.controller.gradeLevel,
+            history: _history,
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _openRound(
     List<GermanTask> tasks, {
@@ -253,7 +357,23 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     data: _germanTheme,
     child: Builder(
       builder: (context) => Scaffold(
-        appBar: AppBar(title: const Text('Deutsch')),
+        appBar: AppBar(
+          title: const Text('Deutsch'),
+          actions: <Widget>[
+            IconButton(
+              key: const ValueKey('german-rewards'),
+              tooltip: 'Meine Deutsch-Erfolge',
+              onPressed: _loading ? null : () => unawaited(_openRewards()),
+              icon: const Icon(Icons.emoji_events_rounded),
+            ),
+            IconButton(
+              key: const ValueKey('german-more'),
+              tooltip: 'Mehr',
+              onPressed: _showMoreMenu,
+              icon: const Icon(Icons.more_horiz_rounded),
+            ),
+          ],
+        ),
         body: SafeArea(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
