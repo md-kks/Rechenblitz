@@ -4564,24 +4564,33 @@ class GuidedMethodFactory {
 
     if (key.startsWith('geomrel:circle:')) {
       final diameter = key.contains(':diameter:');
+      final center = key.contains(':center:');
       return GuidedMethodGuide(
         methodKey: 'geometry:circle-parts',
         methodLabel: 'Mittelpunkt und Rand als Orientierung nutzen',
-        nudge: diameter
-            ? 'Verfolge die Strecke: Rand → Mittelpunkt → gegenüberliegender Rand.'
-            : 'Verfolge die Strecke vom Mittelpunkt bis genau zum Rand.',
+        nudge: center
+            ? 'Suche den Punkt genau im Zentrum des Kreises.'
+            : diameter
+                ? 'Verfolge die Strecke: Rand → Mittelpunkt → gegenüberliegender Rand.'
+                : 'Verfolge die Strecke vom Mittelpunkt bis genau zum Rand.',
         steps: [
           GuidedMethodStep(
-            title: 'Start und Ende der Strecke prüfen',
-            instruction: diameter
-                ? 'Die Strecke beginnt am Rand, geht durch den Mittelpunkt und endet am gegenüberliegenden Rand.'
-                : 'Die Strecke beginnt im Mittelpunkt und endet am Kreisrand.',
+            title: center
+                ? 'Zentrum des Kreises prüfen'
+                : 'Start und Ende der Strecke prüfen',
+            instruction: center
+                ? 'Der gesuchte Punkt liegt genau im Zentrum. Von ihm sind alle Punkte des Kreisrandes gleich weit entfernt.'
+                : diameter
+                    ? 'Die Strecke beginnt am Rand, geht durch den Mittelpunkt und endet am gegenüberliegenden Rand.'
+                    : 'Die Strecke beginnt im Mittelpunkt und endet am Kreisrand.',
           ),
           GuidedMethodStep(
             title: 'Kreisbegriff zuordnen',
-            instruction: diameter
-                ? 'Eine solche Strecke heißt Durchmesser.'
-                : 'Eine solche Strecke heißt Radius.',
+            instruction: center
+                ? 'Dieser zentrale Punkt heißt Mittelpunkt.'
+                : diameter
+                    ? 'Eine solche Strecke heißt Durchmesser.'
+                    : 'Eine solche Strecke heißt Radius.',
           ),
         ],
       );

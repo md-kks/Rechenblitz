@@ -1664,23 +1664,30 @@ class CurriculumExerciseGenerator {
   }
 
   CurriculumExercise _dataRepresentationChoice() {
-    final kind = _random.nextInt(3);
+    final scenario = _random.nextInt(6);
+    final answer = scenario % 3;
     const choices = ['Strichliste', 'Tabelle', 'Balkendiagramm'];
-    final prompt = switch (kind) {
+    final prompt = switch (scenario) {
       0 =>
-        'Du zählst während einer Befragung jede neue Stimme sofort mit. Welche Darstellung eignet sich am besten?',
+        'Bei einer Klassenwahl kommt eine Stimme nach der anderen hinzu. Du willst jede Stimme sofort mitzählen. Welche Darstellung eignet sich am besten?',
       1 =>
-        'Du möchtest exakte Werte für Montag bis Freitag geordnet nachschlagen. Welche Darstellung eignet sich am besten?',
-      _ =>
+        'Du möchtest die ausgeliehenen Bücher von Montag bis Freitag mit ihren exakten Zahlen geordnet nachschlagen. Welche Darstellung eignet sich am besten?',
+      2 =>
         'Du möchtest auf einen Blick vergleichen, welche Lieblingsfarbe am häufigsten gewählt wurde. Welche Darstellung eignet sich am besten?',
+      3 =>
+        'Beim Sportfest möchtest du während des Weitsprungs jeden gültigen Versuch direkt mitzählen. Welche Darstellung eignet sich am besten?',
+      4 =>
+        'Du willst die exakten Temperaturen einer Woche für jeden Wochentag übersichtlich nachschlagen. Welche Darstellung eignet sich am besten?',
+      _ =>
+        'Du möchtest schnell erkennen, welche von mehreren Klassen die meisten Bücher gelesen hat. Welche Darstellung eignet sich am besten?',
     };
     return CurriculumExercise(
       mode: TrainingMode.dataCharts,
       prompt: prompt,
-      answer: kind,
+      answer: answer,
       hint:
           'Strichlisten helfen beim laufenden Zählen, Tabellen beim geordneten Nachschlagen und Balkendiagramme beim schnellen Vergleichen.',
-      key: 'data:representation:$kind',
+      key: 'data:representation:$scenario:$answer',
       choices: choices,
       method: 'Passende Datendarstellung wählen',
     );
@@ -1925,17 +1932,34 @@ class CurriculumExerciseGenerator {
 
     if (kind == 0) {
       final parallel = _random.nextBool();
+      final context = _random.nextInt(3);
       const choices = ['parallel', 'senkrecht', 'weder noch'];
+      final prompt = parallel
+          ? switch (context) {
+              0 =>
+                'Zwei Geraden haben überall den gleichen Abstand und schneiden sich nicht. Wie liegen sie zueinander?',
+              1 =>
+                'Die beiden langen Kanten eines geraden Papierstreifens verlaufen in gleicher Richtung und bleiben gleich weit voneinander entfernt. Welche Lagebeziehung beschreibt die zugehörigen Geraden?',
+              _ =>
+                'Zwei gedachte Geraden entlang gegenüberliegender Linien eines karierten Blattes laufen gleichgerichtet weiter und treffen sich nicht. Wie liegen sie zueinander?',
+            }
+          : switch (context) {
+              0 =>
+                'Zwei Geraden schneiden sich so, dass vier rechte Winkel entstehen. Wie liegen sie zueinander?',
+              1 =>
+                'Eine waagerechte und eine senkrechte Gitterlinie treffen sich wie an einer Rechteck-Ecke. Wie liegen die Geraden zueinander?',
+              _ =>
+                'Zwei Geraden kreuzen sich im rechten Winkel. Welche Lagebeziehung haben sie?',
+            };
       return CurriculumExercise(
         mode: TrainingMode.geometryRelations,
-        prompt: parallel
-            ? 'Zwei Geraden haben überall den gleichen Abstand und schneiden sich nicht. Wie liegen sie zueinander?'
-            : 'Zwei Geraden schneiden sich so, dass vier rechte Winkel entstehen. Wie liegen sie zueinander?',
+        prompt: prompt,
         answer: parallel ? 0 : 1,
         hint: parallel
             ? 'Parallele Geraden behalten überall den gleichen Abstand.'
             : 'Senkrechte Geraden schneiden sich im rechten Winkel.',
-        key: 'geomrel:lines:${parallel ? 'parallel' : 'perpendicular'}:${grade.name}',
+        key:
+            'geomrel:lines:${parallel ? 'parallel' : 'perpendicular'}:context$context:${grade.name}',
         choices: choices,
         method: 'Lagebeziehungen erkennen',
       );
@@ -1949,13 +1973,17 @@ class CurriculumExerciseGenerator {
       ];
       if (targetCompetency == MicroCompetencyId.rightAngle) {
         final relation = _random.nextInt(3);
+        final reference = _random.nextInt(2);
+        final referenceLabel = reference == 0
+            ? 'Ecke eines rechteckigen Blattes'
+            : '90°-Ecke eines Geodreiecks';
         final prompt = switch (relation) {
           0 =>
-            'Ein Winkel ist kleiner als die Ecke eines rechteckigen Blattes. Wie heißt dieser Winkel?',
+            'Ein Winkel ist kleiner als die $referenceLabel. Wie heißt dieser Winkel?',
           1 =>
-            'Ein Winkel ist genau so groß wie die Ecke eines rechteckigen Blattes. Wie heißt dieser Winkel?',
+            'Ein Winkel ist genau so groß wie die $referenceLabel. Wie heißt dieser Winkel?',
           _ =>
-            'Ein Winkel ist größer als die Ecke eines rechteckigen Blattes. Wie heißt dieser Winkel?',
+            'Ein Winkel ist größer als die $referenceLabel. Wie heißt dieser Winkel?',
         };
         final answer = switch (relation) {
           0 => 1,
@@ -1963,13 +1991,15 @@ class CurriculumExerciseGenerator {
           _ => 2,
         };
         final keyRelation = ['smaller', 'equal', 'larger'][relation];
+        final referenceKey = reference == 0 ? 'paper' : 'set-square';
         return CurriculumExercise(
           mode: TrainingMode.geometryRelations,
           prompt: prompt,
           answer: answer,
           hint:
               'Vergleiche mit einer Rechteck-Ecke: kleiner = spitz, gleich = recht, größer = stumpf.',
-          key: 'geomrel:angle:$keyRelation:reference:${grade.name}',
+          key:
+              'geomrel:angle:$keyRelation:reference:$referenceKey:${grade.name}',
           choices: choices,
           method: 'Rechte Winkel erkennen',
         );
@@ -1979,8 +2009,7 @@ class CurriculumExerciseGenerator {
         prompt:
             'Eine Ecke sieht genau so aus wie die Ecke eines rechteckigen Blattes. Wie heißt dieser Winkel?',
         answer: 0,
-        hint:
-            'Die Ecke eines Rechtecks ist ein rechter Winkel.',
+        hint: 'Die Ecke eines Rechtecks ist ein rechter Winkel.',
         key: 'geomrel:angle:right:paper:${grade.name}',
         choices: choices,
         method: 'Rechte Winkel erkennen',
@@ -2017,18 +2046,35 @@ class CurriculumExerciseGenerator {
       );
     }
 
-    final diameter = _random.nextBool();
+    final concept = _random.nextInt(3);
+    final context = _random.nextInt(2);
     const choices = ['Radius', 'Durchmesser', 'Mittelpunkt'];
+    final prompt = switch ((concept, context)) {
+      (0, 0) =>
+        'Wie heißt die Strecke vom Mittelpunkt eines Kreises bis zum Rand?',
+      (0, _) =>
+        'Vom Zentrum eines Kreises wird eine gerade Strecke bis zur Kreislinie gezeichnet. Wie heißt diese Strecke?',
+      (1, 0) =>
+        'Wie heißt die Strecke, die von einem Randpunkt durch den Mittelpunkt bis zum gegenüberliegenden Randpunkt eines Kreises geht?',
+      (1, _) =>
+        'Eine gerade Strecke verbindet zwei gegenüberliegende Randpunkte und läuft dabei durch das Zentrum des Kreises. Wie heißt sie?',
+      (2, 0) =>
+        'Wie heißt der Punkt genau in der Mitte eines Kreises, von dem alle Punkte am Rand gleich weit entfernt sind?',
+      _ =>
+        'Ein Punkt liegt im Zentrum des Kreises. Von ihm aus werden Radius und Durchmesser beschrieben. Wie heißt dieser Punkt?',
+    };
+    final term = ['radius', 'diameter', 'center'][concept];
+    final hint = switch (concept) {
+      0 => 'Der Radius geht vom Mittelpunkt bis zum Rand.',
+      1 => 'Der Durchmesser geht durch den Mittelpunkt von Rand zu Rand.',
+      _ => 'Der Mittelpunkt liegt genau im Zentrum des Kreises.',
+    };
     return CurriculumExercise(
       mode: TrainingMode.geometryRelations,
-      prompt: diameter
-          ? 'Wie heißt die Strecke, die von einem Randpunkt durch den Mittelpunkt bis zum gegenüberliegenden Randpunkt eines Kreises geht?'
-          : 'Wie heißt die Strecke vom Mittelpunkt eines Kreises bis zum Rand?',
-      answer: diameter ? 1 : 0,
-      hint: diameter
-          ? 'Der Durchmesser geht durch den Mittelpunkt von Rand zu Rand.'
-          : 'Der Radius geht vom Mittelpunkt bis zum Rand.',
-      key: 'geomrel:circle:${diameter ? 'diameter' : 'radius'}:${grade.name}',
+      prompt: prompt,
+      answer: concept,
+      hint: hint,
+      key: 'geomrel:circle:$term:context$context:${grade.name}',
       choices: choices,
       method: 'Kreisbegriffe verwenden',
     );

@@ -48,9 +48,11 @@ class GeometryRelationVisual extends StatelessWidget {
             : 'Zwei senkrechte Geraden mit rechtem Winkel',
         _GeometryKind.angle => 'Darstellung eines rechten Winkels',
         _GeometryKind.figure => 'Geometrische Figur zur Aufgabenbeschreibung',
-        _GeometryKind.circle => taskKey.contains(':diameter:')
-            ? 'Kreis mit eingezeichnetem Durchmesser'
-            : 'Kreis mit eingezeichnetem Radius',
+        _GeometryKind.circle => taskKey.contains(':center:')
+            ? 'Kreis mit markiertem Mittelpunkt'
+            : taskKey.contains(':diameter:')
+                ? 'Kreis mit eingezeichnetem Durchmesser'
+                : 'Kreis mit eingezeichnetem Radius',
       };
 }
 
@@ -237,6 +239,16 @@ class _GeometryRelationPainter extends CustomPainter {
         ..color = accentColor
         ..style = PaintingStyle.fill,
     );
+
+    if (taskKey.contains(':center:')) {
+      _label(
+        canvas,
+        'Mittelpunkt',
+        Offset(center.dx + 12, center.dy - 24),
+        accentColor,
+      );
+      return;
+    }
 
     if (taskKey.contains(':diameter:')) {
       canvas.drawLine(
