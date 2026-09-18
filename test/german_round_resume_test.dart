@@ -237,6 +237,26 @@ void main() {
     expect(completed!.taskResults.last.taskId, tasks.last.id);
   });
 
+  testWidgets('German home discards a draft from another grade', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(true);
+    await storage.saveRoundDraft(draftForTwoTasks());
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('german-resume-round')), findsNothing);
+    expect(find.byKey(const ValueKey('german-daily-round')), findsOneWidget);
+    expect(await storage.loadRoundDraft(), isNull);
+  });
+
   testWidgets('German home offers an interrupted round to continue', (
     tester,
   ) async {

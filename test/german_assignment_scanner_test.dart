@@ -11,6 +11,41 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
 
+  testWidgets('mismatched German assignment cannot start', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    const assignment = GermanTeacherAssignment(
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      tasks: 5,
+      targetCompetency: GermanCompetencyId.textMainIdea,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: AssignmentScannerScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    final input = find.byKey(const ValueKey('assignment-code-input')).first;
+    await tester.ensureVisible(input);
+    await tester.enterText(input, assignment.toPayload());
+    await tester.tap(
+      find.byKey(const ValueKey('assignment-code-submit')).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Deutsch-Auftrag erkannt'), findsOneWidget);
+    expect(
+      find.textContaining('dieses Profil aber für Klasse 2'),
+      findsOneWidget,
+    );
+    final start = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Auftrag starten'),
+    );
+    expect(start.onPressed, isNull);
+  });
+
   testWidgets('manual scanner accepts a German offline assignment', (
     tester,
   ) async {

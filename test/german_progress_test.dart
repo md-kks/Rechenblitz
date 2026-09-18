@@ -44,6 +44,58 @@ void main() {
     expect(await second.loadHistory(), isEmpty);
   });
 
+  test('German history load repairs legacy ordering', () async {
+    final older = _session(
+      GermanCompetencyId.wordRecognition,
+      correct: true,
+      taskId: 'older',
+      finishedAt: DateTime(2026, 9, 10, 12),
+    );
+    final newer = _session(
+      GermanCompetencyId.wordRecognition,
+      correct: true,
+      taskId: 'newer',
+      finishedAt: DateTime(2026, 9, 18, 12),
+    );
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'profile:child:subject:german:history_v1': jsonEncode(<Object>[
+        older.toJson(),
+        newer.toJson(),
+      ]),
+    });
+    final storage = GermanStorageService(profileId: 'child');
+
+    final history = await storage.loadHistory();
+
+    expect(history, hasLength(2));
+    expect(history.first.taskResults.single.taskId, 'newer');
+    expect(history.last.taskResults.single.taskId, 'older');
+  });
+
+  test('German history load caps oversized legacy data', () async {
+    final sessions = List<GermanSessionResult>.generate(
+      305,
+      (index) => _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'legacy-$index',
+        finishedAt: DateTime(2026, 1, 1).add(Duration(minutes: index)),
+      ),
+    );
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'profile:child:subject:german:history_v1': jsonEncode(
+        sessions.map((session) => session.toJson()).toList(),
+      ),
+    });
+    final storage = GermanStorageService(profileId: 'child');
+
+    final history = await storage.loadHistory();
+
+    expect(history, hasLength(300));
+    expect(history.first.taskResults.single.taskId, 'legacy-304');
+    expect(history.last.taskResults.single.taskId, 'legacy-5');
+  });
+
   test(
     'one damaged German history entry does not hide valid progress',
     () async {

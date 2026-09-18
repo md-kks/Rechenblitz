@@ -39,7 +39,8 @@ class GermanStorageService {
           // One damaged session must not hide the remaining local progress.
         }
       }
-      return results;
+      results.sort((a, b) => b.finishedAt.compareTo(a.finishedAt));
+      return results.take(300).toList(growable: false);
     } catch (_) {
       return <GermanSessionResult>[];
     }
