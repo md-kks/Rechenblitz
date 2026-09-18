@@ -12,6 +12,7 @@ import '../../../services/app_controller.dart';
 import '../german_assessment.dart';
 import '../german_competency.dart';
 import '../german_competency_catalog.dart';
+import '../german_grade_bridge.dart';
 import '../german_learning_domain.dart';
 import '../german_practice_planner.dart';
 import '../german_progress.dart';
@@ -312,7 +313,10 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
 
   GermanSessionResult? get _latestAssessment {
     for (final session in _history) {
-      if (session.kind == GermanSessionKind.assessment) return session;
+      if (session.kind == GermanSessionKind.assessment &&
+          session.gradeLevel == widget.controller.gradeLevel) {
+        return session;
+      }
     }
     return null;
   }
@@ -353,11 +357,26 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       ),
     );
     if (!mounted || competency == null) return;
-    final tasks = GermanPracticePlanner.buildCompetencyRound(
-      gradeLevel: widget.controller.gradeLevel,
+    final progress = GermanProgressAnalyzer.forCompetency(competency, _history);
+    final bridge = GermanGradeBridgeAnalyzer.forCompetency(
       competencyId: competency,
+      currentGrade: widget.controller.gradeLevel,
       history: _history,
     );
+    final tasks =
+        progress.state == GermanCompetencyState.secure && bridge.isPending
+        ? GermanPracticePlanner.buildGradeBridgeRound(
+            gradeLevel: widget.controller.gradeLevel,
+            competencyId: competency,
+            history: _history,
+            now: widget.now(),
+          )
+        : GermanPracticePlanner.buildCompetencyRound(
+            gradeLevel: widget.controller.gradeLevel,
+            competencyId: competency,
+            history: _history,
+            now: widget.now(),
+          );
     await _openRound(tasks);
   }
 
@@ -578,8 +597,15 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     if (focus == null) {
       return '12 Aufgaben für heute – ausgewogen aus allen sechs Lernbereichen.';
     }
-    final label = GermanCompetencyCatalog.definition(focus.competencyId).label;
-    return switch (focus.attention(now: widget.now())) {
+    final label = GermanCompetencyCatalog.definition(
+      focus.progress.competencyId,
+    ).label;
+    final bridge = focus.bridge;
+    if (bridge != null) {
+      return '12 Aufgaben für heute. „$label“ wird mit Aufgaben aus '
+          '${bridge.currentGrade.label} kurz bestätigt.';
+    }
+    return switch (focus.progress.attention(now: widget.now())) {
       GermanPracticeAttention.needsPractice =>
         '12 Aufgaben für heute. „$label“ bekommt etwas mehr Übungszeit.',
       GermanPracticeAttention.reviewDue =>
@@ -598,30 +624,45 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     return 'Letzter Lerncheck: ${latest.correctFirstTry} von ${latest.total} direkt richtig · $percent %.';
   }
 
-  GermanCompetencyProgress? _practiceFocus() {
+  _GermanPracticeFocus? _practiceFocus() {
     final now = widget.now();
-    final practiced =
-        GermanCompetencyCatalog.recommendedFor(widget.controller.gradeLevel)
-            .map(
-              (definition) =>
-                  GermanProgressAnalyzer.forCompetency(definition.id, _history),
-            )
-            .where(
-              (progress) =>
-                  progress.attention(now: now) != GermanPracticeAttention.none,
-            )
-            .toList();
-    if (practiced.isEmpty) return null;
-    practiced.sort((a, b) {
-      final attention = a
-          .attention(now: now)
-          .index
-          .compareTo(b.attention(now: now).index);
-      if (attention != 0) return attention;
-      final recent = a.recentAccuracy.compareTo(b.recentAccuracy);
-      return recent != 0 ? recent : a.accuracy.compareTo(b.accuracy);
+    final focuses = <_GermanPracticeFocus>[];
+    for (final definition in GermanCompetencyCatalog.recommendedFor(
+      widget.controller.gradeLevel,
+    )) {
+      final progress = GermanProgressAnalyzer.forCompetency(
+        definition.id,
+        _history,
+      );
+      final attention = progress.attention(now: now);
+      final bridge = GermanGradeBridgeAnalyzer.forCompetency(
+        competencyId: definition.id,
+        currentGrade: widget.controller.gradeLevel,
+        history: _history,
+      );
+      if (attention == GermanPracticeAttention.needsPractice) {
+        focuses.add(_GermanPracticeFocus(progress: progress, priority: 0));
+      } else if (progress.state == GermanCompetencyState.secure &&
+          bridge.isPending) {
+        focuses.add(
+          _GermanPracticeFocus(progress: progress, bridge: bridge, priority: 1),
+        );
+      } else if (attention == GermanPracticeAttention.reviewDue) {
+        focuses.add(_GermanPracticeFocus(progress: progress, priority: 2));
+      }
+    }
+    if (focuses.isEmpty) return null;
+    focuses.sort((a, b) {
+      final priority = a.priority.compareTo(b.priority);
+      if (priority != 0) return priority;
+      final recent = a.progress.recentAccuracy.compareTo(
+        b.progress.recentAccuracy,
+      );
+      return recent != 0
+          ? recent
+          : a.progress.accuracy.compareTo(b.progress.accuracy);
     });
-    return practiced.first;
+    return focuses.first;
   }
 
   String _domainSummary(GermanLearningDomain domain) {
@@ -635,14 +676,34 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
               GermanProgressAnalyzer.forCompetency(definition.id, _history),
         )
         .toList();
+    final progressById = {
+      for (final progress in practiced) progress.competencyId: progress,
+    };
+    final bridgeIds = definitions
+        .where((definition) {
+          final progress = progressById[definition.id]!;
+          if (progress.state != GermanCompetencyState.secure) return false;
+          return GermanGradeBridgeAnalyzer.forCompetency(
+            competencyId: definition.id,
+            currentGrade: widget.controller.gradeLevel,
+            history: _history,
+          ).isPending;
+        })
+        .map((definition) => definition.id)
+        .toSet();
     final secure = practiced
-        .where((progress) => progress.state == GermanCompetencyState.secure)
+        .where(
+          (progress) =>
+              progress.state == GermanCompetencyState.secure &&
+              !bridgeIds.contains(progress.competencyId),
+        )
         .length;
     final reviewDue = practiced
         .where(
           (progress) =>
+              !bridgeIds.contains(progress.competencyId) &&
               progress.attention(now: widget.now()) ==
-              GermanPracticeAttention.reviewDue,
+                  GermanPracticeAttention.reviewDue,
         )
         .length;
     final attempts = practiced.fold<int>(
@@ -650,11 +711,14 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       (sum, value) => sum + value.attempts,
     );
     if (attempts == 0) return 'Noch nicht geübt';
-    if (reviewDue > 0) {
-      return '$secure von ${definitions.length} Lernschritten sicher · '
-          '$reviewDue Wiederholung fällig';
+    final parts = <String>[
+      '$secure von ${definitions.length} Lernschritten sicher',
+    ];
+    if (bridgeIds.isNotEmpty) {
+      parts.add('${bridgeIds.length} Klassenstufen-Check');
     }
-    return '$secure von ${definitions.length} Lernschritten sicher';
+    if (reviewDue > 0) parts.add('$reviewDue Wiederholung fällig');
+    return parts.join(' · ');
   }
 
   IconData _iconFor(GermanLearningDomain domain) => switch (domain) {
@@ -665,6 +729,18 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     GermanLearningDomain.listening => Icons.hearing_rounded,
     GermanLearningDomain.writing => Icons.edit_rounded,
   };
+}
+
+class _GermanPracticeFocus {
+  const _GermanPracticeFocus({
+    required this.progress,
+    required this.priority,
+    this.bridge,
+  });
+
+  final GermanCompetencyProgress progress;
+  final GermanGradeBridgeStatus? bridge;
+  final int priority;
 }
 
 class _LastGermanRoundCard extends StatelessWidget {
@@ -691,7 +767,9 @@ class _LastGermanRoundCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
-                  Text('$percent % beim ersten Versuch'),
+                  Text(
+                    '${result.gradeLevel.label} · $percent % beim ersten Versuch',
+                  ),
                 ],
               ),
             ),

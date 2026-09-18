@@ -1,6 +1,7 @@
 import '../../core/grade_level.dart';
 import 'german_competency.dart';
 import 'german_competency_catalog.dart';
+import 'german_grade_bridge.dart';
 import 'german_learning_domain.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
@@ -40,7 +41,14 @@ class GermanPracticePlanner {
         task.competencyId,
         history,
       );
-      if (_priorityBucket(progress, now: now) <= 1) {
+      if (_taskPriorityBucket(
+            task,
+            progress,
+            history,
+            gradeLevel: gradeLevel,
+            now: now,
+          ) <=
+          2) {
         focusedDomains.add(
           GermanCompetencyCatalog.definition(task.competencyId).domain,
         );
@@ -156,6 +164,35 @@ class GermanPracticePlanner {
     final source = GermanTaskCatalog.forCompetency(
       competencyId,
     ).where((task) => task.recommendedFromGrade.index <= gradeLevel.index);
+    final ranked = _ranked(source, history, gradeLevel: gradeLevel, now: now);
+    if (ranked.isEmpty) return const <GermanTask>[];
+    return List<GermanTask>.generate(
+      taskCount,
+      (index) => ranked[index % ranked.length],
+      growable: false,
+    );
+  }
+
+  static List<GermanTask> buildGradeBridgeRound({
+    required GradeLevel gradeLevel,
+    required GermanCompetencyId competencyId,
+    required Iterable<GermanSessionResult> history,
+    int taskCount = 2,
+    DateTime? now,
+  }) {
+    if (taskCount < 1) return const <GermanTask>[];
+    final bridge = GermanGradeBridgeAnalyzer.forCompetency(
+      competencyId: competencyId,
+      currentGrade: gradeLevel,
+      history: history,
+    );
+    final bridgeTaskGrade = bridge.bridgeTaskGrade;
+    if (!bridge.isPending || bridgeTaskGrade == null) {
+      return const <GermanTask>[];
+    }
+    final source = GermanTaskCatalog.forCompetency(
+      competencyId,
+    ).where((task) => task.recommendedFromGrade == bridgeTaskGrade);
     final ranked = _ranked(source, history, gradeLevel: gradeLevel, now: now);
     if (ranked.isEmpty) return const <GermanTask>[];
     return List<GermanTask>.generate(
@@ -298,8 +335,20 @@ class GermanPracticePlanner {
       b.competencyId,
       history,
     );
-    final aBucket = _priorityBucket(aProgress, now: now);
-    final bBucket = _priorityBucket(bProgress, now: now);
+    final aBucket = _taskPriorityBucket(
+      a,
+      aProgress,
+      history,
+      gradeLevel: gradeLevel,
+      now: now,
+    );
+    final bBucket = _taskPriorityBucket(
+      b,
+      bProgress,
+      history,
+      gradeLevel: gradeLevel,
+      now: now,
+    );
     if (aBucket != bBucket) return aBucket.compareTo(bBucket);
 
     if (aProgress.state == GermanCompetencyState.learning &&
@@ -363,17 +412,38 @@ class GermanPracticePlanner {
     return a.competencyId.index.compareTo(b.competencyId.index);
   }
 
-  static int _priorityBucket(
-    GermanCompetencyProgress progress, {
+  static int _taskPriorityBucket(
+    GermanTask task,
+    GermanCompetencyProgress progress,
+    Iterable<GermanSessionResult> history, {
+    required GradeLevel gradeLevel,
     DateTime? now,
   }) {
     final attention = progress.attention(now: now);
-    if (attention == GermanPracticeAttention.needsPractice) return 0;
-    if (attention == GermanPracticeAttention.reviewDue) return 1;
+    final bridge = GermanGradeBridgeAnalyzer.forCompetency(
+      competencyId: task.competencyId,
+      currentGrade: gradeLevel,
+      history: history,
+    );
+    final isBridgeTask =
+        bridge.isPending &&
+        bridge.bridgeTaskGrade != null &&
+        task.recommendedFromGrade == bridge.bridgeTaskGrade;
+
+    if (attention == GermanPracticeAttention.needsPractice) {
+      if (bridge.isPending) return isBridgeTask ? 0 : 4;
+      return 0;
+    }
+
+    if (progress.state == GermanCompetencyState.secure && isBridgeTask) {
+      return 1;
+    }
+
+    if (attention == GermanPracticeAttention.reviewDue) return 2;
     return switch (progress.state) {
-      GermanCompetencyState.newSkill => 2,
-      GermanCompetencyState.learning => 3,
-      GermanCompetencyState.secure => 4,
+      GermanCompetencyState.newSkill => 3,
+      GermanCompetencyState.learning => 4,
+      GermanCompetencyState.secure => 5,
     };
   }
 

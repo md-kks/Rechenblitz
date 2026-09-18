@@ -9,6 +9,7 @@ import '../../../core/learning_subject.dart';
 import '../../../services/app_controller.dart';
 import '../german_assessment.dart';
 import '../german_competency_catalog.dart';
+import '../german_grade_bridge.dart';
 import '../german_learning_domain.dart';
 import '../german_parent_overview.dart';
 import '../german_progress.dart';
@@ -76,6 +77,7 @@ class _GermanParentOverviewScreenState
 
   Widget _buildOverview(BuildContext context, GermanParentOverview overview) {
     final percent = (overview.accuracy * 100).round();
+    final accuracyText = overview.totalTasks == 0 ? '–' : '$percent %';
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 10, 18, 36),
       children: <Widget>[
@@ -99,7 +101,7 @@ class _GermanParentOverviewScreenState
                 _Metric('Runden', '${overview.sessionCount}'),
                 _Metric('Lernchecks', '${overview.assessmentCount}'),
                 _Metric('Aufgaben', '${overview.totalTasks}'),
-                _Metric('direkt richtig', '$percent %'),
+                _Metric('direkt richtig', accuracyText),
                 _Metric(
                   'Lernschritte sicher',
                   '${overview.secureCompetencies}/${overview.progress.length}',
@@ -132,11 +134,19 @@ class _GermanParentOverviewScreenState
           icon: Icons.track_changes_rounded,
           children: _progressLines(
             overview.practiceNeeds,
-            emptyText: overview.totalTasks == 0
+            emptyText: overview.progress.every((entry) => entry.attempts == 0)
                 ? 'Nach den ersten Deutsch-Runden erscheinen hier Lernschritte.'
                 : 'Aktuell zeigt sich keine geübte Kompetenz mit besonderem Übungsbedarf.',
           ),
         ),
+        if (overview.gradeBridges.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 12),
+          _InsightSection(
+            title: 'Klassenstufe bestätigen',
+            icon: Icons.stairs_rounded,
+            children: _gradeBridgeLines(overview.gradeBridges),
+          ),
+        ],
         if (overview.reviewDue.isNotEmpty) ...<Widget>[
           const SizedBox(height: 12),
           _InsightSection(
@@ -189,9 +199,7 @@ class _GermanParentOverviewScreenState
                 subtitle: Text(
                   domain.attempts == 0
                       ? 'Noch nicht geübt'
-                      : domain.reviewDueCompetencies == 0
-                      ? '${domain.secureCompetencies} von ${domain.totalCompetencies} Lernschritten sicher · ${(domain.accuracy * 100).round()} % direkt richtig'
-                      : '${domain.secureCompetencies} von ${domain.totalCompetencies} Lernschritten sicher · ${domain.reviewDueCompetencies} Wiederholung fällig · ${(domain.accuracy * 100).round()} % direkt richtig',
+                      : _domainSummary(domain),
                 ),
               ),
             ),
@@ -202,13 +210,59 @@ class _GermanParentOverviewScreenState
           child: Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'Die Übersicht bewertet nur Aufgaben dieser Klassenstufe und dieses Lernprofils. „Sicher“ verlangt mindestens drei verschiedene Aufgaben, verteilt über mindestens zwei Runden, insgesamt mindestens 80 % direkt richtige Antworten und in den letzten fünf Aufgaben mindestens 75 %. Die Anzeige ist eine Lernhilfe, keine Schulnote.',
+              'Die Übersicht übernimmt sichere Grundlagen aus früheren Klassenstufen. Gibt es auf der aktuellen Stufe neue schwierigere Aufgaben zu derselben Kompetenz, wird die Grundlage kurz neu bestätigt. „Sicher“ verlangt mindestens drei verschiedene Aufgaben, verteilt über mindestens zwei Runden, insgesamt mindestens 80 % direkt richtige Antworten und in den letzten fünf Aufgaben mindestens 75 %. Die Anzeige ist eine Lernhilfe, keine Schulnote.',
             ),
           ),
         ),
       ],
     );
   }
+
+  String _domainSummary(GermanDomainProgressSummary domain) {
+    final parts = <String>[
+      '${domain.secureCompetencies} von ${domain.totalCompetencies} Lernschritten sicher',
+    ];
+    if (domain.gradeBridgeCompetencies > 0) {
+      parts.add('${domain.gradeBridgeCompetencies} Klassenstufen-Check');
+    }
+    if (domain.reviewDueCompetencies > 0) {
+      parts.add('${domain.reviewDueCompetencies} Wiederholung fällig');
+    }
+    parts.add('${(domain.accuracy * 100).round()} % direkt richtig');
+    return parts.join(' · ');
+  }
+
+  List<Widget> _gradeBridgeLines(
+    List<GermanGradeBridgeStatus> entries,
+  ) => entries
+      .map((entry) {
+        final definition = GermanCompetencyCatalog.definition(
+          entry.competencyId,
+        );
+        final source = entry.sourceGrade?.label ?? 'einer früheren Klasse';
+        final evidence = entry.currentGradeAttempts == 0
+            ? 'noch keine aktuelle Bestätigung'
+            : '${entry.currentGradeCorrectFirstTry}/${entry.currentGradeAttempts} aktuelle Aufgaben direkt richtig';
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsets.only(top: 3),
+                child: Icon(Icons.circle, size: 8),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${definition.label} · Grundlage aus $source sicher · $evidence',
+                ),
+              ),
+            ],
+          ),
+        );
+      })
+      .toList(growable: false);
 
   List<Widget> _progressLines(
     List<GermanCompetencyProgress> entries, {

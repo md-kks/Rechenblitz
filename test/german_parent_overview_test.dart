@@ -256,6 +256,54 @@ void main() {
     expect(find.textContaining('Nomen und Artikel erkennen'), findsOneWidget);
   });
 
+  testWidgets('German parent overview explains a grade bridge', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.saveHistory(<GermanSessionResult>[
+      _session(
+        competency: GermanCompetencyId.wordFamilies,
+        correct: const <bool>[true, true],
+        taskPrefix: 'family-a',
+      ),
+      _session(
+        competency: GermanCompetencyId.wordFamilies,
+        correct: const <bool>[true],
+        minute: 2,
+        taskPrefix: 'family-b',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GermanParentOverviewScreen(
+          controller: controller,
+          now: () => DateTime(2026, 9, 18, 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final bridgeSection = find.text('Klassenstufe bestätigen');
+    await tester.scrollUntilVisible(
+      bridgeSection,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(bridgeSection, findsOneWidget);
+    expect(find.textContaining('Wortfamilien erkennen'), findsOneWidget);
+    expect(
+      find.textContaining('Grundlage aus Klasse 2 sicher'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('noch keine aktuelle Bestätigung'),
+      findsOneWidget,
+    );
+    expect(find.text('–'), findsOneWidget);
+  });
+
   testWidgets('German parent overview reads only local profile progress', (
     tester,
   ) async {

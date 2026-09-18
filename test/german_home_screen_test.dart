@@ -5,6 +5,7 @@ import 'package:rechenblitz/services/app_controller.dart';
 import 'package:rechenblitz/subjects/german/german_competency.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_storage_service.dart';
+import 'package:rechenblitz/subjects/german/german_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/screens/german_home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -108,6 +109,81 @@ void main() {
     );
   });
 
+  testWidgets('German home surfaces a pending grade bridge', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(true);
+    await storage.saveHistory(_secureWordFamilyGradeTwoHistory());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GermanHomeScreen(
+          controller: controller,
+          now: () => DateTime(2026, 9, 18, 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('wird mit Aufgaben aus Klasse 3 kurz bestätigt'),
+      findsOneWidget,
+    );
+    final vocabulary = find.byKey(const ValueKey('german-domain-vocabulary'));
+    await tester.scrollUntilVisible(
+      vocabulary,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.descendant(
+        of: vocabulary,
+        matching: find.textContaining('1 Klassenstufen-Check'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('competency map starts a two-task grade bridge', (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(true);
+    await storage.saveHistory(_secureWordFamilyGradeTwoHistory());
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('german-competency-map')));
+    await tester.pumpAndSettle();
+
+    final practiceButton = find.byKey(
+      const ValueKey('german-competency-practice-wordFamilies'),
+    );
+    await tester.scrollUntilVisible(
+      practiceButton,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.descendant(
+        of: practiceButton,
+        matching: find.text('Klasse 3 bestätigen'),
+      ),
+      findsOneWidget,
+    );
+    tester.widget<OutlinedButton>(practiceButton).onPressed!.call();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Deutsch üben'), findsOneWidget);
+    expect(find.text('1 von 2'), findsOneWidget);
+  });
+
   testWidgets('German home opens the competency map', (tester) async {
     final controller = AppController();
     await controller.load();
@@ -186,6 +262,60 @@ void main() {
     expect(find.text('Deutsch üben'), findsOneWidget);
     expect(find.text('1 von 6'), findsOneWidget);
   });
+  testWidgets('old-grade Lerncheck is not shown as current snapshot', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(true);
+    await storage.saveHistory(<GermanSessionResult>[
+      GermanSessionResult(
+        gradeLevel: GradeLevel.second,
+        startedAt: DateTime(2026, 9, 17, 8),
+        finishedAt: DateTime(2026, 9, 17, 8, 5),
+        kind: GermanSessionKind.assessment,
+        taskResults: const <GermanTaskResult>[
+          GermanTaskResult(
+            taskId: 'old-assessment',
+            competencyId: GermanCompetencyId.wordRecognition,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 900,
+          ),
+        ],
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    final assessmentCard = find.textContaining(
+      'Eine kurze Momentaufnahme über alle Deutsch-Lernbereiche',
+    );
+    await tester.scrollUntilVisible(
+      assessmentCard,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(assessmentCard, findsOneWidget);
+    expect(find.textContaining('Letzter Lerncheck:'), findsNothing);
+
+    final recent = find.text('Zuletzt');
+    await tester.scrollUntilVisible(
+      recent,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.textContaining('Klasse 2 · 100 % beim ersten Versuch'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('German home starts a support-free Lerncheck', (tester) async {
     final controller = AppController();
     await controller.load();
@@ -260,6 +390,46 @@ void main() {
     expect(find.text('1 von 12'), findsOneWidget);
     expect(await storage.loadIntroComplete(), isTrue);
   });
+}
+
+List<GermanSessionResult> _secureWordFamilyGradeTwoHistory() {
+  final taskIds =
+      GermanTaskCatalog.forCompetency(GermanCompetencyId.wordFamilies)
+          .where((task) => task.recommendedFromGrade == GradeLevel.second)
+          .map((task) => task.id)
+          .take(3)
+          .toList(growable: false);
+  return <GermanSessionResult>[
+    GermanSessionResult(
+      gradeLevel: GradeLevel.second,
+      startedAt: DateTime(2026, 9, 17, 9, 59),
+      finishedAt: DateTime(2026, 9, 17, 10),
+      taskResults: <GermanTaskResult>[
+        for (final taskId in taskIds.take(2))
+          GermanTaskResult(
+            taskId: taskId,
+            competencyId: GermanCompetencyId.wordFamilies,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 900,
+          ),
+      ],
+    ),
+    GermanSessionResult(
+      gradeLevel: GradeLevel.second,
+      startedAt: DateTime(2026, 9, 17, 10, 59),
+      finishedAt: DateTime(2026, 9, 17, 11),
+      taskResults: <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: taskIds.last,
+          competencyId: GermanCompetencyId.wordFamilies,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+        ),
+      ],
+    ),
+  ];
 }
 
 List<GermanSessionResult> _secureWordHistory(DateTime firstFinished) =>

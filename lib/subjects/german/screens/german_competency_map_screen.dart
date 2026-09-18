@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/grade_level.dart';
+import '../german_competency.dart';
 import '../german_competency_catalog.dart';
+import '../german_grade_bridge.dart';
 import '../german_learning_domain.dart';
 import '../german_progress.dart';
 import '../german_prerequisites.dart';
@@ -29,9 +31,27 @@ class GermanCompetencyMapScreen extends StatelessWidget {
         )
         .toList(growable: false);
     final now = referenceNow ?? DateTime.now();
+    final progressById = {for (final item in progress) item.competencyId: item};
+    final bridges = {
+      for (final definition in definitions)
+        definition.id: GermanGradeBridgeAnalyzer.forCompetency(
+          competencyId: definition.id,
+          currentGrade: gradeLevel,
+          history: history,
+        ),
+    };
+    final pendingBridgeIds = bridges.entries
+        .where(
+          (entry) =>
+              entry.value.isPending &&
+              progressById[entry.key]?.state == GermanCompetencyState.secure,
+        )
+        .map((entry) => entry.key)
+        .toSet();
     final reviewDue = progress
         .where(
           (item) =>
+              !pendingBridgeIds.contains(item.competencyId) &&
               item.attention(now: now) == GermanPracticeAttention.reviewDue,
         )
         .length;
@@ -39,12 +59,14 @@ class GermanCompetencyMapScreen extends StatelessWidget {
         .where(
           (item) =>
               item.state == GermanCompetencyState.secure &&
+              !pendingBridgeIds.contains(item.competencyId) &&
               item.attention(now: now) != GermanPracticeAttention.reviewDue,
         )
         .length;
     final learning = progress
         .where((item) => item.state == GermanCompetencyState.learning)
         .length;
+    final bridgeCount = pendingBridgeIds.length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Deutsch-Lernlandkarte')),
@@ -63,9 +85,9 @@ class GermanCompetencyMapScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '$secure sicher · $reviewDue Wiederholung · '
-                    '$learning im Aufbau · '
-                    '${definitions.length - secure - reviewDue - learning} neu',
+                    '$secure sicher · $bridgeCount Klassenstufen-Check · '
+                    '$reviewDue Wiederholung · $learning im Aufbau · '
+                    '${definitions.length - secure - bridgeCount - reviewDue - learning} neu',
                   ),
                 ],
               ),
@@ -73,7 +95,7 @@ class GermanCompetencyMapScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ...GermanLearningDomain.values.expand(
-            (domain) => _domainSection(context, domain, now),
+            (domain) => _domainSection(context, domain, now, bridges),
           ),
         ],
       ),
@@ -84,6 +106,7 @@ class GermanCompetencyMapScreen extends StatelessWidget {
     BuildContext context,
     GermanLearningDomain domain,
     DateTime now,
+    Map<GermanCompetencyId, GermanGradeBridgeStatus> bridges,
   ) {
     final definitions = GermanCompetencyCatalog.forDomain(domain, gradeLevel);
     if (definitions.isEmpty) return const <Widget>[];
@@ -104,6 +127,9 @@ class GermanCompetencyMapScreen extends StatelessWidget {
           definition.id,
           history,
         );
+        final bridge = bridges[definition.id]!;
+        final bridgePending =
+            bridge.isPending && progress.state == GermanCompetencyState.secure;
         final practiceId = unlock.isUnlocked
             ? definition.id
             : unlock.nextRequired?.id;
@@ -114,9 +140,11 @@ class GermanCompetencyMapScreen extends StatelessWidget {
             label: definition.label,
             description: definition.description,
             progress: progress,
+            gradeBridge: bridgePending ? bridge : null,
             reviewDue:
+                !bridgePending &&
                 progress.attention(now: now) ==
-                GermanPracticeAttention.reviewDue,
+                    GermanPracticeAttention.reviewDue,
             unlock: unlock,
             onPractice: practiceId == null
                 ? null
@@ -143,6 +171,7 @@ class _CompetencyCard extends StatelessWidget {
     required this.label,
     required this.description,
     required this.progress,
+    required this.gradeBridge,
     required this.reviewDue,
     required this.unlock,
     required this.onPractice,
@@ -152,13 +181,17 @@ class _CompetencyCard extends StatelessWidget {
   final String label;
   final String description;
   final GermanCompetencyProgress progress;
+  final GermanGradeBridgeStatus? gradeBridge;
   final bool reviewDue;
   final GermanCompetencyUnlockStatus unlock;
   final VoidCallback? onPractice;
 
   @override
   Widget build(BuildContext context) {
-    final status = reviewDue
+    final bridge = gradeBridge;
+    final status = bridge != null
+        ? ('Stufe bestätigen', Icons.stairs_rounded)
+        : reviewDue
         ? ('Wiederholen', Icons.refresh_rounded)
         : switch (progress.state) {
             GermanCompetencyState.newSkill => ('Neu', Icons.circle_outlined),
@@ -174,11 +207,14 @@ class _CompetencyCard extends StatelessWidget {
     final evidence = progress.attempts == 0
         ? 'Noch keine Übungsergebnisse'
         : _evidenceLabel(progress);
+    final bridgeEvidence = bridge == null
+        ? evidence
+        : '$evidence\nGrundlage aus ${bridge.sourceGrade?.label ?? 'einer früheren Klasse'} sicher · ${bridge.currentGrade.label} kurz bestätigen';
     final locked = !unlock.isUnlocked;
     final next = unlock.nextRequired;
     final detail = locked && next != null
-        ? '$evidence\nZuerst: ${next.label}'
-        : evidence;
+        ? '$bridgeEvidence\nZuerst: ${next.label}'
+        : bridgeEvidence;
     return Card(
       key: ValueKey('german-competency-card-$competencyId'),
       child: Column(
@@ -198,6 +234,8 @@ class _CompetencyCard extends StatelessWidget {
               icon: Icon(
                 locked
                     ? Icons.account_tree_outlined
+                    : bridge != null
+                    ? Icons.stairs_rounded
                     : reviewDue
                     ? Icons.refresh_rounded
                     : Icons.play_arrow_rounded,
@@ -205,6 +243,8 @@ class _CompetencyCard extends StatelessWidget {
               label: Text(
                 locked
                     ? 'Grundlage üben'
+                    : bridge != null
+                    ? '${bridge.currentGrade.label} bestätigen'
                     : reviewDue
                     ? 'Auffrischen'
                     : 'Gezielt üben',
