@@ -183,7 +183,7 @@ class _GermanParentOverviewScreenState
           child: Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'Die Übersicht bewertet nur Aufgaben dieser Klassenstufe und dieses Lernprofils. „Sicher“ verlangt mindestens drei verschiedene Aufgaben, verteilt über mindestens zwei Runden, mit mindestens 80 % direkt richtigen Antworten. Die Anzeige ist eine Lernhilfe, keine Schulnote.',
+              'Die Übersicht bewertet nur Aufgaben dieser Klassenstufe und dieses Lernprofils. „Sicher“ verlangt mindestens drei verschiedene Aufgaben, verteilt über mindestens zwei Runden, insgesamt mindestens 80 % direkt richtige Antworten und in den letzten fünf Aufgaben mindestens 75 %. Die Anzeige ist eine Lernhilfe, keine Schulnote.',
             ),
           ),
         ),
@@ -213,7 +213,7 @@ class _GermanParentOverviewScreenState
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '${definition.label} · ${(entry.accuracy * 100).round()} % direkt richtig (${entry.attempts} Aufgaben)',
+                    '${definition.label} · ${_progressAccuracyLabel(entry)} (${entry.attempts} Aufgaben)',
                   ),
                 ),
               ],
@@ -222,6 +222,15 @@ class _GermanParentOverviewScreenState
         })
         .toList(growable: false);
   }
+}
+
+String _progressAccuracyLabel(GermanCompetencyProgress progress) {
+  final overall = (progress.accuracy * 100).round();
+  final recent = (progress.recentAccuracy * 100).round();
+  if (progress.attempts <= progress.recentAttempts || recent == overall) {
+    return '$overall % direkt richtig';
+  }
+  return 'aktuell $recent % · insgesamt $overall % direkt richtig';
 }
 
 class _InsightSection extends StatelessWidget {

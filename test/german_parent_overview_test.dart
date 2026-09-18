@@ -4,6 +4,7 @@ import 'package:rechenblitz/core/grade_level.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:rechenblitz/subjects/german/german_competency.dart';
 import 'package:rechenblitz/subjects/german/german_parent_overview.dart';
+import 'package:rechenblitz/subjects/german/german_progress.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_storage_service.dart';
 import 'package:rechenblitz/subjects/german/screens/german_parent_overview_screen.dart';
@@ -71,6 +72,52 @@ void main() {
     );
   });
 
+  test('recent setbacks outrank old strength in the parent overview', () {
+    final history = <GermanSessionResult>[
+      for (var index = 0; index < 10; index++)
+        _session(
+          competency: GermanCompetencyId.wordRecognition,
+          correct: const <bool>[true],
+          minute: index,
+          taskPrefix: 'old-$index',
+        ),
+      _session(
+        competency: GermanCompetencyId.wordRecognition,
+        correct: const <bool>[false],
+        minute: 10,
+        taskPrefix: 'recent-a',
+      ),
+      _session(
+        competency: GermanCompetencyId.wordRecognition,
+        correct: const <bool>[false],
+        minute: 12,
+        taskPrefix: 'recent-b',
+      ),
+    ];
+
+    final overview = GermanParentOverview.analyze(
+      gradeLevel: GradeLevel.second,
+      history: history,
+    );
+    final progress = overview.progress.firstWhere(
+      (entry) => entry.competencyId == GermanCompetencyId.wordRecognition,
+    );
+
+    expect(progress.accuracy, closeTo(10 / 12, 0.0001));
+    expect(progress.recentAccuracy, 0.6);
+    expect(progress.state, GermanCompetencyState.learning);
+    expect(
+      overview.strengths.any(
+        (entry) => entry.competencyId == GermanCompetencyId.wordRecognition,
+      ),
+      isFalse,
+    );
+    expect(
+      overview.practiceNeeds.first.competencyId,
+      GermanCompetencyId.wordRecognition,
+    );
+  });
+
   test('parent overview tracks the latest Lerncheck separately', () {
     final overview = GermanParentOverview.analyze(
       gradeLevel: GradeLevel.second,
@@ -91,6 +138,50 @@ void main() {
     expect(overview.assessmentCount, 1);
     expect(overview.latestAssessment, isNotNull);
     expect(overview.latestAssessment!.kind, GermanSessionKind.assessment);
+  });
+
+  testWidgets('German parent overview shows current and overall evidence', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.saveHistory(<GermanSessionResult>[
+      for (var index = 0; index < 10; index++)
+        _session(
+          competency: GermanCompetencyId.wordRecognition,
+          correct: const <bool>[true],
+          minute: index,
+          taskPrefix: 'old-$index',
+        ),
+      _session(
+        competency: GermanCompetencyId.wordRecognition,
+        correct: const <bool>[false],
+        minute: 10,
+        taskPrefix: 'recent-a',
+      ),
+      _session(
+        competency: GermanCompetencyId.wordRecognition,
+        correct: const <bool>[false],
+        minute: 12,
+        taskPrefix: 'recent-b',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanParentOverviewScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    final evidence = find.textContaining(
+      'aktuell 60 % · insgesamt 83 % direkt richtig',
+    );
+    await tester.scrollUntilVisible(
+      evidence,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(evidence, findsOneWidget);
   });
 
   testWidgets('German parent overview reads only local profile progress', (

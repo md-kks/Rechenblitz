@@ -199,8 +199,13 @@ class _DomainCard extends StatelessWidget {
 
 String _progressLabel(GermanCompetencyProgress progress) {
   if (progress.attempts == 0) return 'Noch keine Lernbeobachtung';
-  final percent = (progress.accuracy * 100).round();
-  return '${progress.shortLabel} · $percent % direkt richtig · ${progress.distinctTaskCount} verschiedene Aufgaben';
+  final overall = (progress.accuracy * 100).round();
+  final recent = (progress.recentAccuracy * 100).round();
+  final accuracy =
+      progress.attempts <= progress.recentAttempts || recent == overall
+      ? '$overall % direkt richtig'
+      : 'aktuell $recent % · insgesamt $overall %';
+  return '${progress.shortLabel} · $accuracy · ${progress.distinctTaskCount} verschiedene Aufgaben';
 }
 
 class _Metric extends StatelessWidget {

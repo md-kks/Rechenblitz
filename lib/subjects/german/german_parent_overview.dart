@@ -62,10 +62,14 @@ class GermanParentOverview {
       .length;
 
   List<GermanCompetencyProgress> get strengths {
-    final values = progress.where((entry) => entry.attempts >= 3).toList();
+    final values = progress
+        .where((entry) => entry.state == GermanCompetencyState.secure)
+        .toList();
     values.sort((a, b) {
-      final accuracy = b.accuracy.compareTo(a.accuracy);
-      if (accuracy != 0) return accuracy;
+      final recent = b.recentAccuracy.compareTo(a.recentAccuracy);
+      if (recent != 0) return recent;
+      final overall = b.accuracy.compareTo(a.accuracy);
+      if (overall != 0) return overall;
       return b.attempts.compareTo(a.attempts);
     });
     return values.take(3).toList(growable: false);
@@ -79,8 +83,10 @@ class GermanParentOverview {
         )
         .toList();
     values.sort((a, b) {
-      final accuracy = a.accuracy.compareTo(b.accuracy);
-      if (accuracy != 0) return accuracy;
+      final recent = a.recentAccuracy.compareTo(b.recentAccuracy);
+      if (recent != 0) return recent;
+      final overall = a.accuracy.compareTo(b.accuracy);
+      if (overall != 0) return overall;
       return b.attempts.compareTo(a.attempts);
     });
     return values.take(3).toList(growable: false);

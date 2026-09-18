@@ -110,6 +110,15 @@ class GermanCompetencyMapScreen extends StatelessWidget {
   }
 }
 
+String _evidenceLabel(GermanCompetencyProgress progress) {
+  final recent = (progress.recentAccuracy * 100).round();
+  final overall = (progress.accuracy * 100).round();
+  if (progress.attempts <= progress.recentAttempts || recent == overall) {
+    return '${progress.correctFirstTry} von ${progress.attempts} direkt richtig';
+  }
+  return 'Aktuell $recent % direkt richtig · insgesamt $overall %';
+}
+
 class _CompetencyCard extends StatelessWidget {
   const _CompetencyCard({
     required this.competencyId,
@@ -139,7 +148,7 @@ class _CompetencyCard extends StatelessWidget {
     };
     final evidence = progress.attempts == 0
         ? 'Noch keine Übungsergebnisse'
-        : '${progress.correctFirstTry} von ${progress.attempts} direkt richtig';
+        : _evidenceLabel(progress);
     final locked = !unlock.isUnlocked;
     final next = unlock.nextRequired;
     final detail = locked && next != null
