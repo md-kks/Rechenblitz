@@ -328,6 +328,8 @@ class _TrainingScreenState extends State<TrainingScreen>
         gradeLevel: widget.controller.effectiveGradeLevel,
         numberRange: widget.controller.effectiveNumberRange,
         teacherAssignmentActive: widget.controller.hasTeacherAssignment,
+        teacherAssignmentId:
+            widget.controller.activeTeacherAssignment?.assignmentId,
         timeLimitMs: widget.timeLimit?.inMilliseconds,
         startedAt: startedAt,
         updatedAt: DateTime.now(),

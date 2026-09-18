@@ -196,7 +196,7 @@ void main() {
         recoveryRequired: false,
       );
       await controller.saveGuidedRoundProgress(round);
-      controller.beginTeacherAssignment(
+      await controller.beginTeacherAssignment(
         TeacherAssignment(
           gradeLevel: controller.gradeLevel,
           numberRange: NumberRangeLevel.twenty,
@@ -244,22 +244,22 @@ void main() {
       methods: const MethodPreferences(),
     );
 
-    controller.beginTeacherAssignment(assignment());
+    await controller.beginTeacherAssignment(assignment());
     await controller.switchProfile(secondProfile);
     expect(controller.hasTeacherAssignment, isFalse);
 
-    controller.beginTeacherAssignment(assignment());
+    await controller.beginTeacherAssignment(assignment());
     final nextRange = controller.numberRange == NumberRangeLevel.twenty
         ? NumberRangeLevel.hundred
         : NumberRangeLevel.twenty;
     await controller.setNumberRange(nextRange);
     expect(controller.hasTeacherAssignment, isFalse);
 
-    controller.beginTeacherAssignment(assignment());
+    await controller.beginTeacherAssignment(assignment());
     await controller.setGradeLevel(GradeLevel.third);
     expect(controller.hasTeacherAssignment, isFalse);
 
-    controller.beginTeacherAssignment(
+    await controller.beginTeacherAssignment(
       TeacherAssignment(
         gradeLevel: controller.gradeLevel,
         numberRange: controller.numberRange,

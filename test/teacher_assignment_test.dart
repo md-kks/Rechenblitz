@@ -71,7 +71,7 @@ void main() {
       ),
     );
 
-    controller.beginTeacherAssignment(assignment);
+    await controller.beginTeacherAssignment(assignment);
     expect(controller.effectiveGradeLevel, GradeLevel.second);
     expect(controller.effectiveNumberRange, NumberRangeLevel.twenty);
     expect(controller.effectiveMaxValue, 20);
@@ -80,7 +80,7 @@ void main() {
       SubtractionStrategy.bridgeToTen,
     );
 
-    controller.endTeacherAssignment();
+    await controller.endTeacherAssignment();
     expect(controller.numberRange, NumberRangeLevel.hundred);
     expect(
       controller.methodPreferences.subtraction,

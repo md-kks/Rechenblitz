@@ -229,6 +229,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         gradeLevel: widget.controller.effectiveGradeLevel,
         numberRange: widget.controller.effectiveNumberRange,
         teacherAssignmentActive: widget.controller.hasTeacherAssignment,
+        teacherAssignmentId:
+            widget.controller.activeTeacherAssignment?.assignmentId,
         startedAt: startedAt,
         updatedAt: DateTime.now(),
         currentTask: encodeCurriculumExercise(current),

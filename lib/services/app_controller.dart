@@ -120,6 +120,9 @@ class AppController extends ChangeNotifier {
   AccessibilityPreferences accessibilityPreferences =
       const AccessibilityPreferences();
   TeacherAssignment? activeTeacherAssignment;
+  DateTime? activeTeacherAssignmentStartedAt;
+  TeacherAssignment? resumableTeacherAssignment;
+  DateTime? resumableTeacherAssignmentStartedAt;
   List<BetaFeedbackEntry> betaFeedbackEntries = [];
   bool soundEnabled = false;
   bool hapticEnabled = true;
@@ -150,6 +153,9 @@ class AppController extends ChangeNotifier {
   int get effectiveMaxValue => effectiveNumberRange.maxValue;
 
   bool get hasTeacherAssignment => activeTeacherAssignment != null;
+
+  bool get hasResumableTeacherAssignment =>
+      resumableTeacherAssignment != null;
 
   GuidedRoundProgress? resumableGuidedRound({DateTime? now}) {
     final progress = guidedRoundProgress;
@@ -325,7 +331,47 @@ class AppController extends ChangeNotifier {
       gradeLevel: effectiveGradeLevel,
       numberRange: effectiveNumberRange,
       teacherAssignmentActive: hasTeacherAssignment,
+      teacherAssignmentId: activeTeacherAssignment?.assignmentId,
       timeLimit: timeLimit,
+      now: now,
+    )
+        ? progress
+        : null;
+  }
+
+  CoreTrainingSessionProgress? resumableTeacherAssignmentSession({
+    DateTime? now,
+  }) {
+    final assignment = resumableTeacherAssignment;
+    final progress = coreTrainingSessionProgress;
+    if (assignment == null ||
+        resumableTeacherAssignmentStartedAt == null ||
+        progress == null ||
+        !progress.teacherAssignmentActive ||
+        progress.teacherAssignmentId != assignment.assignmentId) {
+      return null;
+    }
+
+    final kind = assignment.mode.isUpperPrimary
+        ? CoreTrainingKind.curriculum
+        : assignment.mode.isStructured
+            ? CoreTrainingKind.structured
+            : CoreTrainingKind.fact;
+    return progress.isCompatible(
+      kind: kind,
+      mode: assignment.mode,
+      targetTasks: assignment.tasks,
+      targetCompetency: assignment.targetCompetency,
+      reviewEmphasis: false,
+      transferEmphasis: assignment.transferEmphasis,
+      fluencyEmphasis: false,
+      scaffoldFading: false,
+      adaptiveLength: false,
+      gradeLevel: assignment.gradeLevel,
+      numberRange: assignment.numberRange,
+      teacherAssignmentActive: true,
+      teacherAssignmentId: assignment.assignmentId,
+      timeLimit: null,
       now: now,
     )
         ? progress
@@ -335,6 +381,21 @@ class AppController extends ChangeNotifier {
   Future<void> saveCoreTrainingSession(
     CoreTrainingSessionProgress progress,
   ) async {
+    if (progress.teacherAssignmentActive) {
+      final activeAssignment = activeTeacherAssignment;
+      if (activeAssignment == null ||
+          progress.teacherAssignmentId != activeAssignment.assignmentId) {
+        return;
+      }
+    } else {
+      if (hasTeacherAssignment || progress.teacherAssignmentId != null) return;
+      if (hasResumableTeacherAssignment) {
+        resumableTeacherAssignment = null;
+        resumableTeacherAssignmentStartedAt = null;
+        await storage.clearActiveTeacherAssignment();
+        notifyListeners();
+      }
+    }
     coreTrainingSessionProgress = progress;
     await storage.saveCoreTrainingSession(progress);
   }
@@ -344,14 +405,44 @@ class AppController extends ChangeNotifier {
     await storage.clearCoreTrainingSession();
   }
 
-  void beginTeacherAssignment(TeacherAssignment assignment) {
+  Future<void> beginTeacherAssignment(
+    TeacherAssignment assignment, {
+    DateTime? startedAt,
+  }) async {
+    final sessionStartedAt = startedAt ?? DateTime.now();
     activeTeacherAssignment = assignment;
+    activeTeacherAssignmentStartedAt = sessionStartedAt;
+    resumableTeacherAssignment = null;
+    resumableTeacherAssignmentStartedAt = null;
+    notifyListeners();
+    await storage.saveActiveTeacherAssignment(assignment, sessionStartedAt);
+  }
+
+  Future<void> activateResumableTeacherAssignment() async {
+    final assignment = resumableTeacherAssignment;
+    final startedAt = resumableTeacherAssignmentStartedAt;
+    if (assignment == null || startedAt == null) return;
+    activeTeacherAssignment = assignment;
+    activeTeacherAssignmentStartedAt = startedAt;
+    resumableTeacherAssignment = null;
+    resumableTeacherAssignmentStartedAt = null;
     notifyListeners();
   }
 
-  void endTeacherAssignment() {
+  Future<void> endTeacherAssignment({
+    bool clearTrainingProgress = false,
+  }) async {
+    final hadTeacherDraft =
+        coreTrainingSessionProgress?.teacherAssignmentActive == true;
     activeTeacherAssignment = null;
+    activeTeacherAssignmentStartedAt = null;
+    resumableTeacherAssignment = null;
+    resumableTeacherAssignmentStartedAt = null;
     notifyListeners();
+    await storage.clearActiveTeacherAssignment();
+    if (clearTrainingProgress && hadTeacherDraft) {
+      await clearCoreTrainingSession();
+    }
   }
 
 
@@ -449,6 +540,28 @@ class AppController extends ChangeNotifier {
     return _competencyFitsActiveCurriculum(progress.focus.competencyId);
   }
 
+  Future<void> _restoreResumableTeacherAssignment() async {
+    activeTeacherAssignment = null;
+    activeTeacherAssignmentStartedAt = null;
+    resumableTeacherAssignment = null;
+    resumableTeacherAssignmentStartedAt = null;
+    final saved = await storage.loadActiveTeacherAssignment();
+    if (saved == null) return;
+
+    final now = DateTime.now();
+    final valid = saved.assignment.gradeLevel == gradeLevel &&
+        saved.assignment.isCompatibleWithState(activeProfile.state) &&
+        !saved.startedAt.isAfter(now) &&
+        now.difference(saved.startedAt) <= CoreTrainingSessionProgress.maxAge;
+    if (!valid) {
+      await storage.clearActiveTeacherAssignment();
+      return;
+    }
+
+    resumableTeacherAssignment = saved.assignment;
+    resumableTeacherAssignmentStartedAt = saved.startedAt;
+  }
+
   Future<void> _loadActiveProfileData() async {
     final pool = AdaptiveEngine.buildFactPool(maxValue: 100);
     final saved = await storage.loadFacts();
@@ -466,6 +579,7 @@ class AppController extends ChangeNotifier {
       numberRange = gradeLevel.recommendedRange;
       await storage.setNumberRange(numberRange);
     }
+    await _restoreResumableTeacherAssignment();
     guidedRoundProgress = await storage.loadGuidedRoundProgress();
     if (guidedRoundProgress != null &&
         (!_guidedRoundFitsActiveCurriculum(guidedRoundProgress!) ||
@@ -507,17 +621,44 @@ class AppController extends ChangeNotifier {
       await storage.clearStepRecoverySession();
     }
     coreTrainingSessionProgress = await storage.loadCoreTrainingSession();
-    final coreTrainingSession = coreTrainingSessionProgress;
+    var coreTrainingSession = coreTrainingSessionProgress;
+
+    // A persisted assignment without a teacher-training draft means Android
+    // stopped us before the assignment had actually begun. Keep any older
+    // standalone draft intact and require the QR code again.
+    if (hasResumableTeacherAssignment &&
+        (coreTrainingSession == null ||
+            !coreTrainingSession.teacherAssignmentActive)) {
+      resumableTeacherAssignment = null;
+      resumableTeacherAssignmentStartedAt = null;
+      await storage.clearActiveTeacherAssignment();
+    }
+
+    coreTrainingSession = coreTrainingSessionProgress;
+    final restoredAssignment = resumableTeacherAssignment;
+    final expectedGrade = restoredAssignment?.gradeLevel ?? gradeLevel;
+    final expectedRange = restoredAssignment?.numberRange ?? numberRange;
+    final expectedTeacherDraft = restoredAssignment != null;
     if (coreTrainingSession != null &&
         (!coreTrainingSession.hasSaneState() ||
-            coreTrainingSession.gradeLevel != gradeLevel ||
-            coreTrainingSession.numberRange != numberRange ||
+            coreTrainingSession.gradeLevel != expectedGrade ||
+            coreTrainingSession.numberRange != expectedRange ||
             !_coreTrainingSessionFitsActiveCurriculum(coreTrainingSession) ||
-            coreTrainingSession.teacherAssignmentActive ||
+            coreTrainingSession.teacherAssignmentActive !=
+                expectedTeacherDraft ||
+            coreTrainingSession.teacherAssignmentId !=
+                restoredAssignment?.assignmentId ||
             DateTime.now().difference(coreTrainingSession.updatedAt) >
                 CoreTrainingSessionProgress.maxAge)) {
       coreTrainingSessionProgress = null;
       await storage.clearCoreTrainingSession();
+    }
+
+    if (hasResumableTeacherAssignment &&
+        coreTrainingSessionProgress == null) {
+      resumableTeacherAssignment = null;
+      resumableTeacherAssignmentStartedAt = null;
+      await storage.clearActiveTeacherAssignment();
     }
     methodPreferences = await storage.methodPreferences();
     unlockedBadges = await storage.rewardBadges();
@@ -4632,7 +4773,7 @@ class AppController extends ChangeNotifier {
   Future<void> setGradeLevel(GradeLevel value) async {
     final gradeChanged = value != gradeLevel;
     if (gradeChanged) {
-      activeTeacherAssignment = null;
+      await endTeacherAssignment();
       await clearAssessmentProgress();
       await clearSupportSessionProgress();
       await clearCoreTrainingSession();
@@ -4705,7 +4846,7 @@ class AppController extends ChangeNotifier {
     if (id == activeProfileId && profiles.isNotEmpty) return;
     final matches = profiles.where((profile) => profile.id == id).toList();
     if (matches.isEmpty) return;
-    activeTeacherAssignment = null;
+    await endTeacherAssignment(clearTrainingProgress: true);
     activeProfileId = id;
     gradeLevel = matches.first.gradeLevel;
     await storage.setActiveProfileId(id);
@@ -4721,7 +4862,7 @@ class AppController extends ChangeNotifier {
     await storage.saveProfiles(profiles);
     await storage.deleteProfileData(id);
     if (wasActive) {
-      activeTeacherAssignment = null;
+      await endTeacherAssignment(clearTrainingProgress: true);
       activeProfileId = remaining.first.id;
       gradeLevel = remaining.first.gradeLevel;
       await storage.setActiveProfileId(activeProfileId);
@@ -4781,7 +4922,7 @@ class AppController extends ChangeNotifier {
     required GradeLevel grade,
     required GermanState state,
   }) async {
-    activeTeacherAssignment = null;
+    await endTeacherAssignment();
     await clearGuidedRoundProgress();
     await clearSupportSessionProgress();
     await clearCoreTrainingSession();
@@ -4918,7 +5059,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> setProfileState(GermanState value) async {
     if (profiles.isEmpty || activeProfile.state == value) return;
-    activeTeacherAssignment = null;
+    await endTeacherAssignment();
     await clearGuidedRoundProgress();
     await clearAssessmentProgress();
     await clearSupportSessionProgress();
@@ -4938,7 +5079,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> setNumberRange(NumberRangeLevel value) async {
     if (value != numberRange) {
-      activeTeacherAssignment = null;
+      await endTeacherAssignment();
       await clearGuidedRoundProgress();
       await clearAssessmentProgress();
       await clearSupportSessionProgress();
@@ -5153,6 +5294,9 @@ class AppController extends ChangeNotifier {
     stepRecoverySessionProgress = null;
     coreTrainingSessionProgress = null;
     activeTeacherAssignment = null;
+    activeTeacherAssignmentStartedAt = null;
+    resumableTeacherAssignment = null;
+    resumableTeacherAssignmentStartedAt = null;
     _pendingBadgeIds.clear();
     lastSessionNewBadges = const [];
     if (profiles.isNotEmpty) {
