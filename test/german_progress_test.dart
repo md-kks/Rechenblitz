@@ -135,6 +135,39 @@ void main() {
     expect(progress.needsReview(now: DateTime(2026, 9, 17)), isTrue);
   });
 
+  test('recent setbacks can move an old secure skill back into learning', () {
+    final history = <GermanSessionResult>[
+      for (var index = 0; index < 10; index++)
+        _session(
+          GermanCompetencyId.wordRecognition,
+          correct: true,
+          taskId: 'old-word-$index',
+          finishedAt: DateTime(2026, 9, 1 + index, 12),
+        ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        taskId: 'recent-word-a',
+        finishedAt: DateTime(2026, 9, 16, 12),
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        taskId: 'recent-word-b',
+        finishedAt: DateTime(2026, 9, 17, 12),
+      ),
+    ];
+
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      history,
+    );
+
+    expect(progress.accuracy, greaterThanOrEqualTo(0.8));
+    expect(progress.recentAccuracy, 0.6);
+    expect(progress.state, GermanCompetencyState.learning);
+  });
+
   test('daily round puts a proven weak skill ahead of new skills', () {
     final history = <GermanSessionResult>[
       _session(GermanCompetencyId.wordRecognition, correct: false),
@@ -164,6 +197,23 @@ void main() {
 
     expect(round, hasLength(6));
     expect(counts.values.every((count) => count <= 2), isTrue);
+  });
+
+  test('default daily round uses 12 tasks across all six domains', () {
+    final round = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.second,
+      history: const <GermanSessionResult>[],
+    );
+    final counts = <GermanLearningDomain, int>{};
+    for (final task in round) {
+      final domain = _domainFor(task.competencyId);
+      counts[domain] = (counts[domain] ?? 0) + 1;
+    }
+
+    expect(round, hasLength(12));
+    expect(counts, hasLength(GermanLearningDomain.values.length));
+    expect(counts.values.every((count) => count == 2), isTrue);
+    expect(round.map((task) => task.id).toSet(), hasLength(12));
   });
 
   test(

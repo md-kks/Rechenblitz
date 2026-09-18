@@ -84,7 +84,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Deutsch üben'), findsOneWidget);
-    expect(find.text('1 von 6'), findsOneWidget);
+    expect(find.text('1 von 12'), findsOneWidget);
   });
   testWidgets('competency map starts targeted six-task practice', (
     tester,

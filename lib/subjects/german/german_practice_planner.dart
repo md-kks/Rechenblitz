@@ -14,9 +14,10 @@ class GermanPracticePlanner {
   static List<GermanTask> buildDailyRound({
     required GradeLevel gradeLevel,
     required Iterable<GermanSessionResult> history,
-    int taskCount = 6,
+    int taskCount = 12,
     DateTime? now,
   }) {
+    if (taskCount < 1) return const <GermanTask>[];
     final ranked = _ranked(
       GermanTaskCatalog.forGrade(gradeLevel),
       history,
@@ -25,24 +26,53 @@ class GermanPracticePlanner {
     );
     if (ranked.length <= taskCount) return ranked;
 
+    final domains = ranked
+        .map(
+          (task) =>
+              GermanCompetencyCatalog.definition(task.competencyId).domain,
+        )
+        .toSet();
+    final evenShare = (taskCount / domains.length).ceil();
+    final domainCap = evenShare < 2 ? 2 : evenShare;
     final selected = <GermanTask>[];
+    final selectedIds = <String>{};
     final domainCount = <GermanLearningDomain, int>{};
     final competencyCount = <GermanCompetencyId, int>{};
+
+    void add(GermanTask task) {
+      final domain = GermanCompetencyCatalog.definition(
+        task.competencyId,
+      ).domain;
+      selected.add(task);
+      selectedIds.add(task.id);
+      domainCount[domain] = (domainCount[domain] ?? 0) + 1;
+      competencyCount[task.competencyId] =
+          (competencyCount[task.competencyId] ?? 0) + 1;
+    }
+
     for (final task in ranked) {
       final domain = GermanCompetencyCatalog.definition(
         task.competencyId,
       ).domain;
-      if ((domainCount[domain] ?? 0) >= 2) continue;
+      if ((domainCount[domain] ?? 0) >= domainCap) continue;
       if ((competencyCount[task.competencyId] ?? 0) >= 1) continue;
-      selected.add(task);
-      domainCount[domain] = (domainCount[domain] ?? 0) + 1;
-      competencyCount[task.competencyId] =
-          (competencyCount[task.competencyId] ?? 0) + 1;
+      add(task);
       if (selected.length == taskCount) return selected;
     }
+
     for (final task in ranked) {
-      if (selected.contains(task)) continue;
-      selected.add(task);
+      if (selectedIds.contains(task.id)) continue;
+      final domain = GermanCompetencyCatalog.definition(
+        task.competencyId,
+      ).domain;
+      if ((domainCount[domain] ?? 0) >= domainCap) continue;
+      add(task);
+      if (selected.length == taskCount) return selected;
+    }
+
+    for (final task in ranked) {
+      if (selectedIds.contains(task.id)) continue;
+      add(task);
       if (selected.length == taskCount) break;
     }
     return selected;
@@ -139,8 +169,8 @@ class GermanPracticePlanner {
 
     if (aProgress.state == GermanCompetencyState.learning &&
         bProgress.state == GermanCompetencyState.learning &&
-        aProgress.accuracy != bProgress.accuracy) {
-      return aProgress.accuracy.compareTo(bProgress.accuracy);
+        aProgress.recentAccuracy != bProgress.recentAccuracy) {
+      return aProgress.recentAccuracy.compareTo(bProgress.recentAccuracy);
     }
 
     if (aProgress.state == GermanCompetencyState.newSkill &&
@@ -181,7 +211,7 @@ class GermanPracticePlanner {
     DateTime? now,
   }) {
     if (progress.state == GermanCompetencyState.learning &&
-        progress.accuracy < 0.8) {
+        progress.recentAccuracy < 0.8) {
       return 0;
     }
     if (progress.needsReview(now: now)) return 1;

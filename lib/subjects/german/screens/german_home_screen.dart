@@ -563,14 +563,14 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       return '$kind wartet: Aufgabe ${draft.nextTaskNumber} von ${draft.totalTasks}.';
     }
     if (_history.isEmpty) {
-      return 'Kurze Aufgaben aus Lesen, Sprache, Schreiben und Hören.';
+      return '12 kurze Aufgaben aus allen sechs Deutsch-Lernbereichen.';
     }
     final weakest = _weakestProgress();
     if (weakest == null) return 'Heute werden neue Lernschritte entdeckt.';
     final label = GermanCompetencyCatalog.definition(
       weakest.competencyId,
     ).label;
-    return 'Heute bekommt „$label“ etwas mehr Übungszeit.';
+    return '12 Aufgaben für heute. „$label“ bekommt etwas mehr Übungszeit.';
   }
 
   String _assessmentSummaryText() {
@@ -592,7 +592,10 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
             .where((progress) => progress.attempts > 0)
             .toList();
     if (practiced.isEmpty) return null;
-    practiced.sort((a, b) => a.accuracy.compareTo(b.accuracy));
+    practiced.sort((a, b) {
+      final recent = a.recentAccuracy.compareTo(b.recentAccuracy);
+      return recent != 0 ? recent : a.accuracy.compareTo(b.accuracy);
+    });
     return practiced.first;
   }
 

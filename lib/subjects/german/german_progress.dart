@@ -12,6 +12,8 @@ class GermanCompetencyProgress {
     required this.averageResponseMs,
     required this.distinctTaskCount,
     required this.sessionCount,
+    required this.recentAttempts,
+    required this.recentCorrectFirstTry,
     this.lastPracticedAt,
   });
 
@@ -22,16 +24,21 @@ class GermanCompetencyProgress {
   final double averageResponseMs;
   final int distinctTaskCount;
   final int sessionCount;
+  final int recentAttempts;
+  final int recentCorrectFirstTry;
   final DateTime? lastPracticedAt;
 
   double get accuracy => attempts == 0 ? 0 : correctFirstTry / attempts;
+  double get recentAccuracy =>
+      recentAttempts == 0 ? 0 : recentCorrectFirstTry / recentAttempts;
 
   GermanCompetencyState get state {
     if (attempts == 0) return GermanCompetencyState.newSkill;
     if (attempts >= 3 &&
         distinctTaskCount >= 3 &&
         sessionCount >= 2 &&
-        accuracy >= 0.8) {
+        accuracy >= 0.8 &&
+        recentAccuracy >= 0.75) {
       return GermanCompetencyState.secure;
     }
     return GermanCompetencyState.learning;
@@ -79,10 +86,17 @@ class GermanProgressAnalyzer {
         averageResponseMs: 0,
         distinctTaskCount: 0,
         sessionCount: 0,
+        recentAttempts: 0,
+        recentCorrectFirstTry: 0,
       );
     }
 
+    matching.sort((a, b) => b.finishedAt.compareTo(a.finishedAt));
+    final recent = matching.take(5).toList(growable: false);
     final correct = matching
+        .where((entry) => entry.result.correctFirstTry)
+        .length;
+    final recentCorrect = recent
         .where((entry) => entry.result.correctFirstTry)
         .length;
     final distinctTaskCount = matching
@@ -117,6 +131,8 @@ class GermanProgressAnalyzer {
       averageResponseMs: responseTotal / matching.length,
       distinctTaskCount: distinctTaskCount,
       sessionCount: sessionCount,
+      recentAttempts: recent.length,
+      recentCorrectFirstTry: recentCorrect,
       lastPracticedAt: lastPracticedAt,
     );
   }
