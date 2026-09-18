@@ -9,8 +9,14 @@ if [ -f "$CLASSPATH" ]; then
 fi
 
 # Text-only repository fallback: bootstrap the official Gradle distribution
-# when the binary wrapper JAR is not present.
-GRADLE_VERSION=8.10.2
+# when the binary wrapper JAR is not present. Keep the fallback version in
+# sync with gradle-wrapper.properties so clean checkouts cannot drift.
+WRAPPER_PROPERTIES="$APP_HOME/gradle/wrapper/gradle-wrapper.properties"
+GRADLE_VERSION=$(sed -n 's#^distributionUrl=.*gradle-\([0-9][0-9.]*\)-.*\.zip#\1#p' "$WRAPPER_PROPERTIES" | head -n 1)
+if [ -z "$GRADLE_VERSION" ]; then
+  echo "Could not determine Gradle version from $WRAPPER_PROPERTIES." >&2
+  exit 1
+fi
 BASE="${GRADLE_USER_HOME:-$HOME/.gradle}/rechenblitz-wrapper"
 DIST="$BASE/gradle-$GRADLE_VERSION"
 ZIP="$BASE/gradle-$GRADLE_VERSION-bin.zip"

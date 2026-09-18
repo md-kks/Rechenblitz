@@ -67,6 +67,20 @@ kotlin {
     }
 }
 
+val generatedPluginRegistrant =
+    file("src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java")
+
+tasks.matching { it.name == "preBuild" }.configureEach {
+    doFirst {
+        if (!generatedPluginRegistrant.exists()) {
+            throw GradleException(
+                "Flutter plugin registration is missing. Run `flutter pub get` " +
+                    "and build through `flutter build`, not raw Gradle.",
+            )
+        }
+    }
+}
+
 tasks.matching { it.name == "preReleaseBuild" }.configureEach {
     doFirst {
         if (!keystorePropertiesFile.exists()) {

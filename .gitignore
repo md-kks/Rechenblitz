@@ -14,3 +14,4 @@ android/key.properties
 android/app/*.jks
 android/app/*.keystore
 android/app/*.p12
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java

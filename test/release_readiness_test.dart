@@ -41,6 +41,28 @@ void main() {
     expect(adaptiveIcon, contains('<monochrome'));
   });
 
+  test('Android plugin registrant is generated and protected from cleanup', () {
+    final ignore = File('.gitignore').readAsStringSync();
+    final registrant = File(
+      'android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java',
+    );
+
+    expect(
+      ignore,
+      contains(
+        'android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java',
+      ),
+    );
+    expect(
+      registrant.existsSync(),
+      isTrue,
+      reason: 'Run flutter pub get before Android checks/builds.',
+    );
+    final source = registrant.readAsStringSync();
+    expect(source, contains('SharedPreferencesPlugin'));
+    expect(source, contains('FlutterTtsPlugin'));
+  });
+
   test('Android camera hardware stays optional for Play filtering', () {
     final manifest =
         File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
@@ -89,6 +111,16 @@ void main() {
         2,
       );
     }
+  });
+
+  test('Gradle launcher follows wrapper version and stays executable', () {
+    final launcher = File('android/gradlew').readAsStringSync();
+    final launcherMode = FileStat.statSync('android/gradlew').mode;
+
+    expect(launcher, contains('gradle-wrapper.properties'));
+    expect(launcher, contains('GRADLE_VERSION=\$(sed'));
+    expect(launcher, isNot(contains('GRADLE_VERSION=8.10.2')));
+    expect(launcherMode & 0x40, isNonZero);
   });
 
   test('CI supply chain uses immutable action and Gradle pins', () {
