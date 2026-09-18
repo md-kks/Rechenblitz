@@ -44,6 +44,63 @@ void main() {
     expect(await second.loadHistory(), isEmpty);
   });
 
+  test('German history ignores exact duplicate legacy sessions', () async {
+    final session = _session(
+      GermanCompetencyId.wordRecognition,
+      correct: true,
+      taskId: 'duplicate',
+      finishedAt: DateTime(2026, 9, 18, 12),
+    );
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'profile:child:subject:german:history_v1': jsonEncode(<Object>[
+        session.toJson(),
+        session.toJson(),
+      ]),
+    });
+    final storage = GermanStorageService(profileId: 'child');
+
+    final history = await storage.loadHistory();
+
+    expect(history, hasLength(1));
+    expect(history.single.taskResults.single.taskId, 'duplicate');
+  });
+
+  test('appendSession is idempotent for the same completed round', () async {
+    final storage = GermanStorageService(profileId: 'child');
+    final session = _session(
+      GermanCompetencyId.wordRecognition,
+      correct: true,
+      taskId: 'same-round',
+      finishedAt: DateTime(2026, 9, 18, 12),
+    );
+
+    await storage.appendSession(session);
+    await storage.appendSession(session);
+
+    final history = await storage.loadHistory();
+    expect(history, hasLength(1));
+    expect(history.single.taskResults.single.taskId, 'same-round');
+  });
+
+  test('duplicate session cannot inflate competency evidence', () {
+    final session = _session(
+      GermanCompetencyId.wordRecognition,
+      correct: true,
+      taskId: 'same-evidence',
+      finishedAt: DateTime(2026, 9, 18, 12),
+    );
+
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      <GermanSessionResult>[session, session],
+    );
+
+    expect(progress.attempts, 1);
+    expect(progress.correctFirstTry, 1);
+    expect(progress.sessionCount, 1);
+    expect(progress.distinctTaskCount, 1);
+  });
+
   test('German history load repairs legacy ordering', () async {
     final older = _session(
       GermanCompetencyId.wordRecognition,

@@ -2,6 +2,7 @@ import '../../core/grade_level.dart';
 import 'german_competency.dart';
 import 'german_competency_catalog.dart';
 import 'german_grade_bridge.dart';
+import 'german_history_scope.dart';
 import 'german_learning_domain.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
@@ -29,13 +30,13 @@ class GermanRewardSummary {
     required GradeLevel gradeLevel,
     required Iterable<GermanSessionResult> history,
   }) {
-    final sessions = history
-        .where(
-          (session) =>
-              session.gradeLevel.index <= gradeLevel.index &&
-              session.kind != GermanSessionKind.assessment,
-        )
-        .toList(growable: false);
+    final sessions = GermanHistoryScope.unique(
+      history.where(
+        (session) =>
+            session.gradeLevel.index <= gradeLevel.index &&
+            session.kind != GermanSessionKind.assessment,
+      ),
+    );
 
     var stars = 0;
     for (final session in sessions) {

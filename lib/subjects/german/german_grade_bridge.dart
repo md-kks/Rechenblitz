@@ -1,5 +1,6 @@
 import '../../core/grade_level.dart';
 import 'german_competency.dart';
+import 'german_history_scope.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
 import 'german_task_catalog.dart';
@@ -59,7 +60,7 @@ class GermanGradeBridgeAnalyzer {
       return _notNeeded(competencyId: competencyId, currentGrade: currentGrade);
     }
 
-    final sessions = history.toList(growable: false);
+    final sessions = GermanHistoryScope.unique(history);
     final priorSessions = sessions
         .where((session) => session.gradeLevel.index < currentGrade.index)
         .toList(growable: false);

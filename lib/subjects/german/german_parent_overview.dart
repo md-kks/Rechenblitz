@@ -2,6 +2,7 @@ import '../../core/grade_level.dart';
 import 'german_competency.dart';
 import 'german_competency_catalog.dart';
 import 'german_grade_bridge.dart';
+import 'german_history_scope.dart';
 import 'german_learning_domain.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
@@ -139,9 +140,10 @@ class GermanParentOverview {
     required Iterable<GermanSessionResult> history,
     DateTime? now,
   }) {
-    final eligibleSessions = history
-        .where((session) => session.gradeLevel.index <= gradeLevel.index)
-        .toList(growable: false);
+    final eligibleSessions = GermanHistoryScope.throughGrade(
+      history,
+      gradeLevel,
+    );
     final currentGradeSessions = eligibleSessions
         .where((session) => session.gradeLevel == gradeLevel)
         .toList(growable: false);

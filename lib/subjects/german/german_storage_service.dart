@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/learning_subject.dart';
 import '../../core/storage/subject_storage_keyspace.dart';
+import 'german_history_scope.dart';
 import 'german_round_draft.dart';
 import 'german_session.dart';
 
@@ -40,7 +41,9 @@ class GermanStorageService {
         }
       }
       results.sort((a, b) => b.finishedAt.compareTo(a.finishedAt));
-      return results.take(300).toList(growable: false);
+      return GermanHistoryScope.unique(
+        results,
+      ).take(300).toList(growable: false);
     } catch (_) {
       return <GermanSessionResult>[];
     }
@@ -48,7 +51,7 @@ class GermanStorageService {
 
   Future<void> saveHistory(Iterable<GermanSessionResult> history) async {
     final prefs = await SharedPreferences.getInstance();
-    final values = history.toList()
+    final values = GermanHistoryScope.unique(history)
       ..sort((a, b) => b.finishedAt.compareTo(a.finishedAt));
     await prefs.setString(
       _profileHistoryKey,
@@ -58,6 +61,11 @@ class GermanStorageService {
 
   Future<void> appendSession(GermanSessionResult result) async {
     final history = await loadHistory();
+    if (history.any(
+      (existing) => existing.evidenceIdentity == result.evidenceIdentity,
+    )) {
+      return;
+    }
     await saveHistory(<GermanSessionResult>[result, ...history]);
   }
 

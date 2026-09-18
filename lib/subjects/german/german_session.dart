@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../core/grade_level.dart';
 import 'german_competency.dart';
 
@@ -67,6 +69,8 @@ class GermanSessionResult {
       ? 0
       : taskResults.fold<int>(0, (sum, result) => sum + result.responseMs) /
             total;
+
+  String get evidenceIdentity => jsonEncode(toJson());
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'gradeLevel': gradeLevel.name,

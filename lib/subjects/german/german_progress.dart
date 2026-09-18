@@ -1,4 +1,5 @@
 import 'german_competency.dart';
+import 'german_history_scope.dart';
 import 'german_session.dart';
 
 enum GermanCompetencyState { newSkill, learning, secure }
@@ -78,8 +79,9 @@ class GermanProgressAnalyzer {
     GermanCompetencyId competencyId,
     Iterable<GermanSessionResult> history,
   ) {
+    final sessions = GermanHistoryScope.unique(history);
     final matching = <({GermanTaskResult result, DateTime finishedAt})>[];
-    for (final session in history) {
+    for (final session in sessions) {
       for (final result in session.taskResults) {
         if (result.competencyId == competencyId) {
           matching.add((result: result, finishedAt: session.finishedAt));
@@ -114,7 +116,7 @@ class GermanProgressAnalyzer {
         .toSet()
         .length;
     var sessionCount = 0;
-    for (final session in history) {
+    for (final session in sessions) {
       if (session.taskResults.any(
         (result) => result.competencyId == competencyId,
       )) {

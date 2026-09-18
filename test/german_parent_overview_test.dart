@@ -72,6 +72,24 @@ void main() {
     );
   });
 
+  test('duplicate round does not inflate parent totals', () {
+    final session = _session(
+      competency: GermanCompetencyId.wordRecognition,
+      correct: const <bool>[true, false],
+      taskPrefix: 'duplicate-parent',
+    );
+
+    final overview = GermanParentOverview.analyze(
+      gradeLevel: GradeLevel.second,
+      history: <GermanSessionResult>[session, session],
+    );
+
+    expect(overview.sessionCount, 1);
+    expect(overview.totalTasks, 2);
+    expect(overview.correctFirstTry, 1);
+    expect(overview.incorrectAttempts, 1);
+  });
+
   test('secure but stale skill moves from strengths to review due', () {
     final overview = GermanParentOverview.analyze(
       gradeLevel: GradeLevel.second,

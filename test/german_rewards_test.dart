@@ -64,6 +64,21 @@ void main() {
     );
   });
 
+  test('duplicate round does not award stars twice', () {
+    final session = _session();
+
+    final summary = GermanRewardSummary.fromHistory(
+      gradeLevel: GradeLevel.second,
+      history: <GermanSessionResult>[session, session],
+    );
+
+    expect(summary.stars, 2);
+    expect(
+      summary.badges.map((badge) => badge.id),
+      containsAll(<String>['first_round', 'perfect_round']),
+    );
+  });
+
   test('German rewards carry forward when grade level increases', () {
     final summary = GermanRewardSummary.fromHistory(
       gradeLevel: GradeLevel.third,

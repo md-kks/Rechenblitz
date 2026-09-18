@@ -84,6 +84,41 @@ void main() {
     );
   });
 
+  test('duplicate Lerncheck session does not rotate twice', () {
+    final first = GermanAssessmentPlanner.buildRound(GradeLevel.second);
+    final firstSession = GermanSessionResult(
+      gradeLevel: GradeLevel.second,
+      startedAt: DateTime(2026, 9, 17, 10),
+      finishedAt: DateTime(2026, 9, 17, 10, 5),
+      kind: GermanSessionKind.assessment,
+      taskResults: first
+          .map(
+            (task) => GermanTaskResult(
+              taskId: task.id,
+              competencyId: task.competencyId,
+              correctFirstTry: true,
+              incorrectAttempts: 0,
+              responseMs: 1000,
+            ),
+          )
+          .toList(growable: false),
+    );
+
+    final singleHistory = GermanAssessmentPlanner.buildRound(
+      GradeLevel.second,
+      history: <GermanSessionResult>[firstSession],
+    );
+    final duplicatedHistory = GermanAssessmentPlanner.buildRound(
+      GradeLevel.second,
+      history: <GermanSessionResult>[firstSession, firstSession],
+    );
+
+    expect(
+      duplicatedHistory.map((task) => task.id).toList(growable: false),
+      singleHistory.map((task) => task.id).toList(growable: false),
+    );
+  });
+
   test('repeated Lernchecks rotate away from recently used tasks', () {
     final first = GermanAssessmentPlanner.buildRound(GradeLevel.second);
     final firstSession = GermanSessionResult(

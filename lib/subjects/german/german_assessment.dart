@@ -1,5 +1,6 @@
 import '../../core/grade_level.dart';
 import 'german_competency_catalog.dart';
+import 'german_history_scope.dart';
 import 'german_learning_domain.dart';
 import 'german_session.dart';
 import 'german_task.dart';
@@ -112,7 +113,7 @@ class GermanAssessmentPlanner {
     GradeLevel gradeLevel,
   ) {
     final result = <String, ({int count, DateTime lastSeen})>{};
-    for (final session in history) {
+    for (final session in GermanHistoryScope.unique(history)) {
       if (session.kind != GermanSessionKind.assessment ||
           session.gradeLevel != gradeLevel) {
         continue;
