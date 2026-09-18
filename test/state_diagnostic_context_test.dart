@@ -41,7 +41,7 @@ void main() {
         ErrorPattern.dataReading,
       );
 
-      await controller.setProfileState(GermanState.hesse);
+      await controller.setProfileState(GermanState.lowerSaxony);
 
       expect(
         controller
@@ -120,13 +120,13 @@ void main() {
       );
       expect(controller.diagnostics, hasLength(2));
 
-      await controller.setProfileState(GermanState.hesse);
+      await controller.setProfileState(GermanState.lowerSaxony);
       expect(controller.diagnostics, hasLength(2));
 
       final reloaded = AppController();
       await reloaded.load();
 
-      expect(reloaded.activeProfile.state, GermanState.hesse);
+      expect(reloaded.activeProfile.state, GermanState.lowerSaxony);
       expect(reloaded.diagnostics, hasLength(2));
       expect(
         reloaded

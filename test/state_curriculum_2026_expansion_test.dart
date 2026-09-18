@@ -76,7 +76,10 @@ void main() {
       GermanState.bavaria,
       GermanState.berlin,
       GermanState.brandenburg,
+      GermanState.bremen,
       GermanState.hamburg,
+      GermanState.hesse,
+      GermanState.mecklenburgVorpommern,
       GermanState.northRhineWestphalia,
       GermanState.rhinelandPalatinate,
       GermanState.saxony,
@@ -101,13 +104,11 @@ void main() {
     }
 
     expect(
-      CurriculumAuditCatalog.earlyStateCompetencies(GermanState.hesse),
+      CurriculumAuditCatalog.earlyStateCompetencies(GermanState.lowerSaxony),
       isEmpty,
     );
     expect(
-      CurriculumAuditCatalog.earlyStateCompetencies(
-        GermanState.mecklenburgVorpommern,
-      ),
+      CurriculumAuditCatalog.earlyStateCompetencies(GermanState.thuringia),
       isEmpty,
     );
   });
@@ -207,6 +208,78 @@ void main() {
     );
   });
 
+  test('Bremen nutzt verbindliche Standards Ende 2 und 4', () {
+    final profile = CurriculumAuditCatalog.profileFor(GermanState.bremen);
+    expect(profile.sourceVersion, contains('2025'));
+    expect(profile.progressionModel, CurriculumProgressionModel.gradePairs);
+
+    final data = CurriculumAuditCatalog.progressionFor(
+      GermanState.bremen,
+      GradeLevel.second,
+      MicroCompetencyId.dataReading,
+    );
+    expect(data.stage, CurriculumProgressionStage.dueNow);
+    expect(data.checkpointGrade, GradeLevel.second);
+
+    final combo = CurriculumAuditCatalog.progressionFor(
+      GermanState.bremen,
+      GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic,
+    );
+    expect(combo.stage, CurriculumProgressionStage.dueNow);
+    expect(combo.checkpointGrade, GradeLevel.second);
+  });
+
+  test('Mecklenburg-Vorpommern bildet Schuleingangsphase plus Jahrgänge ab', () {
+    final profile = CurriculumAuditCatalog.profileFor(
+      GermanState.mecklenburgVorpommern,
+    );
+    expect(
+      profile.progressionModel,
+      CurriculumProgressionModel.schoolEntryPhaseThenAnnual,
+    );
+
+    final entryPhase = CurriculumAuditCatalog.progressionFor(
+      GermanState.mecklenburgVorpommern,
+      GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning,
+    );
+    expect(entryPhase.stage, CurriculumProgressionStage.dueNow);
+    expect(entryPhase.checkpointGrade, GradeLevel.second);
+    expect(entryPhase.label, contains('Schuleingangsphase'));
+
+    final gradeThree = CurriculumAuditCatalog.progressionFor(
+      GermanState.mecklenburgVorpommern,
+      GradeLevel.third,
+      MicroCompetencyId.writtenAlignment,
+    );
+    expect(gradeThree.stage, CurriculumProgressionStage.dueNow);
+    expect(gradeThree.checkpointGrade, GradeLevel.third);
+    expect(gradeThree.label, contains('Klasse 3'));
+  });
+
+  test('Hessen öffnet frühe Lernwelten ohne künstlichen Klasse-2-Regelstandard', () {
+    final profile = CurriculumAuditCatalog.profileFor(GermanState.hesse);
+    expect(profile.progressionModel, CurriculumProgressionModel.primaryEnd);
+    expect(profile.earlyProgressionNote, isNotEmpty);
+
+    final data = CurriculumAuditCatalog.progressionFor(
+      GermanState.hesse,
+      GradeLevel.second,
+      MicroCompetencyId.dataReading,
+    );
+    expect(data.stage, CurriculumProgressionStage.building);
+    expect(data.checkpointGrade, GradeLevel.fourth);
+
+    final combo = CurriculumAuditCatalog.progressionFor(
+      GermanState.hesse,
+      GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic,
+    );
+    expect(combo.stage, CurriculumProgressionStage.building);
+    expect(combo.checkpointGrade, GradeLevel.fourth);
+  });
+
   testWidgets('Lehrplan-Audit erklärt Hamburgs frühe Progression sichtbar', (
     tester,
   ) async {
@@ -235,7 +308,7 @@ void main() {
   ) async {
     final controller = AppController();
     await controller.load();
-    await controller.setProfileState(GermanState.hesse);
+    await controller.setProfileState(GermanState.lowerSaxony);
 
     await tester.pumpWidget(
       MaterialApp(home: CurriculumAuditScreen(controller: controller)),
