@@ -3,6 +3,8 @@ import 'german_session.dart';
 
 enum GermanCompetencyState { newSkill, learning, secure }
 
+enum GermanPracticeAttention { needsPractice, reviewDue, none }
+
 class GermanCompetencyProgress {
   const GermanCompetencyProgress({
     required this.competencyId,
@@ -52,6 +54,14 @@ class GermanCompetencyProgress {
     if (state != GermanCompetencyState.secure || last == null) return false;
     final reference = now ?? DateTime.now();
     return reference.difference(last) >= interval;
+  }
+
+  GermanPracticeAttention attention({DateTime? now}) {
+    if (state == GermanCompetencyState.learning && recentAccuracy < 0.8) {
+      return GermanPracticeAttention.needsPractice;
+    }
+    if (needsReview(now: now)) return GermanPracticeAttention.reviewDue;
+    return GermanPracticeAttention.none;
   }
 
   String get shortLabel => switch (state) {

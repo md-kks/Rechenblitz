@@ -11,6 +11,7 @@ class GermanDomainProgressSummary {
     required this.totalCompetencies,
     required this.practicedCompetencies,
     required this.secureCompetencies,
+    required this.reviewDueCompetencies,
     required this.attempts,
     required this.correctFirstTry,
   });
@@ -19,6 +20,7 @@ class GermanDomainProgressSummary {
   final int totalCompetencies;
   final int practicedCompetencies;
   final int secureCompetencies;
+  final int reviewDueCompetencies;
   final int attempts;
   final int correctFirstTry;
 
@@ -36,6 +38,7 @@ class GermanParentOverview {
     required this.domains,
     this.assessmentCount = 0,
     this.latestAssessment,
+    this.referenceNow,
   });
 
   final GradeLevel gradeLevel;
@@ -47,6 +50,9 @@ class GermanParentOverview {
   final List<GermanDomainProgressSummary> domains;
   final int assessmentCount;
   final GermanSessionResult? latestAssessment;
+  final DateTime? referenceNow;
+
+  DateTime get _now => referenceNow ?? DateTime.now();
 
   double get accuracy => totalTasks == 0 ? 0 : correctFirstTry / totalTasks;
 
@@ -63,7 +69,11 @@ class GermanParentOverview {
 
   List<GermanCompetencyProgress> get strengths {
     final values = progress
-        .where((entry) => entry.state == GermanCompetencyState.secure)
+        .where(
+          (entry) =>
+              entry.state == GermanCompetencyState.secure &&
+              entry.attention(now: _now) != GermanPracticeAttention.reviewDue,
+        )
         .toList();
     values.sort((a, b) {
       final recent = b.recentAccuracy.compareTo(a.recentAccuracy);
@@ -71,6 +81,24 @@ class GermanParentOverview {
       final overall = b.accuracy.compareTo(a.accuracy);
       if (overall != 0) return overall;
       return b.attempts.compareTo(a.attempts);
+    });
+    return values.take(3).toList(growable: false);
+  }
+
+  List<GermanCompetencyProgress> get reviewDue {
+    final values = progress
+        .where(
+          (entry) =>
+              entry.attention(now: _now) == GermanPracticeAttention.reviewDue,
+        )
+        .toList();
+    values.sort((a, b) {
+      final aLast = a.lastPracticedAt;
+      final bLast = b.lastPracticedAt;
+      if (aLast == null && bLast != null) return -1;
+      if (aLast != null && bLast == null) return 1;
+      if (aLast != null && bLast != null) return aLast.compareTo(bLast);
+      return a.competencyId.index.compareTo(b.competencyId.index);
     });
     return values.take(3).toList(growable: false);
   }
@@ -95,6 +123,7 @@ class GermanParentOverview {
   static GermanParentOverview analyze({
     required GradeLevel gradeLevel,
     required Iterable<GermanSessionResult> history,
+    DateTime? now,
   }) {
     final sessions = history
         .where((session) => session.gradeLevel == gradeLevel)
@@ -130,6 +159,13 @@ class GermanParentOverview {
             secureCompetencies: domainProgress
                 .where((entry) => entry.state == GermanCompetencyState.secure)
                 .length,
+            reviewDueCompetencies: domainProgress
+                .where(
+                  (entry) =>
+                      entry.attention(now: now) ==
+                      GermanPracticeAttention.reviewDue,
+                )
+                .length,
             attempts: domainProgress.fold<int>(
               0,
               (sum, entry) => sum + entry.attempts,
@@ -158,6 +194,7 @@ class GermanParentOverview {
       domains: domains,
       assessmentCount: assessments.length,
       latestAssessment: assessments.isEmpty ? null : assessments.first,
+      referenceNow: now,
     );
   }
 }

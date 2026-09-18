@@ -12,10 +12,12 @@ class GermanCompetencyMapScreen extends StatelessWidget {
     super.key,
     required this.gradeLevel,
     required this.history,
+    this.referenceNow,
   });
 
   final GradeLevel gradeLevel;
   final List<GermanSessionResult> history;
+  final DateTime? referenceNow;
 
   @override
   Widget build(BuildContext context) {
@@ -26,8 +28,19 @@ class GermanCompetencyMapScreen extends StatelessWidget {
               GermanProgressAnalyzer.forCompetency(definition.id, history),
         )
         .toList(growable: false);
+    final now = referenceNow ?? DateTime.now();
+    final reviewDue = progress
+        .where(
+          (item) =>
+              item.attention(now: now) == GermanPracticeAttention.reviewDue,
+        )
+        .length;
     final secure = progress
-        .where((item) => item.state == GermanCompetencyState.secure)
+        .where(
+          (item) =>
+              item.state == GermanCompetencyState.secure &&
+              item.attention(now: now) != GermanPracticeAttention.reviewDue,
+        )
         .length;
     final learning = progress
         .where((item) => item.state == GermanCompetencyState.learning)
@@ -50,8 +63,9 @@ class GermanCompetencyMapScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '$secure sicher · $learning im Aufbau · '
-                    '${definitions.length - secure - learning} neu',
+                    '$secure sicher · $reviewDue Wiederholung · '
+                    '$learning im Aufbau · '
+                    '${definitions.length - secure - reviewDue - learning} neu',
                   ),
                 ],
               ),
@@ -59,7 +73,7 @@ class GermanCompetencyMapScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ...GermanLearningDomain.values.expand(
-            (domain) => _domainSection(context, domain),
+            (domain) => _domainSection(context, domain, now),
           ),
         ],
       ),
@@ -69,6 +83,7 @@ class GermanCompetencyMapScreen extends StatelessWidget {
   List<Widget> _domainSection(
     BuildContext context,
     GermanLearningDomain domain,
+    DateTime now,
   ) {
     final definitions = GermanCompetencyCatalog.forDomain(domain, gradeLevel);
     if (definitions.isEmpty) return const <Widget>[];
@@ -99,6 +114,9 @@ class GermanCompetencyMapScreen extends StatelessWidget {
             label: definition.label,
             description: definition.description,
             progress: progress,
+            reviewDue:
+                progress.attention(now: now) ==
+                GermanPracticeAttention.reviewDue,
             unlock: unlock,
             onPractice: practiceId == null
                 ? null
@@ -125,6 +143,7 @@ class _CompetencyCard extends StatelessWidget {
     required this.label,
     required this.description,
     required this.progress,
+    required this.reviewDue,
     required this.unlock,
     required this.onPractice,
   });
@@ -133,19 +152,25 @@ class _CompetencyCard extends StatelessWidget {
   final String label;
   final String description;
   final GermanCompetencyProgress progress;
+  final bool reviewDue;
   final GermanCompetencyUnlockStatus unlock;
   final VoidCallback? onPractice;
 
   @override
   Widget build(BuildContext context) {
-    final status = switch (progress.state) {
-      GermanCompetencyState.newSkill => ('Neu', Icons.circle_outlined),
-      GermanCompetencyState.learning => ('Im Aufbau', Icons.timelapse_rounded),
-      GermanCompetencyState.secure => (
-        'Sicher',
-        Icons.check_circle_outline_rounded,
-      ),
-    };
+    final status = reviewDue
+        ? ('Wiederholen', Icons.refresh_rounded)
+        : switch (progress.state) {
+            GermanCompetencyState.newSkill => ('Neu', Icons.circle_outlined),
+            GermanCompetencyState.learning => (
+              'Im Aufbau',
+              Icons.timelapse_rounded,
+            ),
+            GermanCompetencyState.secure => (
+              'Sicher',
+              Icons.check_circle_outline_rounded,
+            ),
+          };
     final evidence = progress.attempts == 0
         ? 'Noch keine Übungsergebnisse'
         : _evidenceLabel(progress);
@@ -171,9 +196,19 @@ class _CompetencyCard extends StatelessWidget {
               key: ValueKey('german-competency-practice-$competencyId'),
               onPressed: onPractice,
               icon: Icon(
-                locked ? Icons.account_tree_outlined : Icons.play_arrow_rounded,
+                locked
+                    ? Icons.account_tree_outlined
+                    : reviewDue
+                    ? Icons.refresh_rounded
+                    : Icons.play_arrow_rounded,
               ),
-              label: Text(locked ? 'Grundlage üben' : 'Gezielt üben'),
+              label: Text(
+                locked
+                    ? 'Grundlage üben'
+                    : reviewDue
+                    ? 'Auffrischen'
+                    : 'Gezielt üben',
+              ),
             ),
           ),
         ],

@@ -17,9 +17,14 @@ import 'german_curriculum_audit_screen.dart';
 import 'german_teacher_mode_screen.dart';
 
 class GermanParentOverviewScreen extends StatefulWidget {
-  const GermanParentOverviewScreen({super.key, required this.controller});
+  const GermanParentOverviewScreen({
+    super.key,
+    required this.controller,
+    this.now = DateTime.now,
+  });
 
   final AppController controller;
+  final DateTime Function() now;
 
   @override
   State<GermanParentOverviewScreen> createState() =>
@@ -46,6 +51,7 @@ class _GermanParentOverviewScreenState
       _overview = GermanParentOverview.analyze(
         gradeLevel: widget.controller.gradeLevel,
         history: history,
+        now: widget.now(),
       );
     });
   }
@@ -131,6 +137,17 @@ class _GermanParentOverviewScreenState
                 : 'Aktuell zeigt sich keine geübte Kompetenz mit besonderem Übungsbedarf.',
           ),
         ),
+        if (overview.reviewDue.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 12),
+          _InsightSection(
+            title: 'Wiederholung fällig',
+            icon: Icons.refresh_rounded,
+            children: _progressLines(
+              overview.reviewDue,
+              emptyText: 'Aktuell ist keine Wiederholung fällig.',
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         OutlinedButton.icon(
           key: const ValueKey('german-parent-teacher-assignment'),
@@ -172,7 +189,9 @@ class _GermanParentOverviewScreenState
                 subtitle: Text(
                   domain.attempts == 0
                       ? 'Noch nicht geübt'
-                      : '${domain.secureCompetencies} von ${domain.totalCompetencies} Lernschritten sicher · ${(domain.accuracy * 100).round()} % direkt richtig',
+                      : domain.reviewDueCompetencies == 0
+                      ? '${domain.secureCompetencies} von ${domain.totalCompetencies} Lernschritten sicher · ${(domain.accuracy * 100).round()} % direkt richtig'
+                      : '${domain.secureCompetencies} von ${domain.totalCompetencies} Lernschritten sicher · ${domain.reviewDueCompetencies} Wiederholung fällig · ${(domain.accuracy * 100).round()} % direkt richtig',
                 ),
               ),
             ),

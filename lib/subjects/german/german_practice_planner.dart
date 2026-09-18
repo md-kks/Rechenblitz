@@ -284,11 +284,9 @@ class GermanPracticePlanner {
     GermanCompetencyProgress progress, {
     DateTime? now,
   }) {
-    if (progress.state == GermanCompetencyState.learning &&
-        progress.recentAccuracy < 0.8) {
-      return 0;
-    }
-    if (progress.needsReview(now: now)) return 1;
+    final attention = progress.attention(now: now);
+    if (attention == GermanPracticeAttention.needsPractice) return 0;
+    if (attention == GermanPracticeAttention.reviewDue) return 1;
     return switch (progress.state) {
       GermanCompetencyState.newSkill => 2,
       GermanCompetencyState.learning => 3,

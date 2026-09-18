@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rechenblitz/core/grade_level.dart';
 import 'package:rechenblitz/services/app_controller.dart';
+import 'package:rechenblitz/subjects/german/german_competency.dart';
+import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_storage_service.dart';
 import 'package:rechenblitz/subjects/german/screens/german_home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,6 +43,69 @@ void main() {
       );
       expect(item, findsOneWidget);
     }
+  });
+
+  testWidgets('German home does not invent focus for fresh secure skill', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(true);
+    await storage.saveHistory(_secureWordHistory(DateTime(2026, 9, 17, 10)));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GermanHomeScreen(
+          controller: controller,
+          now: () => DateTime(2026, 9, 18, 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        '12 Aufgaben für heute – ausgewogen aus allen sechs Lernbereichen.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('mehr Übungszeit'), findsNothing);
+  });
+
+  testWidgets('German home names due review as refresh instead of weakness', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(true);
+    await storage.saveHistory(_secureWordHistory(DateTime(2026, 8, 20, 10)));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GermanHomeScreen(
+          controller: controller,
+          now: () => DateTime(2026, 9, 18, 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('zur Auffrischung wiederholt'), findsOneWidget);
+    final reading = find.byKey(const ValueKey('german-domain-reading'));
+    await tester.scrollUntilVisible(
+      reading,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.descendant(
+        of: reading,
+        matching: find.textContaining('Wiederholung fällig'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('German home opens the competency map', (tester) async {
@@ -195,3 +261,42 @@ void main() {
     expect(await storage.loadIntroComplete(), isTrue);
   });
 }
+
+List<GermanSessionResult> _secureWordHistory(DateTime firstFinished) =>
+    <GermanSessionResult>[
+      GermanSessionResult(
+        gradeLevel: GradeLevel.second,
+        startedAt: firstFinished.subtract(const Duration(minutes: 1)),
+        finishedAt: firstFinished,
+        taskResults: const <GermanTaskResult>[
+          GermanTaskResult(
+            taskId: 'word-a',
+            competencyId: GermanCompetencyId.wordRecognition,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 900,
+          ),
+          GermanTaskResult(
+            taskId: 'word-b',
+            competencyId: GermanCompetencyId.wordRecognition,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 900,
+          ),
+        ],
+      ),
+      GermanSessionResult(
+        gradeLevel: GradeLevel.second,
+        startedAt: firstFinished.add(const Duration(hours: 1)),
+        finishedAt: firstFinished.add(const Duration(hours: 1, minutes: 1)),
+        taskResults: const <GermanTaskResult>[
+          GermanTaskResult(
+            taskId: 'word-c',
+            competencyId: GermanCompetencyId.wordRecognition,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 900,
+          ),
+        ],
+      ),
+    ];

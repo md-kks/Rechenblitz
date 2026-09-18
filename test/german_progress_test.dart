@@ -134,6 +134,14 @@ void main() {
 
     expect(progress.state, GermanCompetencyState.secure);
     expect(progress.needsReview(now: DateTime(2026, 9, 17)), isTrue);
+    expect(
+      progress.attention(now: DateTime(2026, 9, 17)),
+      GermanPracticeAttention.reviewDue,
+    );
+    expect(
+      progress.attention(now: DateTime(2026, 8, 30)),
+      GermanPracticeAttention.none,
+    );
   });
 
   test('recent setbacks can move an old secure skill back into learning', () {
@@ -167,6 +175,10 @@ void main() {
     expect(progress.accuracy, greaterThanOrEqualTo(0.8));
     expect(progress.recentAccuracy, 0.6);
     expect(progress.state, GermanCompetencyState.learning);
+    expect(
+      progress.attention(now: DateTime(2026, 9, 18)),
+      GermanPracticeAttention.needsPractice,
+    );
   });
 
   test('daily round puts a proven weak skill ahead of new skills', () {
@@ -253,6 +265,40 @@ void main() {
       3,
     );
     expect(round.map((task) => task.id).toSet(), hasLength(12));
+  });
+
+  test('daily round gives due secure skill a refresh slot', () {
+    final history = <GermanSessionResult>[
+      for (var index = 0; index < 3; index++)
+        _session(
+          GermanCompetencyId.wordRecognition,
+          correct: true,
+          taskId: 'review-word-$index',
+          finishedAt: DateTime(2026, 8, 20 + index, 12),
+        ),
+    ];
+    final round = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.second,
+      history: history,
+      now: DateTime(2026, 9, 18, 10),
+    );
+    final readingCount = round
+        .where(
+          (task) =>
+              _domainFor(task.competencyId) == GermanLearningDomain.reading,
+        )
+        .length;
+
+    expect(round, hasLength(12));
+    expect(readingCount, 3);
+    expect(
+      round
+          .where(
+            (task) => task.competencyId == GermanCompetencyId.wordRecognition,
+          )
+          .length,
+      3,
+    );
   });
 
   test('fourth-grade daily round includes productive writing', () {

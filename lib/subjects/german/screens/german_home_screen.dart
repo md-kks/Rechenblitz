@@ -29,9 +29,14 @@ import 'german_reward_screen.dart';
 import 'german_training_screen.dart';
 
 class GermanHomeScreen extends StatefulWidget {
-  const GermanHomeScreen({super.key, required this.controller});
+  const GermanHomeScreen({
+    super.key,
+    required this.controller,
+    this.now = DateTime.now,
+  });
 
   final AppController controller;
+  final DateTime Function() now;
 
   @override
   State<GermanHomeScreen> createState() => _GermanHomeScreenState();
@@ -107,8 +112,10 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            GermanParentOverviewScreen(controller: widget.controller),
+        builder: (_) => GermanParentOverviewScreen(
+          controller: widget.controller,
+          now: widget.now,
+        ),
       ),
     );
   }
@@ -314,6 +321,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     final tasks = GermanPracticePlanner.buildDailyRound(
       gradeLevel: widget.controller.gradeLevel,
       history: _history,
+      now: widget.now(),
     );
     unawaited(_openRound(tasks));
   }
@@ -339,6 +347,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
           child: GermanCompetencyMapScreen(
             gradeLevel: widget.controller.gradeLevel,
             history: _history,
+            referenceNow: widget.now(),
           ),
         ),
       ),
@@ -565,12 +574,19 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     if (_history.isEmpty) {
       return '12 kurze Aufgaben aus allen sechs Deutsch-Lernbereichen.';
     }
-    final weakest = _weakestProgress();
-    if (weakest == null) return 'Heute werden neue Lernschritte entdeckt.';
-    final label = GermanCompetencyCatalog.definition(
-      weakest.competencyId,
-    ).label;
-    return '12 Aufgaben für heute. „$label“ bekommt etwas mehr Übungszeit.';
+    final focus = _practiceFocus();
+    if (focus == null) {
+      return '12 Aufgaben für heute – ausgewogen aus allen sechs Lernbereichen.';
+    }
+    final label = GermanCompetencyCatalog.definition(focus.competencyId).label;
+    return switch (focus.attention(now: widget.now())) {
+      GermanPracticeAttention.needsPractice =>
+        '12 Aufgaben für heute. „$label“ bekommt etwas mehr Übungszeit.',
+      GermanPracticeAttention.reviewDue =>
+        '12 Aufgaben für heute. „$label“ wird zur Auffrischung wiederholt.',
+      GermanPracticeAttention.none =>
+        '12 Aufgaben für heute – ausgewogen aus allen sechs Lernbereichen.',
+    };
   }
 
   String _assessmentSummaryText() {
@@ -582,17 +598,26 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     return 'Letzter Lerncheck: ${latest.correctFirstTry} von ${latest.total} direkt richtig · $percent %.';
   }
 
-  GermanCompetencyProgress? _weakestProgress() {
+  GermanCompetencyProgress? _practiceFocus() {
+    final now = widget.now();
     final practiced =
         GermanCompetencyCatalog.recommendedFor(widget.controller.gradeLevel)
             .map(
               (definition) =>
                   GermanProgressAnalyzer.forCompetency(definition.id, _history),
             )
-            .where((progress) => progress.attempts > 0)
+            .where(
+              (progress) =>
+                  progress.attention(now: now) != GermanPracticeAttention.none,
+            )
             .toList();
     if (practiced.isEmpty) return null;
     practiced.sort((a, b) {
+      final attention = a
+          .attention(now: now)
+          .index
+          .compareTo(b.attention(now: now).index);
+      if (attention != 0) return attention;
       final recent = a.recentAccuracy.compareTo(b.recentAccuracy);
       return recent != 0 ? recent : a.accuracy.compareTo(b.accuracy);
     });
@@ -613,11 +638,22 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     final secure = practiced
         .where((progress) => progress.state == GermanCompetencyState.secure)
         .length;
+    final reviewDue = practiced
+        .where(
+          (progress) =>
+              progress.attention(now: widget.now()) ==
+              GermanPracticeAttention.reviewDue,
+        )
+        .length;
     final attempts = practiced.fold<int>(
       0,
       (sum, value) => sum + value.attempts,
     );
     if (attempts == 0) return 'Noch nicht geübt';
+    if (reviewDue > 0) {
+      return '$secure von ${definitions.length} Lernschritten sicher · '
+          '$reviewDue Wiederholung fällig';
+    }
     return '$secure von ${definitions.length} Lernschritten sicher';
   }
 

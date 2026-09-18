@@ -72,6 +72,38 @@ void main() {
     );
   });
 
+  test('secure but stale skill moves from strengths to review due', () {
+    final overview = GermanParentOverview.analyze(
+      gradeLevel: GradeLevel.second,
+      now: DateTime(2026, 10, 5),
+      history: <GermanSessionResult>[
+        _session(
+          competency: GermanCompetencyId.nounArticle,
+          correct: const <bool>[true, true],
+          taskPrefix: 'noun-a',
+        ),
+        _session(
+          competency: GermanCompetencyId.nounArticle,
+          correct: const <bool>[true],
+          minute: 2,
+          taskPrefix: 'noun-b',
+        ),
+      ],
+    );
+
+    expect(overview.secureCompetencies, 1);
+    expect(overview.strengths, isEmpty);
+    expect(overview.reviewDue, hasLength(1));
+    expect(
+      overview.reviewDue.single.competencyId,
+      GermanCompetencyId.nounArticle,
+    );
+    final language = overview.domains.firstWhere(
+      (entry) => entry.domain.name == 'language',
+    );
+    expect(language.reviewDueCompetencies, 1);
+  });
+
   test('recent setbacks outrank old strength in the parent overview', () {
     final history = <GermanSessionResult>[
       for (var index = 0; index < 10; index++)
@@ -182,6 +214,46 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(evidence, findsOneWidget);
+  });
+
+  testWidgets('German parent overview surfaces due spaced review', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.saveHistory(<GermanSessionResult>[
+      _session(
+        competency: GermanCompetencyId.nounArticle,
+        correct: const <bool>[true, true],
+        taskPrefix: 'noun-a',
+      ),
+      _session(
+        competency: GermanCompetencyId.nounArticle,
+        correct: const <bool>[true],
+        minute: 2,
+        taskPrefix: 'noun-b',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GermanParentOverviewScreen(
+          controller: controller,
+          now: () => DateTime(2026, 10, 5),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final review = find.text('Wiederholung fällig');
+    await tester.scrollUntilVisible(
+      review,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(review, findsWidgets);
+    expect(find.textContaining('Nomen und Artikel erkennen'), findsOneWidget);
   });
 
   testWidgets('German parent overview reads only local profile progress', (
