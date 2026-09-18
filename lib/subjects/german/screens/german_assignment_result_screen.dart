@@ -26,7 +26,7 @@ class GermanAssignmentResultScreen extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'Der Ergebnis-QR enthält nur diese Schulrunde. Name, Profil-ID und übriger Lernverlauf bleiben auf dem Gerät.',
+                'Der Ergebnis-QR enthält nur diese Schulrunde. Bei Aufträgen für einen ganzen Lernbereich kann er zusätzlich anonyme Summen je Lernziel enthalten. Name, Profil-ID und übriger Lernverlauf bleiben auf dem Gerät.',
               ),
             ),
           ),

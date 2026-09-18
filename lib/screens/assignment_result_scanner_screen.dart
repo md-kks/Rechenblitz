@@ -263,6 +263,45 @@ class _GermanResultCard extends StatelessWidget {
                 _Metric('Ø Antwort', seconds),
               ],
             ),
+            if (result.competencyBreakdown.length > 1) ...<Widget>[
+              const SizedBox(height: 18),
+              const Text(
+                'Lernziele in dieser Runde',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 8),
+              ...result.competencyBreakdown.map((entry) {
+                final entryPercent = (entry.accuracy * 100).round();
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            entry.label,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${entry.correctFirstTry}/${entry.completedTasks} direkt richtig · '
+                            '$entryPercent % · ${entry.incorrectAttempts} Fehlversuche',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
           ],
         ),
       ),
