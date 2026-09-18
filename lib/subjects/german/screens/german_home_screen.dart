@@ -50,6 +50,8 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   GermanRoundDraft? _draft;
   bool _introComplete = false;
   bool _loading = true;
+  late String _observedProfileId;
+  late GradeLevel _observedGradeLevel;
 
   GermanStorageService get _storage =>
       GermanStorageService(profileId: widget.controller.activeProfileId);
@@ -60,28 +62,58 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _observedProfileId = widget.controller.activeProfileId;
+    _observedGradeLevel = widget.controller.gradeLevel;
+    widget.controller.addListener(_handleControllerChange);
     unawaited(_load());
   }
 
   @override
   void dispose() {
+    widget.controller.removeListener(_handleControllerChange);
     _parentGateTimer?.cancel();
     super.dispose();
   }
 
+  void _handleControllerChange() {
+    if (!mounted) return;
+    final profileId = widget.controller.activeProfileId;
+    final gradeLevel = widget.controller.gradeLevel;
+    if (profileId != _observedProfileId || gradeLevel != _observedGradeLevel) {
+      _observedProfileId = profileId;
+      _observedGradeLevel = gradeLevel;
+      setState(() {
+        _history = const <GermanSessionResult>[];
+        _draft = null;
+        _introComplete = false;
+        _loading = true;
+      });
+      unawaited(_load());
+      return;
+    }
+    setState(() {});
+  }
+
   Future<void> _load() async {
-    final history = await _storage.loadHistory();
-    var draft = await _storage.loadRoundDraft();
-    var introComplete = await _storage.loadIntroComplete();
-    if (draft != null && !draft.isResumableFor(widget.controller.gradeLevel)) {
-      await _storage.clearRoundDraft();
+    final profileId = widget.controller.activeProfileId;
+    final gradeLevel = widget.controller.gradeLevel;
+    final storage = GermanStorageService(profileId: profileId);
+    final history = await storage.loadHistory();
+    var draft = await storage.loadRoundDraft();
+    var introComplete = await storage.loadIntroComplete();
+    if (draft != null && !draft.isResumableFor(gradeLevel)) {
+      await storage.clearRoundDraft();
       draft = null;
     }
     if (!introComplete && (history.isNotEmpty || draft != null)) {
       introComplete = true;
-      await _storage.setIntroComplete(true);
+      await storage.setIntroComplete(true);
     }
-    if (!mounted) return;
+    if (!mounted ||
+        widget.controller.activeProfileId != profileId ||
+        widget.controller.gradeLevel != gradeLevel) {
+      return;
+    }
     setState(() {
       _history = history;
       _draft = draft;
@@ -197,10 +229,13 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     GermanSessionKind sessionKind = GermanSessionKind.practice,
   }) async {
     if (tasks.isEmpty) return;
+    final roundProfileId = widget.controller.activeProfileId;
+    final roundGradeLevel = widget.controller.gradeLevel;
+    final roundStorage = GermanStorageService(profileId: roundProfileId);
     final activeDraft =
         draft ??
         GermanRoundDraft(
-          gradeLevel: widget.controller.gradeLevel,
+          gradeLevel: roundGradeLevel,
           taskIds: tasks.map((task) => task.id).toList(growable: false),
           currentIndex: 0,
           startedAt: DateTime.now(),
@@ -208,8 +243,12 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
           completedResults: const <GermanTaskResult>[],
           sessionKind: sessionKind,
         );
-    await _storage.saveRoundDraft(activeDraft);
-    if (!mounted) return;
+    await roundStorage.saveRoundDraft(activeDraft);
+    if (!mounted ||
+        widget.controller.activeProfileId != roundProfileId ||
+        widget.controller.gradeLevel != roundGradeLevel) {
+      return;
+    }
     setState(() => _draft = activeDraft);
 
     final session = await Navigator.of(context).push<GermanSessionResult>(
@@ -217,7 +256,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
         builder: (_) => Theme(
           data: _germanTheme,
           child: GermanTrainingScreen(
-            gradeLevel: widget.controller.gradeLevel,
+            gradeLevel: roundGradeLevel,
             tasks: tasks,
             speak: widget.controller.speakOnDemand,
             autoSpeak: widget.controller.speak,
@@ -227,13 +266,19 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
             supportEnabled:
                 activeDraft.sessionKind != GermanSessionKind.assessment,
             draft: activeDraft,
-            onDraftChanged: _saveDraft,
-            onComplete: _saveResult,
+            onDraftChanged: (value) =>
+                _saveDraft(value, profileId: roundProfileId),
+            onComplete: (value) =>
+                _saveResult(value, profileId: roundProfileId),
           ),
         ),
       ),
     );
     if (!mounted || session == null) return;
+    if (widget.controller.activeProfileId != roundProfileId ||
+        widget.controller.gradeLevel != roundGradeLevel) {
+      return;
+    }
 
     if (session.kind == GermanSessionKind.assessment) {
       await Navigator.of(context).push(
@@ -269,22 +314,37 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     }
   }
 
-  void _saveDraft(GermanRoundDraft draft) {
-    if (mounted) setState(() => _draft = draft);
-    unawaited(_storage.saveRoundDraft(draft));
+  void _saveDraft(GermanRoundDraft draft, {required String profileId}) {
+    if (mounted &&
+        widget.controller.activeProfileId == profileId &&
+        widget.controller.gradeLevel == draft.gradeLevel) {
+      setState(() => _draft = draft);
+    }
+    unawaited(GermanStorageService(profileId: profileId).saveRoundDraft(draft));
   }
 
-  void _saveResult(GermanSessionResult result) {
-    setState(() {
-      _history = <GermanSessionResult>[result, ..._history];
-      _draft = null;
-    });
-    unawaited(_persistCompletedResult(result));
+  void _saveResult(GermanSessionResult result, {required String profileId}) {
+    if (mounted &&
+        widget.controller.activeProfileId == profileId &&
+        widget.controller.gradeLevel == result.gradeLevel) {
+      setState(() {
+        _history = GermanHistoryScope.unique(<GermanSessionResult>[
+          result,
+          ..._history,
+        ]);
+        _draft = null;
+      });
+    }
+    unawaited(_persistCompletedResult(result, profileId: profileId));
   }
 
-  Future<void> _persistCompletedResult(GermanSessionResult result) async {
-    await _storage.appendSession(result);
-    await _storage.clearRoundDraft();
+  Future<void> _persistCompletedResult(
+    GermanSessionResult result, {
+    required String profileId,
+  }) async {
+    final storage = GermanStorageService(profileId: profileId);
+    await storage.appendSession(result);
+    await storage.clearRoundDraft();
   }
 
   Future<void> _resumeRound() async {

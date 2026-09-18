@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/core/grade_level.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:rechenblitz/subjects/german/german_competency.dart';
+import 'package:rechenblitz/subjects/german/german_practice_planner.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_storage_service.dart';
 import 'package:rechenblitz/subjects/german/german_task_catalog.dart';
@@ -259,6 +260,138 @@ void main() {
     expect(find.text('Laute und Buchstaben verbinden'), findsOneWidget);
   });
 
+  testWidgets('German home reloads immediately after profile switch', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    await controller.setGradeLevel(GradeLevel.second);
+    final firstId = controller.activeProfileId;
+    final firstStorage = GermanStorageService(profileId: firstId);
+    await firstStorage.setIntroComplete(true);
+    await firstStorage.saveHistory(<GermanSessionResult>[
+      _profileSession(taskId: 'first-profile', correct: true),
+    ]);
+
+    await controller.createProfile(
+      name: 'Zweites Kind',
+      grade: GradeLevel.second,
+    );
+    final secondId = controller.activeProfileId;
+    final secondStorage = GermanStorageService(profileId: secondId);
+    await secondStorage.setIntroComplete(true);
+    await secondStorage.saveHistory(<GermanSessionResult>[
+      _profileSession(taskId: 'second-profile', correct: false),
+    ]);
+    await controller.switchProfile(firstId);
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    final firstRecent = find.text('Zuletzt');
+    await tester.scrollUntilVisible(
+      firstRecent,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.textContaining('1 von 1 direkt richtig'), findsOneWidget);
+    expect(find.textContaining('0 von 1 direkt richtig'), findsNothing);
+
+    await controller.switchProfile(secondId);
+    await tester.pumpAndSettle();
+
+    expect(controller.activeProfileName, 'Zweites Kind');
+    final secondRecent = find.text('Zuletzt');
+    await tester.scrollUntilVisible(
+      secondRecent,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.textContaining('0 von 1 direkt richtig'), findsOneWidget);
+    expect(find.textContaining('1 von 1 direkt richtig'), findsNothing);
+  });
+
+  testWidgets('running German round stays bound to its start profile', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    await controller.setGradeLevel(GradeLevel.third);
+    final firstId = controller.activeProfileId;
+    final firstStorage = GermanStorageService(profileId: firstId);
+    final bridgeHistory = _secureWordFamilyGradeTwoHistory();
+    await firstStorage.setIntroComplete(true);
+    await firstStorage.saveHistory(bridgeHistory);
+
+    await controller.createProfile(
+      name: 'Anderes Kind',
+      grade: GradeLevel.third,
+    );
+    final secondId = controller.activeProfileId;
+    final secondStorage = GermanStorageService(profileId: secondId);
+    await secondStorage.setIntroComplete(true);
+    await controller.switchProfile(firstId);
+
+    final bridgeTasks = GermanPracticePlanner.buildGradeBridgeRound(
+      gradeLevel: GradeLevel.third,
+      competencyId: GermanCompetencyId.wordFamilies,
+      history: bridgeHistory,
+    );
+    expect(bridgeTasks, hasLength(2));
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('german-competency-map')));
+    await tester.pumpAndSettle();
+    final practiceButton = find.byKey(
+      const ValueKey('german-competency-practice-wordFamilies'),
+    );
+    await tester.scrollUntilVisible(
+      practiceButton,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    tester.widget<OutlinedButton>(practiceButton).onPressed!.call();
+    await tester.pumpAndSettle();
+    expect(find.text('1 von 2'), findsOneWidget);
+
+    await controller.switchProfile(secondId);
+    await tester.pumpAndSettle();
+
+    for (var index = 0; index < bridgeTasks.length; index++) {
+      final answer = bridgeTasks[index].acceptedAnswers.first;
+      await tester.tap(find.widgetWithText(FilledButton, answer));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Runde geschafft'), findsWidgets);
+
+    await tester.tap(find.byKey(const ValueKey('german-round-done')));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 1));
+
+    final firstHistory = await firstStorage.loadHistory();
+    final secondHistory = await secondStorage.loadHistory();
+    expect(
+      firstHistory.where(
+        (session) =>
+            session.gradeLevel == GradeLevel.third &&
+            session.taskResults.length == 2 &&
+            session.taskResults.every(
+              (result) =>
+                  result.competencyId == GermanCompetencyId.wordFamilies,
+            ),
+      ),
+      hasLength(1),
+    );
+    expect(secondHistory, isEmpty);
+    expect(find.text('Hallo Anderes Kind'), findsOneWidget);
+  });
+
   testWidgets('daily German round opens a touch-first training session', (
     tester,
   ) async {
@@ -442,6 +575,24 @@ void main() {
     expect(await storage.loadIntroComplete(), isTrue);
   });
 }
+
+GermanSessionResult _profileSession({
+  required String taskId,
+  required bool correct,
+}) => GermanSessionResult(
+  gradeLevel: GradeLevel.second,
+  startedAt: DateTime(2026, 9, 18, 10),
+  finishedAt: DateTime(2026, 9, 18, 10, 1),
+  taskResults: <GermanTaskResult>[
+    GermanTaskResult(
+      taskId: taskId,
+      competencyId: GermanCompetencyId.wordRecognition,
+      correctFirstTry: correct,
+      incorrectAttempts: correct ? 0 : 1,
+      responseMs: 900,
+    ),
+  ],
+);
 
 List<GermanSessionResult> _secureWordFamilyGradeTwoHistory() {
   final taskIds =
