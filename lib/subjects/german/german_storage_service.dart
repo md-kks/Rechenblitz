@@ -17,6 +17,8 @@ class GermanStorageService {
   static const _introCompleteKey = 'intro_complete_v1';
   static final Map<String, Future<void>> _historyMutations =
       <String, Future<void>>{};
+  static final Map<String, Future<void>> _draftMutations =
+      <String, Future<void>>{};
 
   final String profileId;
 
@@ -108,6 +110,18 @@ class GermanStorageService {
   }
 
   Future<GermanRoundDraft?> loadRoundDraft() async {
+    final pending = _draftMutations[_profileRoundDraftKey];
+    if (pending != null) {
+      try {
+        await pending;
+      } catch (_) {
+        // A failed draft write must not make the profile unreadable.
+      }
+    }
+    return _loadRoundDraftUnlocked();
+  }
+
+  Future<GermanRoundDraft?> _loadRoundDraftUnlocked() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_profileRoundDraftKey);
     if (raw == null) return null;
@@ -121,14 +135,33 @@ class GermanStorageService {
     }
   }
 
-  Future<void> saveRoundDraft(GermanRoundDraft draft) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_profileRoundDraftKey, jsonEncode(draft.toJson()));
+  Future<void> saveRoundDraft(GermanRoundDraft draft) {
+    final encoded = jsonEncode(draft.toJson());
+    return _enqueueDraftMutation(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_profileRoundDraftKey, encoded);
+    });
   }
 
-  Future<void> clearRoundDraft() async {
+  Future<void> clearRoundDraft() => _enqueueDraftMutation(() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_profileRoundDraftKey);
+  });
+
+  Future<void> _enqueueDraftMutation(Future<void> Function() mutation) {
+    final key = _profileRoundDraftKey;
+    final previous = _draftMutations[key] ?? Future<void>.value();
+    late final Future<void> operation;
+    operation = previous
+        .catchError((_) {})
+        .then((_) => mutation())
+        .whenComplete(() {
+          if (identical(_draftMutations[key], operation)) {
+            _draftMutations.remove(key);
+          }
+        });
+    _draftMutations[key] = operation;
+    return operation;
   }
 
   Future<bool> loadIntroComplete() async {
@@ -146,8 +179,8 @@ class GermanStorageService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_profileHistoryKey);
     });
+    await clearRoundDraft();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_profileRoundDraftKey);
     await prefs.remove(_profileIntroCompleteKey);
   }
 }

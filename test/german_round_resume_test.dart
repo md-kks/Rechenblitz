@@ -66,6 +66,50 @@ void main() {
     expect(await second.loadRoundDraft(), isNull);
   });
 
+  test('German draft load waits for a queued save', () async {
+    final storage = GermanStorageService(profileId: 'child');
+    final draft = draftForTwoTasks(currentAnswer: 'noch nicht fertig');
+
+    final save = storage.saveRoundDraft(draft);
+    final restored = await storage.loadRoundDraft();
+    await save;
+
+    expect(restored, isNotNull);
+    expect(restored!.currentAnswer, 'noch nicht fertig');
+  });
+
+  test('queued German draft saves preserve the latest state', () async {
+    final storage = GermanStorageService(profileId: 'child');
+    final first = draftForTwoTasks(currentAnswer: 'erster Stand');
+    final latest = draftForTwoTasks(currentAnswer: 'letzter Stand');
+
+    await Future.wait<void>(<Future<void>>[
+      storage.saveRoundDraft(first),
+      storage.saveRoundDraft(latest),
+    ]);
+
+    final restored = await storage.loadRoundDraft();
+    expect(restored, isNotNull);
+    expect(restored!.currentAnswer, 'letzter Stand');
+  });
+
+  test(
+    'queued German draft clear cannot be overtaken by an older save',
+    () async {
+      final storage = GermanStorageService(profileId: 'child');
+      final first = draftForTwoTasks(currentAnswer: 'erster Stand');
+      final latest = draftForTwoTasks(currentAnswer: 'letzter Stand');
+
+      final firstSave = storage.saveRoundDraft(first);
+      final secondSave = storage.saveRoundDraft(latest);
+      final clear = storage.clearRoundDraft();
+
+      await Future.wait<void>(<Future<void>>[firstSave, secondSave, clear]);
+
+      expect(await storage.loadRoundDraft(), isNull);
+    },
+  );
+
   test('older German drafts default partial input safely', () {
     final json = draftForTwoTasks().toJson()
       ..remove('currentAnswer')
