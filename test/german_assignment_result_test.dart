@@ -241,10 +241,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Lernziele in dieser Runde'), findsOneWidget);
-    expect(find.text('Kernaussage eines Textes erfassen'), findsOneWidget);
-    expect(find.text('Zwischen den Zeilen lesen'), findsOneWidget);
+    final mainIdeaLabel = find.text('Kernaussage eines Textes erfassen');
+    final inferenceLabel = find.text('Zwischen den Zeilen lesen');
+    expect(mainIdeaLabel, findsOneWidget);
+    expect(inferenceLabel, findsOneWidget);
     expect(find.textContaining('1/2 direkt richtig'), findsOneWidget);
     expect(find.textContaining('2/2 direkt richtig'), findsOneWidget);
+    expect(
+      tester.getTopLeft(mainIdeaLabel).dy,
+      lessThan(tester.getTopLeft(inferenceLabel).dy),
+      reason: 'Das schwächere Lernziel soll für Lehrkräfte zuerst erscheinen.',
+    );
   });
 
   testWidgets('result scanner accepts German LBR1 result code', (tester) async {

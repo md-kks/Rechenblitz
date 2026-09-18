@@ -512,6 +512,34 @@ void main() {
     expect(round.map((task) => task.id).toSet(), hasLength(5));
   });
 
+  test(
+    'large domain assignment repeats only after unique pool is exhausted',
+    () {
+      const assignment = GermanTeacherAssignment(
+        gradeLevel: GradeLevel.fourth,
+        domain: GermanLearningDomain.vocabulary,
+        tasks: 30,
+      );
+      final availableIds = GermanTaskCatalog.forDomain(
+        GermanLearningDomain.vocabulary,
+        GradeLevel.fourth,
+      ).map((task) => task.id).toSet();
+
+      final round = GermanPracticePlanner.buildAssignmentRound(
+        assignment: assignment,
+        history: const <GermanSessionResult>[],
+      );
+
+      expect(round, hasLength(30));
+      expect(availableIds, hasLength(26));
+      expect(
+        round.take(availableIds.length).map((task) => task.id).toSet(),
+        hasLength(availableIds.length),
+      );
+      expect(round.map((task) => task.id).toSet(), availableIds);
+    },
+  );
+
   test('teacher assignment keeps its requested task count offline', () {
     final assignment = GermanTeacherAssignment(
       gradeLevel: GradeLevel.second,

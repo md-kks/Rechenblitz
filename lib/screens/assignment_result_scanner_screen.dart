@@ -235,6 +235,15 @@ class _GermanResultCard extends StatelessWidget {
     final seconds = result.averageResponseMs <= 0
         ? '–'
         : '${(result.averageResponseMs / 1000).toStringAsFixed(1)} s';
+    final breakdown =
+        List<GermanAssignmentCompetencyResult>.from(result.competencyBreakdown)
+          ..sort((a, b) {
+            final accuracy = a.accuracy.compareTo(b.accuracy);
+            if (accuracy != 0) return accuracy;
+            final attempts = b.incorrectAttempts.compareTo(a.incorrectAttempts);
+            if (attempts != 0) return attempts;
+            return a.label.compareTo(b.label);
+          });
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -263,14 +272,14 @@ class _GermanResultCard extends StatelessWidget {
                 _Metric('Ø Antwort', seconds),
               ],
             ),
-            if (result.competencyBreakdown.length > 1) ...<Widget>[
+            if (breakdown.length > 1) ...<Widget>[
               const SizedBox(height: 18),
               const Text(
                 'Lernziele in dieser Runde',
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
-              ...result.competencyBreakdown.map((entry) {
+              ...breakdown.map((entry) {
                 final entryPercent = (entry.accuracy * 100).round();
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
