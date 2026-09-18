@@ -6,9 +6,20 @@ class GermanAnswerFeedback {
   static const retry = 'Noch nicht. Versuch es noch einmal.';
 
   static String forIncorrect(GermanTask task, String answer) {
-    if (task.interaction != GermanTaskInteraction.typedText ||
-        task.acceptedAnswers.isEmpty) {
-      return retry;
+    if (task.acceptedAnswers.isEmpty) return retry;
+
+    switch (task.interaction) {
+      case GermanTaskInteraction.singleChoice:
+        return 'Noch nicht. Vergleiche deine Auswahl noch einmal genau mit '
+            'der Aufgabe.';
+      case GermanTaskInteraction.listeningChoice:
+        return 'Noch nicht. Hör die Aufgabe noch einmal an und achte nur auf '
+            'die gesuchte Information.';
+      case GermanTaskInteraction.wordOrder:
+        return 'Alle Satzbausteine sind da. Prüfe noch einmal ihre '
+            'Reihenfolge.';
+      case GermanTaskInteraction.typedText:
+        break;
     }
 
     final given = _spaces(answer);

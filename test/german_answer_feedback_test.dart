@@ -59,14 +59,54 @@ void main() {
     expect(feedback, contains('alle vorgegebenen Wörter'));
   });
 
-  test('choice feedback stays neutral', () {
+  test('choice feedback gives a non-spoiling next action', () {
     final choice = GermanStarterTaskCatalog.tasks.firstWhere(
       (task) => task.interaction == GermanTaskInteraction.singleChoice,
     );
-
-    expect(
-      GermanAnswerFeedback.forIncorrect(choice, 'falsch'),
-      GermanAnswerFeedback.retry,
+    final wrong = choice.choices.firstWhere(
+      (value) => !choice.acceptedAnswers.contains(value),
     );
+
+    final feedback = GermanAnswerFeedback.forIncorrect(choice, wrong);
+
+    expect(feedback, contains('Vergleiche deine Auswahl'));
+    for (final answer in choice.acceptedAnswers) {
+      expect(feedback, isNot(contains(answer)));
+    }
+  });
+
+  test(
+    'listening feedback points back to the audio without revealing answer',
+    () {
+      final listening = GermanStarterTaskCatalog.tasks.firstWhere(
+        (task) => task.interaction == GermanTaskInteraction.listeningChoice,
+      );
+      final wrong = listening.choices.firstWhere(
+        (value) => !listening.acceptedAnswers.contains(value),
+      );
+
+      final feedback = GermanAnswerFeedback.forIncorrect(listening, wrong);
+
+      expect(feedback, contains('Hör die Aufgabe noch einmal'));
+      expect(feedback, contains('gesuchte Information'));
+      for (final answer in listening.acceptedAnswers) {
+        expect(feedback, isNot(contains(answer)));
+      }
+    },
+  );
+
+  test('word-order feedback confirms completeness but not the solution', () {
+    final wordOrder = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.interaction == GermanTaskInteraction.wordOrder,
+    );
+    final wrong = wordOrder.choices.reversed.join(' ');
+
+    final feedback = GermanAnswerFeedback.forIncorrect(wordOrder, wrong);
+
+    expect(feedback, contains('Satzbausteine'));
+    expect(feedback, contains('Reihenfolge'));
+    for (final answer in wordOrder.acceptedAnswers) {
+      expect(feedback, isNot(contains(answer)));
+    }
   });
 }

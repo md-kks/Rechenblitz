@@ -57,7 +57,7 @@ void main() {
 
     await tester.tap(find.widgetWithText(FilledButton, 'die'));
     await tester.pump();
-    expect(find.text('Noch nicht. Versuch es noch einmal.'), findsOneWidget);
+    expect(find.textContaining('Vergleiche deine Auswahl'), findsOneWidget);
     expect(find.text('Denkhinweis'), findsOneWidget);
     expect(find.textContaining('der, die und das'), findsOneWidget);
 
