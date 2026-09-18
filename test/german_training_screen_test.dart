@@ -193,6 +193,8 @@ void main() {
     await tester.pump();
     expect(spoken, hasLength(1));
     expect(spoken.single, contains('direkt richtig'));
+    expect(spoken.single, contains('Nomen und Artikel erkennen'));
+    expect(find.textContaining('Nomen und Artikel erkennen'), findsOneWidget);
     expect(find.text('Feedback anhören'), findsOneWidget);
 
     await tester.tap(
