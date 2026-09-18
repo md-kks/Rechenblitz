@@ -474,7 +474,25 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
               )
               .toList(),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: const ValueKey('german-word-undo'),
+            onPressed: _orderedWords.isEmpty
+                ? null
+                : () {
+                    setState(() {
+                      _orderedWords.removeLast();
+                      _feedback = null;
+                    });
+                    _emitDraft();
+                  },
+            icon: const Icon(Icons.undo_rounded),
+            label: const Text('Letztes Wort zurück'),
+          ),
+        ),
+        const SizedBox(height: 8),
         Row(
           children: <Widget>[
             Expanded(

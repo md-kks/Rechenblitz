@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/core/accessibility_preferences.dart';
 import 'package:rechenblitz/core/learning_app_theme.dart';
 import 'package:rechenblitz/core/learning_subject.dart';
+import 'package:rechenblitz/subjects/german/german_round_draft.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_starter_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_task.dart';
@@ -15,6 +16,7 @@ Widget _app({
   required Future<void> Function(String) speak,
   Future<void> Function(String)? autoSpeak,
   void Function(GermanSessionResult)? onComplete,
+  void Function(GermanRoundDraft)? onDraftChanged,
   bool speakCompletion = false,
   bool supportEnabled = true,
   DateTime Function()? now,
@@ -32,6 +34,7 @@ Widget _app({
     supportEnabled: supportEnabled,
     now: now ?? DateTime.now,
     onComplete: onComplete,
+    onDraftChanged: onDraftChanged,
   ),
 );
 
@@ -172,6 +175,39 @@ void main() {
     await tester.pump();
 
     expect(find.text('Runde geschafft'), findsWidgets);
+  });
+
+  testWidgets('word-order touch can undo one chunk without clearing progress', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.interaction == GermanTaskInteraction.wordOrder,
+    );
+    GermanRoundDraft? saved;
+    await tester.pumpWidget(
+      _app(
+        task: task,
+        speak: (_) async {},
+        onDraftChanged: (draft) => saved = draft,
+      ),
+    );
+
+    final first = task.choices.first;
+    final second = task.choices[1];
+    await tester.tap(find.widgetWithText(FilledButton, first));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, second));
+    await tester.pump();
+
+    expect(find.text('$first $second'), findsOneWidget);
+    expect(saved!.currentOrderedWords, <String>[first, second]);
+
+    await tester.tap(find.byKey(const ValueKey('german-word-undo')));
+    await tester.pump();
+
+    expect(find.text(first), findsWidgets);
+    expect(find.widgetWithText(FilledButton, second), findsOneWidget);
+    expect(saved!.currentOrderedWords, <String>[first]);
   });
 
   testWidgets('completion feedback can speak automatically and be replayed', (

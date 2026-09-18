@@ -45,15 +45,86 @@ class GermanTask {
   }
 
   bool get isWellFormed {
-    if (id.trim().isEmpty || instruction.trim().isEmpty) return false;
-    if (acceptedAnswers.isEmpty) return false;
-    if (requiresSpeech && (spokenText?.trim().isEmpty ?? true)) return false;
-    if (interaction == GermanTaskInteraction.singleChoice || requiresSpeech) {
-      if (choices.length < 2) return false;
-      if (!acceptedAnswers.every(choices.contains)) return false;
-    }
-    if (interaction == GermanTaskInteraction.wordOrder && choices.length < 2) {
+    if (id.trim().isEmpty ||
+        instruction.trim().isEmpty ||
+        prompt.trim().isEmpty) {
       return false;
+    }
+    if (acceptedAnswers.isEmpty ||
+        acceptedAnswers.any((answer) => answer.trim().isEmpty) ||
+        !_allUniqueNormalized(acceptedAnswers)) {
+      return false;
+    }
+    if (choices.any((choice) => choice.trim().isEmpty) ||
+        !_allUniqueNormalized(choices)) {
+      return false;
+    }
+    if (requiresSpeech && (spokenText?.trim().isEmpty ?? true)) return false;
+
+    switch (interaction) {
+      case GermanTaskInteraction.singleChoice:
+      case GermanTaskInteraction.listeningChoice:
+        return _singleChoiceAnswersValid();
+      case GermanTaskInteraction.wordOrder:
+        return choices.length >= 2 &&
+            acceptedAnswers.every(_canBuildAnswerFromChoices);
+      case GermanTaskInteraction.typedText:
+        return choices.isEmpty;
+    }
+  }
+
+  bool _singleChoiceAnswersValid() {
+    if (choices.length < 2 || acceptedAnswers.length != 1) return false;
+    final accepted = _normalize(acceptedAnswers.single);
+    return choices.where((choice) => _normalize(choice) == accepted).length ==
+        1;
+  }
+
+  bool _canBuildAnswerFromChoices(String answer) {
+    final target = _normalize(answer);
+    final normalizedChoices = choices.map(_normalize).toList(growable: false);
+    return _matchesChoiceSequence(
+      target,
+      normalizedChoices,
+      List<bool>.filled(normalizedChoices.length, false),
+      0,
+    );
+  }
+
+  static bool _matchesChoiceSequence(
+    String target,
+    List<String> chunks,
+    List<bool> used,
+    int usedCount,
+  ) {
+    if (usedCount == chunks.length) return target.isEmpty;
+    for (var index = 0; index < chunks.length; index++) {
+      if (used[index]) continue;
+      final chunk = chunks[index];
+      if (target == chunk) {
+        if (usedCount + 1 == chunks.length) return true;
+        continue;
+      }
+      final prefix = '$chunk ';
+      if (!target.startsWith(prefix)) continue;
+      used[index] = true;
+      if (_matchesChoiceSequence(
+        target.substring(prefix.length),
+        chunks,
+        used,
+        usedCount + 1,
+      )) {
+        return true;
+      }
+      used[index] = false;
+    }
+    return false;
+  }
+
+  static bool _allUniqueNormalized(List<String> values) {
+    final seen = <String>{};
+    for (final value in values) {
+      if (!seen.add(_normalize(value))) return false;
     }
     return true;
   }
