@@ -136,14 +136,14 @@ void main() {
       final first = Map<String, dynamic>.from(
         profiles.first as Map<String, dynamic>,
       );
-      first['state'] = GermanState.hesse.name;
+      first['state'] = GermanState.lowerSaxony.name;
       profiles[0] = first;
       await prefs.setString('learner_profiles_v1', jsonEncode(profiles));
 
       final reloaded = AppController();
       await reloaded.load();
 
-      expect(reloaded.activeProfile.state, GermanState.hesse);
+      expect(reloaded.activeProfile.state, GermanState.lowerSaxony);
       expect(reloaded.remediationSessionProgress, isNull);
       expect(reloaded.stepRecoverySessionProgress, isNull);
       expect(
@@ -332,7 +332,7 @@ void main() {
       aidedObservations: 0,
       maxHelpLevel: 0,
       methodsUsed: <String>[],
-      state: GermanState.hesse,
+      state: GermanState.lowerSaxony,
       targetCompetency: MicroCompetencyId.dataReading,
     );
 

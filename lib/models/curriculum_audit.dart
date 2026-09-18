@@ -23,6 +23,7 @@ enum CurriculumProgressionModel {
   stateSequence,
   gradePairs,
   observedGradePair,
+  schoolEntryPhaseThenAnnual,
   frameworkLevels,
   primaryEnd,
 }
@@ -34,6 +35,8 @@ extension CurriculumProgressionModelX on CurriculumProgressionModel {
     CurriculumProgressionModel.gradePairs => 'Lernbänder 1/2 und 3/4',
     CurriculumProgressionModel.observedGradePair =>
       'Beobachtung Ende 2 / Anforderungen Ende 4',
+    CurriculumProgressionModel.schoolEntryPhaseThenAnnual =>
+      'Schuleingangsphase 1/2, danach Jahrgang 3 und 4',
     CurriculumProgressionModel.frameworkLevels =>
       'Niveaustufen über Jahrgangsbänder',
     CurriculumProgressionModel.primaryEnd =>
@@ -186,13 +189,16 @@ class CurriculumAuditCatalog {
     GermanState.bremen: CurriculumStateProfile(
       state: GermanState.bremen,
       code: 'HB',
-      sourceTitle: 'Bildungsplan 0–10 – Bildungskonzeption Mathematik',
-      sourceVersion:
-          'Bildungskonzeption veröffentlicht im Kita- und Schuljahr 2024/25',
-      authority: 'Der Senator für Kinder und Bildung Bremen',
+      sourceTitle:
+          'Bildungsplan 0 bis 10 – Mathematische Bildung / Mathematik',
+      sourceVersion: 'Stand 2025, gültig seit Schuljahr 2025/26',
+      authority: 'Die Senatorin für Kinder und Bildung Bremen',
       structureNote:
-          'Die Bildungskonzeption Mathematische Bildung/Mathematik verbindet Elementar- und Primarbereich zu einem durchgängigen Kompetenzaufbau bis zum Ende der Grundschule.',
+          'Der Bildungsplan verbindet Elementar- und Primarbereich und formuliert verbindliche Standards am Ende der Jahrgangsstufen 2 und 4.',
       domainScheme: CurriculumDomainScheme.standardFour,
+      progressionModel: CurriculumProgressionModel.gradePairs,
+      earlyProgressionNote:
+          'Am Ende von Klasse 2 sind Daten aus Tabellen und Diagrammen, einfache kombinatorische Probleme sowie grundlegende Wahrscheinlichkeitsaussagen verbindlich.',
     ),
     GermanState.hamburg: CurriculumStateProfile(
       state: GermanState.hamburg,
@@ -217,6 +223,8 @@ class CurriculumAuditCatalog {
           'Bildungsstandards und Inhaltsfelder beschreiben die verbindlichen Leistungserwartungen am Ende der Jahrgangsstufe 4.',
       domainScheme: CurriculumDomainScheme.standardFour,
       progressionModel: CurriculumProgressionModel.primaryEnd,
+      earlyProgressionNote:
+          'Der offizielle Leitfaden konkretisiert für Klasse 1/2 bereits Daten, Tabellen und Diagramme, einfache Zufallsexperimente sowie kombinatorische Aufgaben; der verbindliche Regelstandard bleibt Ende Klasse 4.',
     ),
     GermanState.mecklenburgVorpommern: CurriculumStateProfile(
       state: GermanState.mecklenburgVorpommern,
@@ -225,10 +233,14 @@ class CurriculumAuditCatalog {
       sourceVersion: '2024, aufwachsend seit 01.08.2024',
       authority: 'Ministerium für Bildung und Kindertagesförderung M-V',
       structureNote:
-          'Der neue Rahmenplan orientiert den Primarbereich an den aktuellen Bildungsstandards Mathematik.',
+          'Der Rahmenplan gliedert verbindliche Inhalte in die Schuleingangsphase sowie anschließend getrennt in Jahrgangsstufe 3 und Jahrgangsstufe 4.',
       domainScheme: CurriculumDomainScheme.standardFour,
+      progressionModel:
+          CurriculumProgressionModel.schoolEntryPhaseThenAnnual,
       transitionNote:
           'Der vorherige Grundschul-Rahmenplan läuft parallel jahrgangsweise bis 31.07.2027 aus.',
+      earlyProgressionNote:
+          'In der Schuleingangsphase sind Datenerfassung mit Strichlisten, einfache Diagramme, erste kombinatorische Systematik und grundlegende Wahrscheinlichkeitsvergleiche verbindlich.',
     ),
     GermanState.lowerSaxony: CurriculumStateProfile(
       state: GermanState.lowerSaxony,
@@ -354,6 +366,24 @@ class CurriculumAuditCatalog {
       MicroCompetencyId.probabilityReasoning: GradeLevel.second,
       MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
     },
+    GermanState.bremen: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
+    GermanState.hesse: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
+    GermanState.mecklenburgVorpommern: {
+      MicroCompetencyId.dataReading: GradeLevel.second,
+      MicroCompetencyId.tallyTableReading: GradeLevel.second,
+      MicroCompetencyId.probabilityReasoning: GradeLevel.second,
+      MicroCompetencyId.combinatoricsSystematic: GradeLevel.second,
+    },
     GermanState.northRhineWestphalia: {
       MicroCompetencyId.dataReading: GradeLevel.second,
       MicroCompetencyId.tallyTableReading: GradeLevel.second,
@@ -430,6 +460,8 @@ class CurriculumAuditCatalog {
         earliest.index <= GradeLevel.second.index
             ? GradeLevel.second
             : GradeLevel.fourth,
+      CurriculumProgressionModel.schoolEntryPhaseThenAnnual =>
+        earliest.index <= GradeLevel.second.index ? GradeLevel.second : earliest,
       CurriculumProgressionModel.primaryEnd => GradeLevel.fourth,
       CurriculumProgressionModel.stateSequence => earliest,
     };
@@ -468,6 +500,10 @@ class CurriculumAuditCatalog {
           checkpoint == GradeLevel.second
               ? 'Beobachtungskriterien bis Ende Klasse 2 berücksichtigen'
               : 'Regelanforderungen bis Ende Klasse 4 sichern',
+        CurriculumProgressionModel.schoolEntryPhaseThenAnnual =>
+          checkpoint == GradeLevel.second
+              ? 'bis Ende der Schuleingangsphase sichern'
+              : 'im Jahrgang ${checkpoint.label} sichern',
         CurriculumProgressionModel.frameworkLevels =>
           'Niveaustufe des Jahrgangsbands sichern',
         CurriculumProgressionModel.primaryEnd => 'bis Ende Klasse 4 sichern',
@@ -488,6 +524,10 @@ class CurriculumAuditCatalog {
         checkpoint == GradeLevel.second
             ? 'auf die Beobachtungskriterien Ende Klasse 2 hinarbeiten'
             : 'auf die Regelanforderungen Ende Klasse 4 hinarbeiten',
+      CurriculumProgressionModel.schoolEntryPhaseThenAnnual =>
+        checkpoint == GradeLevel.second
+            ? 'in der Schuleingangsphase bis Ende Klasse 2 aufbauen'
+            : 'im Jahrgang ${checkpoint.label} aufbauen',
       CurriculumProgressionModel.frameworkLevels =>
         'im aktuellen Niveaustufen-Band aufbauen',
       CurriculumProgressionModel.primaryEnd =>

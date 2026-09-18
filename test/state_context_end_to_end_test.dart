@@ -61,8 +61,11 @@ void main() {
     );
 
     expect(earlyData.isCompatibleWithState(GermanState.bavaria), isTrue);
-    expect(earlyData.isCompatibleWithState(GermanState.hesse), isFalse);
-    expect(generic.isCompatibleWithState(GermanState.hesse), isTrue);
+    expect(
+      earlyData.isCompatibleWithState(GermanState.lowerSaxony),
+      isFalse,
+    );
+    expect(generic.isCompatibleWithState(GermanState.lowerSaxony), isTrue);
     expect(earlyData.toJson().containsKey('state'), isFalse);
     expect(generic.toJson().containsKey('state'), isFalse);
 
@@ -74,7 +77,10 @@ void main() {
       methods: MethodPreferences(),
     );
     expect(legacyModeOnly.isCompatibleWithState(GermanState.bavaria), isTrue);
-    expect(legacyModeOnly.isCompatibleWithState(GermanState.hesse), isFalse);
+    expect(
+      legacyModeOnly.isCompatibleWithState(GermanState.lowerSaxony),
+      isFalse,
+    );
   });
 
   test('Ergebnis-QR behält den Lehrplan-Kontext des Auftrags', () {
@@ -184,21 +190,21 @@ void main() {
     expect(dataGroup, findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
-    final hesse = AppController();
-    await hesse.load();
-    hesse.gradeLevel = GradeLevel.second;
-    hesse.numberRange = NumberRangeLevel.hundred;
-    await hesse.setProfileState(GermanState.hesse);
+    final lowerSaxony = AppController();
+    await lowerSaxony.load();
+    lowerSaxony.gradeLevel = GradeLevel.second;
+    lowerSaxony.numberRange = NumberRangeLevel.hundred;
+    await lowerSaxony.setProfileState(GermanState.lowerSaxony);
     expect(
-      hesse.learningModesForGrade(GradeLevel.second),
+      lowerSaxony.learningModesForGrade(GradeLevel.second),
       isNot(contains(TrainingMode.dataCharts)),
     );
     expect(
-      hesse.learningModesForGrade(GradeLevel.second),
+      lowerSaxony.learningModesForGrade(GradeLevel.second),
       isNot(contains(TrainingMode.probability)),
     );
     expect(
-      hesse.learningModesForGrade(GradeLevel.second),
+      lowerSaxony.learningModesForGrade(GradeLevel.second),
       isNot(contains(TrainingMode.combinatorics)),
     );
   });
