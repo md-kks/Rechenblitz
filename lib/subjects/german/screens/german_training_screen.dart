@@ -54,6 +54,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
   final TextEditingController _answerController = TextEditingController();
   final List<GermanTaskResult> _results = <GermanTaskResult>[];
   final List<String> _orderedWords = <String>[];
+  Timer? _draftDebounce;
 
   late final DateTime _startedAt;
   late final ActiveResponseTimer _responseTimer;
@@ -64,6 +65,20 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
   String? _feedback;
 
   GermanTask get _task => widget.tasks[_index];
+
+  bool _canRestoreOrderedWords(GermanTask task, List<String> words) {
+    if (words.length > task.choices.length) return false;
+    final available = <String, int>{};
+    for (final word in task.choices) {
+      available[word] = (available[word] ?? 0) + 1;
+    }
+    for (final word in words) {
+      final remaining = available[word] ?? 0;
+      if (remaining < 1) return false;
+      available[word] = remaining - 1;
+    }
+    return true;
+  }
 
   @override
   void initState() {
@@ -85,6 +100,13 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       _index = draft.currentIndex;
       _incorrectAttempts = draft.incorrectAttempts;
       _results.addAll(draft.completedResults);
+      final currentTask = widget.tasks[_index];
+      if (currentTask.interaction == GermanTaskInteraction.typedText) {
+        _answerController.text = draft.currentAnswer;
+      } else if (currentTask.interaction == GermanTaskInteraction.wordOrder &&
+          _canRestoreOrderedWords(currentTask, draft.currentOrderedWords)) {
+        _orderedWords.addAll(draft.currentOrderedWords);
+      }
       _responseTimer = ActiveResponseTimer(startedAt: initialNow);
     } else {
       _startedAt = initialNow;
@@ -103,12 +125,15 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       _responseTimer.resume(at: now);
     } else {
       _responseTimer.pause(at: now);
+      _draftDebounce?.cancel();
+      _emitDraft(now);
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _draftDebounce?.cancel();
     _answerController.dispose();
     super.dispose();
   }
@@ -125,9 +150,25 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
         updatedAt: now ?? widget.now(),
         completedResults: List<GermanTaskResult>.unmodifiable(_results),
         incorrectAttempts: _incorrectAttempts,
+        currentAnswer: _task.interaction == GermanTaskInteraction.typedText
+            ? _answerController.text
+            : '',
+        currentOrderedWords:
+            _task.interaction == GermanTaskInteraction.wordOrder
+            ? List<String>.unmodifiable(_orderedWords)
+            : const <String>[],
         assignmentPayload: widget.draft?.assignmentPayload,
         sessionKind: widget.sessionKind,
       ),
+    );
+  }
+
+  void _scheduleDraftSave() {
+    if (widget.onDraftChanged == null || _completed) return;
+    _draftDebounce?.cancel();
+    _draftDebounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _emitDraft(),
     );
   }
 
@@ -155,6 +196,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
 
   void _submit(String answer) {
     if (_completed) return;
+    _draftDebounce?.cancel();
     if (!_task.accepts(answer)) {
       setState(() {
         _incorrectAttempts += 1;
@@ -420,10 +462,13 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
               .map(
                 (entry) => FilledButton.tonal(
                   key: ValueKey('german-word-choice-${_task.id}-${entry.key}'),
-                  onPressed: () => setState(() {
-                    _orderedWords.add(entry.value);
-                    _feedback = null;
-                  }),
+                  onPressed: () {
+                    setState(() {
+                      _orderedWords.add(entry.value);
+                      _feedback = null;
+                    });
+                    _emitDraft();
+                  },
                   child: Text(entry.value),
                 ),
               )
@@ -436,10 +481,13 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
               child: OutlinedButton(
                 onPressed: _orderedWords.isEmpty
                     ? null
-                    : () => setState(() {
-                        _orderedWords.clear();
-                        _feedback = null;
-                      }),
+                    : () {
+                        setState(() {
+                          _orderedWords.clear();
+                          _feedback = null;
+                        });
+                        _emitDraft();
+                      },
                 child: const Text('Neu ordnen'),
               ),
             ),
@@ -470,6 +518,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
           border: OutlineInputBorder(),
           labelText: 'Deine Antwort',
         ),
+        onChanged: (_) => _scheduleDraftSave(),
         onSubmitted: (value) {
           if (value.trim().isNotEmpty) _submit(value);
         },

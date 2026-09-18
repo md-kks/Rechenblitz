@@ -12,6 +12,8 @@ class GermanRoundDraft {
     required this.updatedAt,
     required this.completedResults,
     this.incorrectAttempts = 0,
+    this.currentAnswer = '',
+    this.currentOrderedWords = const <String>[],
     this.assignmentPayload,
     this.sessionKind = GermanSessionKind.practice,
   });
@@ -25,6 +27,8 @@ class GermanRoundDraft {
   final DateTime updatedAt;
   final List<GermanTaskResult> completedResults;
   final int incorrectAttempts;
+  final String currentAnswer;
+  final List<String> currentOrderedWords;
   final String? assignmentPayload;
   final GermanSessionKind sessionKind;
 
@@ -67,6 +71,8 @@ class GermanRoundDraft {
         .map((value) => value.toJson())
         .toList(),
     'incorrectAttempts': incorrectAttempts,
+    'currentAnswer': currentAnswer,
+    'currentOrderedWords': currentOrderedWords,
     'assignmentPayload': assignmentPayload,
     'sessionKind': sessionKind.name,
   };
@@ -75,6 +81,7 @@ class GermanRoundDraft {
     if (json['v'] != 1) throw const FormatException('unsupported draft');
     final rawIds = json['taskIds'];
     final rawResults = json['completedResults'];
+    final rawOrderedWords = json['currentOrderedWords'];
     if (rawIds is! List<dynamic> || rawResults is! List<dynamic>) {
       throw const FormatException('draft content missing');
     }
@@ -90,6 +97,10 @@ class GermanRoundDraft {
           )
           .toList(growable: false),
       incorrectAttempts: (json['incorrectAttempts'] as num?)?.toInt() ?? 0,
+      currentAnswer: json['currentAnswer'] as String? ?? '',
+      currentOrderedWords: rawOrderedWords is List<dynamic>
+          ? rawOrderedWords.whereType<String>().toList(growable: false)
+          : const <String>[],
       assignmentPayload: json['assignmentPayload'] as String?,
       sessionKind: _parseSessionKind(json['sessionKind']),
     );
