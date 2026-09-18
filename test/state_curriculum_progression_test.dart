@@ -112,7 +112,11 @@ void main() {
         GermanState.bavaria,
         GermanState.berlin,
         GermanState.brandenburg,
+        GermanState.hamburg,
         GermanState.northRhineWestphalia,
+        GermanState.rhinelandPalatinate,
+        GermanState.saxony,
+        GermanState.schleswigHolstein,
       ];
       for (final state in earlyStates) {
         final ids = CurriculumAuditCatalog.definitionsForGrade(
@@ -142,8 +146,12 @@ void main() {
       }
 
       for (final state in <GermanState>[
+        GermanState.bremen,
         GermanState.hesse,
-        GermanState.saxony,
+        GermanState.lowerSaxony,
+        GermanState.mecklenburgVorpommern,
+        GermanState.saarland,
+        GermanState.saxonyAnhalt,
         GermanState.thuringia,
       ]) {
         final ids = CurriculumAuditCatalog.definitionsForGrade(
@@ -164,7 +172,10 @@ void main() {
       GermanState.bavaria,
       GermanState.berlin,
       GermanState.brandenburg,
+      GermanState.hamburg,
       GermanState.northRhineWestphalia,
+      GermanState.saxony,
+      GermanState.schleswigHolstein,
     ]) {
       expect(
         CurriculumAuditCatalog.definitionsForGrade(

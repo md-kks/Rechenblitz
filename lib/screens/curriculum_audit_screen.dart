@@ -56,6 +56,14 @@ class CurriculumAuditScreen extends StatelessWidget {
                     'Progression: ${profile.progressionModel.label}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
+                  if (profile.earlyProgressionNote != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      profile.earlyProgressionNote!,
+                      key: const ValueKey('curriculum-early-progression-note'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                   if (profile.transitionNote != null) ...[
                     const SizedBox(height: 8),
                     Text(
