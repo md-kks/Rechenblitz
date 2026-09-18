@@ -204,6 +204,80 @@ void main() {
     }
   });
 
+  test('knappe Mastery-Ziele behalten ihre fachlichen Varianten', () {
+    final dataGenerator = CurriculumExerciseGenerator(random: Random(9186));
+    final dataAnswers = <int>{};
+    final dataKeys = <String>{};
+    for (var i = 0; i < 48; i++) {
+      final exercise = dataGenerator.generate(
+        mode: TrainingMode.dataCharts,
+        gradeLevel: GradeLevel.third,
+        maxValue: 1000,
+        targetCompetency: MicroCompetencyId.dataRepresentationChoice,
+      );
+      dataAnswers.add(exercise.answer);
+      dataKeys.add(exercise.key);
+    }
+    expect(dataAnswers, {0, 1, 2});
+    expect(dataKeys.length, greaterThanOrEqualTo(6));
+
+    final geometryGenerator =
+        CurriculumExerciseGenerator(random: Random(9187));
+    final lineAnswers = <int>{};
+    final lineKeys = <String>{};
+    final angleAnswers = <int>{};
+    final angleKeys = <String>{};
+    for (var i = 0; i < 64; i++) {
+      final line = geometryGenerator.generate(
+        mode: TrainingMode.geometryRelations,
+        gradeLevel: GradeLevel.third,
+        maxValue: 1000,
+        targetCompetency: MicroCompetencyId.lineRelations,
+      );
+      lineAnswers.add(line.answer);
+      lineKeys.add(line.key);
+
+      final angle = geometryGenerator.generate(
+        mode: TrainingMode.geometryRelations,
+        gradeLevel: GradeLevel.third,
+        maxValue: 1000,
+        targetCompetency: MicroCompetencyId.rightAngle,
+      );
+      angleAnswers.add(angle.answer);
+      angleKeys.add(angle.key);
+    }
+
+    expect(lineAnswers, {0, 1});
+    expect(lineKeys.length, greaterThanOrEqualTo(6));
+    expect(angleAnswers, {0, 1, 2});
+    expect(angleKeys.length, greaterThanOrEqualTo(6));
+  });
+
+  test('Kreisbegriffe erzeugen Radius, Durchmesser und Mittelpunkt', () {
+    final generator = CurriculumExerciseGenerator(random: Random(9188));
+    final answers = <int>{};
+    final keys = <String>{};
+
+    for (var i = 0; i < 48; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.geometryRelations,
+        gradeLevel: GradeLevel.third,
+        maxValue: 1000,
+        targetCompetency: MicroCompetencyId.circleParts,
+      );
+      answers.add(exercise.answer);
+      keys.add(exercise.key);
+      if (exercise.key.contains(':center:')) {
+        expect(exercise.answer, 2);
+        expect(exercise.hint, contains('Mittelpunkt'));
+      }
+    }
+
+    expect(answers, {0, 1, 2});
+    expect(keys.where((key) => key.contains(':center:')), isNotEmpty);
+    expect(keys.length, greaterThanOrEqualTo(6));
+  });
+
   test('Zeit- und Daten-Lernziele sind gezielt generierbar und getaggt', () {
     final generator = CurriculumExerciseGenerator(random: Random(9912));
     const cases = [
@@ -529,6 +603,7 @@ void main() {
       'geomrel:figure:2:third',
       'geomrel:circle:radius:third',
       'geomrel:circle:diameter:third',
+      'geomrel:circle:center:context0:third',
     ];
 
     for (final key in keys) {
