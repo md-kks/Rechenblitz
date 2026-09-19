@@ -80,6 +80,14 @@ class GermanSupportCatalog {
   };
 
   static String firstHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.tokenSelection &&
+        (task.competencyId == GermanCompetencyId.sentenceComprehension ||
+            task.competencyId == GermanCompetencyId.textInformation ||
+            task.competencyId == GermanCompetencyId.readingInference ||
+            task.competencyId == GermanCompetencyId.textMainIdea)) {
+      return 'Lies zuerst die Frage. Markiere nur Textstellen, die deine '
+          'Antwort wirklich belegen. Ein bloß passendes Stichwort reicht nicht.';
+    }
     if (task.interaction == GermanTaskInteraction.wordBuilder &&
         task.competencyId == GermanCompetencyId.syllableSegmentation) {
       return 'Sprich das Wort langsam und klatsche mit. Für jede Sprechsilbe '
@@ -119,6 +127,15 @@ class GermanSupportCatalog {
   }
 
   static String secondHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.tokenSelection &&
+        (task.competencyId == GermanCompetencyId.sentenceComprehension ||
+            task.competencyId == GermanCompetencyId.textInformation ||
+            task.competencyId == GermanCompetencyId.readingInference ||
+            task.competencyId == GermanCompetencyId.textMainIdea)) {
+      return 'Prüfe jede markierte Stelle einzeln: Würdest du mit genau '
+          'dieser Textstelle die Frage beantworten oder deine Schlussfolgerung '
+          'begründen können?';
+    }
     if (task.interaction == GermanTaskInteraction.wordBuilder &&
         task.competencyId == GermanCompetencyId.syllableSegmentation) {
       return 'Lege für jeden hörbaren Silbenschlag einen Baustein. Lies das '

@@ -17,6 +17,14 @@ class GermanAnswerFeedback {
         return 'Noch nicht. Hör die Aufgabe noch einmal an und achte nur auf '
             'die gesuchte Information.';
       case GermanTaskInteraction.tokenSelection:
+        if (task.competencyId == GermanCompetencyId.sentenceComprehension ||
+            task.competencyId == GermanCompetencyId.textInformation ||
+            task.competencyId == GermanCompetencyId.readingInference ||
+            task.competencyId == GermanCompetencyId.textMainIdea) {
+          return 'Noch nicht. Prüfe jede markierte Textstelle: Belegt sie die '
+              'gesuchte Information wirklich? Vielleicht fehlt ein Hinweis '
+              'oder eine Markierung ist zu viel.';
+        }
         return 'Noch nicht. Prüfe jedes markierte Wort und überlege, ob noch '
             'etwas dazugehört oder eine Markierung zu viel ist.';
       case GermanTaskInteraction.wordOrder:
