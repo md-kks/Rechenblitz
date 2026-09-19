@@ -30,12 +30,30 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    buildFeatures {
+        resValues = true
+    }
+
     defaultConfig {
         applicationId = "de.mdkks.rechenblitz"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    flavorDimensions += "subject"
+    productFlavors {
+        create("rechenblitz") {
+            dimension = "subject"
+            applicationId = "de.mdkks.rechenblitz"
+            resValue("string", "app_name", "Rechenblitz")
+        }
+        create("wortblitz") {
+            dimension = "subject"
+            applicationId = "de.mdkks.wortblitz"
+            resValue("string", "app_name", "Wortblitz")
+        }
     }
 
     signingConfigs {
@@ -81,7 +99,9 @@ tasks.matching { it.name == "preBuild" }.configureEach {
     }
 }
 
-tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+tasks.matching {
+    it.name.startsWith("pre") && it.name.endsWith("ReleaseBuild")
+}.configureEach {
     doFirst {
         if (!keystorePropertiesFile.exists()) {
             throw GradleException(

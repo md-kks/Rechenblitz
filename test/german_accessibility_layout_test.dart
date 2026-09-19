@@ -70,7 +70,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.byKey(const ValueKey('subject-switch-german')), findsOneWidget);
+    expect(find.byKey(const ValueKey('subject-switch-german')), findsNothing);
     final round = find.text('Meine Deutsch-Runde');
     await tester.scrollUntilVisible(
       round,

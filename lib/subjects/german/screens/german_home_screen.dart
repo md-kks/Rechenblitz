@@ -35,10 +35,14 @@ class GermanHomeScreen extends StatefulWidget {
     super.key,
     required this.controller,
     this.now = DateTime.now,
+    this.showSubjectSwitcher = false,
+    this.appTitle = 'Deutsch',
   });
 
   final AppController controller;
   final DateTime Function() now;
+  final bool showSubjectSwitcher;
+  final String appTitle;
 
   @override
   State<GermanHomeScreen> createState() => _GermanHomeScreenState();
@@ -462,7 +466,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     child: Builder(
       builder: (context) => Scaffold(
         appBar: AppBar(
-          title: const Text('Deutsch'),
+          title: Text(widget.appTitle),
           actions: <Widget>[
             IconButton(
               key: const ValueKey('german-rewards'),
@@ -501,8 +505,10 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
   Widget _buildIntro(BuildContext context) => ListView(
     padding: const EdgeInsets.all(20),
     children: <Widget>[
-      _buildSubjectSwitcher(),
-      const SizedBox(height: 24),
+      if (widget.showSubjectSwitcher) ...<Widget>[
+        _buildSubjectSwitcher(),
+        const SizedBox(height: 24),
+      ],
       Icon(
         Icons.auto_stories_rounded,
         size: 68,
@@ -510,7 +516,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       ),
       const SizedBox(height: 18),
       Text(
-        'Willkommen bei Deutsch',
+        'Willkommen bei ${widget.appTitle}',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.headlineMedium,
       ),
@@ -567,8 +573,10 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
         '${widget.controller.gradeLevel.label} · Deutsch · ${widget.controller.activeProfile.state.label}',
         style: Theme.of(context).textTheme.bodyLarge,
       ),
-      const SizedBox(height: 12),
-      _buildSubjectSwitcher(),
+      if (widget.showSubjectSwitcher) ...<Widget>[
+        const SizedBox(height: 12),
+        _buildSubjectSwitcher(),
+      ],
       const SizedBox(height: 20),
       Card(
         child: Padding(

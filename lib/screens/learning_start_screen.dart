@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../core/learning_subject.dart';
 import '../models/learner_profile.dart';
 import '../models/training.dart';
 import '../services/app_controller.dart';
 import 'assessment_screen.dart';
 
 class LearningStartScreen extends StatefulWidget {
-  const LearningStartScreen({super.key, required this.controller});
+  const LearningStartScreen({
+    super.key,
+    required this.controller,
+    this.subject = LearningSubject.mathematics,
+    this.appTitle = 'Rechenblitz',
+  });
 
   final AppController controller;
+  final LearningSubject subject;
+  final String appTitle;
 
   @override
   State<LearningStartScreen> createState() => _LearningStartScreenState();
@@ -27,8 +35,13 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
     nameController.text = profile.name == 'Lernprofil' ? '' : profile.name;
     grade = profile.gradeLevel;
     state = profile.state;
-    if (widget.controller.resumableAssessment() != null) step = 1;
+    if (widget.subject == LearningSubject.mathematics &&
+        widget.controller.resumableAssessment() != null) {
+      step = 1;
+    }
   }
+
+  bool get _isMathematics => widget.subject == LearningSubject.mathematics;
 
   @override
   void dispose() {
@@ -60,8 +73,18 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
     await widget.controller.completeOnboardingWithoutAssessment();
   }
 
+  Future<void> _continueFromProfile() async {
+    if (_isMathematics) {
+      setState(() => step = 1);
+      return;
+    }
+    await _saveSetup();
+    await widget.controller.completeOnboardingWithoutAssessment();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final totalSteps = _isMathematics ? 2 : 1;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -71,19 +94,21 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
               child: Row(
                 children: [
                   Icon(
-                    Icons.flash_on_rounded,
+                    _isMathematics
+                        ? Icons.flash_on_rounded
+                        : Icons.auto_stories_rounded,
                     size: 28,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Rechenblitz',
+                      widget.appTitle,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
                   Text(
-                    'Start ${step + 1} von 2',
+                    'Start ${step + 1} von $totalSteps',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -92,7 +117,7 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: LinearProgressIndicator(
-                value: (step + 1) / 2,
+                value: (step + 1) / totalSteps,
                 minHeight: 6,
                 borderRadius: BorderRadius.circular(99),
               ),
@@ -180,8 +205,12 @@ class _LearningStartScreenState extends State<LearningStartScreen> {
       const SizedBox(height: 28),
       FilledButton(
         key: const ValueKey('learning-start-next'),
-        onPressed: () => setState(() => step = 1),
-        child: const Text('Weiter zum Lerncheck'),
+        onPressed: _continueFromProfile,
+        child: Text(
+          _isMathematics
+              ? 'Weiter zum Lerncheck'
+              : 'Weiter zu ${widget.appTitle}',
+        ),
       ),
     ],
   );

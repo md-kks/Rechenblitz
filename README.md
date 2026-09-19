@@ -2,6 +2,10 @@
 
 **Rechenblitz** ist eine offline arbeitende Flutter-Lernapp für den Mathematikunterricht der **Grundschule Klasse 1–4**. Der Aufbau orientiert sich am Thüringer Lehrplan Mathematik für die Primarstufe und verbindet kurze Übungsrunden mit adaptiver Wiederholung, Lernstandsübersicht und einem druckfreien Belohnungssystem.
 
+## Rechenblitz und Wortblitz
+
+Die Codebasis liefert zwei getrennte Apps aus: **Rechenblitz** für Mathematik und **Wortblitz** für Deutsch. Beide nutzen denselben Lernblitz-Core für Profile, lokale Speicherung, Barrierefreiheit, QR-Schulmodus und gemeinsame Infrastruktur, bleiben für Kinder aber als eigenständige Apps sichtbar. Eine spätere kombinierte Lernblitz-Oberfläche kann den vorhandenen Fachumschalter wieder aktivieren, ohne die Fachmodule zusammenzukopieren.
+
 ## Grundprinzip
 
 Rechenblitz priorisiert Verstehen, richtiges Rechnen, Sicherheit und Automatisierung vor Geschwindigkeit. Bereits vorhandene Lernstände bleiben beim Wechsel der Klassenstufe erhalten. Klassenstufe und Zahlenraum können getrennt gewählt werden, sodass Wiederholung und Förderung mit kleineren Zahlenräumen möglich bleiben.
@@ -531,6 +535,11 @@ Der Elternbereich zeigt Trefferquoten, Entwicklungen über mehrere Runden, Grund
 
 Voraussetzung: aktuelles Flutter Stable mit Dart 3.9 oder neuer.
 
-Zum Starten: flutter pub get, danach flutter run.
+Nach `flutter pub get` werden die Apps getrennt gestartet:
 
-Qualitätsprüfung: flutter analyze und flutter test. Dieselben Prüfungen laufen auf GitHub Actions bei Pushes im Repository.
+- Rechenblitz: `flutter run --flavor rechenblitz -t lib/main.dart`
+- Wortblitz: `flutter run --flavor wortblitz -t lib/main_wortblitz.dart`
+
+Android verwendet getrennte Application-IDs (`de.mdkks.rechenblitz` und `de.mdkks.wortblitz`), sodass beide Apps parallel installiert werden können.
+
+Qualitätsprüfung: `flutter analyze` und `flutter test`. Bei jedem Push läuft Fast CI ohne App-Paketierung. Ein täglicher Full-Build prüft beide Android-Varianten; Release-Artefakte werden nur bei ausdrücklich gestarteten manuellen Builds hochgeladen.

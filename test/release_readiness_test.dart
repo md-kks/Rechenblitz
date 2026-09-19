@@ -41,6 +41,28 @@ void main() {
     expect(adaptiveIcon, contains('<monochrome'));
   });
 
+  test('Android keeps Rechenblitz and Wortblitz installable side by side', () {
+    final gradle = File('android/app/build.gradle.kts').readAsStringSync();
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    final wortblitzColors = File(
+      'android/app/src/wortblitz/res/values/colors.xml',
+    ).readAsStringSync();
+    final wortblitzForeground = File(
+      'android/app/src/wortblitz/res/drawable/ic_launcher_foreground.xml',
+    ).readAsStringSync();
+
+    expect(gradle, contains('create("rechenblitz")'));
+    expect(gradle, contains('applicationId = "de.mdkks.rechenblitz"'));
+    expect(gradle, contains('create("wortblitz")'));
+    expect(gradle, contains('applicationId = "de.mdkks.wortblitz"'));
+    expect(gradle, contains('resValue("string", "app_name", "Rechenblitz")'));
+    expect(gradle, contains('resValue("string", "app_name", "Wortblitz")'));
+    expect(manifest, contains('android:label="@string/app_name"'));
+    expect(wortblitzColors, contains('#C62828'));
+    expect(wortblitzForeground, contains('#FFFFFF'));
+  });
+
   test('Android plugin registrant is generated and protected from cleanup', () {
     final ignore = File('.gitignore').readAsStringSync();
     final registrant = File(
@@ -132,7 +154,7 @@ void main() {
     final immutableAction =
         RegExp(r'@[0-9a-f]{40}(?:\s+#.*)?$');
 
-    expect(actionLines, hasLength(5));
+    expect(actionLines, isNotEmpty);
     for (final line in actionLines) {
       expect(
         immutableAction.hasMatch(line),

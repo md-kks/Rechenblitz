@@ -11,9 +11,9 @@ on:
         default: false
         type: boolean
   schedule:
-    # Weekly packaging safety net on the default branch.
+    # Daily packaging safety net for both subject apps.
     # Builds and validates Android packages, but never uploads release artifacts.
-    - cron: '30 3 * * 0'
+    - cron: '30 3 * * *'
 
 jobs:
   test:
@@ -71,7 +71,7 @@ jobs:
       - run: flutter analyze
       - run: flutter test
       - if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
-        run: flutter build apk --release
+        run: flutter build apk --release --flavor rechenblitz -t lib/main.dart
       - name: Verify release APK signature
         if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
         shell: bash
@@ -81,13 +81,13 @@ jobs:
           APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner |
             sort -V | tail -n 1)"
           test -x "$APKSIGNER"
-          "$APKSIGNER" verify --verbose --print-certs             build/app/outputs/flutter-apk/app-release.apk
+          "$APKSIGNER" verify --verbose --print-certs             build/app/outputs/flutter-apk/app-rechenblitz-release.apk
       - name: Verify release privacy permissions
         if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
         shell: bash
         run: |
           set -euo pipefail
-          APK=build/app/outputs/flutter-apk/app-release.apk
+          APK=build/app/outputs/flutter-apk/app-rechenblitz-release.apk
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           AAPT2="$(find "$SDK_ROOT/build-tools" -type f -name aapt2 |
             sort -V | tail -n 1)"
@@ -125,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=build/app/outputs/flutter-apk/app-release.apk
+          APK=build/app/outputs/flutter-apk/app-rechenblitz-release.apk
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           APKANALYZER="$(find "$SDK_ROOT/cmdline-tools" -type f -name apkanalyzer |
             sort -V | tail -n 1)"
@@ -140,7 +140,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=build/app/outputs/flutter-apk/app-release.apk
+          APK=build/app/outputs/flutter-apk/app-rechenblitz-release.apk
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           AAPT2="$(find "$SDK_ROOT/build-tools" -type f -name aapt2 |
             sort -V | tail -n 1)"
@@ -165,7 +165,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=build/app/outputs/flutter-apk/app-release.apk
+          APK=build/app/outputs/flutter-apk/app-rechenblitz-release.apk
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 
           ZIPALIGN="$(find "$SDK_ROOT/build-tools" -type f -name zipalign |
@@ -230,16 +230,16 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         with:
           name: Rechenblitz-Release-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-rechenblitz-release.apk
           if-no-files-found: error
       - if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
-        run: flutter build appbundle --release
+        run: flutter build appbundle --release --flavor rechenblitz -t lib/main.dart
       - name: Verify release AAB signature
         if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
         shell: bash
         run: |
           set -euo pipefail
-          AAB=build/app/outputs/bundle/release/app-release.aab
+          AAB=build/app/outputs/bundle/rechenblitzRelease/app-rechenblitz-release.aab
           keytool -printcert -jarfile "$AAB" > /dev/null
           jarsigner -verify "$AAB" > /dev/null
       - name: Validate release AAB with bundletool
@@ -251,7 +251,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          AAB=build/app/outputs/bundle/release/app-release.aab
+          AAB=build/app/outputs/bundle/rechenblitzRelease/app-rechenblitz-release.aab
           BUNDLETOOL_VERSION=1.18.3
           BUNDLETOOL_SHA256=a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29
           BUNDLETOOL_JAR="$RUNNER_TEMP/bundletool-all-$BUNDLETOOL_VERSION.jar"
@@ -309,15 +309,64 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         with:
           name: Rechenblitz-Release-AAB
-          path: build/app/outputs/bundle/release/app-release.aab
+          path: build/app/outputs/bundle/rechenblitzRelease/app-rechenblitz-release.aab
           if-no-files-found: error
       - if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
-        run: flutter build apk --debug
+        run: flutter build apk --debug --flavor rechenblitz -t lib/main.dart
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
         with:
           name: Rechenblitz-Debug-APK
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: build/app/outputs/flutter-apk/app-rechenblitz-debug.apk
+          if-no-files-found: error
+      - name: Build Wortblitz release APK
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
+        run: flutter build apk --release --flavor wortblitz -t lib/main_wortblitz.dart
+      - name: Verify Wortblitz release APK
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-wortblitz-release.apk
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          AAPT2="$(find "$SDK_ROOT/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          test -x "$AAPT2"
+          "$APKSIGNER" verify --verbose "$APK" > /dev/null
+          BADGING="$("$AAPT2" dump badging "$APK")"
+          grep -Eq "^package: name='de\.mdkks\.wortblitz' versionCode='[1-9][0-9]*' versionName='[^']+'" <<< "$BADGING"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
+        with:
+          name: Wortblitz-Release-APK
+          path: build/app/outputs/flutter-apk/app-wortblitz-release.apk
+          if-no-files-found: error
+      - name: Build Wortblitz release AAB
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
+        run: flutter build appbundle --release --flavor wortblitz -t lib/main_wortblitz.dart
+      - name: Verify Wortblitz release AAB signature
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAB=build/app/outputs/bundle/wortblitzRelease/app-wortblitz-release.aab
+          keytool -printcert -jarfile "$AAB" > /dev/null
+          jarsigner -verify "$AAB" > /dev/null
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
+        with:
+          name: Wortblitz-Release-AAB
+          path: build/app/outputs/bundle/wortblitzRelease/app-wortblitz-release.aab
+          if-no-files-found: error
+      - name: Build Wortblitz debug APK
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android) }}
+        run: flutter build apk --debug --flavor wortblitz -t lib/main_wortblitz.dart
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android }}
+        with:
+          name: Wortblitz-Debug-APK
+          path: build/app/outputs/flutter-apk/app-wortblitz-debug.apk
           if-no-files-found: error
       - name: Remove Android signing material
         if: ${{ always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.build_android)) }}

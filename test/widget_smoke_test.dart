@@ -23,8 +23,8 @@ void main() {
     expect(find.text('5 Blitzaufgaben'), findsOneWidget);
     expect(find.text('Lernlandkarte'), findsOneWidget);
     expect(find.text('Mehr üben'), findsOneWidget);
-    expect(find.byKey(const ValueKey('subject-switch-math')), findsOneWidget);
-    expect(find.byKey(const ValueKey('subject-switch-german')), findsOneWidget);
+    expect(find.byKey(const ValueKey('subject-switch-math')), findsNothing);
+    expect(find.byKey(const ValueKey('subject-switch-german')), findsNothing);
     expect(find.text('Schulauftrag'), findsNothing);
     expect(find.text('Für heute ist noch alles offen.'), findsNothing);
     expect(find.text('Klassenstufe'), findsNothing);
@@ -35,16 +35,6 @@ void main() {
     expect(find.byIcon(Icons.tune_rounded), findsNothing);
     expect(find.byIcon(Icons.admin_panel_settings_rounded), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('subject-switch-german')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('subject-switch-german')), findsOneWidget);
-    expect(find.byKey(const ValueKey('subject-switch-math')), findsOneWidget);
-    expect(find.text('Willkommen bei Deutsch'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('subject-switch-math')));
-    await tester.pumpAndSettle();
-    expect(find.text('Deine Runde'), findsOneWidget);
-
     await tester.tap(find.byTooltip('Mehr'));
     await tester.pumpAndSettle();
     expect(
@@ -52,6 +42,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Schulauftrag'), findsOneWidget);
+    expect(find.byKey(const ValueKey('more-german')), findsNothing);
     Navigator.of(tester.element(find.text('Schulauftrag'))).pop();
     await tester.pumpAndSettle();
 

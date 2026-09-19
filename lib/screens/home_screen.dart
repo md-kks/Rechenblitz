@@ -24,9 +24,14 @@ import 'structured_training_screen.dart';
 import 'training_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.controller});
+  const HomeScreen({
+    super.key,
+    required this.controller,
+    this.showSubjectSwitcher = false,
+  });
 
   final AppController controller;
+  final bool showSubjectSwitcher;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -118,22 +123,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
-                ListTile(
-                  key: const ValueKey('more-german'),
-                  leading: const Icon(Icons.menu_book_rounded),
-                  title: const Text('Deutsch'),
-                  subtitle: const Text('Lesen, Schreiben, Sprache und Hören'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            GermanHomeScreen(controller: widget.controller),
-                      ),
-                    );
-                  },
-                ),
+                if (widget.showSubjectSwitcher)
+                  ListTile(
+                    key: const ValueKey('more-german'),
+                    leading: const Icon(Icons.menu_book_rounded),
+                    title: const Text('Deutsch'),
+                    subtitle: const Text('Lesen, Schreiben, Sprache und Hören'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => GermanHomeScreen(
+                            controller: widget.controller,
+                            showSubjectSwitcher: true,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ListTile(
                   key: const ValueKey('more-settings'),
                   leading: const Icon(Icons.tune_rounded),
@@ -475,16 +483,21 @@ class _HomeScreenState extends State<HomeScreen> {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 12),
-            LearningSubjectSwitcher(
-              current: LearningSubject.mathematics,
-              onMathematics: () {},
-              onGerman: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => GermanHomeScreen(controller: controller),
+            if (widget.showSubjectSwitcher) ...<Widget>[
+              LearningSubjectSwitcher(
+                current: LearningSubject.mathematics,
+                onMathematics: () {},
+                onGerman: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => GermanHomeScreen(
+                      controller: controller,
+                      showSubjectSwitcher: true,
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 18),
+              const SizedBox(height: 18),
+            ],
             if (resumeActivity != null) ...[
               _ResumeCard(
                 activity: resumeActivity,
