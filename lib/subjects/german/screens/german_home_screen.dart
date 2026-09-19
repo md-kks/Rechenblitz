@@ -403,6 +403,8 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       gradeLevel: widget.controller.gradeLevel,
       domain: domain,
       history: _gradeHistory,
+      prioritizeIndependentReading:
+          !widget.controller.accessibilityPreferences.readAloud,
     );
     unawaited(_openRound(tasks));
   }

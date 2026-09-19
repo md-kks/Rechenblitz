@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/core/grade_level.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:rechenblitz/subjects/german/german_competency.dart';
+import 'package:rechenblitz/subjects/german/german_learning_domain.dart';
 import 'package:rechenblitz/subjects/german/german_practice_planner.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_storage_service.dart';
@@ -46,6 +47,55 @@ void main() {
       expect(item, findsOneWidget);
     }
   });
+
+  testWidgets(
+    'reading domain revisits assisted evidence when read-aloud is off',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      await controller.setGradeLevel(GradeLevel.second);
+      expect(controller.accessibilityPreferences.readAloud, isFalse);
+
+      final storage = GermanStorageService(
+        profileId: controller.activeProfileId,
+      );
+      await storage.setIntroComplete(true);
+      final history = <GermanSessionResult>[
+        _profileSession(
+          taskId: 'assisted-reading',
+          correct: true,
+          usedReadAloud: true,
+        ),
+      ];
+      await storage.saveHistory(history);
+
+      final expectedFirst = GermanPracticePlanner.buildDomainRound(
+        gradeLevel: GradeLevel.second,
+        domain: GermanLearningDomain.reading,
+        history: history,
+        prioritizeIndependentReading: true,
+      ).first;
+      expect(expectedFirst.competencyId, GermanCompetencyId.wordRecognition);
+
+      await tester.pumpWidget(
+        MaterialApp(home: GermanHomeScreen(controller: controller)),
+      );
+      await tester.pumpAndSettle();
+
+      final reading = find.byKey(const ValueKey('german-domain-reading'));
+      await tester.scrollUntilVisible(
+        reading,
+        220,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(reading);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Deutsch üben'), findsOneWidget);
+      expect(find.text('1 von 6'), findsOneWidget);
+      expect(find.text(expectedFirst.prompt), findsOneWidget);
+    },
+  );
 
   testWidgets('German home does not invent focus for fresh secure skill', (
     tester,
@@ -742,6 +792,7 @@ void main() {
 GermanSessionResult _profileSession({
   required String taskId,
   required bool correct,
+  bool usedReadAloud = false,
 }) => GermanSessionResult(
   gradeLevel: GradeLevel.second,
   startedAt: DateTime(2026, 9, 18, 10),
@@ -753,6 +804,7 @@ GermanSessionResult _profileSession({
       correctFirstTry: correct,
       incorrectAttempts: correct ? 0 : 1,
       responseMs: 900,
+      usedReadAloud: usedReadAloud,
     ),
   ],
 );

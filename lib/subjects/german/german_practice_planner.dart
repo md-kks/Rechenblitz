@@ -149,6 +149,7 @@ class GermanPracticePlanner {
     required Iterable<GermanSessionResult> history,
     int taskCount = 6,
     DateTime? now,
+    bool prioritizeIndependentReading = false,
   }) {
     final scopedHistory = GermanHistoryScope.throughGrade(history, gradeLevel);
     final ranked = _ranked(
@@ -156,6 +157,7 @@ class GermanPracticePlanner {
       scopedHistory,
       gradeLevel: gradeLevel,
       now: now,
+      prioritizeIndependentReading: prioritizeIndependentReading,
     );
     return ranked.take(taskCount).toList(growable: false);
   }

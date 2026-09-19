@@ -460,6 +460,48 @@ void main() {
     );
   });
 
+  test('reading domain revisits assisted-only competency independently', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        usedReadAloud: true,
+      ),
+    ];
+
+    final independentRound = GermanPracticePlanner.buildDomainRound(
+      gradeLevel: GradeLevel.second,
+      domain: GermanLearningDomain.reading,
+      history: history,
+      prioritizeIndependentReading: true,
+    );
+    final assistedRound = GermanPracticePlanner.buildDomainRound(
+      gradeLevel: GradeLevel.second,
+      domain: GermanLearningDomain.reading,
+      history: history,
+      prioritizeIndependentReading: false,
+    );
+
+    expect(independentRound, hasLength(6));
+    expect(assistedRound, hasLength(6));
+    expect(
+      independentRound.first.competencyId,
+      GermanCompetencyId.wordRecognition,
+    );
+    expect(
+      independentRound
+          .where(
+            (task) => task.competencyId == GermanCompetencyId.wordRecognition,
+          )
+          .length,
+      greaterThanOrEqualTo(1),
+    );
+    expect(
+      assistedRound.first.competencyId,
+      isNot(GermanCompetencyId.wordRecognition),
+    );
+  });
+
   test('real weakness outranks assisted-only reading follow-up', () {
     final history = <GermanSessionResult>[
       _session(
