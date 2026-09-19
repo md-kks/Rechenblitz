@@ -81,6 +81,11 @@ class GermanSupportCatalog {
 
   static String firstHintForTask(GermanTask task) {
     if (task.interaction == GermanTaskInteraction.tokenSelection &&
+        task.competencyId == GermanCompetencyId.sentenceConstituents) {
+      return 'Stelle die Frageprobe direkt an den Satz: Wann? Wo? Wohin? '
+          'Womit? Warum? Wer? oder Was? Markiere jeweils den ganzen Satzteil.';
+    }
+    if (task.interaction == GermanTaskInteraction.tokenSelection &&
         (task.competencyId == GermanCompetencyId.sentencePunctuation ||
             task.competencyId == GermanCompetencyId.sentenceTypes)) {
       return 'Lies den Satz mit passender Betonung: Wird etwas gesagt, '
@@ -139,6 +144,12 @@ class GermanSupportCatalog {
   }
 
   static String secondHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.tokenSelection &&
+        task.competencyId == GermanCompetencyId.sentenceConstituents) {
+      return 'Verschiebeprobe hilft zusätzlich: Ein Satzglied lässt sich oft '
+          'als ganzer Block an eine andere Stelle setzen. Markiere nicht nur '
+          'ein einzelnes Wort, wenn mehrere Wörter zusammengehören.';
+    }
     if (task.interaction == GermanTaskInteraction.tokenSelection &&
         (task.competencyId == GermanCompetencyId.sentencePunctuation ||
             task.competencyId == GermanCompetencyId.sentenceTypes)) {

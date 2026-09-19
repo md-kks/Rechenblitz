@@ -12,6 +12,7 @@ import 'german_morphology_touch_task_catalog.dart';
 import 'german_ordering_touch_task_catalog.dart';
 import 'german_punctuation_touch_task_catalog.dart';
 import 'german_reading_evidence_task_catalog.dart';
+import 'german_sentence_constituent_touch_task_catalog.dart';
 import 'german_speaking_task_catalog.dart';
 import 'german_starter_task_catalog.dart';
 import 'german_task.dart';
@@ -34,6 +35,7 @@ class GermanTaskCatalog {
     ...GermanOrderingTouchTaskCatalog.tasks,
     ...GermanPunctuationTouchTaskCatalog.tasks,
     ...GermanReadingEvidenceTaskCatalog.tasks,
+    ...GermanSentenceConstituentTouchTaskCatalog.tasks,
     ...GermanLowerPrimaryTaskCatalog.tasks,
     ...GermanGradeThreeExtensionTaskCatalog.tasks,
     ...GermanGradeFourExtensionTaskCatalog.tasks,

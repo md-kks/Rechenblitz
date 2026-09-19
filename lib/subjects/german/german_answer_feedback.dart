@@ -17,6 +17,11 @@ class GermanAnswerFeedback {
         return 'Noch nicht. Hör die Aufgabe noch einmal an und achte nur auf '
             'die gesuchte Information.';
       case GermanTaskInteraction.tokenSelection:
+        if (task.competencyId == GermanCompetencyId.sentenceConstituents) {
+          return 'Noch nicht. Nutze die Frageprobe für jede Markierung: '
+              'Passt der ganze Satzteil zur gesuchten Frage? Prüfe auch, ob '
+              'noch ein zweites Satzglied fehlt.';
+        }
         if (task.competencyId == GermanCompetencyId.sentencePunctuation ||
             task.competencyId == GermanCompetencyId.sentenceTypes) {
           return 'Noch nicht. Prüfe beides zusammen: Welche Satzart ist es '
