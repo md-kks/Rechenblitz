@@ -43,7 +43,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Runde geschafft!'), findsOneWidget);
-    expect(find.text('8 von 10 direkt richtig'), findsOneWidget);
+    expect(find.text('8 von 10 beim ersten Versuch richtig'), findsOneWidget);
     expect(find.text('Im Schnitt 3.4 Sekunden'), findsOneWidget);
     expect(find.text('+2 Sterne'), findsOneWidget);
     expect(find.text('Du bist drangeblieben.'), findsOneWidget);
@@ -81,7 +81,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('round-adaptive-note')), findsOneWidget);
-    expect(find.text('3 von 3 direkt richtig'), findsOneWidget);
+    expect(find.text('3 von 3 beim ersten Versuch richtig'), findsOneWidget);
     expect(find.textContaining('Zwei weitere Wiederholungen'), findsOneWidget);
   });
 

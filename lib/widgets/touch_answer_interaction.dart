@@ -1198,7 +1198,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         const SizedBox(height: 8),
         FilledButton.tonalIcon(
           key: const ValueKey('touch-number-bond-submit'),
-          onPressed: widget.locked
+          onPressed: widget.locked ||
+                  (numberBondMissing == 0 && expected != 0)
               ? null
               : () => widget.onAnswer(
                     numberBondMissing == expected

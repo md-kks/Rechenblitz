@@ -6000,6 +6000,45 @@ void main() {
     expect(large, isNull);
   });
 
+  testWidgets('number bond cannot submit untouched zero for a positive answer',
+      (tester) async {
+    var answer = -1;
+    const plan = TouchInteractionPlan(
+      taskKey: 'plus:3:17',
+      kind: TouchInteractionKind.numberBondComposer,
+      instruction: 'Baue den fehlenden Teil.',
+      dataValues: <int>[20, 3],
+      expectedAnswer: 17,
+      maxValue: 20,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final submit = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('touch-number-bond-submit')),
+    );
+    expect(submit.onPressed, isNull);
+    expect(answer, -1);
+
+    await tester.tap(find.byKey(const ValueKey('touch-number-bond-add')));
+    await tester.pump();
+    final enabledSubmit = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('touch-number-bond-submit')),
+    );
+    expect(enabledSubmit.onPressed, isNotNull);
+  });
+
   testWidgets('number bond requires the exact missing part', (tester) async {
     var answer = -1;
     const plan = TouchInteractionPlan(
