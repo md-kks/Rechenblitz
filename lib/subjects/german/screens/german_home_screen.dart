@@ -373,6 +373,8 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     final tasks = GermanAssessmentPlanner.buildRound(
       widget.controller.gradeLevel,
       history: _gradeHistory,
+      prioritizeIndependentReading:
+          !widget.controller.accessibilityPreferences.readAloud,
     );
     unawaited(_openRound(tasks, sessionKind: GermanSessionKind.assessment));
   }

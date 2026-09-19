@@ -5,6 +5,7 @@ import 'package:rechenblitz/subjects/german/german_competency.dart';
 import 'package:rechenblitz/subjects/german/german_competency_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_learning_domain.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
+import 'package:rechenblitz/subjects/german/german_task.dart';
 
 void main() {
   test('Lerncheck covers every available German domain', () {
@@ -117,6 +118,62 @@ void main() {
       duplicatedHistory.map((task) => task.id).toList(growable: false),
       singleHistory.map((task) => task.id).toList(growable: false),
     );
+  });
+
+  test('Lerncheck can revisit previously read-aloud reading tasks', () {
+    final first = GermanAssessmentPlanner.buildRound(GradeLevel.second);
+    final firstSession = GermanSessionResult(
+      gradeLevel: GradeLevel.second,
+      startedAt: DateTime(2026, 9, 18, 10),
+      finishedAt: DateTime(2026, 9, 18, 10, 5),
+      kind: GermanSessionKind.assessment,
+      taskResults: first
+          .map(
+            (task) => GermanTaskResult(
+              taskId: task.id,
+              competencyId: task.competencyId,
+              correctFirstTry: true,
+              incorrectAttempts: 0,
+              responseMs: 1000,
+              usedReadAloud:
+                  GermanCompetencyCatalog.definition(
+                    task.competencyId,
+                  ).domain ==
+                  GermanLearningDomain.reading,
+            ),
+          )
+          .toList(growable: false),
+    );
+
+    final normalRotation = GermanAssessmentPlanner.buildRound(
+      GradeLevel.second,
+      history: <GermanSessionResult>[firstSession],
+    );
+    final independentReadingRotation = GermanAssessmentPlanner.buildRound(
+      GradeLevel.second,
+      history: <GermanSessionResult>[firstSession],
+      prioritizeIndependentReading: true,
+    );
+
+    Set<String> readingIds(List<GermanTask> tasks) => tasks
+        .where(
+          (task) =>
+              GermanCompetencyCatalog.definition(task.competencyId).domain ==
+              GermanLearningDomain.reading,
+        )
+        .map((task) => task.id)
+        .toSet();
+
+    final firstReading = readingIds(first);
+    final normalReading = readingIds(normalRotation);
+    final independentReading = readingIds(independentReadingRotation);
+    final normalOverlap = normalReading.intersection(firstReading).length;
+    final independentOverlap = independentReading
+        .intersection(firstReading)
+        .length;
+
+    expect(independentOverlap, greaterThan(normalOverlap));
+    expect(independentReading, firstReading);
   });
 
   test('repeated Lernchecks rotate away from recently used tasks', () {

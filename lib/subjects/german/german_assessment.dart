@@ -13,9 +13,14 @@ class GermanAssessmentPlanner {
     GradeLevel gradeLevel, {
     int taskCount = 12,
     Iterable<GermanSessionResult> history = const <GermanSessionResult>[],
+    bool prioritizeIndependentReading = false,
   }) {
     if (taskCount < 1) return const <GermanTask>[];
-    final usage = _assessmentUsage(history, gradeLevel);
+    final usage = _assessmentUsage(
+      history,
+      gradeLevel,
+      prioritizeIndependentReading: prioritizeIndependentReading,
+    );
     final selected = <GermanTask>[];
     final usedIds = <String>{};
     final usedCompetencies = <Object>{};
@@ -110,8 +115,9 @@ class GermanAssessmentPlanner {
 
   static Map<String, ({int count, DateTime lastSeen})> _assessmentUsage(
     Iterable<GermanSessionResult> history,
-    GradeLevel gradeLevel,
-  ) {
+    GradeLevel gradeLevel, {
+    bool prioritizeIndependentReading = false,
+  }) {
     final result = <String, ({int count, DateTime lastSeen})>{};
     for (final session in GermanHistoryScope.unique(history)) {
       if (session.kind != GermanSessionKind.assessment ||
@@ -119,6 +125,14 @@ class GermanAssessmentPlanner {
         continue;
       }
       for (final task in session.taskResults) {
+        final domain = GermanCompetencyCatalog.definition(
+          task.competencyId,
+        ).domain;
+        if (prioritizeIndependentReading &&
+            domain == GermanLearningDomain.reading &&
+            task.usedReadAloud) {
+          continue;
+        }
         final previous = result[task.taskId];
         result[task.taskId] = (
           count: (previous?.count ?? 0) + 1,
