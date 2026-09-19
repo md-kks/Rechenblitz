@@ -680,6 +680,14 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
   }
 
   Widget _buildWordBuilder(BuildContext context) {
+    final isDirectSpeech =
+        _task.competencyId == GermanCompetencyId.directSpeechPunctuation;
+    final emptyPrompt = isDirectSpeech
+        ? 'Baue hier den richtig gesetzten Satz.'
+        : 'Baue hier das Wort.';
+    final partsLabel = isDirectSpeech
+        ? 'Satz- und Zeichenbausteine'
+        : 'Bausteine';
     final remainingUsed = <String, int>{};
     for (final chunk in _orderedWords) {
       remainingUsed[chunk] = (remainingUsed[chunk] ?? 0) + 1;
@@ -706,17 +714,19 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
           ),
           child: Center(
             child: Text(
-              builtWord.isEmpty ? 'Baue hier das Wort.' : builtWord,
+              builtWord.isEmpty ? emptyPrompt : builtWord,
               key: const ValueKey('german-word-builder-result'),
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium,
+              style: isDirectSpeech
+                  ? Theme.of(context).textTheme.titleLarge
+                  : Theme.of(context).textTheme.headlineMedium,
             ),
           ),
         ),
         if (_orderedWords.isNotEmpty) ...<Widget>[
           const SizedBox(height: 8),
           Text(
-            'Bausteine: ${_orderedWords.join(' + ')}',
+            '$partsLabel: ${_orderedWords.join(' + ')}',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),

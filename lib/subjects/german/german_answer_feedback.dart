@@ -17,6 +17,11 @@ class GermanAnswerFeedback {
         return 'Noch nicht. Hör die Aufgabe noch einmal an und achte nur auf '
             'die gesuchte Information.';
       case GermanTaskInteraction.tokenSelection:
+        if (task.competencyId == GermanCompetencyId.sentencePunctuation ||
+            task.competencyId == GermanCompetencyId.sentenceTypes) {
+          return 'Noch nicht. Prüfe beides zusammen: Welche Satzart ist es '
+              'und welches Satzzeichen passt genau dazu?';
+        }
         if (task.competencyId == GermanCompetencyId.sentenceComprehension ||
             task.competencyId == GermanCompetencyId.textInformation ||
             task.competencyId == GermanCompetencyId.readingInference ||
@@ -40,6 +45,10 @@ class GermanAnswerFeedback {
         return 'Alle Satzbausteine sind da. Prüfe noch einmal ihre '
             'Reihenfolge.';
       case GermanTaskInteraction.wordBuilder:
+        if (task.competencyId == GermanCompetencyId.directSpeechPunctuation) {
+          return 'Noch nicht. Prüfe Begleitsatz, Doppelpunkt oder Komma sowie '
+              'Anführungszeichen und Satzzeichen der wörtlichen Rede.';
+        }
         return 'Noch nicht. Sprich das Wort langsam und prüfe die '
             'Bausteine von links nach rechts.';
       case GermanTaskInteraction.typedText:

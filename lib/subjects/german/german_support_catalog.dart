@@ -81,6 +81,18 @@ class GermanSupportCatalog {
 
   static String firstHintForTask(GermanTask task) {
     if (task.interaction == GermanTaskInteraction.tokenSelection &&
+        (task.competencyId == GermanCompetencyId.sentencePunctuation ||
+            task.competencyId == GermanCompetencyId.sentenceTypes)) {
+      return 'Lies den Satz mit passender Betonung: Wird etwas gesagt, '
+          'gefragt oder nachdrücklich verlangt? Wähle dazu Satzart und Zeichen.';
+    }
+    if (task.interaction == GermanTaskInteraction.wordBuilder &&
+        task.competencyId == GermanCompetencyId.directSpeechPunctuation) {
+      return 'Prüfe zuerst, wo der Begleitsatz steht. Vorangestellt folgt '
+          'meist ein Doppelpunkt; nachgestellte Begleitsätze werden mit '
+          'Komma an die wörtliche Rede angeschlossen.';
+    }
+    if (task.interaction == GermanTaskInteraction.tokenSelection &&
         (task.competencyId == GermanCompetencyId.sentenceComprehension ||
             task.competencyId == GermanCompetencyId.textInformation ||
             task.competencyId == GermanCompetencyId.readingInference ||
@@ -127,6 +139,19 @@ class GermanSupportCatalog {
   }
 
   static String secondHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.tokenSelection &&
+        (task.competencyId == GermanCompetencyId.sentencePunctuation ||
+            task.competencyId == GermanCompetencyId.sentenceTypes)) {
+      return 'Fragen enden mit ?, Aussagen meist mit . und deutliche '
+          'Aufforderungen oder Ausrufe oft mit !. Prüfe, ob beide Markierungen '
+          'zusammenpassen.';
+    }
+    if (task.interaction == GermanTaskInteraction.wordBuilder &&
+        task.competencyId == GermanCompetencyId.directSpeechPunctuation) {
+      return 'Die wörtliche Rede steht in Anführungszeichen. Fragezeichen und '
+          'Ausrufezeichen bleiben in der Rede; bei nachgestelltem Begleitsatz '
+          'steht danach ein Komma.';
+    }
     if (task.interaction == GermanTaskInteraction.tokenSelection &&
         (task.competencyId == GermanCompetencyId.sentenceComprehension ||
             task.competencyId == GermanCompetencyId.textInformation ||
