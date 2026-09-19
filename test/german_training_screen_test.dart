@@ -171,6 +171,33 @@ void main() {
     },
   );
 
+  testWidgets(
+    'assisted reading completion shows no fake independent percentage',
+    (tester) async {
+      final task = GermanStarterTaskCatalog.tasks.firstWhere(
+        (task) => task.id == 'g1-read-word-sonne',
+      );
+
+      await tester.pumpWidget(
+        _app(task: task, speak: (_) async {}, readAloudEnabled: false),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('german-task-read-aloud')));
+      await tester.pump();
+      await tester.tap(
+        find.widgetWithText(FilledButton, task.acceptedAnswers.single),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('selbstständig noch keine Beobachtung'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('100 %'), findsNothing);
+    },
+  );
+
   testWidgets('manual read-aloud keeps non-reading evidence independent', (
     tester,
   ) async {

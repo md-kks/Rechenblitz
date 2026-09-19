@@ -609,7 +609,18 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
 
   Widget _buildCompleted(BuildContext context) {
     final result = _completedResult!;
-    final percent = (result.accuracy * 100).round();
+    final assisted = result.readAloudAssistedAttempts;
+    final independent = result.independentAttempts;
+    final percent = (result.independentAccuracy * 100).round();
+    final evidenceSummary = assisted == 0
+        ? '${result.correctFirstTry} von ${result.total} beim ersten Versuch · '
+              '${(result.accuracy * 100).round()} %'
+        : independent == 0
+        ? '${result.correctFirstTry} von ${result.total} direkt richtig · '
+              '$assisted mit Vorlesen · selbstständig noch keine Beobachtung'
+        : '${result.independentCorrectFirstTry} von $independent '
+              'selbstständig direkt richtig · $assisted mit Vorlesen · '
+              '$percent % selbstständig';
     final feedback = GermanRoundFeedback.forSession(result);
     return Scaffold(
       appBar: AppBar(title: Text(_completionTitle)),
@@ -635,7 +646,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '${result.correctFirstTry} von ${result.total} beim ersten Versuch · $percent %',
+                        evidenceSummary,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
