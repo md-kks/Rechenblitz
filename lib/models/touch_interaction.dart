@@ -138,6 +138,28 @@ class TouchInteractionPlan {
 
   bool get hasInteractiveWall => wallValues != null && hiddenWallIndex != null;
 
+  static String _semanticTaskKey(String taskKey) {
+    if (taskKey.startsWith('story:transfer:')) return taskKey;
+    final parts = taskKey.split(':');
+    if (!parts.contains('transfer')) return taskKey;
+    final canonical = <String>[];
+    var skipTransferMetadata = false;
+    for (final part in parts) {
+      if (part == 'transfer') {
+        skipTransferMetadata = true;
+        continue;
+      }
+      if (skipTransferMetadata &&
+          (part == 'context' || part == 'observation')) {
+        skipTransferMetadata = false;
+        continue;
+      }
+      skipTransferMetadata = false;
+      canonical.add(part);
+    }
+    return canonical.join(':');
+  }
+
   static TouchInteractionPlan? forTask({
     required TrainingMode mode,
     required String taskKey,
@@ -149,8 +171,27 @@ class TouchInteractionPlan {
     int? clockHour,
     int? clockMinute,
     String? answerSuffix,
+    List<String>? chartLabels,
     MicroCompetencyId? targetCompetency,
   }) {
+    final semanticTaskKey = _semanticTaskKey(taskKey);
+    if (semanticTaskKey != taskKey) {
+      return forTask(
+        mode: mode,
+        taskKey: semanticTaskKey,
+        answer: answer,
+        maxValue: maxValue,
+        wallValues: wallValues,
+        hiddenWallIndex: hiddenWallIndex,
+        choices: choices,
+        clockHour: clockHour,
+        clockMinute: clockMinute,
+        answerSuffix: answerSuffix,
+        chartLabels: chartLabels,
+        targetCompetency: targetCompetency,
+      );
+    }
+
     if (mode == TrainingMode.rounding && taskKey.startsWith('round:')) {
       final parts = taskKey.split(':');
       if (parts.length == 3) {
@@ -484,10 +525,14 @@ class TouchInteractionPlan {
             instruction: switch (parts[1]) {
               'max' => 'Markiere den höchsten Balken.',
               'sum' => 'Markiere alle Balken, deren Werte du für die Summe brauchst.',
+              _ when chartLabels != null =>
+                'Markiere die ersten beiden Balken für den Vergleich.',
               _ => 'Markiere Rot und Blau für den Vergleich.',
             },
             dataValues: values,
-            dataLabels: const <String>['Rot', 'Blau', 'Grün', 'Gelb'],
+            dataLabels: chartLabels != null && chartLabels.length == 4
+                ? List<String>.from(chartLabels)
+                : const <String>['Rot', 'Blau', 'Grün', 'Gelb'],
             dataOperation: parts[1],
             expectedAnswer: answer,
             maxValue: maxValue,

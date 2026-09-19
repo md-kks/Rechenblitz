@@ -67,6 +67,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         maxValue: current.maxAnswerValue ?? widget.controller.effectiveMaxValue,
         choices: current.choices,
         answerSuffix: current.answerSuffix,
+        chartLabels:
+            current.bars?.map((bar) => bar.label).toList(growable: false),
         targetCompetency: widget.targetCompetency,
       );
 
@@ -336,6 +338,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         maxValue: widget.controller.effectiveMaxValue,
         recentKeys: widget.controller.recentTaskKeys(widget.mode),
         targetCompetency: widget.targetCompetency,
+        transferEmphasis: widget.transferEmphasis,
       );
 
   ErrorPattern get _helpPattern =>
