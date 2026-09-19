@@ -6480,6 +6480,46 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           ),
         ),
         const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              key: const ValueKey('touch-equal-groups-round-remove'),
+              onPressed: widget.locked ||
+                      groupCounters.isEmpty ||
+                      groupCounters.any((count) => count == 0)
+                  ? null
+                  : () => setState(() {
+                      for (var index = 0;
+                          index < groupCounters.length;
+                          index++) {
+                        groupCounters[index] -= 1;
+                      }
+                    }),
+              icon: const Icon(Icons.remove_rounded),
+              label: const Text('−1 je Gruppe'),
+            ),
+            OutlinedButton.icon(
+              key: const ValueKey('touch-equal-groups-round-add'),
+              onPressed: widget.locked ||
+                      groupCounters.isEmpty ||
+                      groupCounters.any((count) => count >= targetEach + 2)
+                  ? null
+                  : () => setState(() {
+                      for (var index = 0;
+                          index < groupCounters.length;
+                          index++) {
+                        groupCounters[index] += 1;
+                      }
+                    }),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('+1 je Gruppe'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         const Text(
           'Sind wirklich alle Gruppen gleich groß?',
           textAlign: TextAlign.center,

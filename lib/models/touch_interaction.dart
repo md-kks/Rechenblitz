@@ -874,15 +874,23 @@ class TouchInteractionPlan {
       );
     }
 
-    if (targetCompetency == MicroCompetencyId.multiplicationGroups) {
+    final multiplicationTransfer =
+        mode == TrainingMode.wordProblems &&
+        (targetCompetency == MicroCompetencyId.multiplicationGroups ||
+            targetCompetency == MicroCompetencyId.multiplicationFacts) &&
+        taskKey.startsWith('story:transfer:skill:');
+    if (targetCompetency == MicroCompetencyId.multiplicationGroups ||
+        multiplicationTransfer) {
       final multiplication = _multiplicationGroupsSpec(mode, taskKey);
       if (multiplication != null) {
-        final first = multiplication.$1;
-        final second = multiplication.$2;
-        final groups = first <= 6 ? first : second;
-        final each = first <= 6 ? second : first;
+        final groups = multiplication.$1;
+        final each = multiplication.$2;
         final total = groups * each;
-        if (groups > 0 && each > 0 && groups <= 6 && total <= 48) {
+        if (groups > 0 &&
+            each > 0 &&
+            groups <= 8 &&
+            each <= 10 &&
+            total <= 80) {
           return TouchInteractionPlan(
             taskKey: taskKey,
             kind: TouchInteractionKind.equalGroupsBuilder,
@@ -897,8 +905,14 @@ class TouchInteractionPlan {
       }
     }
 
+    final divisionTransfer =
+        mode == TrainingMode.wordProblems &&
+        (targetCompetency == MicroCompetencyId.divisionSharing ||
+            targetCompetency == MicroCompetencyId.divisionFacts) &&
+        taskKey.startsWith('story:transfer:skill:');
     if (mode == TrainingMode.wordProblems &&
         (targetCompetency == MicroCompetencyId.divisionSharing ||
+            divisionTransfer ||
             taskKey.startsWith('story:sharing:') ||
             taskKey.startsWith('story:grouping:'))) {
       final division = _divisionGroupsSpec(taskKey, answer);
@@ -1980,6 +1994,36 @@ class TouchInteractionPlan {
       );
     }
 
+    final arithmeticTransfer =
+        _arithmeticTransferSpec(taskKey, targetCompetency);
+    if (mode == TrainingMode.wordProblems && arithmeticTransfer != null) {
+      final operation = arithmeticTransfer.$1;
+      final a = arithmeticTransfer.$2;
+      final b = arithmeticTransfer.$3;
+      final adding = operation == '+';
+      final low = max(0, min(a, answer) - 2);
+      final high = min(maxValue, max(a, answer) + 2);
+      if (high > low &&
+          a >= low &&
+          a <= high &&
+          answer >= low &&
+          answer <= high) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.numberLine,
+          instruction: adding
+              ? 'Die Situation wird größer: Starte bei $a und gehe $b Schritte weiter. Wo landest du?'
+              : 'Die Situation wird kleiner: Starte bei $a und gehe $b Schritte in Richtung kleinerer Zahlen. Wo landest du?',
+          minValue: low,
+          maxValue: high,
+          startValue: a,
+          dataValues: <int>[a, b],
+          dataOperation: operation,
+          expectedAnswer: answer,
+        );
+      }
+    }
+
     final arithmeticTarget = switch (targetCompetency) {
       MicroCompetencyId.additionNoBridge ||
       MicroCompetencyId.additionTenBridge ||
@@ -2159,6 +2203,33 @@ class TouchInteractionPlan {
     return null;
   }
 
+  static (String, int, int)? _arithmeticTransferSpec(
+    String taskKey,
+    MicroCompetencyId? targetCompetency,
+  ) {
+    final parts = taskKey.split(':');
+    if (parts.length != 8 ||
+        parts[0] != 'story' ||
+        parts[1] != 'transfer' ||
+        parts[2] != 'skill' ||
+        parts[3] != targetCompetency?.name) {
+      return null;
+    }
+    final operation = parts[4];
+    final targetMatches = switch (targetCompetency) {
+      MicroCompetencyId.additionNoBridge ||
+      MicroCompetencyId.additionTenBridge => operation == '+',
+      MicroCompetencyId.subtractionNoBridge ||
+      MicroCompetencyId.subtractionTenBridge => operation == '-',
+      _ => false,
+    };
+    if (!targetMatches) return null;
+    final a = int.tryParse(parts[6]);
+    final b = int.tryParse(parts[7]);
+    if (a == null || b == null || a < 0 || b < 0) return null;
+    return (operation, a, b);
+  }
+
   static (int, int)? _multiplicationGroupsSpec(
     TrainingMode mode,
     String taskKey,
@@ -2172,9 +2243,14 @@ class TouchInteractionPlan {
       return (a, b);
     }
     if (mode == TrainingMode.wordProblems &&
-        taskKey.startsWith('story:transfer:skill:multiplicationGroups:x:')) {
+        taskKey.startsWith('story:transfer:skill:')) {
       final parts = taskKey.split(':');
-      if (parts.length < 8) return null;
+      if (parts.length < 8 ||
+          parts[4] != 'x' ||
+          (parts[3] != MicroCompetencyId.multiplicationGroups.name &&
+              parts[3] != MicroCompetencyId.multiplicationFacts.name)) {
+        return null;
+      }
       final groups = int.tryParse(parts[parts.length - 2]);
       final each = int.tryParse(parts.last);
       if (groups == null || each == null) return null;
@@ -2208,7 +2284,8 @@ class TouchInteractionPlan {
     if (parts.length == 8 &&
         parts[1] == 'transfer' &&
         parts[2] == 'skill' &&
-        parts[3] == MicroCompetencyId.divisionSharing.name &&
+        (parts[3] == MicroCompetencyId.divisionSharing.name ||
+            parts[3] == MicroCompetencyId.divisionFacts.name) &&
         parts[4] == 'divide') {
       final context = parts[5];
       final total = int.tryParse(parts[6]);

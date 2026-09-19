@@ -863,15 +863,15 @@ void main() {
     );
     await tester.pump();
 
-    final zeroButton = find.widgetWithText(FilledButton, '0');
-    expect(zeroButton, findsOneWidget);
-    await tester.ensureVisible(zeroButton);
-    await tester.tap(zeroButton);
-    await tester.pump();
-    final okButton = find.widgetWithText(FilledButton, 'OK');
-    expect(okButton, findsOneWidget);
-    await tester.ensureVisible(okButton);
-    await tester.tap(okButton);
+    final transferSubmit =
+        find.byKey(const ValueKey('touch-number-line-submit'));
+    expect(
+      find.byKey(const ValueKey('touch-number-line-slider')),
+      findsOneWidget,
+    );
+    expect(transferSubmit, findsOneWidget);
+    await tester.ensureVisible(transferSubmit);
+    await tester.tap(transferSubmit);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
 
