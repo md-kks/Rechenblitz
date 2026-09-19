@@ -94,12 +94,16 @@ class _NumberAnswerPadState extends State<NumberAnswerPad> {
                 borderRadius: BorderRadius.circular(compact ? 14 : 18),
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
-              child: Text(
-                input.isEmpty ? 'Antwort eingeben' : input,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: compact ? 24 : null,
-                      fontWeight: FontWeight.w800,
-                    ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  input.isEmpty ? 'Antwort eingeben' : input,
+                  maxLines: 1,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontSize: compact ? 24 : null,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
               ),
             ),
             SizedBox(height: compact ? 7 : 12),

@@ -758,6 +758,11 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     final promptFontSize = widget.mode == TrainingMode.wordProblems
         ? (compactHeight ? 22.0 : 25.0)
         : (compactHeight ? 30.0 : 34.0);
+    final compactMathPrompt = compactHeight &&
+        MediaQuery.textScalerOf(context).scale(1) >= 1.5 &&
+        widget.mode != TrainingMode.wordProblems &&
+        current.prompt.length <= 36 &&
+        !current.prompt.contains('\n');
     final clockSize = compactHeight ? 150.0 : 190.0;
     final shapeWidth = compactHeight ? 150.0 : 180.0;
     final shapeHeight = compactHeight ? 120.0 : 145.0;
@@ -800,15 +805,29 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      current.prompt,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: promptFontSize,
-                        height: 1.25,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    child: compactMathPrompt
+                        ? FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              current.prompt,
+                              maxLines: 1,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: promptFontSize,
+                                height: 1.25,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            current.prompt,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: promptFontSize,
+                              height: 1.25,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                   ),
                   IconButton(
                     tooltip: 'Aufgabe vorlesen',

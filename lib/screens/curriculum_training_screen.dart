@@ -762,6 +762,10 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
     final visualGap = compactHeight ? 12.0 : 22.0;
     final sectionGap = compactHeight ? 10.0 : 18.0;
     final promptFontSize = compactHeight ? 27.0 : 31.0;
+    final compactMathPrompt = compactHeight &&
+        MediaQuery.textScalerOf(context).scale(1) >= 1.5 &&
+        current.prompt.length <= 36 &&
+        !current.prompt.contains('\n');
 
     return Scaffold(
       appBar: AppBar(
@@ -801,15 +805,29 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(
-                    current.prompt,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: promptFontSize,
-                      height: 1.3,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  child: compactMathPrompt
+                      ? FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            current.prompt,
+                            maxLines: 1,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: promptFontSize,
+                              height: 1.3,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          current.prompt,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: promptFontSize,
+                            height: 1.3,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                 ),
                 IconButton(
                   tooltip: 'Aufgabe vorlesen',

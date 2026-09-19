@@ -318,6 +318,7 @@ void main() {
     'Aufgabenwechsel setzt den Scrollbereich in normalen Rechenrunden zurück',
     (tester) async {
       _compactLargeText(tester);
+      tester.view.physicalSize = const Size(320, 400);
       final controller = await _controllerWithFacts();
       controller.numberRange = NumberRangeLevel.twenty;
       controller.facts = [

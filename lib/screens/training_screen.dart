@@ -69,6 +69,18 @@ class _TrainingScreenState extends State<TrainingScreen>
           current.isDivide);
 
 
+  void _showManualHelp() {
+    final starter = _manualHelpLevel;
+    if (starter == null) return;
+    setState(() {
+      usedHelp = true;
+      showHelp = true;
+      helpLevel = starter.value;
+      activeMethodKey = _guide.methodKey;
+    });
+    unawaited(_persistSession());
+  }
+
   int get _selectionMaxValue {
     final currentMax = widget.controller.effectiveMaxValue;
     if (!widget.fluencyEmphasis) return currentMax;
@@ -952,8 +964,10 @@ class _TrainingScreenState extends State<TrainingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.sizeOf(context).height;
+    final screenSize = MediaQuery.sizeOf(context);
+    final screenHeight = screenSize.height;
     final compactHeight = screenHeight < 720;
+    final compactPhone = compactHeight && screenSize.width < 600;
     final pagePadding = EdgeInsets.symmetric(
       horizontal: compactHeight ? 16 : 20,
       vertical: compactHeight ? 10 : 20,
@@ -973,6 +987,37 @@ class _TrainingScreenState extends State<TrainingScreen>
       appBar: AppBar(
         title: Text(widget.mode.title),
         actions: [
+          if (compactPhone && _manualHelpAvailable && !showHelp)
+            IconButton(
+              key: const ValueKey('training-compact-help'),
+              tooltip: 'Ich brauche Hilfe',
+              onPressed: _showManualHelp,
+              icon: const Icon(Icons.lightbulb_outline_rounded),
+            ),
+          if (compactPhone &&
+              _checkpointsComplete &&
+              _touchInteraction != null)
+            IconButton(
+              key: ValueKey(
+                useTouchInput
+                    ? 'touch-switch-keypad'
+                    : 'touch-switch-interaction',
+              ),
+              tooltip: useTouchInput
+                  ? 'Lieber eintippen'
+                  : 'Mit Finger lösen',
+              onPressed: locked
+                  ? null
+                  : () {
+                      setState(() => useTouchInput = !useTouchInput);
+                      unawaited(_persistSession());
+                    },
+              icon: Icon(
+                useTouchInput
+                    ? Icons.dialpad_rounded
+                    : Icons.touch_app_rounded,
+              ),
+            ),
           if (visibleTimer)
             Padding(
               padding: const EdgeInsets.only(right: 18),
@@ -1044,23 +1089,22 @@ class _TrainingScreenState extends State<TrainingScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Flexible(
-                        child: widget.mode == TrainingMode.numberFriends
-                            ? Text(
-                                '${current.result} = ${current.a} + ?',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: numberFriendFontSize,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              )
-                            : Text(
-                                '${current.a} ${current.symbol} ${current.b} = ?',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: taskFontSize,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            widget.mode == TrainingMode.numberFriends
+                                ? '${current.result} = ${current.a} + ?'
+                                : '${current.a} ${current.symbol} ${current.b} = ?',
+                            maxLines: 1,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: widget.mode == TrainingMode.numberFriends
+                                  ? numberFriendFontSize
+                                  : taskFontSize,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
                       ),
                       IconButton(
                         tooltip: 'Aufgabe vorlesen',
@@ -1138,19 +1182,9 @@ class _TrainingScreenState extends State<TrainingScreen>
                       },
                       onSpeak: widget.controller.speakOnDemand,
                     ),
-                  if (!showHelp && _manualHelpAvailable)
+                  if (!showHelp && _manualHelpAvailable && !compactPhone)
                     TextButton.icon(
-                      onPressed: () {
-                        final starter = _manualHelpLevel;
-                        if (starter == null) return;
-                        setState(() {
-                          usedHelp = true;
-                          showHelp = true;
-                          helpLevel = starter.value;
-                          activeMethodKey = _guide.methodKey;
-                        });
-                        unawaited(_persistSession());
-                      },
+                      onPressed: _showManualHelp,
                       icon: const Icon(Icons.lightbulb_outline_rounded),
                       label: const Text('Ich brauche Hilfe'),
                     ),
@@ -1164,25 +1198,27 @@ class _TrainingScreenState extends State<TrainingScreen>
                       locked: locked,
                       onAnswer: _answer,
                     ),
-                    const SizedBox(height: 6),
-                    TextButton.icon(
-                      key: const ValueKey('touch-switch-keypad'),
-                      onPressed: locked
-                          ? null
-                          : () {
-                              setState(() => useTouchInput = false);
-                              unawaited(_persistSession());
-                            },
-                      icon: const Icon(Icons.dialpad_rounded),
-                      label: const Text('Lieber eintippen'),
-                    ),
+                    if (!compactPhone) ...[
+                      const SizedBox(height: 6),
+                      TextButton.icon(
+                        key: const ValueKey('touch-switch-keypad'),
+                        onPressed: locked
+                            ? null
+                            : () {
+                                setState(() => useTouchInput = false);
+                                unawaited(_persistSession());
+                              },
+                        icon: const Icon(Icons.dialpad_rounded),
+                        label: const Text('Lieber eintippen'),
+                      ),
+                    ],
                   ] else if (_checkpointsComplete) ...[
                     NumberAnswerPad(
                       key: ValueKey('${current.key}:$completed'),
                       maxValue: _selectionMaxValue,
                       onAnswer: _answer,
                     ),
-                    if (_touchInteraction != null)
+                    if (_touchInteraction != null && !compactPhone)
                       TextButton.icon(
                         key: const ValueKey('touch-switch-interaction'),
                         onPressed: locked
