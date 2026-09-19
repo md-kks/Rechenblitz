@@ -59,6 +59,7 @@ class CurriculumExerciseGenerator {
     required int maxValue,
     Iterable<String> recentKeys = const <String>[],
     MicroCompetencyId? targetCompetency,
+    bool transferEmphasis = false,
   }) {
     if (!mode.isUpperPrimary) {
       throw ArgumentError('$mode ist kein Lernbereich für Klasse 3/4.');
@@ -86,6 +87,7 @@ class CurriculumExerciseGenerator {
         gradeLevel: gradeLevel,
         maxValue: maxValue,
         targetCompetency: targetCompetency,
+        transferEmphasis: transferEmphasis,
       );
       last = candidate;
       final exactNew = !exactAvoid.contains(candidate.key);
@@ -108,6 +110,7 @@ class CurriculumExerciseGenerator {
           gradeLevel: gradeLevel,
           maxValue: maxValue,
           targetCompetency: targetCompetency,
+          transferEmphasis: transferEmphasis,
         );
   }
 
@@ -116,6 +119,7 @@ class CurriculumExerciseGenerator {
     required GradeLevel gradeLevel,
     required int maxValue,
     MicroCompetencyId? targetCompetency,
+    required bool transferEmphasis,
   }) =>
       switch (mode) {
         TrainingMode.largeNumbers =>
@@ -136,6 +140,7 @@ class CurriculumExerciseGenerator {
             gradeLevel,
             maxValue,
             targetCompetency: targetCompetency,
+            transferEmphasis: transferEmphasis,
           ),
         TrainingMode.mentalStrategies =>
           targetCompetency == MicroCompetencyId.strategyChoice
@@ -176,7 +181,11 @@ class CurriculumExerciseGenerator {
         TrainingMode.romanNumerals => _romanNumerals(
             gradeLevel,
             targetedReading:
-                targetCompetency == MicroCompetencyId.romanNumeral,
+                targetCompetency == MicroCompetencyId.romanNumeral &&
+                    !transferEmphasis,
+            targetedWriting:
+                targetCompetency == MicroCompetencyId.romanNumeral &&
+                    transferEmphasis,
           ),
         TrainingMode.fractions => _fractions(
             gradeLevel,
@@ -186,31 +195,45 @@ class CurriculumExerciseGenerator {
         TrainingMode.advancedMeasures => _advancedMeasures(
             gradeLevel,
             targetCompetency: targetCompetency,
+            transferEmphasis: transferEmphasis,
           ),
         TrainingMode.timeDurations => _timeDurations(
             gradeLevel,
             targetCompetency: targetCompetency,
+            transferEmphasis: transferEmphasis,
           ),
         TrainingMode.dataCharts => _dataCharts(
             gradeLevel,
             targetCompetency: targetCompetency,
+            transferEmphasis: transferEmphasis,
           ),
         TrainingMode.probability =>
           targetCompetency == MicroCompetencyId.probabilityExperiment
-              ? _probabilityExperiment(targetedComparison: true)
+              ? _probabilityExperiment(
+                  targetedComparison: !transferEmphasis,
+                  forceRelative: transferEmphasis,
+                  transferEmphasis: transferEmphasis,
+                )
               : _probability(
                   gradeLevel,
                   targetedReasoning:
                       targetCompetency == MicroCompetencyId.probabilityReasoning,
+                  transferEmphasis: transferEmphasis,
                 ),
         TrainingMode.combinatorics => _combinatorics(
             gradeLevel,
             targeted: targetCompetency == MicroCompetencyId.combinatoricsSystematic,
+            transferEmphasis: transferEmphasis,
           ),
-        TrainingMode.proportionality => _proportionality(gradeLevel, maxValue),
+        TrainingMode.proportionality => _proportionality(
+            gradeLevel,
+            maxValue,
+            transferEmphasis: transferEmphasis,
+          ),
         TrainingMode.perimeterArea => _perimeterArea(
             gradeLevel,
             targetCompetency: targetCompetency,
+            transferEmphasis: transferEmphasis,
           ),
         TrainingMode.geometryRelations => _geometryRelations(
             gradeLevel,
@@ -232,11 +255,13 @@ class CurriculumExerciseGenerator {
             targetedScale: targetCompetency == MicroCompetencyId.scale,
             targetedDirections:
                 targetCompetency == MicroCompetencyId.planDirections,
+            transferEmphasis: transferEmphasis,
           ),
         TrainingMode.volumeCubes => _volumeCubes(
             gradeLevel,
             targetedLayer:
                 targetCompetency == MicroCompetencyId.volumeCubes,
+            transferEmphasis: transferEmphasis,
           ),
         _ => throw ArgumentError('$mode ist kein Lernbereich für Klasse 3/4.'),
       };
@@ -567,6 +592,7 @@ class CurriculumExerciseGenerator {
     GradeLevel grade,
     int maxValue, {
     MicroCompetencyId? targetCompetency,
+    bool transferEmphasis = false,
   }) {
     final limit = _safeMax(maxValue, grade);
     final places = [10, 100, 1000, 10000, 100000]
@@ -601,14 +627,24 @@ class CurriculumExerciseGenerator {
       100000 => 'Hunderttausender',
       _ => 'Stelle',
     };
+    final transferContexts = <String>[
+      'Für eine grobe Streckenplanung wird die Zahl ${_fmt(number)} auf $label gerundet. Welche Zahl verwendest du?',
+      'Für eine schnelle Besucher-Schätzung soll ${_fmt(number)} auf $label gerundet werden. Welche gerundete Zahl passt?',
+      'Auf einem Übersichtsblatt wird ${_fmt(number)} nur ungefähr auf $label angegeben. Welche Zahl steht dort?',
+    ];
+    final transferContext = transferContexts[_random.nextInt(transferContexts.length)];
     return CurriculumExercise(
       mode: TrainingMode.rounding,
-      prompt: 'Runde ' + _fmt(number) + ' auf $label.',
+      prompt: transferEmphasis
+          ? transferContext
+          : 'Runde ' + _fmt(number) + ' auf $label.',
       answer: rounded,
       hint: 'Schau auf die Stelle rechts daneben: 0–4 abrunden, 5–9 aufrunden.',
-      key: 'round:$number:$place',
+      key: transferEmphasis
+          ? 'round:$number:$place:transfer:context'
+          : 'round:$number:$place',
       maxAnswerValue: max(limit, rounded),
-      method: 'Runden',
+      method: transferEmphasis ? 'Runden in einer Sachsituation' : 'Runden',
     );
   }
 
@@ -1147,18 +1183,19 @@ class CurriculumExerciseGenerator {
   CurriculumExercise _romanNumerals(
     GradeLevel grade, {
     bool targetedReading = false,
+    bool targetedWriting = false,
   }) {
     final limit = grade == GradeLevel.third ? 50 : 100;
-    var value = targetedReading
+    var value = (targetedReading || targetedWriting)
         ? _between(11, limit - 1)
         : _between(1, limit);
-    if (targetedReading) {
+    if (targetedReading || targetedWriting) {
       while (value % 10 == 0) {
         value = _between(11, limit - 1);
       }
     }
     final roman = _roman(value);
-    if (targetedReading || _random.nextBool()) {
+    if (!targetedWriting && (targetedReading || _random.nextBool())) {
       return CurriculumExercise(
         mode: TrainingMode.romanNumerals,
         prompt: 'Welche Zahl bedeutet $roman?',
@@ -1179,9 +1216,13 @@ class CurriculumExerciseGenerator {
       prompt: 'Wie schreibt man $value als römische Zahl?',
       answer: choices.indexOf(roman),
       hint: 'I = 1, V = 5, X = 10, L = 50, C = 100.',
-      key: 'roman:write:$value',
+      key: targetedWriting
+          ? 'roman:write:$value:transfer'
+          : 'roman:write:$value',
       choices: choices,
-      method: 'Römische Zahlen darstellen',
+      method: targetedWriting
+          ? 'Römische Zahl selbst darstellen'
+          : 'Römische Zahlen darstellen',
     );
   }
 
@@ -1271,50 +1312,64 @@ class CurriculumExerciseGenerator {
   CurriculumExercise _advancedMeasures(
     GradeLevel grade, {
     MicroCompetencyId? targetCompetency,
+    bool transferEmphasis = false,
   }) {
     if (targetCompetency == MicroCompetencyId.secondsConversion) {
-      return _secondsConversion(grade, diagnostic: true);
+      return _secondsConversion(
+        grade,
+        diagnostic: true,
+        transferEmphasis: transferEmphasis,
+      );
     }
     if (targetCompetency == MicroCompetencyId.unitConversion) {
-      return _unitConversionDiagnostic(grade);
+      return _unitConversionDiagnostic(
+        grade,
+        transferEmphasis: transferEmphasis,
+      );
     }
     if (_random.nextDouble() < 0.14) {
-      return _secondsConversion(grade);
+      return _secondsConversion(
+        grade,
+        transferEmphasis: transferEmphasis,
+      );
     }
     final kind = _random.nextInt(grade == GradeLevel.fourth ? 8 : 6);
     if (kind == 0) {
       final value = _between(1, grade == GradeLevel.third ? 9 : 50);
-      return _conversion('$value m sind wie viele cm?', value * 100, '1 m = 100 cm.', 'cm', 'length:m:$value', 5000);
+      return _conversion('$value m sind wie viele cm?', value * 100, '1 m = 100 cm.', 'cm', 'length:m:$value', 5000, transferEmphasis: transferEmphasis);
     }
     if (kind == 1) {
       final value = _between(1, grade == GradeLevel.third ? 5 : 20);
-      return _conversion('$value km sind wie viele m?', value * 1000, '1 km = 1000 m.', 'm', 'length:km:$value', 20000);
+      return _conversion('$value km sind wie viele m?', value * 1000, '1 km = 1000 m.', 'm', 'length:km:$value', 20000, transferEmphasis: transferEmphasis);
     }
     if (kind == 2) {
       final value = _between(1, 20);
-      return _conversion('$value kg sind wie viele g?', value * 1000, '1 kg = 1000 g.', 'g', 'mass:kg:$value', 20000);
+      return _conversion('$value kg sind wie viele g?', value * 1000, '1 kg = 1000 g.', 'g', 'mass:kg:$value', 20000, transferEmphasis: transferEmphasis);
     }
     if (kind == 3) {
       final value = _between(1, 10);
-      return _conversion('$value l sind wie viele ml?', value * 1000, '1 l = 1000 ml.', 'ml', 'volume:l:$value', 10000);
+      return _conversion('$value l sind wie viele ml?', value * 1000, '1 l = 1000 ml.', 'ml', 'volume:l:$value', 10000, transferEmphasis: transferEmphasis);
     }
     if (kind == 4) {
       final value = _between(1, 9);
-      return _conversion('$value cm sind wie viele mm?', value * 10, '1 cm = 10 mm.', 'mm', 'length:cm-mm:$value', 100);
+      return _conversion('$value cm sind wie viele mm?', value * 10, '1 cm = 10 mm.', 'mm', 'length:cm-mm:$value', 100, transferEmphasis: transferEmphasis);
     }
     if (kind == 5 && grade == GradeLevel.fourth) {
       final value = _between(1, 9);
-      return _conversion('$value t sind wie viele kg?', value * 1000, '1 t = 1000 kg.', 'kg', 'mass:t-kg:$value', 10000);
+      return _conversion('$value t sind wie viele kg?', value * 1000, '1 t = 1000 kg.', 'kg', 'mass:t-kg:$value', 10000, transferEmphasis: transferEmphasis);
     }
     if (kind == 6) {
       final value = _between(1, 5) * 60;
-      return _conversion('$value min sind wie viele Stunden?', value ~/ 60, '60 min = 1 h.', 'h', 'time:min:$value', 10);
+      return _conversion('$value min sind wie viele Stunden?', value ~/ 60, '60 min = 1 h.', 'h', 'time:min:$value', 10, transferEmphasis: transferEmphasis);
     }
     final value = _between(1, 50);
-    return _conversion('$value € sind wie viele Cent?', value * 100, '1 € = 100 ct.', 'ct', 'money:euro:$value', 5000);
+    return _conversion('$value € sind wie viele Cent?', value * 100, '1 € = 100 ct.', 'ct', 'money:euro:$value', 5000, transferEmphasis: transferEmphasis);
   }
 
-  CurriculumExercise _unitConversionDiagnostic(GradeLevel grade) {
+  CurriculumExercise _unitConversionDiagnostic(
+    GradeLevel grade, {
+    bool transferEmphasis = false,
+  }) {
     final kind = _random.nextInt(grade == GradeLevel.fourth ? 8 : 6);
     if (kind == 0) {
       final value = _between(2, grade == GradeLevel.third ? 9 : 50);
@@ -1325,6 +1380,7 @@ class CurriculumExerciseGenerator {
         'cm',
         'length:m:$value',
         5000,
+        transferEmphasis: transferEmphasis,
       );
     }
     if (kind == 1) {
@@ -1336,6 +1392,7 @@ class CurriculumExerciseGenerator {
         'm',
         'length:km:$value',
         20000,
+        transferEmphasis: transferEmphasis,
       );
     }
     if (kind == 2) {
@@ -1347,6 +1404,7 @@ class CurriculumExerciseGenerator {
         'g',
         'mass:kg:$value',
         20000,
+        transferEmphasis: transferEmphasis,
       );
     }
     if (kind == 3) {
@@ -1358,6 +1416,7 @@ class CurriculumExerciseGenerator {
         'ml',
         'volume:l:$value',
         10000,
+        transferEmphasis: transferEmphasis,
       );
     }
     if (kind == 4) {
@@ -1369,6 +1428,7 @@ class CurriculumExerciseGenerator {
         'mm',
         'length:cm-mm:$value',
         100,
+        transferEmphasis: transferEmphasis,
       );
     }
     if (kind == 5 && grade == GradeLevel.fourth) {
@@ -1380,6 +1440,7 @@ class CurriculumExerciseGenerator {
         'kg',
         'mass:t-kg:$value',
         10000,
+        transferEmphasis: transferEmphasis,
       );
     }
     if (kind == 6) {
@@ -1392,6 +1453,7 @@ class CurriculumExerciseGenerator {
         'h',
         'time:min:$value',
         10,
+        transferEmphasis: transferEmphasis,
       );
     }
     final value = _between(2, 50);
@@ -1402,12 +1464,14 @@ class CurriculumExerciseGenerator {
       'ct',
       'money:euro:$value',
       5000,
+      transferEmphasis: transferEmphasis,
     );
   }
 
   CurriculumExercise _secondsConversion(
     GradeLevel grade, {
     bool diagnostic = false,
+    bool transferEmphasis = false,
   }) {
     final toSeconds = _random.nextBool();
     final minimumMinutes = diagnostic ? 2 : 1;
@@ -1421,6 +1485,7 @@ class CurriculumExerciseGenerator {
         's',
         'time:seconds:min-to-sec:$minutes',
         900,
+        transferEmphasis: transferEmphasis,
       );
     }
     final minutes =
@@ -1433,6 +1498,7 @@ class CurriculumExerciseGenerator {
       'min',
       'time:seconds:sec-to-min:$seconds',
       20,
+      transferEmphasis: transferEmphasis,
     );
   }
 
@@ -1442,27 +1508,66 @@ class CurriculumExerciseGenerator {
     String hint,
     String suffix,
     String key,
-    int maxAnswer,
-  ) =>
-      CurriculumExercise(
-        mode: TrainingMode.advancedMeasures,
-        prompt: prompt,
-        answer: answer,
-        hint: hint,
-        key: key,
-        answerSuffix: suffix,
-        maxAnswerValue: maxAnswer,
-        method: 'Größen umwandeln',
-      );
+    int maxAnswer, {
+    bool transferEmphasis = false,
+  }) {
+    final transferPrompt = switch (key) {
+      final value when value.startsWith('length:m:') =>
+        'Für einen Bastelplan brauchst du dieselbe Länge in Zentimetern. $prompt',
+      final value when value.startsWith('length:km:') =>
+        'Eine Wanderstrecke soll für einen Plan in Metern angegeben werden. $prompt',
+      final value when value.startsWith('mass:kg:') =>
+        'Für eine Packliste brauchst du das Gewicht in Gramm. $prompt',
+      final value when value.startsWith('volume:l:') =>
+        'Beim Abfüllen soll die Flüssigkeitsmenge in Millilitern stehen. $prompt',
+      final value when value.startsWith('length:cm-mm:') =>
+        'Für eine genaue Zeichnung brauchst du die Länge in Millimetern. $prompt',
+      final value when value.startsWith('mass:t-kg:') =>
+        'Eine Ladung soll in Kilogramm angegeben werden. $prompt',
+      final value when value.startsWith('time:min:') =>
+        'Für einen Zeitplan brauchst du dieselbe Dauer in Stunden. $prompt',
+      final value when value.startsWith('money:euro:') =>
+        'Für eine Cent-Abrechnung musst du den Betrag umschreiben. $prompt',
+      final value when value.startsWith('time:seconds:min-to-sec:') =>
+        'Ein Sporttimer zeigt Sekunden an. $prompt',
+      final value when value.startsWith('time:seconds:sec-to-min:') =>
+        'Ein Sporttimer zeigt nur Sekunden. Schreibe die Dauer in Minuten um: $prompt',
+      _ => prompt,
+    };
+    final parts = key.split(':');
+    final transferKey = parts.length < 2
+        ? '$key:transfer'
+        : <String>[
+            ...parts.take(parts.length - 1),
+            'transfer',
+            parts.last,
+          ].join(':');
+    return CurriculumExercise(
+      mode: TrainingMode.advancedMeasures,
+      prompt: transferEmphasis ? transferPrompt : prompt,
+      answer: answer,
+      hint: hint,
+      key: transferEmphasis ? transferKey : key,
+      answerSuffix: suffix,
+      maxAnswerValue: maxAnswer,
+      method: transferEmphasis
+          ? 'Größen in einer Sachsituation umwandeln'
+          : 'Größen umwandeln',
+    );
+  }
 
   CurriculumExercise _timeDurations(
     GradeLevel grade, {
     MicroCompetencyId? targetCompetency,
+    bool transferEmphasis = false,
   }) {
     if (targetCompetency == MicroCompetencyId.calendarDate ||
         (targetCompetency != MicroCompetencyId.timeDuration &&
             _random.nextDouble() < 0.18)) {
-      return _calendarDate(grade);
+      return _calendarDate(
+        grade,
+        transferEmphasis: transferEmphasis,
+      );
     }
     if (targetCompetency != MicroCompetencyId.timeDuration &&
         grade == GradeLevel.fourth &&
@@ -1517,23 +1622,38 @@ class CurriculumExerciseGenerator {
             : duration == minutesToNextHour
                 ? 'Zähle vom Start direkt bis zur nächsten vollen Stunde.'
                 : 'Rechne zuerst $minutesToNextHour Minuten bis zur nächsten vollen Stunde und dann weiter.';
+    final basicPrompt = 'Beginn: ' +
+        _clock(hour, minute) +
+        ' Uhr\nEnde: ' +
+        _clock(endHour, endMinute) +
+        ' Uhr\nWie viele Minuten dauert es?';
+    final transferPrompts = <String>[
+      'Ein Film beginnt um ${_clock(hour, minute)} Uhr und endet um ${_clock(endHour, endMinute)} Uhr. Wie viele Minuten läuft er?',
+      'Ein Ausflug startet um ${_clock(hour, minute)} Uhr und ist um ${_clock(endHour, endMinute)} Uhr beendet. Wie viele Minuten dauert er?',
+      'Eine Trainingseinheit geht von ${_clock(hour, minute)} Uhr bis ${_clock(endHour, endMinute)} Uhr. Wie viele Minuten sind das?',
+    ];
     return CurriculumExercise(
       mode: TrainingMode.timeDurations,
-      prompt: 'Beginn: ' +
-          _clock(hour, minute) +
-          ' Uhr\nEnde: ' +
-          _clock(endHour, endMinute) +
-          ' Uhr\nWie viele Minuten dauert es?',
+      prompt: transferEmphasis
+          ? transferPrompts[_random.nextInt(transferPrompts.length)]
+          : basicPrompt,
       answer: duration,
       hint: hint,
-      key: 'duration:$start:$duration',
+      key: transferEmphasis
+          ? 'duration:$start:$duration:transfer:context'
+          : 'duration:$start:$duration',
       answerSuffix: 'min',
       maxAnswerValue: 240,
-      method: 'Zeitdauer berechnen',
+      method: transferEmphasis
+          ? 'Zeitspanne in einer Sachsituation'
+          : 'Zeitdauer berechnen',
     );
   }
 
-  CurriculumExercise _calendarDate(GradeLevel grade) {
+  CurriculumExercise _calendarDate(
+    GradeLevel grade, {
+    bool transferEmphasis = false,
+  }) {
     const months = [
       ('März', 31),
       ('April', 30),
@@ -1557,25 +1677,35 @@ class CurriculumExerciseGenerator {
       ..shuffle(_random);
     final correct = '$answerDay. ${month.$1}';
 
+    final prompt = transferEmphasis
+        ? 'Am $start. ${month.$1} wird ein Buch ausgeliehen. Die Rückgabe ist $addDays Tage später. Welches Datum ist das?'
+        : 'Heute ist der $start. ${month.$1}. Welches Datum ist $addDays Tage später?';
     return CurriculumExercise(
       mode: TrainingMode.timeDurations,
-      prompt:
-          'Heute ist der $start. ${month.$1}. Welches Datum ist $addDays Tage später?',
+      prompt: prompt,
       answer: choices.indexOf(correct),
       hint:
           'Gehe im Kalender genau $addDays Tage weiter. Der Monat hat hier ${month.$2} Tage.',
-      key: 'calendar:add:${month.$1}:$start:$addDays',
+      key: transferEmphasis
+          ? 'calendar:add:${month.$1}:$start:$addDays:transfer'
+          : 'calendar:add:${month.$1}:$start:$addDays',
       choices: choices,
-      method: 'Mit Datum und Kalender rechnen',
+      method: transferEmphasis
+          ? 'Kalendersprung in einer Sachsituation'
+          : 'Mit Datum und Kalender rechnen',
     );
   }
 
   CurriculumExercise _dataCharts(
     GradeLevel grade, {
     MicroCompetencyId? targetCompetency,
+    bool transferEmphasis = false,
   }) {
     if (targetCompetency == MicroCompetencyId.tallyTableReading) {
-      return _tallyData(grade);
+      return _tallyData(
+        grade,
+        transferEmphasis: transferEmphasis,
+      );
     }
     if (targetCompetency == MicroCompetencyId.dataRepresentationChoice) {
       return _dataRepresentationChoice();
@@ -1588,7 +1718,14 @@ class CurriculumExerciseGenerator {
       if (roll < 0.34) return _dataRepresentationChoice();
     }
 
-    final labels = ['Rot', 'Blau', 'Grün', 'Gelb'];
+    final transferLabelSets = <List<String>>[
+      ['Mo', 'Di', 'Mi', 'Do'],
+      ['A', 'B', 'C', 'D'],
+      ['Nord', 'Ost', 'Süd', 'West'],
+    ];
+    final labels = transferEmphasis
+        ? transferLabelSets[_random.nextInt(transferLabelSets.length)]
+        : ['Rot', 'Blau', 'Grün', 'Gelb'];
     final barMax =
         targetedDataReading ? 12 : grade == GradeLevel.third ? 20 : 40;
     final values = List<int>.generate(
@@ -1603,10 +1740,14 @@ class CurriculumExerciseGenerator {
     if (kind == 0) {
       return CurriculumExercise(
         mode: TrainingMode.dataCharts,
-        prompt: 'Welche Anzahl ist im Diagramm am größten?',
+        prompt: transferEmphasis
+            ? 'Das Diagramm zeigt vier Messwerte. Wie hoch ist der größte abgelesene Wert?'
+            : 'Welche Anzahl ist im Diagramm am größten?',
         answer: values.reduce(max),
         hint: 'Suche den höchsten Balken.',
-        key: 'data:max:' + values.join('-'),
+        key: 'data:max:' +
+            values.join('-') +
+            (transferEmphasis ? ':transfer:context' : ''),
         maxAnswerValue: 100,
         bars: bars,
         method: 'Diagramme lesen',
@@ -1615,10 +1756,14 @@ class CurriculumExerciseGenerator {
     if (kind == 1) {
       return CurriculumExercise(
         mode: TrainingMode.dataCharts,
-        prompt: 'Wie viele Stimmen wurden insgesamt abgegeben?',
+        prompt: transferEmphasis
+            ? 'Das Diagramm zeigt vier Teilmengen. Wie groß ist ihre Gesamtmenge?'
+            : 'Wie viele Stimmen wurden insgesamt abgegeben?',
         answer: values.reduce((a, b) => a + b),
         hint: 'Addiere alle Balkenwerte.',
-        key: 'data:sum:' + values.join('-'),
+        key: 'data:sum:' +
+            values.join('-') +
+            (transferEmphasis ? ':transfer:context' : ''),
         maxAnswerValue: 200,
         bars: bars,
         method: 'Daten auswerten',
@@ -1626,17 +1771,24 @@ class CurriculumExerciseGenerator {
     }
     return CurriculumExercise(
       mode: TrainingMode.dataCharts,
-      prompt: 'Um wie viele Stimmen unterscheiden sich Rot und Blau?',
+      prompt: transferEmphasis
+          ? 'Um wie viele Einheiten unterscheiden sich die ersten beiden Balken?'
+          : 'Um wie viele Stimmen unterscheiden sich Rot und Blau?',
       answer: (values[0] - values[1]).abs(),
       hint: 'Bilde die Differenz der beiden Werte.',
-      key: 'data:diff:' + values.join('-'),
+      key: 'data:diff:' +
+          values.join('-') +
+          (transferEmphasis ? ':transfer:context' : ''),
       maxAnswerValue: 100,
       bars: bars,
       method: 'Diagramme vergleichen',
     );
   }
 
-  CurriculumExercise _tallyData(GradeLevel grade) {
+  CurriculumExercise _tallyData(
+    GradeLevel grade, {
+    bool transferEmphasis = false,
+  }) {
     final maxCount = grade.index <= GradeLevel.second.index
         ? 20
         : grade == GradeLevel.third
@@ -1652,12 +1804,15 @@ class CurriculumExerciseGenerator {
 
     return CurriculumExercise(
       mode: TrainingMode.dataCharts,
-      prompt:
-          'Strichliste: $tally\nWie viele Einträge wurden gezählt?',
+      prompt: transferEmphasis
+          ? 'Bei einer Beobachtung wurde diese Strichliste geführt: $tally\nWie viele Beobachtungen sind es insgesamt?'
+          : 'Strichliste: $tally\nWie viele Einträge wurden gezählt?',
       answer: count,
       hint:
           'Ein vollständiger Fünferblock steht für 5. Addiere danach die einzelnen Striche.',
-      key: 'data:tally:$count',
+      key: transferEmphasis
+          ? 'data:tally:$count:transfer:observation'
+          : 'data:tally:$count',
       maxAnswerValue: 50,
       method: 'Strichliste auswerten',
     );
@@ -1702,6 +1857,7 @@ class CurriculumExerciseGenerator {
   CurriculumExercise _probability(
     GradeLevel grade, {
     bool targetedReasoning = false,
+    bool transferEmphasis = false,
   }) {
     if (!targetedReasoning &&
         grade == GradeLevel.fourth &&
@@ -1761,23 +1917,33 @@ class CurriculumExerciseGenerator {
     ];
     return CurriculumExercise(
       mode: TrainingMode.probability,
-      prompt:
-          'Im Beutel liegen $red rote und $blue blaue $context. Was stimmt?',
+      prompt: transferEmphasis
+          ? 'Eine Drehscheibe hat $red gleich große rote und $blue gleich große blaue Felder. Was ist wahrscheinlicher?'
+          : 'Im Beutel liegen $red rote und $blue blaue $context. Was stimmt?',
       answer: red == blue ? 2 : red > blue ? 0 : 1,
-      hint: 'Mehr Stücke einer Farbe bedeuten eine größere Ziehchance.',
-      key: 'prob:bag:${context.toLowerCase()}:$red:$blue',
+      hint: transferEmphasis
+          ? 'Bei gleich großen Feldern entscheidet die Anzahl der roten und blauen Felder.'
+          : 'Mehr Stücke einer Farbe bedeuten eine größere Ziehchance.',
+      key: transferEmphasis
+          ? 'prob:bag:spinner:$red:$blue:transfer'
+          : 'prob:bag:${context.toLowerCase()}:$red:$blue',
       choices: compare,
-      method: 'Chancen einschätzen',
+      method: transferEmphasis
+          ? 'Chancen auf eine neue Darstellung übertragen'
+          : 'Chancen einschätzen',
     );
   }
 
   CurriculumExercise _probabilityExperiment({
     bool targetedComparison = false,
+    bool forceRelative = false,
+    bool transferEmphasis = false,
   }) {
     final trials = [20, 30, 40][_random.nextInt(3)];
     final red = _between(4, trials - 4);
     final blue = trials - red;
-    final compareObservation = targetedComparison || _random.nextBool();
+    final compareObservation =
+        !forceRelative && (targetedComparison || _random.nextBool());
     if (compareObservation) {
       const choices = [
         'Rot kam häufiger vor',
@@ -1813,21 +1979,29 @@ class CurriculumExerciseGenerator {
       answer: values.indexOf(percent),
       hint:
           'Teile die Anzahl für Rot durch alle Versuche und denke an 100 Teile.',
-      key: 'prob:experiment:relative:$trials:$red',
+      key: transferEmphasis
+          ? 'prob:experiment:relative:$trials:$red:transfer'
+          : 'prob:experiment:relative:$trials:$red',
       choices: values.map((value) => '$value %').toList(),
-      method: 'Relative Häufigkeit beobachten',
+      method: transferEmphasis
+          ? 'Versuchsdaten in relative Häufigkeit übertragen'
+          : 'Relative Häufigkeit beobachten',
     );
   }
 
   CurriculumExercise _combinatorics(
     GradeLevel grade, {
     bool targeted = false,
+    bool transferEmphasis = false,
   }) {
     final lowerPrimary = grade.index <= GradeLevel.second.index;
     var first = _between(2, lowerPrimary ? 3 : grade == GradeLevel.third ? 4 : 6);
     var second = _between(2, lowerPrimary ? 3 : grade == GradeLevel.third ? 4 : 5);
     var third =
         grade == GradeLevel.fourth && _random.nextBool() ? _between(2, 3) : 1;
+    if (transferEmphasis && grade == GradeLevel.fourth) {
+      third = _between(2, 3);
+    }
     if (targeted) {
       for (var attempt = 0; attempt < 24 && first * second * third > 24; attempt++) {
         final maxFactor = lowerPrimary ? 3 : 4;
@@ -1858,25 +2032,40 @@ class CurriculumExerciseGenerator {
       prompt: prompt,
       answer: first * second * third,
       hint: 'Verbinde jede Möglichkeit systematisch mit jeder anderen.',
-      key: 'combo:$family:$first:$second:$third',
+      key: transferEmphasis
+          ? 'combo:$family:$first:$second:$third:transfer'
+          : 'combo:$family:$first:$second:$third',
       maxAnswerValue: 300,
-      method: 'Systematisch kombinieren',
+      method: transferEmphasis
+          ? 'Kombinationsprinzip auf neue Situation übertragen'
+          : 'Systematisch kombinieren',
     );
   }
 
-  CurriculumExercise _proportionality(GradeLevel grade, int maxValue) {
+  CurriculumExercise _proportionality(
+    GradeLevel grade,
+    int maxValue, {
+    bool transferEmphasis = false,
+  }) {
     final unit = _between(1, grade == GradeLevel.third ? 5 : 12);
     final first = _between(2, 5);
     final second = _between(2, grade == GradeLevel.third ? 8 : 12);
     final kind = _random.nextInt(4);
     final total = first * unit;
 
-    final prompt = switch (kind) {
-      0 => '$first Hefte kosten $total €. Was kosten $second Hefte?',
-      1 => '$first Eintrittskarten kosten zusammen $total €. Was kosten $second gleich teure Karten?',
-      2 => '$first gleiche Packungen kosten zusammen $total €. Was kosten $second Packungen?',
-      _ => '$first Meter Band kosten zusammen $total €. Was kosten $second Meter zum gleichen Meterpreis?',
-    };
+    final prompt = transferEmphasis
+        ? switch (kind) {
+            0 => '$first gleiche Bastelsets kosten zusammen $total €. Was kosten $second Sets?',
+            1 => '$first gleiche Fahrkarten kosten zusammen $total €. Was kosten $second Fahrkarten?',
+            2 => '$first identische Materialpakete kosten $total €. Was kosten $second Pakete?',
+            _ => '$first Meter Stoff kosten zusammen $total €. Was kosten $second Meter bei gleichem Meterpreis?',
+          }
+        : switch (kind) {
+            0 => '$first Hefte kosten $total €. Was kosten $second Hefte?',
+            1 => '$first Eintrittskarten kosten zusammen $total €. Was kosten $second gleich teure Karten?',
+            2 => '$first gleiche Packungen kosten zusammen $total €. Was kosten $second Packungen?',
+            _ => '$first Meter Band kosten zusammen $total €. Was kosten $second Meter zum gleichen Meterpreis?',
+          };
     final family = ['notebooks', 'tickets', 'packs', 'ribbon'][kind];
 
     return CurriculumExercise(
@@ -1884,16 +2073,21 @@ class CurriculumExerciseGenerator {
       prompt: prompt,
       answer: second * unit,
       hint: 'Bestimme zuerst den Wert für 1 Einheit.',
-      key: 'proportion:$family:$unit:$first:$second',
+      key: transferEmphasis
+          ? 'proportion:$family:$unit:$first:$second:transfer'
+          : 'proportion:$family:$unit:$first:$second',
       answerSuffix: '€',
       maxAnswerValue: max(100, maxValue),
-      method: 'Einfache Zuordnung',
+      method: transferEmphasis
+          ? 'Proportionale Zuordnung in neuer Situation'
+          : 'Einfache Zuordnung',
     );
   }
 
   CurriculumExercise _perimeterArea(
     GradeLevel grade, {
     MicroCompetencyId? targetCompetency,
+    bool transferEmphasis = false,
   }) {
     final width = _between(2, grade == GradeLevel.third ? 12 : 25);
     final height = _between(2, grade == GradeLevel.third ? 12 : 25);
@@ -1904,9 +2098,13 @@ class CurriculumExerciseGenerator {
             : _random.nextBool();
     final context = _random.nextInt(4);
     final object = ['Rechteck', 'Bild', 'Beet', 'Spielteppich'][context];
-    final prompt = area
-        ? '$object: $width cm lang und $height cm breit. Wie groß ist die Fläche?'
-        : '$object: $width cm lang und $height cm breit. Wie groß ist der Umfang?';
+    final prompt = transferEmphasis
+        ? area
+            ? 'Eine rechteckige Fläche ist $width cm lang und $height cm breit und soll vollständig mit 1-cm²-Feldern bedeckt werden. Wie viele cm² werden bedeckt?'
+            : 'Ein rechteckiges Beet ist $width cm lang und $height cm breit. Wie viele Zentimeter Rand braucht eine vollständige Einfassung?'
+        : area
+            ? '$object: $width cm lang und $height cm breit. Wie groß ist die Fläche?'
+            : '$object: $width cm lang und $height cm breit. Wie groß ist der Umfang?';
     return CurriculumExercise(
       mode: TrainingMode.perimeterArea,
       prompt: prompt,
@@ -1914,11 +2112,18 @@ class CurriculumExerciseGenerator {
       hint: area
           ? 'Fläche: Länge × Breite bzw. Einheitsquadrate zählen.'
           : 'Umfang: Addiere alle vier Seiten.',
-      key:
-          'rect:${area ? 'area' : 'perimeter'}:${object.toLowerCase()}:$width:$height',
+      key: transferEmphasis
+          ? 'rect:${area ? 'area' : 'perimeter'}:${object.toLowerCase()}:$width:$height:transfer'
+          : 'rect:${area ? 'area' : 'perimeter'}:${object.toLowerCase()}:$width:$height',
       answerSuffix: area ? 'cm²' : 'cm',
       maxAnswerValue: 2000,
-      method: area ? 'Flächeninhalt' : 'Umfang',
+      method: transferEmphasis
+          ? area
+              ? 'Fläche als Bedeckung anwenden'
+              : 'Umfang als Randlänge anwenden'
+          : area
+              ? 'Flächeninhalt'
+              : 'Umfang',
     );
   }
 
@@ -2275,6 +2480,7 @@ class CurriculumExerciseGenerator {
     GradeLevel grade, {
     bool targetedScale = false,
     bool targetedDirections = false,
+    bool transferEmphasis = false,
   }) {
     if (targetedDirections) {
       return _planDirectionsDiagnostic(grade);
@@ -2287,13 +2493,19 @@ class CurriculumExerciseGenerator {
       final cm = _between(2, 8);
       return CurriculumExercise(
         mode: TrainingMode.plansAndOrientation,
-        prompt: 'Im Plan entsprechen 1 cm genau $scale m. Eine Strecke ist $cm cm lang. Wie viele Meter sind das?',
+        prompt: transferEmphasis
+            ? 'Auf einer Wanderkarte entsprechen 1 cm genau $scale m in Wirklichkeit. Eine Route misst auf der Karte $cm cm. Wie viele Meter lang ist sie wirklich?'
+            : 'Im Plan entsprechen 1 cm genau $scale m. Eine Strecke ist $cm cm lang. Wie viele Meter sind das?',
         answer: cm * scale,
         hint: 'Multipliziere die Planlänge mit der Zuordnung pro Zentimeter.',
-        key: 'plan:scale:$scale:$cm',
+        key: transferEmphasis
+            ? 'plan:scale:$scale:$cm:transfer'
+            : 'plan:scale:$scale:$cm',
         answerSuffix: 'm',
         maxAnswerValue: 10000,
-        method: 'Pläne und Maßstabsbeziehungen',
+        method: transferEmphasis
+            ? 'Maßstab auf eine Kartenstrecke anwenden'
+            : 'Pläne und Maßstabsbeziehungen',
       );
     }
     return CurriculumExercise(
@@ -2310,6 +2522,7 @@ class CurriculumExerciseGenerator {
   CurriculumExercise _volumeCubes(
     GradeLevel grade, {
     bool targetedLayer = false,
+    bool transferEmphasis = false,
   }) {
     final length = _between(2, grade == GradeLevel.third ? 4 : 8);
     final width = _between(2, grade == GradeLevel.third ? 4 : 6);
@@ -2319,12 +2532,18 @@ class CurriculumExerciseGenerator {
     );
     return CurriculumExercise(
       mode: TrainingMode.volumeCubes,
-      prompt: 'Quader aus Einheitswürfeln: $length lang, $width breit, $height hoch. Wie viele Würfel sind es?',
+      prompt: transferEmphasis
+          ? 'Eine Kiste wird lückenlos mit Einheitswürfeln gefüllt: $length Würfel lang, $width Würfel breit und $height Schichten hoch. Wie viele Würfel werden gebraucht?'
+          : 'Quader aus Einheitswürfeln: $length lang, $width breit, $height hoch. Wie viele Würfel sind es?',
       answer: length * width * height,
       hint: 'Eine Schicht hat Länge × Breite Würfel. Multipliziere mit der Zahl der Schichten.',
-      key: 'volume:$length:$width:$height',
+      key: transferEmphasis
+          ? 'volume:$length:$width:$height:transfer'
+          : 'volume:$length:$width:$height',
       maxAnswerValue: 300,
-      method: 'Rauminhalt mit Einheitswürfeln',
+      method: transferEmphasis
+          ? 'Rauminhalt als Füllmenge anwenden'
+          : 'Rauminhalt mit Einheitswürfeln',
     );
   }
 

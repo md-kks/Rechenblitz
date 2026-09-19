@@ -5244,9 +5244,11 @@ class GuidedMethodFactory {
     final values = numbers.length >= 4
         ? numbers.sublist(numbers.length - 4)
         : const <int>[];
+    final transfer = key.contains(':transfer:');
 
-    String format(List<int> data) =>
-        'Rot ${data[0]} · Blau ${data[1]} · Grün ${data[2]} · Gelb ${data[3]}';
+    String format(List<int> data) => transfer
+        ? '1. Balken ${data[0]} · 2. Balken ${data[1]} · 3. Balken ${data[2]} · 4. Balken ${data[3]}'
+        : 'Rot ${data[0]} · Blau ${data[1]} · Grün ${data[2]} · Gelb ${data[3]}';
 
     List<int> changedAt(int index) {
       final changed = List<int>.of(values);
@@ -5267,7 +5269,9 @@ class GuidedMethodFactory {
         ? 'Vergleiche danach die vier abgelesenen Werte und wähle den größten.'
         : key.startsWith('data:sum:')
             ? 'Addiere danach die vier abgelesenen Werte.'
-            : 'Bilde danach die Differenz der abgelesenen Werte von Rot und Blau.';
+            : transfer
+                ? 'Bilde danach die Differenz der ersten beiden abgelesenen Balkenwerte.'
+                : 'Bilde danach die Differenz der abgelesenen Werte von Rot und Blau.';
 
     return GuidedMethodGuide(
       methodKey: 'data:read-chart-values',
@@ -5277,11 +5281,14 @@ class GuidedMethodFactory {
       steps: [
         GuidedMethodStep(
           title: 'Balkenwerte ablesen',
-          instruction:
-              'Lies die Werte der vier Balken von Rot bis Gelb ab. Berechne Maximum, Summe oder Differenz noch nicht.',
+          instruction: transfer
+              ? 'Lies die Werte der vier Balken der Reihe nach ab. Berechne Maximum, Summe oder Differenz noch nicht.'
+              : 'Lies die Werte der vier Balken von Rot bis Gelb ab. Berechne Maximum, Summe oder Differenz noch nicht.',
           question: choices.isEmpty
               ? null
-              : 'Welche Werte liest du von Rot bis Gelb ab?',
+              : transfer
+                  ? 'Welche vier Werte liest du von links nach rechts ab?'
+                  : 'Welche Werte liest du von Rot bis Gelb ab?',
           choices: choices,
           correctChoice: choices.isEmpty ? null : 0,
           evidenceKey: choices.isEmpty ? null : 'chartValuesRead',

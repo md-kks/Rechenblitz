@@ -38,6 +38,7 @@ List<_GeneratedTask> _generateTasks({
         maxValue: maxValue,
         recentKeys: recent,
         targetCompetency: definition.id,
+        transferEmphasis: transferEmphasis,
       );
       recent.insert(0, exercise.key);
       if (tasks.any((task) => task.key == exercise.key)) continue;

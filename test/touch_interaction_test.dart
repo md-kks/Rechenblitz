@@ -7708,6 +7708,7 @@ class _FixedCurriculumGenerator extends CurriculumExerciseGenerator {
     required int maxValue,
     Iterable<String> recentKeys = const <String>[],
     MicroCompetencyId? targetCompetency,
+    bool transferEmphasis = false,
   }) => exercise;
 }
 
