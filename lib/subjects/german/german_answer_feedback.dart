@@ -18,6 +18,9 @@ class GermanAnswerFeedback {
       case GermanTaskInteraction.wordOrder:
         return 'Alle Satzbausteine sind da. Prüfe noch einmal ihre '
             'Reihenfolge.';
+      case GermanTaskInteraction.wordBuilder:
+        return 'Noch nicht. Sprich das Wort langsam und prüfe die '
+            'Bausteine von links nach rechts.';
       case GermanTaskInteraction.typedText:
         break;
     }

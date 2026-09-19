@@ -7,6 +7,7 @@ import 'package:rechenblitz/subjects/german/german_starter_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_task.dart';
 import 'package:rechenblitz/subjects/german/german_teacher_assignment.dart';
+import 'package:rechenblitz/subjects/german/german_touch_task_catalog.dart';
 
 void main() {
   test('every German competency id has exactly one definition', () {
@@ -62,6 +63,36 @@ void main() {
     expect(listening, isNotEmpty);
     expect(listening.every((task) => task.requiresSpeech), isTrue);
     expect(listening.every((task) => task.spokenText!.isNotEmpty), isTrue);
+  });
+
+  test('touch word builders are well formed and span grades one to four', () {
+    expect(GermanTouchTaskCatalog.tasks, hasLength(22));
+    expect(
+      GermanTouchTaskCatalog.tasks
+          .map((task) => task.recommendedFromGrade)
+          .toSet(),
+      <GradeLevel>{
+        GradeLevel.first,
+        GradeLevel.second,
+        GradeLevel.third,
+        GradeLevel.fourth,
+      },
+    );
+    for (final task in GermanTouchTaskCatalog.tasks) {
+      expect(task.interaction, GermanTaskInteraction.wordBuilder);
+      expect(task.isWellFormed, isTrue, reason: task.id);
+      expect(task.choices.length, greaterThanOrEqualTo(3), reason: task.id);
+    }
+  });
+
+  test('word builder accepts the right chunks and rejects a distractor', () {
+    final task = GermanTouchTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g4-spell-forest-build',
+    );
+
+    expect(task.accepts('Wald'), isTrue);
+    expect(task.accepts('wALd'), isTrue);
+    expect(task.accepts('Walt'), isFalse);
   });
 
   test('German teacher assignment round-trips through offline QR payload', () {

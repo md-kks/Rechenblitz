@@ -80,6 +80,10 @@ class GermanSupportCatalog {
   };
 
   static String firstHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.wordBuilder) {
+      return 'Sprich das gesuchte Wort langsam. Welche Bausteine hörst du '
+          'nacheinander? Nicht jeder angebotene Baustein muss passen.';
+    }
     if (task.interaction == GermanTaskInteraction.wordOrder &&
         task.instruction.toLowerCase().contains('beginnt')) {
       return 'Nutze zuerst den vorgegebenen Satzanfang. Im Aussagesatz steht '
@@ -89,6 +93,10 @@ class GermanSupportCatalog {
   }
 
   static String secondHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.wordBuilder) {
+      return 'Prüfe Anfang, Mitte und Ende getrennt. Entferne einen Baustein, '
+          'wenn er beim langsamen Sprechen nicht zum Wort passt.';
+    }
     if (task.interaction == GermanTaskInteraction.wordOrder) {
       if (task.instruction.toLowerCase().contains('beginnt')) {
         return 'Lass den vorgegebenen Anfang stehen. Setze danach das Verb '

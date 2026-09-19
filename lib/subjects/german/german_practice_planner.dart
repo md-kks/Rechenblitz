@@ -494,8 +494,9 @@ class GermanPracticePlanner {
       switch (interaction) {
         GermanTaskInteraction.typedText => 0,
         GermanTaskInteraction.wordOrder => 1,
-        GermanTaskInteraction.singleChoice => 2,
-        GermanTaskInteraction.listeningChoice => 3,
+        GermanTaskInteraction.wordBuilder => 2,
+        GermanTaskInteraction.singleChoice => 3,
+        GermanTaskInteraction.listeningChoice => 4,
       };
 
   static DateTime? _lastPracticedTaskAt(

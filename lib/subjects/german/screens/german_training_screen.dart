@@ -76,6 +76,10 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       GermanCompetencyCatalog.definition(_task.competencyId).domain ==
           GermanLearningDomain.reading;
 
+  bool get _usesOrderedChunks =>
+      _task.interaction == GermanTaskInteraction.wordOrder ||
+      _task.interaction == GermanTaskInteraction.wordBuilder;
+
   bool _canRestoreOrderedWords(GermanTask task, List<String> words) {
     if (words.length > task.choices.length) return false;
     final available = <String, int>{};
@@ -114,7 +118,8 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       final currentTask = widget.tasks[_index];
       if (currentTask.interaction == GermanTaskInteraction.typedText) {
         _answerController.text = draft.currentAnswer;
-      } else if (currentTask.interaction == GermanTaskInteraction.wordOrder &&
+      } else if ((currentTask.interaction == GermanTaskInteraction.wordOrder ||
+              currentTask.interaction == GermanTaskInteraction.wordBuilder) &&
           _canRestoreOrderedWords(currentTask, draft.currentOrderedWords)) {
         _orderedWords.addAll(draft.currentOrderedWords);
       }
@@ -170,8 +175,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
         currentAnswer: _task.interaction == GermanTaskInteraction.typedText
             ? _answerController.text
             : '',
-        currentOrderedWords:
-            _task.interaction == GermanTaskInteraction.wordOrder
+        currentOrderedWords: _usesOrderedChunks
             ? List<String>.unmodifiable(_orderedWords)
             : const <String>[],
         currentReadAloudUsed: _usedReadAloudForCurrentTask,
@@ -413,6 +417,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     GermanTaskInteraction.singleChoice => _buildChoices(),
     GermanTaskInteraction.listeningChoice => _buildListening(),
     GermanTaskInteraction.wordOrder => _buildWordOrder(context),
+    GermanTaskInteraction.wordBuilder => _buildWordBuilder(context),
     GermanTaskInteraction.typedText => _buildTypedAnswer(),
   };
 
@@ -423,7 +428,8 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       '${_startedAt.microsecondsSinceEpoch}:$_index:${_task.id}',
     );
     choices.shuffle(Random(seed));
-    if (_task.interaction == GermanTaskInteraction.wordOrder &&
+    if ((_task.interaction == GermanTaskInteraction.wordOrder ||
+            _task.interaction == GermanTaskInteraction.wordBuilder) &&
         _sameOrder(choices, _task.choices)) {
       final first = choices.removeAt(0);
       choices.add(first);
@@ -576,6 +582,121 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
                 onPressed: _orderedWords.length != _task.choices.length
                     ? null
                     : () => _submit(_orderedWords.join(' ')),
+                child: const Text('Prüfen'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWordBuilder(BuildContext context) {
+    final remainingUsed = <String, int>{};
+    for (final chunk in _orderedWords) {
+      remainingUsed[chunk] = (remainingUsed[chunk] ?? 0) + 1;
+    }
+    final available = <String>[];
+    for (final chunk in _presentedChoices()) {
+      final used = remainingUsed[chunk] ?? 0;
+      if (used > 0) {
+        remainingUsed[chunk] = used - 1;
+      } else {
+        available.add(chunk);
+      }
+    }
+    final builtWord = _orderedWords.join();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Container(
+          constraints: const BoxConstraints(minHeight: 72),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Center(
+            child: Text(
+              builtWord.isEmpty ? 'Baue hier das Wort.' : builtWord,
+              key: const ValueKey('german-word-builder-result'),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+          ),
+        ),
+        if (_orderedWords.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 8),
+          Text(
+            'Bausteine: ${_orderedWords.join(' + ')}',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: available
+              .asMap()
+              .entries
+              .map(
+                (entry) => FilledButton.tonal(
+                  key: ValueKey(
+                    'german-word-builder-choice-${_task.id}-${entry.key}',
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _orderedWords.add(entry.value);
+                      _feedback = null;
+                    });
+                    _emitDraft();
+                  },
+                  child: Text(entry.value),
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: const ValueKey('german-word-builder-undo'),
+            onPressed: _orderedWords.isEmpty
+                ? null
+                : () {
+                    setState(() {
+                      _orderedWords.removeLast();
+                      _feedback = null;
+                    });
+                    _emitDraft();
+                  },
+            icon: const Icon(Icons.undo_rounded),
+            label: const Text('Letzten Baustein zurück'),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _orderedWords.isEmpty
+                    ? null
+                    : () {
+                        setState(() {
+                          _orderedWords.clear();
+                          _feedback = null;
+                        });
+                        _emitDraft();
+                      },
+                child: const Text('Neu bauen'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                key: const ValueKey('german-word-builder-submit'),
+                onPressed: builtWord.isEmpty ? null : () => _submit(builtWord),
                 child: const Text('Prüfen'),
               ),
             ),

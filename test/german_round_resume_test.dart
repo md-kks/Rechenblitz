@@ -7,6 +7,7 @@ import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_storage_service.dart';
 import 'package:rechenblitz/subjects/german/german_task.dart';
 import 'package:rechenblitz/subjects/german/german_task_catalog.dart';
+import 'package:rechenblitz/subjects/german/german_touch_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/screens/german_home_screen.dart';
 import 'package:rechenblitz/subjects/german/screens/german_training_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -251,6 +252,45 @@ void main() {
 
     expect(saved, isNotNull);
     expect(saved!.currentOrderedWords, <String>[...partial, nextWord]);
+  });
+
+  testWidgets('word-builder draft restores partial touch input', (
+    tester,
+  ) async {
+    final task = GermanTouchTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g4-spell-forest-build',
+    );
+    final draft = GermanRoundDraft(
+      gradeLevel: task.recommendedFromGrade,
+      taskIds: <String>[task.id],
+      currentIndex: 0,
+      startedAt: DateTime(2026, 9, 18, 9),
+      updatedAt: DateTime(2026, 9, 18, 9, 1),
+      completedResults: const <GermanTaskResult>[],
+      currentOrderedWords: const <String>['Wal'],
+    );
+    GermanRoundDraft? saved;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GermanTrainingScreen(
+          gradeLevel: task.recommendedFromGrade,
+          tasks: <GermanTask>[task],
+          speak: (_) async {},
+          draft: draft,
+          onDraftChanged: (value) => saved = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Wal'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'd'));
+    await tester.pump();
+
+    expect(find.text('Wald'), findsOneWidget);
+    expect(saved, isNotNull);
+    expect(saved!.currentOrderedWords, <String>['Wal', 'd']);
   });
 
   testWidgets('training resumes at the saved task and preserves evidence', (

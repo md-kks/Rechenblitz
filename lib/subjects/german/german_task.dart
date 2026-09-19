@@ -4,6 +4,7 @@ import 'german_competency.dart';
 enum GermanTaskInteraction {
   singleChoice,
   wordOrder,
+  wordBuilder,
   typedText,
   listeningChoice,
 }
@@ -79,6 +80,9 @@ class GermanTask {
       case GermanTaskInteraction.wordOrder:
         return choices.length >= 2 &&
             acceptedAnswers.every(_canBuildAnswerFromChoices);
+      case GermanTaskInteraction.wordBuilder:
+        return choices.length >= 2 &&
+            acceptedAnswers.every(_canBuildJoinedAnswerFromChoices);
       case GermanTaskInteraction.typedText:
         return choices.isEmpty;
     }
@@ -99,6 +103,16 @@ class GermanTask {
       normalizedChoices,
       List<bool>.filled(normalizedChoices.length, false),
       0,
+    );
+  }
+
+  bool _canBuildJoinedAnswerFromChoices(String answer) {
+    final target = _normalize(answer);
+    final normalizedChoices = choices.map(_normalize).toList(growable: false);
+    return _matchesJoinedChoiceSequence(
+      target,
+      normalizedChoices,
+      List<bool>.filled(normalizedChoices.length, false),
     );
   }
 
@@ -124,6 +138,29 @@ class GermanTask {
         chunks,
         used,
         usedCount + 1,
+      )) {
+        return true;
+      }
+      used[index] = false;
+    }
+    return false;
+  }
+
+  static bool _matchesJoinedChoiceSequence(
+    String target,
+    List<String> chunks,
+    List<bool> used,
+  ) {
+    if (target.isEmpty) return true;
+    for (var index = 0; index < chunks.length; index++) {
+      if (used[index]) continue;
+      final chunk = chunks[index];
+      if (!target.startsWith(chunk)) continue;
+      used[index] = true;
+      if (_matchesJoinedChoiceSequence(
+        target.substring(chunk.length),
+        chunks,
+        used,
       )) {
         return true;
       }

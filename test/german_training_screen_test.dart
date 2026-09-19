@@ -10,6 +10,7 @@ import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_starter_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_support_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_task.dart';
+import 'package:rechenblitz/subjects/german/german_touch_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/screens/german_training_screen.dart';
 
 Widget _app({
@@ -626,6 +627,93 @@ void main() {
     expect(find.textContaining('Groß- und Kleinschreibung'), findsOneWidget);
     expect(find.text('Denkhinweis'), findsOneWidget);
     expect(find.text(task.acceptedAnswers.first), findsNothing);
+  });
+
+  testWidgets('word builder is fully solvable by touch with distractors', (
+    tester,
+  ) async {
+    final task = GermanTouchTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g1-build-sun',
+    );
+    await tester.pumpWidget(_app(task: task, speak: (_) async {}));
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Son'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'ne'));
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('german-word-builder-result')),
+      findsOneWidget,
+    );
+    expect(find.text('Sonne'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Som'), findsOneWidget);
+
+    final submit = find.byKey(const ValueKey('german-word-builder-submit'));
+    await tester.scrollUntilVisible(
+      submit,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(submit);
+    await tester.pump();
+
+    expect(find.text('Runde geschafft'), findsWidgets);
+  });
+
+  testWidgets('word builder gives a hint and supports touch correction', (
+    tester,
+  ) async {
+    final task = GermanTouchTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g4-spell-forest-build',
+    );
+    await tester.pumpWidget(_app(task: task, speak: (_) async {}));
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Wal'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 't'));
+    await tester.pump();
+    final submit = find.byKey(const ValueKey('german-word-builder-submit'));
+    await tester.scrollUntilVisible(
+      submit,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(submit);
+    await tester.pump();
+
+    expect(find.textContaining('Sprich das Wort langsam'), findsWidgets);
+    await tester.drag(find.byType(ListView), const Offset(0, -240));
+    await tester.pumpAndSettle();
+    expect(find.text('Denkhinweis'), findsOneWidget);
+    expect(
+      find.textContaining('Nicht jeder angebotene Baustein'),
+      findsOneWidget,
+    );
+
+    final undo = find.byKey(const ValueKey('german-word-builder-undo'));
+    await tester.scrollUntilVisible(
+      undo,
+      -180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(undo);
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'd'));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      submit,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(submit);
+    await tester.pump();
+
+    expect(find.text('Runde geschafft'), findsWidgets);
   });
 
   testWidgets('support-free round keeps wrong-answer feedback neutral', (

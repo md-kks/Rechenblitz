@@ -10,6 +10,7 @@ import 'german_more_task_catalog.dart';
 import 'german_speaking_task_catalog.dart';
 import 'german_starter_task_catalog.dart';
 import 'german_task.dart';
+import 'german_touch_task_catalog.dart';
 import 'german_upper_primary_expansion_task_catalog.dart';
 import 'german_upper_primary_task_catalog.dart';
 import 'german_writing_production_task_catalog.dart';
@@ -22,6 +23,7 @@ class GermanTaskCatalog {
     ...GermanExtraTaskCatalog.tasks,
     ...GermanMoreTaskCatalog.tasks,
     ...GermanSpeakingTaskCatalog.tasks,
+    ...GermanTouchTaskCatalog.tasks,
     ...GermanLowerPrimaryTaskCatalog.tasks,
     ...GermanGradeThreeExtensionTaskCatalog.tasks,
     ...GermanGradeFourExtensionTaskCatalog.tasks,

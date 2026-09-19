@@ -844,6 +844,32 @@ void main() {
     expect(round.map((task) => task.id).toSet().length, 6);
   });
 
+  test('targeted practice surfaces productive touch word building', () {
+    final wordBuilding = GermanPracticePlanner.buildCompetencyRound(
+      gradeLevel: GradeLevel.first,
+      competencyId: GermanCompetencyId.wordBuilding,
+      history: const <GermanSessionResult>[],
+    );
+    final spelling = GermanPracticePlanner.buildCompetencyRound(
+      gradeLevel: GradeLevel.fourth,
+      competencyId: GermanCompetencyId.spellingStrategies,
+      history: const <GermanSessionResult>[],
+    );
+
+    expect(
+      wordBuilding.any(
+        (task) => task.interaction == GermanTaskInteraction.wordBuilder,
+      ),
+      isTrue,
+    );
+    expect(
+      spelling.any(
+        (task) => task.interaction == GermanTaskInteraction.wordBuilder,
+      ),
+      isTrue,
+    );
+  });
+
   test('targeted practice rotates away from the most recent task', () {
     final tasks = GermanTaskCatalog.forCompetency(
       GermanCompetencyId.wordRecognition,
@@ -945,7 +971,7 @@ void main() {
   });
 
   test(
-    'large domain assignment repeats only after unique pool is exhausted',
+    'large domain assignment stays unique while the curated pool covers it',
     () {
       const assignment = GermanTeacherAssignment(
         gradeLevel: GradeLevel.fourth,
@@ -963,12 +989,9 @@ void main() {
       );
 
       expect(round, hasLength(30));
-      expect(availableIds, hasLength(26));
-      expect(
-        round.take(availableIds.length).map((task) => task.id).toSet(),
-        hasLength(availableIds.length),
-      );
-      expect(round.map((task) => task.id).toSet(), availableIds);
+      expect(availableIds.length, greaterThanOrEqualTo(assignment.tasks));
+      expect(round.map((task) => task.id).toSet(), hasLength(30));
+      expect(round.every((task) => availableIds.contains(task.id)), isTrue);
     },
   );
 
