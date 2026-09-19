@@ -392,6 +392,8 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       gradeLevel: widget.controller.gradeLevel,
       history: _gradeHistory,
       now: widget.now(),
+      prioritizeIndependentReading:
+          !widget.controller.accessibilityPreferences.readAloud,
     );
     unawaited(_openRound(tasks));
   }
@@ -670,6 +672,10 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     final label = GermanCompetencyCatalog.definition(
       focus.progress.competencyId,
     ).label;
+    if (focus.needsIndependentReading) {
+      return '12 Aufgaben für heute. „$label“ wird ohne Vorlesen kurz '
+          'selbstständig ausprobiert.';
+    }
     final bridge = focus.bridge;
     if (bridge != null) {
       return '12 Aufgaben für heute. „$label“ wird mit Aufgaben aus '
@@ -722,8 +728,20 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
         currentGrade: widget.controller.gradeLevel,
         history: gradeHistory,
       );
+      final needsIndependentReading =
+          !widget.controller.accessibilityPreferences.readAloud &&
+          definition.domain == GermanLearningDomain.reading &&
+          progress.needsMoreIndependentEvidence;
       if (attention == GermanPracticeAttention.needsPractice) {
         focuses.add(_GermanPracticeFocus(progress: progress, priority: 0));
+      } else if (needsIndependentReading) {
+        focuses.add(
+          _GermanPracticeFocus(
+            progress: progress,
+            priority: 1,
+            needsIndependentReading: true,
+          ),
+        );
       } else if (progress.state == GermanCompetencyState.secure &&
           bridge.isPending) {
         focuses.add(
@@ -819,10 +837,12 @@ class _GermanPracticeFocus {
     required this.progress,
     required this.priority,
     this.bridge,
+    this.needsIndependentReading = false,
   });
 
   final GermanCompetencyProgress progress;
   final GermanGradeBridgeStatus? bridge;
+  final bool needsIndependentReading;
   final int priority;
 }
 
@@ -834,6 +854,17 @@ class _LastGermanRoundCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percent = (result.accuracy * 100).round();
+    final assisted = result.readAloudAssistedAttempts;
+    final independent = result.independentAttempts;
+    final evidenceText = assisted == 0
+        ? '${result.gradeLevel.label} · $percent % beim ersten Versuch'
+        : independent == 0
+        ? '${result.gradeLevel.label} · $assisted mit Vorlesen · '
+              'selbstständig noch keine Beobachtung'
+        : '${result.gradeLevel.label} · '
+              '${result.independentCorrectFirstTry}/$independent selbstständig · '
+              '$assisted mit Vorlesen · '
+              '${(result.independentAccuracy * 100).round()} % selbstständig';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -850,9 +881,7 @@ class _LastGermanRoundCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${result.gradeLevel.label} · $percent % beim ersten Versuch',
-                  ),
+                  Text(evidenceText),
                 ],
               ),
             ),

@@ -446,6 +446,120 @@ void main() {
     expect(find.text('Deutsch üben'), findsOneWidget);
     expect(find.text('1 von 6'), findsOneWidget);
   });
+  testWidgets('German home announces independent reading follow-up', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(true);
+    await storage.saveHistory(<GermanSessionResult>[
+      GermanSessionResult(
+        gradeLevel: GradeLevel.second,
+        startedAt: DateTime(2026, 9, 18, 8),
+        finishedAt: DateTime(2026, 9, 18, 8, 2),
+        taskResults: const <GermanTaskResult>[
+          GermanTaskResult(
+            taskId: 'assisted-reading-practice',
+            competencyId: GermanCompetencyId.wordRecognition,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 900,
+            usedReadAloud: true,
+          ),
+        ],
+      ),
+    ]);
+    expect(controller.accessibilityPreferences.readAloud, isFalse);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GermanHomeScreen(
+          controller: controller,
+          now: () => DateTime(2026, 9, 19, 8),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('ohne Vorlesen kurz selbstständig ausprobiert'),
+      findsOneWidget,
+    );
+
+    final recent = find.text('Zuletzt');
+    await tester.scrollUntilVisible(
+      recent,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.textContaining(
+        '1 mit Vorlesen · selbstständig noch keine Beobachtung',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('German home plans independent reading after assisted practice', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(true);
+    await storage.saveHistory(<GermanSessionResult>[
+      GermanSessionResult(
+        gradeLevel: GradeLevel.second,
+        startedAt: DateTime(2026, 9, 18, 8),
+        finishedAt: DateTime(2026, 9, 18, 8, 2),
+        taskResults: const <GermanTaskResult>[
+          GermanTaskResult(
+            taskId: 'assisted-reading',
+            competencyId: GermanCompetencyId.wordRecognition,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 900,
+            usedReadAloud: true,
+          ),
+        ],
+      ),
+      GermanSessionResult(
+        gradeLevel: GradeLevel.second,
+        startedAt: DateTime(2026, 9, 18, 9),
+        finishedAt: DateTime(2026, 9, 18, 9, 2),
+        taskResults: const <GermanTaskResult>[
+          GermanTaskResult(
+            taskId: 'independent-reading',
+            competencyId: GermanCompetencyId.wordRecognition,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 900,
+          ),
+        ],
+      ),
+    ]);
+
+    expect(controller.accessibilityPreferences.readAloud, isFalse);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GermanHomeScreen(
+          controller: controller,
+          now: () => DateTime(2026, 9, 19, 8),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Wörter sicher lesen'), findsOneWidget);
+    expect(
+      find.textContaining('ohne Vorlesen kurz selbstständig ausprobiert'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('German home marks assisted Lerncheck as non-independent', (
     tester,
   ) async {

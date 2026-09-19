@@ -419,6 +419,71 @@ void main() {
     expect(round.first.competencyId, GermanCompetencyId.wordRecognition);
   });
 
+  test('daily round revisits assisted-only reading when read-aloud is off', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        usedReadAloud: true,
+      ),
+    ];
+
+    final independentRound = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.second,
+      history: history,
+      prioritizeIndependentReading: true,
+    );
+    final assistedRound = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.second,
+      history: history,
+      prioritizeIndependentReading: false,
+    );
+
+    int readingCount(List<GermanTask> round) => round
+        .where(
+          (task) =>
+              _domainFor(task.competencyId) == GermanLearningDomain.reading,
+        )
+        .length;
+
+    expect(independentRound, hasLength(12));
+    expect(assistedRound, hasLength(12));
+    expect(readingCount(independentRound), 3);
+    expect(readingCount(assistedRound), 2);
+    expect(
+      independentRound
+          .where(
+            (task) => task.competencyId == GermanCompetencyId.wordRecognition,
+          )
+          .length,
+      3,
+    );
+  });
+
+  test('real weakness outranks assisted-only reading follow-up', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        usedReadAloud: true,
+      ),
+      _session(
+        GermanCompetencyId.nounArticle,
+        correct: false,
+        incorrectAttempts: 1,
+        taskId: 'weak-noun',
+      ),
+    ];
+
+    final round = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.second,
+      history: history,
+      prioritizeIndependentReading: true,
+    );
+
+    expect(round.first.competencyId, GermanCompetencyId.nounArticle);
+  });
+
   test('daily round keeps subject areas varied', () {
     final round = GermanPracticePlanner.buildDailyRound(
       gradeLevel: GradeLevel.second,
@@ -488,6 +553,108 @@ void main() {
       3,
     );
     expect(round.map((task) => task.id).toSet(), hasLength(12));
+  });
+
+  test('daily round can prioritize missing independent reading evidence', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'assisted-word-a',
+        usedReadAloud: true,
+        finishedAt: DateTime(2026, 9, 17, 9),
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'assisted-word-b',
+        usedReadAloud: true,
+        finishedAt: DateTime(2026, 9, 17, 10),
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'independent-word-a',
+        finishedAt: DateTime(2026, 9, 17, 11),
+      ),
+    ];
+
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      history,
+    );
+    final balanced = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.second,
+      history: history,
+      now: DateTime(2026, 9, 18, 10),
+    );
+    final independentFocus = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.second,
+      history: history,
+      now: DateTime(2026, 9, 18, 10),
+      prioritizeIndependentReading: true,
+    );
+
+    int readingCount(List<GermanTask> tasks) => tasks
+        .where(
+          (task) =>
+              _domainFor(task.competencyId) == GermanLearningDomain.reading,
+        )
+        .length;
+
+    expect(progress.assistedAttempts, 2);
+    expect(progress.independentAttempts, 1);
+    expect(progress.needsMoreIndependentEvidence, isTrue);
+    expect(readingCount(balanced), 2);
+    expect(readingCount(independentFocus), 3);
+    expect(
+      independentFocus
+          .where(
+            (task) => task.competencyId == GermanCompetencyId.wordRecognition,
+          )
+          .length,
+      3,
+    );
+  });
+
+  test('secure reading no longer asks for independent evidence', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'assisted-word',
+        usedReadAloud: true,
+        finishedAt: DateTime(2026, 9, 17, 8),
+      ),
+      for (var index = 0; index < 3; index++)
+        _session(
+          GermanCompetencyId.wordRecognition,
+          correct: true,
+          taskId: 'independent-word-$index',
+          finishedAt: DateTime(2026, 9, 17, 9 + index),
+        ),
+    ];
+
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      history,
+    );
+    final round = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.second,
+      history: history,
+      now: DateTime(2026, 9, 18, 10),
+      prioritizeIndependentReading: true,
+    );
+    final readingCount = round
+        .where(
+          (task) =>
+              _domainFor(task.competencyId) == GermanLearningDomain.reading,
+        )
+        .length;
+
+    expect(progress.state, GermanCompetencyState.secure);
+    expect(progress.needsMoreIndependentEvidence, isFalse);
+    expect(readingCount, 2);
   });
 
   test('daily round gives due secure skill a refresh slot', () {

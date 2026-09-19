@@ -38,6 +38,13 @@ class GermanCompetencyProgress {
   double get recentAccuracy =>
       recentAttempts == 0 ? 0 : recentCorrectFirstTry / recentAttempts;
 
+  int get assistedAttempts => attempts - independentAttempts;
+
+  bool get needsMoreIndependentEvidence =>
+      state == GermanCompetencyState.learning &&
+      assistedAttempts > 0 &&
+      (independentAttempts < 3 || distinctTaskCount < 3 || sessionCount < 2);
+
   GermanCompetencyState get state {
     if (attempts == 0) return GermanCompetencyState.newSkill;
     if (independentAttempts >= 3 &&

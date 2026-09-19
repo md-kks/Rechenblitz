@@ -18,6 +18,7 @@ class GermanPracticePlanner {
     required Iterable<GermanSessionResult> history,
     int taskCount = 12,
     DateTime? now,
+    bool prioritizeIndependentReading = false,
   }) {
     if (taskCount < 1) return const <GermanTask>[];
     final scopedHistory = GermanHistoryScope.throughGrade(history, gradeLevel);
@@ -26,6 +27,7 @@ class GermanPracticePlanner {
       scopedHistory,
       gradeLevel: gradeLevel,
       now: now,
+      prioritizeIndependentReading: prioritizeIndependentReading,
     );
     if (ranked.length <= taskCount) return ranked;
 
@@ -49,6 +51,7 @@ class GermanPracticePlanner {
             scopedHistory,
             gradeLevel: gradeLevel,
             now: now,
+            prioritizeIndependentReading: prioritizeIndependentReading,
           ) <=
           2) {
         focusedDomains.add(
@@ -331,10 +334,18 @@ class GermanPracticePlanner {
     Iterable<GermanSessionResult> history, {
     required GradeLevel gradeLevel,
     DateTime? now,
+    bool prioritizeIndependentReading = false,
   }) {
     final result = source.toList();
     result.sort(
-      (a, b) => _compareTasks(a, b, history, gradeLevel: gradeLevel, now: now),
+      (a, b) => _compareTasks(
+        a,
+        b,
+        history,
+        gradeLevel: gradeLevel,
+        now: now,
+        prioritizeIndependentReading: prioritizeIndependentReading,
+      ),
     );
     return result;
   }
@@ -345,6 +356,7 @@ class GermanPracticePlanner {
     Iterable<GermanSessionResult> history, {
     required GradeLevel gradeLevel,
     DateTime? now,
+    bool prioritizeIndependentReading = false,
   }) {
     final aProgress = GermanProgressAnalyzer.forCompetency(
       a.competencyId,
@@ -360,6 +372,7 @@ class GermanPracticePlanner {
       history,
       gradeLevel: gradeLevel,
       now: now,
+      prioritizeIndependentReading: prioritizeIndependentReading,
     );
     final bBucket = _taskPriorityBucket(
       b,
@@ -367,6 +380,7 @@ class GermanPracticePlanner {
       history,
       gradeLevel: gradeLevel,
       now: now,
+      prioritizeIndependentReading: prioritizeIndependentReading,
     );
     if (aBucket != bBucket) return aBucket.compareTo(bBucket);
 
@@ -437,6 +451,7 @@ class GermanPracticePlanner {
     Iterable<GermanSessionResult> history, {
     required GradeLevel gradeLevel,
     DateTime? now,
+    bool prioritizeIndependentReading = false,
   }) {
     final attention = progress.attention(now: now);
     final bridge = GermanGradeBridgeAnalyzer.forCompetency(
@@ -453,6 +468,13 @@ class GermanPracticePlanner {
       if (bridge.isPending) return isBridgeTask ? 0 : 4;
       return 0;
     }
+
+    final needsIndependentReading =
+        prioritizeIndependentReading &&
+        GermanCompetencyCatalog.definition(task.competencyId).domain ==
+            GermanLearningDomain.reading &&
+        progress.needsMoreIndependentEvidence;
+    if (needsIndependentReading) return 1;
 
     if (progress.state == GermanCompetencyState.secure && isBridgeTask) {
       return 1;
