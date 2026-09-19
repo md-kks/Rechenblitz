@@ -2356,6 +2356,14 @@ void main() {
 
     await tester.tap(find.widgetWithText(FilledButton, '35'));
     await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      find.byKey(const ValueKey('touch-answer-interaction')),
+      findsOneWidget,
+    );
+    final keypadSwitch = find.byKey(const ValueKey('touch-switch-keypad'));
+    await tester.ensureVisible(keypadSwitch);
+    await tester.tap(keypadSwitch);
+    await tester.pump();
     expect(find.text('Antwort eingeben'), findsOneWidget);
 
     for (final label in ['8', '5', 'OK']) {

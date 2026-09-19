@@ -291,10 +291,6 @@ void main() {
     final adaptive = AdaptiveEngine(random: Random(26091543));
     final unexpectedMissing = <String>{};
     const intentionallyClassic = <MicroCompetencyId>{
-      MicroCompetencyId.additionNoBridge,
-      MicroCompetencyId.additionTenBridge,
-      MicroCompetencyId.subtractionNoBridge,
-      MicroCompetencyId.subtractionTenBridge,
       MicroCompetencyId.multiplicationFacts,
       MicroCompetencyId.divisionFacts,
       MicroCompetencyId.numberWordReading,

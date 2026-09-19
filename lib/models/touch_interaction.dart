@@ -1935,6 +1935,54 @@ class TouchInteractionPlan {
       );
     }
 
+    final arithmeticTarget = switch (targetCompetency) {
+      MicroCompetencyId.additionNoBridge ||
+      MicroCompetencyId.additionTenBridge ||
+      MicroCompetencyId.subtractionNoBridge ||
+      MicroCompetencyId.subtractionTenBridge => true,
+      _ => false,
+    };
+    if (arithmeticTarget &&
+        (mode == TrainingMode.practice || mode == TrainingMode.minus) &&
+        (taskKey.startsWith('plus:') || taskKey.startsWith('minus:'))) {
+      final parts = taskKey.split(':');
+      if (parts.length == 3) {
+        final a = int.tryParse(parts[1]);
+        final b = int.tryParse(parts[2]);
+        if (a != null && b != null && a >= 0 && b >= 0) {
+          final adding = taskKey.startsWith('plus:');
+          final matchingTarget = adding
+              ? targetCompetency == MicroCompetencyId.additionNoBridge ||
+                  targetCompetency == MicroCompetencyId.additionTenBridge
+              : targetCompetency == MicroCompetencyId.subtractionNoBridge ||
+                  targetCompetency == MicroCompetencyId.subtractionTenBridge;
+          if (matchingTarget) {
+            final low = max(0, min(a, answer) - 2);
+            final high = min(maxValue, max(a, answer) + 2);
+            if (high > low &&
+                a >= low &&
+                a <= high &&
+                answer >= low &&
+                answer <= high) {
+              return TouchInteractionPlan(
+                taskKey: taskKey,
+                kind: TouchInteractionKind.numberLine,
+                instruction: adding
+                    ? 'Starte bei $a und gehe $b Schritte nach rechts. Wo landest du?'
+                    : 'Starte bei $a. Gehe $b Schritte nach rechts in Richtung kleinerer Zahlen. Wo landest du?',
+                minValue: low,
+                maxValue: high,
+                startValue: a,
+                dataValues: <int>[a, b],
+                dataOperation: adding ? '+' : '-',
+                expectedAnswer: answer,
+              );
+            }
+          }
+        }
+      }
+    }
+
     if (mode == TrainingMode.numberFriends && taskKey.startsWith('plus:')) {
       final parts = taskKey.split(':');
       if (parts.length == 3) {

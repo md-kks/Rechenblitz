@@ -83,13 +83,29 @@ class _TrainingScreenState extends State<TrainingScreen>
     };
     return currentMax < cap ? currentMax : cap;
   }
-  TouchInteractionPlan? get _touchInteraction => TouchInteractionPlan.forTask(
-        mode: widget.mode,
-        taskKey: current.key,
-        answer: _expectedAnswer,
-        maxValue: _selectionMaxValue,
-        targetCompetency: widget.targetCompetency,
-      );
+  TouchInteractionPlan? get _touchInteraction {
+    if (widget.fluencyEmphasis) return null;
+    final plan = TouchInteractionPlan.forTask(
+      mode: widget.mode,
+      taskKey: current.key,
+      answer: _expectedAnswer,
+      maxValue: _selectionMaxValue,
+      targetCompetency: widget.targetCompetency,
+    );
+    final arithmeticNumberLine = plan?.kind == TouchInteractionKind.numberLine &&
+        switch (widget.targetCompetency) {
+          MicroCompetencyId.additionNoBridge ||
+          MicroCompetencyId.additionTenBridge ||
+          MicroCompetencyId.subtractionNoBridge ||
+          MicroCompetencyId.subtractionTenBridge => true,
+          _ => false,
+        };
+    if (arithmeticNumberLine &&
+        (widget.reviewEmphasis || widget.scaffoldFading)) {
+      return null;
+    }
+    return plan;
+  }
 
   MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
       ? MicroEvidenceSource.transfer
