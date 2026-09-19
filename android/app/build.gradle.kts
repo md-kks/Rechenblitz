@@ -67,6 +67,24 @@ kotlin {
     }
 }
 
+val generatedPluginRegistrant =
+    file("src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java")
+
+tasks.matching {
+    it.name == "preDebugBuild" ||
+        it.name == "preProfileBuild" ||
+        it.name == "preReleaseBuild"
+}.configureEach {
+    doFirst {
+        if (!generatedPluginRegistrant.exists()) {
+            throw GradleException(
+                "Flutter plugin registration is missing. Run `flutter pub get` " +
+                    "before building an APK or app bundle.",
+            )
+        }
+    }
+}
+
 tasks.matching { it.name == "preReleaseBuild" }.configureEach {
     doFirst {
         if (!keystorePropertiesFile.exists()) {
