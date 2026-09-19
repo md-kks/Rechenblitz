@@ -1320,8 +1320,8 @@ class StructuredExerciseGenerator {
       correct: correct,
       choices: [
         correct,
-        '$first Kinder und $pages Seiten',
-        '$second Kinder und $pages Seiten',
+        'Die $first Kinder der ersten Gruppe und die $pages Seiten',
+        'Die $second Kinder der zweiten Gruppe und die $pages Seiten',
         'Nur die $pages Seiten',
       ],
       maxAnswerValue: limit,
