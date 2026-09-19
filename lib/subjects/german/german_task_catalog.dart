@@ -8,6 +8,7 @@ import 'german_grammar_touch_task_catalog.dart';
 import 'german_learning_domain.dart';
 import 'german_lower_primary_task_catalog.dart';
 import 'german_more_task_catalog.dart';
+import 'german_morphology_touch_task_catalog.dart';
 import 'german_speaking_task_catalog.dart';
 import 'german_starter_task_catalog.dart';
 import 'german_task.dart';
@@ -26,6 +27,7 @@ class GermanTaskCatalog {
     ...GermanSpeakingTaskCatalog.tasks,
     ...GermanTouchTaskCatalog.tasks,
     ...GermanGrammarTouchTaskCatalog.tasks,
+    ...GermanMorphologyTouchTaskCatalog.tasks,
     ...GermanLowerPrimaryTaskCatalog.tasks,
     ...GermanGradeThreeExtensionTaskCatalog.tasks,
     ...GermanGradeFourExtensionTaskCatalog.tasks,

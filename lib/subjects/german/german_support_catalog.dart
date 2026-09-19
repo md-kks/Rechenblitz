@@ -80,6 +80,21 @@ class GermanSupportCatalog {
   };
 
   static String firstHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.wordBuilder &&
+        task.competencyId == GermanCompetencyId.syllableSegmentation) {
+      return 'Sprich das Wort langsam und klatsche mit. Für jede Sprechsilbe '
+          'brauchst du genau einen passenden Baustein.';
+    }
+    if (task.interaction == GermanTaskInteraction.wordBuilder &&
+        task.competencyId == GermanCompetencyId.verbInflection) {
+      return 'Schau auf die Person im Satz: ich, du, er/sie/es oder wir. '
+          'Wähle zum Verbstamm die Endung, die zu dieser Person passt.';
+    }
+    if (task.interaction == GermanTaskInteraction.wordBuilder &&
+        task.competencyId == GermanCompetencyId.verbTenses) {
+      return 'Achte auf das Zeitwort im Satz. Baue die Verbform so, dass sie '
+          'genau zu gestern oder zur verlangten Zeitform passt.';
+    }
     if (task.interaction == GermanTaskInteraction.wordBuilder) {
       return 'Sprich das gesuchte Wort langsam. Welche Bausteine hörst du '
           'nacheinander? Nicht jeder angebotene Baustein muss passen.';
@@ -93,6 +108,21 @@ class GermanSupportCatalog {
   }
 
   static String secondHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.wordBuilder &&
+        task.competencyId == GermanCompetencyId.syllableSegmentation) {
+      return 'Lege für jeden hörbaren Silbenschlag einen Baustein. Lies das '
+          'fertige Wort danach noch einmal Silbe für Silbe.';
+    }
+    if (task.interaction == GermanTaskInteraction.wordBuilder &&
+        task.competencyId == GermanCompetencyId.verbInflection) {
+      return 'Nimm zuerst den Verbstamm. Prüfe dann die Person: bei „du“ '
+          'endet die Form oft auf -st, bei „er/sie/es“ oft auf -t.';
+    }
+    if (task.interaction == GermanTaskInteraction.wordBuilder &&
+        task.competencyId == GermanCompetencyId.verbTenses) {
+      return 'Bei regelmäßiger Vergangenheit hilft oft -te. Beim Perfekt '
+          'steht häufig ge- vor dem Stamm und -t am Ende.';
+    }
     if (task.interaction == GermanTaskInteraction.wordBuilder) {
       return 'Prüfe Anfang, Mitte und Ende getrennt. Entferne einen Baustein, '
           'wenn er beim langsamen Sprechen nicht zum Wort passt.';
