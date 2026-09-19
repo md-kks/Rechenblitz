@@ -4857,6 +4857,13 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   Widget _buildNumberLine(BuildContext context) {
     final plan = widget.plan;
     final span = plan.maxValue - plan.minValue;
+    final descending = plan.dataOperation == '-' &&
+        plan.dataValues.length >= 2 &&
+        plan.expectedAnswer != null &&
+        plan.dataValues.first >= plan.expectedAnswer!;
+    final visualValue = descending
+        ? plan.minValue + plan.maxValue - selectedValue
+        : selectedValue;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -4874,18 +4881,26 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         const SizedBox(height: 4),
         Slider(
           key: const ValueKey('touch-number-line-slider'),
-          value: selectedValue.toDouble(),
+          value: visualValue.toDouble(),
           min: plan.minValue.toDouble(),
           max: plan.maxValue.toDouble(),
           divisions: span > 0 ? span : null,
           label: '$selectedValue',
           onChanged: widget.locked
               ? null
-              : (value) => setState(() => selectedValue = value.round()),
+              : (value) => setState(() {
+                  final visual = value.round();
+                  selectedValue = descending
+                      ? plan.minValue + plan.maxValue - visual
+                      : visual;
+                }),
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Text('${plan.minValue}'), Text('${plan.maxValue}')],
+          children: [
+            Text('${descending ? plan.maxValue : plan.minValue}'),
+            Text('${descending ? plan.minValue : plan.maxValue}'),
+          ],
         ),
         const SizedBox(height: 10),
         FilledButton.tonalIcon(
