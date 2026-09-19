@@ -552,6 +552,62 @@ void main() {
     );
   });
 
+  testWidgets(
+    'German home explains assisted reading while read-aloud stays on',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      await controller.setGradeLevel(GradeLevel.second);
+      await controller.setAccessibilityPreferences(
+        controller.accessibilityPreferences.copyWith(readAloud: true),
+      );
+      final storage = GermanStorageService(
+        profileId: controller.activeProfileId,
+      );
+      await storage.setIntroComplete(true);
+      await storage.saveHistory(<GermanSessionResult>[
+        GermanSessionResult(
+          gradeLevel: GradeLevel.second,
+          startedAt: DateTime(2026, 9, 18, 8),
+          finishedAt: DateTime(2026, 9, 18, 8, 2),
+          taskResults: const <GermanTaskResult>[
+            GermanTaskResult(
+              taskId: 'assisted-reading-active-read-aloud',
+              competencyId: GermanCompetencyId.wordRecognition,
+              correctFirstTry: true,
+              incorrectAttempts: 0,
+              responseMs: 900,
+              usedReadAloud: true,
+            ),
+          ],
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GermanHomeScreen(
+            controller: controller,
+            now: () => DateTime(2026, 9, 19, 8),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('german-read-aloud-evidence-note')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('aber noch nicht als selbstständiger Lesebeleg'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('ohne Vorlesen kurz selbstständig ausprobiert'),
+        findsNothing,
+      );
+    },
+  );
+
   testWidgets('German home plans independent reading after assisted practice', (
     tester,
   ) async {

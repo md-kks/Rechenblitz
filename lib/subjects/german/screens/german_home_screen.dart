@@ -580,6 +580,14 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
               ),
               const SizedBox(height: 8),
               Text(_roundSummary()),
+              if (_showReadAloudEvidenceNote) ...<Widget>[
+                const SizedBox(height: 10),
+                const Text(
+                  'Vorlesen ist an. Lesefragen mit Vorlesen zählen als Übung, '
+                  'aber noch nicht als selbstständiger Lesebeleg.',
+                  key: ValueKey('german-read-aloud-evidence-note'),
+                ),
+              ],
               const SizedBox(height: 16),
               FilledButton.icon(
                 key: ValueKey(
@@ -653,6 +661,21 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
       ],
     ],
   );
+
+  bool get _showReadAloudEvidenceNote {
+    if (!widget.controller.accessibilityPreferences.readAloud) return false;
+    for (final definition in GermanCompetencyCatalog.recommendedFor(
+      widget.controller.gradeLevel,
+    )) {
+      if (definition.domain != GermanLearningDomain.reading) continue;
+      final progress = GermanProgressAnalyzer.forCompetency(
+        definition.id,
+        _gradeHistory,
+      );
+      if (progress.needsMoreIndependentEvidence) return true;
+    }
+    return false;
+  }
 
   String _roundSummary() {
     final draft = _draft;
