@@ -230,11 +230,16 @@ String _progressLabel(
     return 'Klassenstufe bestätigen · Grundlage aus $source sicher · '
         '${bridge.currentGrade.label} noch offen';
   }
+  if (progress.independentAttempts == 0) {
+    return '${progress.shortLabel} · mit Vorlesen geübt · '
+        'noch keine selbstständige Beobachtung';
+  }
   final overall = (progress.accuracy * 100).round();
   final recent = (progress.recentAccuracy * 100).round();
   final accuracy =
-      progress.attempts <= progress.recentAttempts || recent == overall
-      ? '$overall % direkt richtig'
+      progress.independentAttempts <= progress.recentAttempts ||
+          recent == overall
+      ? '$overall % selbstständig direkt richtig'
       : 'aktuell $recent % · insgesamt $overall %';
   return '${progress.shortLabel} · $accuracy · ${progress.distinctTaskCount} verschiedene Aufgaben';
 }

@@ -164,12 +164,18 @@ class GermanCompetencyMapScreen extends StatelessWidget {
 }
 
 String _evidenceLabel(GermanCompetencyProgress progress) {
+  if (progress.independentAttempts == 0) {
+    return '${progress.attempts} Aufgaben mit Vorlesen geübt · '
+        'noch keine selbstständige Beobachtung';
+  }
   final recent = (progress.recentAccuracy * 100).round();
   final overall = (progress.accuracy * 100).round();
-  if (progress.attempts <= progress.recentAttempts || recent == overall) {
-    return '${progress.correctFirstTry} von ${progress.attempts} direkt richtig';
+  if (progress.independentAttempts <= progress.recentAttempts ||
+      recent == overall) {
+    return '${progress.correctFirstTry} von ${progress.independentAttempts} '
+        'selbstständig direkt richtig';
   }
-  return 'Aktuell $recent % direkt richtig · insgesamt $overall %';
+  return 'Aktuell $recent % selbstständig direkt richtig · insgesamt $overall %';
 }
 
 class _CompetencyCard extends StatelessWidget {

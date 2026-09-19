@@ -182,6 +182,82 @@ void main() {
     expect(summary.session.kind, GermanSessionKind.assessment);
     expect(summary.nextDomains, isNotEmpty);
   });
+  test('assisted reading success is neutral in Lerncheck domain evidence', () {
+    final session = GermanSessionResult(
+      gradeLevel: GradeLevel.second,
+      startedAt: DateTime(2026, 9, 18, 10),
+      finishedAt: DateTime(2026, 9, 18, 10, 5),
+      kind: GermanSessionKind.assessment,
+      taskResults: const <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: 'read-assisted',
+          competencyId: GermanCompetencyId.wordRecognition,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 1000,
+          usedReadAloud: true,
+        ),
+        GermanTaskResult(
+          taskId: 'language-independent',
+          competencyId: GermanCompetencyId.nounArticle,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 1000,
+        ),
+      ],
+    );
+
+    final summary = GermanAssessmentSummary.fromSession(session);
+    final reading = summary.domains.firstWhere(
+      (entry) => entry.domain == GermanLearningDomain.reading,
+    );
+
+    expect(reading.independentTasks, 0);
+    expect(reading.readAloudAssistedTasks, 1);
+    expect(reading.accuracy, 0);
+    expect(
+      summary.strongestDomains.map((entry) => entry.domain),
+      isNot(contains(GermanLearningDomain.reading)),
+    );
+    expect(
+      summary.nextDomains.map((entry) => entry.domain),
+      isNot(contains(GermanLearningDomain.reading)),
+    );
+  });
+
+  test('assisted reading retry still surfaces reading as next focus', () {
+    final session = GermanSessionResult(
+      gradeLevel: GradeLevel.second,
+      startedAt: DateTime(2026, 9, 18, 10),
+      finishedAt: DateTime(2026, 9, 18, 10, 5),
+      kind: GermanSessionKind.assessment,
+      taskResults: const <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: 'read-assisted-retry',
+          competencyId: GermanCompetencyId.wordRecognition,
+          correctFirstTry: false,
+          incorrectAttempts: 1,
+          responseMs: 1300,
+          usedReadAloud: true,
+        ),
+        GermanTaskResult(
+          taskId: 'language-independent',
+          competencyId: GermanCompetencyId.nounArticle,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+        ),
+      ],
+    );
+
+    final summary = GermanAssessmentSummary.fromSession(session);
+
+    expect(
+      summary.nextDomains.map((entry) => entry.domain),
+      contains(GermanLearningDomain.reading),
+    );
+  });
+
   test('perfect Lerncheck does not invent a next practice domain', () {
     final session = GermanSessionResult(
       gradeLevel: GradeLevel.second,

@@ -10,7 +10,9 @@ class GermanAssessmentResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percent = (summary.session.accuracy * 100).round();
+    final percent = (summary.session.independentAccuracy * 100).round();
+    final assisted = summary.session.readAloudAssistedAttempts;
+    final independent = summary.session.independentAttempts;
     return Scaffold(
       appBar: AppBar(title: const Text('Lerncheck ausgewertet')),
       body: SafeArea(
@@ -36,8 +38,28 @@ class GermanAssessmentResultScreen extends StatelessWidget {
                       '${summary.session.correctFirstTry} von ${summary.session.total} direkt richtig',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
+                    if (assisted > 0) ...<Widget>[
+                      const SizedBox(height: 6),
+                      Text(
+                        independent == 0
+                            ? 'Mit Vorlesen geübt · noch keine selbstständige Beobachtung'
+                            : '${summary.session.independentCorrectFirstTry} von $independent '
+                                  'selbstständig direkt richtig',
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '$assisted ${assisted == 1 ? 'Aufgabe' : 'Aufgaben'} '
+                        'mit Vorlesen geübt',
+                      ),
+                    ],
                     const SizedBox(height: 6),
-                    Text('$percent % beim ersten Versuch'),
+                    Text(
+                      independent == 0
+                          ? 'Selbstständig: –'
+                          : assisted > 0
+                          ? '$percent % selbstständig beim ersten Versuch'
+                          : '$percent % beim ersten Versuch',
+                    ),
                     if (summary.solvedAfterRetry > 0) ...<Widget>[
                       const SizedBox(height: 6),
                       Text(
@@ -58,11 +80,23 @@ class GermanAssessmentResultScreen extends StatelessWidget {
                     child: ListTile(
                       title: Text(entry.domain.label),
                       subtitle: Text(
-                        entry.solvedAfterRetry == 0
-                            ? '${entry.correctFirstTry} von ${entry.total} direkt richtig'
-                            : '${entry.correctFirstTry} direkt · ${entry.solvedAfterRetry} nach weiteren Versuchen',
+                        entry.readAloudAssistedTasks == 0
+                            ? entry.solvedAfterRetry == 0
+                                  ? '${entry.correctFirstTry} von ${entry.total} direkt richtig'
+                                  : '${entry.correctFirstTry} direkt · ${entry.solvedAfterRetry} nach weiteren Versuchen'
+                            : entry.independentTasks == 0
+                            ? '${entry.correctFirstTry} von ${entry.total} direkt richtig · '
+                                  '${entry.readAloudAssistedTasks} mit Vorlesen · '
+                                  'noch keine selbstständige Beobachtung'
+                            : '${entry.independentCorrectFirstTry}/${entry.independentTasks} '
+                                  'selbstständig direkt richtig · '
+                                  '${entry.readAloudAssistedTasks} mit Vorlesen',
                       ),
-                      trailing: Text('${(entry.accuracy * 100).round()} %'),
+                      trailing: Text(
+                        entry.independentTasks == 0
+                            ? '–'
+                            : '${(entry.accuracy * 100).round()} %',
+                      ),
                     ),
                   ),
                 ),
@@ -77,6 +111,18 @@ class GermanAssessmentResultScreen extends StatelessWidget {
                 summary.nextDomains
                     .map((entry) => entry.domain.label)
                     .join(' · '),
+              ),
+              const SizedBox(height: 18),
+            ] else if (assisted > 0) ...<Widget>[
+              Text(
+                'Selbstständige Beobachtung ergänzen',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Ein Teil dieses Lernchecks wurde mit Vorlesen bearbeitet. '
+                'Diese Aufgaben bleiben Übungserfolge; fürs selbstständige Lesen '
+                'sammeln wir später noch eigene Belege.',
               ),
               const SizedBox(height: 18),
             ] else ...<Widget>[

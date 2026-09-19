@@ -232,6 +232,7 @@ class _GermanResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percent = (result.accuracy * 100).round();
+    final percentText = result.independentTasks == 0 ? '–' : '$percent %';
     final seconds = result.averageResponseMs <= 0
         ? '–'
         : '${(result.averageResponseMs / 1000).toStringAsFixed(1)} s';
@@ -267,7 +268,19 @@ class _GermanResultCard extends StatelessWidget {
                   'direkt richtig',
                   '${result.correctFirstTry}/${result.completedTasks}',
                 ),
-                _Metric('Trefferquote', '$percent %'),
+                if (result.readAloudAssistedTasks > 0)
+                  _Metric(
+                    'selbstständig direkt richtig',
+                    '${result.independentCorrectFirstTry}/${result.independentTasks}',
+                  ),
+                _Metric(
+                  result.readAloudAssistedTasks > 0
+                      ? 'Selbstständig-Quote'
+                      : 'Trefferquote',
+                  percentText,
+                ),
+                if (result.readAloudAssistedTasks > 0)
+                  _Metric('mit Vorlesen', '${result.readAloudAssistedTasks}'),
                 _Metric('Fehlversuche', '${result.incorrectAttempts}'),
                 _Metric('Ø Antwort', seconds),
               ],
@@ -281,6 +294,9 @@ class _GermanResultCard extends StatelessWidget {
               const SizedBox(height: 8),
               ...breakdown.map((entry) {
                 final entryPercent = (entry.accuracy * 100).round();
+                final entryPercentText = entry.independentTasks == 0
+                    ? '–'
+                    : '$entryPercent %';
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: DecoratedBox(
@@ -301,8 +317,13 @@ class _GermanResultCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${entry.correctFirstTry}/${entry.completedTasks} direkt richtig · '
-                            '$entryPercent % · ${entry.incorrectAttempts} Fehlversuche',
+                            entry.readAloudAssistedTasks == 0
+                                ? '${entry.correctFirstTry}/${entry.completedTasks} direkt richtig · '
+                                      '$entryPercent % · ${entry.incorrectAttempts} Fehlversuche'
+                                : '${entry.independentCorrectFirstTry}/${entry.independentTasks} '
+                                      'selbstständig direkt richtig · '
+                                      '${entry.readAloudAssistedTasks} mit Vorlesen · '
+                                      '$entryPercentText · ${entry.incorrectAttempts} Fehlversuche',
                           ),
                         ],
                       ),

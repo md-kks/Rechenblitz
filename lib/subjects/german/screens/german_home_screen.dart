@@ -260,6 +260,8 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
             tasks: tasks,
             speak: widget.controller.speakOnDemand,
             autoSpeak: widget.controller.speak,
+            readAloudEnabled:
+                widget.controller.accessibilityPreferences.readAloud,
             speakCompletion:
                 widget.controller.accessibilityPreferences.spokenRoundFeedback,
             sessionKind: activeDraft.sessionKind,
@@ -688,8 +690,19 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     if (latest == null) {
       return 'Eine kurze Momentaufnahme über alle Deutsch-Lernbereiche – ohne Note.';
     }
-    final percent = (latest.accuracy * 100).round();
-    return 'Letzter Lerncheck: ${latest.correctFirstTry} von ${latest.total} direkt richtig · $percent %.';
+    final assisted = latest.readAloudAssistedAttempts;
+    if (assisted == 0) {
+      final percent = (latest.accuracy * 100).round();
+      return 'Letzter Lerncheck: ${latest.correctFirstTry} von ${latest.total} direkt richtig · $percent %.';
+    }
+    if (latest.independentAttempts == 0) {
+      return 'Letzter Lerncheck: ${latest.correctFirstTry} von ${latest.total} direkt richtig · '
+          '$assisted mit Vorlesen · selbstständig noch keine Beobachtung.';
+    }
+    final percent = (latest.independentAccuracy * 100).round();
+    return 'Letzter Lerncheck: ${latest.independentCorrectFirstTry} von '
+        '${latest.independentAttempts} selbstständig direkt richtig · '
+        '$assisted mit Vorlesen · $percent % selbstständig.';
   }
 
   _GermanPracticeFocus? _practiceFocus() {

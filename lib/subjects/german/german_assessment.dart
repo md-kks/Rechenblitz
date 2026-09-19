@@ -138,14 +138,28 @@ class GermanAssessmentDomainResult {
     required this.domain,
     required this.total,
     required this.correctFirstTry,
-  });
+    int? independentCorrectFirstTry,
+    this.readAloudAssistedTasks = 0,
+  }) : independentCorrectFirstTry =
+           independentCorrectFirstTry ?? correctFirstTry;
+
   final GermanLearningDomain domain;
   final int total;
   final int correctFirstTry;
+  final int independentCorrectFirstTry;
+  final int readAloudAssistedTasks;
 
+  int get independentTasks => total - readAloudAssistedTasks;
   int get solvedAfterRetry => total - correctFirstTry;
+  int get independentSolvedAfterRetry =>
+      independentTasks - independentCorrectFirstTry;
+  int get assistedCorrectFirstTry =>
+      correctFirstTry - independentCorrectFirstTry;
+  int get assistedSolvedAfterRetry =>
+      readAloudAssistedTasks - assistedCorrectFirstTry;
 
-  double get accuracy => total == 0 ? 0 : correctFirstTry / total;
+  double get accuracy =>
+      independentTasks == 0 ? 0 : independentCorrectFirstTry / independentTasks;
 }
 
 class GermanAssessmentSummary {
@@ -155,7 +169,9 @@ class GermanAssessmentSummary {
   final List<GermanAssessmentDomainResult> domains;
 
   List<GermanAssessmentDomainResult> get strongestDomains {
-    final values = domains.where((value) => value.total > 0).toList();
+    final values = domains
+        .where((value) => value.independentTasks > 0)
+        .toList();
     values.sort((a, b) => b.accuracy.compareTo(a.accuracy));
     return values.take(2).toList(growable: false);
   }
@@ -165,7 +181,10 @@ class GermanAssessmentSummary {
   List<GermanAssessmentDomainResult> get nextDomains {
     final values = domains
         .where(
-          (value) => value.total > 0 && value.correctFirstTry < value.total,
+          (value) =>
+              value.total > 0 &&
+              (value.independentSolvedAfterRetry > 0 ||
+                  value.assistedSolvedAfterRetry > 0),
         )
         .toList();
     values.sort((a, b) {
@@ -199,6 +218,12 @@ class GermanAssessmentSummary {
               total: results.length,
               correctFirstTry: results
                   .where((value) => value.correctFirstTry)
+                  .length,
+              independentCorrectFirstTry: results
+                  .where((value) => value.independentCorrectFirstTry)
+                  .length,
+              readAloudAssistedTasks: results
+                  .where((value) => value.usedReadAloud)
                   .length,
             );
           })

@@ -54,6 +54,63 @@ void main() {
     expect(envelope.data.containsKey('profileId'), isFalse);
   });
 
+  test('reading assignment carries anonymous read-aloud evidence', () {
+    final assistedSession = GermanSessionResult(
+      gradeLevel: GradeLevel.fourth,
+      startedAt: DateTime(2026, 9, 18, 9),
+      finishedAt: DateTime(2026, 9, 18, 9, 3),
+      kind: GermanSessionKind.teacherAssignment,
+      taskResults: const <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: 'read-independent',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 1000,
+        ),
+        GermanTaskResult(
+          taskId: 'read-assisted-correct',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 1200,
+          usedReadAloud: true,
+        ),
+        GermanTaskResult(
+          taskId: 'read-assisted-retry',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: false,
+          incorrectAttempts: 1,
+          responseMs: 1400,
+          usedReadAloud: true,
+        ),
+      ],
+    );
+    const assistedAssignment = GermanTeacherAssignment(
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      tasks: 3,
+      targetCompetency: GermanCompetencyId.textMainIdea,
+    );
+
+    final result = GermanTeacherAssignmentResult.fromSession(
+      assignment: assistedAssignment,
+      session: assistedSession,
+    );
+    final parsed = GermanTeacherAssignmentResult.tryParse(result.toPayload());
+
+    expect(result.correctFirstTry, 2);
+    expect(result.independentCorrectFirstTry, 1);
+    expect(result.readAloudAssistedTasks, 2);
+    expect(result.independentTasks, 1);
+    expect(result.accuracy, 1);
+    expect(parsed, isNotNull);
+    expect(parsed!.independentCorrectFirstTry, 1);
+    expect(parsed.readAloudAssistedTasks, 2);
+    expect(parsed.competencyBreakdown.single.independentCorrectFirstTry, 1);
+    expect(parsed.competencyBreakdown.single.readAloudAssistedTasks, 2);
+  });
+
   test('domain-wide result carries anonymous competency breakdown', () {
     const domainAssignment = GermanTeacherAssignment(
       gradeLevel: GradeLevel.fourth,
@@ -133,7 +190,9 @@ void main() {
       session: session(),
     ).toEnvelope();
     final legacyData = Map<String, dynamic>.from(valid.data)
-      ..remove('breakdown');
+      ..remove('breakdown')
+      ..remove('independentCorrectFirstTry')
+      ..remove('readAloudAssistedTasks');
     final legacyPayload = SubjectResultEnvelope(
       subject: valid.subject,
       data: legacyData,
@@ -143,6 +202,8 @@ void main() {
 
     expect(parsed, isNotNull);
     expect(parsed!.competencyBreakdown, isEmpty);
+    expect(parsed.independentCorrectFirstTry, parsed.correctFirstTry);
+    expect(parsed.readAloudAssistedTasks, 0);
   });
 
   test('German assignment result rejects inconsistent breakdown', () {

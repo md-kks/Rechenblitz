@@ -113,12 +113,14 @@ void main() {
   test('older German drafts default partial input safely', () {
     final json = draftForTwoTasks().toJson()
       ..remove('currentAnswer')
-      ..remove('currentOrderedWords');
+      ..remove('currentOrderedWords')
+      ..remove('currentReadAloudUsed');
 
     final restored = GermanRoundDraft.fromJson(json);
 
     expect(restored.currentAnswer, isEmpty);
     expect(restored.currentOrderedWords, isEmpty);
+    expect(restored.currentReadAloudUsed, isFalse);
   });
 
   testWidgets('typed German draft restores and resaves partial text', (

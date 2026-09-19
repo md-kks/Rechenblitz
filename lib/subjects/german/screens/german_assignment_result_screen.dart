@@ -13,6 +13,7 @@ class GermanAssignmentResultScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final payload = result.toPayload();
     final percent = (result.accuracy * 100).round();
+    final percentText = result.independentTasks == 0 ? '–' : '$percent %';
     final seconds = result.averageResponseMs <= 0
         ? '–'
         : '${(result.averageResponseMs / 1000).toStringAsFixed(1)} s';
@@ -68,7 +69,23 @@ class GermanAssignmentResultScreen extends StatelessWidget {
                         value:
                             '${result.correctFirstTry}/${result.completedTasks}',
                       ),
-                      _Metric(label: 'Trefferquote', value: '$percent %'),
+                      if (result.readAloudAssistedTasks > 0)
+                        _Metric(
+                          label: 'selbstständig direkt richtig',
+                          value:
+                              '${result.independentCorrectFirstTry}/${result.independentTasks}',
+                        ),
+                      _Metric(
+                        label: result.readAloudAssistedTasks > 0
+                            ? 'Selbstständig-Quote'
+                            : 'Trefferquote',
+                        value: percentText,
+                      ),
+                      if (result.readAloudAssistedTasks > 0)
+                        _Metric(
+                          label: 'mit Vorlesen',
+                          value: '${result.readAloudAssistedTasks}',
+                        ),
                       _Metric(
                         label: 'Fehlversuche',
                         value: '${result.incorrectAttempts}',

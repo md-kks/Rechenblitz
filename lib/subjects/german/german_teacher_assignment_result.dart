@@ -13,15 +13,22 @@ class GermanAssignmentCompetencyResult {
     required this.completedTasks,
     required this.correctFirstTry,
     required this.incorrectAttempts,
-  });
+    int? independentCorrectFirstTry,
+    this.readAloudAssistedTasks = 0,
+  }) : independentCorrectFirstTry =
+           independentCorrectFirstTry ?? correctFirstTry;
 
   final GermanCompetencyId competencyId;
   final int completedTasks;
   final int correctFirstTry;
+  final int independentCorrectFirstTry;
+  final int readAloudAssistedTasks;
   final int incorrectAttempts;
 
+  int get independentTasks => completedTasks - readAloudAssistedTasks;
+
   double get accuracy =>
-      completedTasks == 0 ? 0 : correctFirstTry / completedTasks;
+      independentTasks == 0 ? 0 : independentCorrectFirstTry / independentTasks;
 
   String get label => GermanCompetencyCatalog.definition(competencyId).label;
 
@@ -29,6 +36,8 @@ class GermanAssignmentCompetencyResult {
     'id': competencyId.name,
     'n': completedTasks,
     'c': correctFirstTry,
+    's': independentCorrectFirstTry,
+    'r': readAloudAssistedTasks,
     'i': incorrectAttempts,
   };
 
@@ -37,6 +46,9 @@ class GermanAssignmentCompetencyResult {
         competencyId: GermanCompetencyId.values.byName(json['id'] as String),
         completedTasks: (json['n'] as num).toInt(),
         correctFirstTry: (json['c'] as num).toInt(),
+        independentCorrectFirstTry:
+            (json['s'] as num?)?.toInt() ?? (json['c'] as num).toInt(),
+        readAloudAssistedTasks: (json['r'] as num?)?.toInt() ?? 0,
         incorrectAttempts: (json['i'] as num).toInt(),
       );
 }
@@ -51,9 +63,12 @@ class GermanTeacherAssignmentResult {
     required this.correctFirstTry,
     required this.incorrectAttempts,
     required this.averageResponseMs,
+    int? independentCorrectFirstTry,
+    this.readAloudAssistedTasks = 0,
     this.targetCompetency,
     this.competencyBreakdown = const <GermanAssignmentCompetencyResult>[],
-  });
+  }) : independentCorrectFirstTry =
+           independentCorrectFirstTry ?? correctFirstTry;
 
   final String assignmentId;
   final GradeLevel gradeLevel;
@@ -61,20 +76,32 @@ class GermanTeacherAssignmentResult {
   final int requestedTasks;
   final int completedTasks;
   final int correctFirstTry;
+  final int independentCorrectFirstTry;
+  final int readAloudAssistedTasks;
   final int incorrectAttempts;
   final double averageResponseMs;
   final GermanCompetencyId? targetCompetency;
   final List<GermanAssignmentCompetencyResult> competencyBreakdown;
 
+  int get independentTasks => completedTasks - readAloudAssistedTasks;
+
   double get accuracy =>
-      completedTasks == 0 ? 0 : correctFirstTry / completedTasks;
+      independentTasks == 0 ? 0 : independentCorrectFirstTry / independentTasks;
 
   String get targetLabel => targetCompetency == null
       ? domain.label
       : GermanCompetencyCatalog.definition(targetCompetency!).label;
 
-  String get summary =>
-      'Auftrag $assignmentId · $targetLabel · $correctFirstTry/$completedTasks direkt richtig';
+  String get summary {
+    final evidence = independentTasks == 0
+        ? 'noch keine selbstständige Beobachtung'
+        : '$independentCorrectFirstTry/$independentTasks '
+              'selbstständig direkt richtig';
+    final base = 'Auftrag $assignmentId · $targetLabel · $evidence';
+    return readAloudAssistedTasks == 0
+        ? base
+        : '$base · $readAloudAssistedTasks mit Vorlesen';
+  }
 
   SubjectResultEnvelope toEnvelope() => SubjectResultEnvelope(
     subject: LearningSubject.german,
@@ -86,6 +113,8 @@ class GermanTeacherAssignmentResult {
       'requestedTasks': requestedTasks,
       'completedTasks': completedTasks,
       'correctFirstTry': correctFirstTry,
+      'independentCorrectFirstTry': independentCorrectFirstTry,
+      'readAloudAssistedTasks': readAloudAssistedTasks,
       'incorrectAttempts': incorrectAttempts,
       'averageResponseMs': averageResponseMs.round(),
       'target': targetCompetency?.name,
@@ -118,6 +147,12 @@ class GermanTeacherAssignmentResult {
                 correctFirstTry: values
                     .where((value) => value.correctFirstTry)
                     .length,
+                independentCorrectFirstTry: values
+                    .where((value) => value.independentCorrectFirstTry)
+                    .length,
+                readAloudAssistedTasks: values
+                    .where((value) => value.usedReadAloud)
+                    .length,
                 incorrectAttempts: values.fold<int>(
                   0,
                   (sum, value) => sum + value.incorrectAttempts,
@@ -136,6 +171,8 @@ class GermanTeacherAssignmentResult {
       requestedTasks: assignment.tasks,
       completedTasks: session.total,
       correctFirstTry: session.correctFirstTry,
+      independentCorrectFirstTry: session.independentCorrectFirstTry,
+      readAloudAssistedTasks: session.readAloudAssistedAttempts,
       incorrectAttempts: session.incorrectAttempts,
       averageResponseMs: session.averageResponseMs,
       targetCompetency: assignment.targetCompetency,
@@ -168,6 +205,11 @@ class GermanTeacherAssignmentResult {
         requestedTasks: (data['requestedTasks'] as num).toInt(),
         completedTasks: (data['completedTasks'] as num).toInt(),
         correctFirstTry: (data['correctFirstTry'] as num).toInt(),
+        independentCorrectFirstTry:
+            (data['independentCorrectFirstTry'] as num?)?.toInt() ??
+            (data['correctFirstTry'] as num).toInt(),
+        readAloudAssistedTasks:
+            (data['readAloudAssistedTasks'] as num?)?.toInt() ?? 0,
         incorrectAttempts: (data['incorrectAttempts'] as num).toInt(),
         averageResponseMs: (data['averageResponseMs'] as num).toDouble(),
         targetCompetency: targetRaw == null
@@ -183,6 +225,13 @@ class GermanTeacherAssignmentResult {
           result.completedTasks > result.requestedTasks ||
           result.correctFirstTry < 0 ||
           result.correctFirstTry > result.completedTasks ||
+          result.independentCorrectFirstTry < 0 ||
+          result.independentCorrectFirstTry > result.correctFirstTry ||
+          result.independentCorrectFirstTry > result.independentTasks ||
+          result.readAloudAssistedTasks < 0 ||
+          result.readAloudAssistedTasks > result.completedTasks ||
+          result.correctFirstTry - result.independentCorrectFirstTry >
+              result.readAloudAssistedTasks ||
           result.incorrectAttempts < 0 ||
           result.averageResponseMs < 0) {
         return null;
@@ -200,12 +249,21 @@ class GermanTeacherAssignmentResult {
         final seen = <GermanCompetencyId>{};
         var completed = 0;
         var correct = 0;
+        var independentCorrect = 0;
+        var readAloudAssisted = 0;
         var incorrect = 0;
         for (final entry in result.competencyBreakdown) {
           if (!seen.add(entry.competencyId) ||
               entry.completedTasks < 1 ||
               entry.correctFirstTry < 0 ||
               entry.correctFirstTry > entry.completedTasks ||
+              entry.independentCorrectFirstTry < 0 ||
+              entry.independentCorrectFirstTry > entry.correctFirstTry ||
+              entry.independentCorrectFirstTry > entry.independentTasks ||
+              entry.readAloudAssistedTasks < 0 ||
+              entry.readAloudAssistedTasks > entry.completedTasks ||
+              entry.correctFirstTry - entry.independentCorrectFirstTry >
+                  entry.readAloudAssistedTasks ||
               entry.incorrectAttempts < 0) {
             return null;
           }
@@ -219,10 +277,14 @@ class GermanTeacherAssignmentResult {
           }
           completed += entry.completedTasks;
           correct += entry.correctFirstTry;
+          independentCorrect += entry.independentCorrectFirstTry;
+          readAloudAssisted += entry.readAloudAssistedTasks;
           incorrect += entry.incorrectAttempts;
         }
         if (completed != result.completedTasks ||
             correct != result.correctFirstTry ||
+            independentCorrect != result.independentCorrectFirstTry ||
+            readAloudAssisted != result.readAloudAssistedTasks ||
             incorrect != result.incorrectAttempts) {
           return null;
         }

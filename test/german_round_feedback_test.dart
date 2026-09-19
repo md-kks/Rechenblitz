@@ -47,6 +47,33 @@ void main() {
     },
   );
 
+  test('read-aloud reading success is not praised as independent strength', () {
+    final result = _session(<GermanTaskResult>[
+      _task(
+        'read-assisted',
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        usedReadAloud: true,
+      ),
+      _task(
+        'write-independent',
+        GermanCompetencyId.sentenceWriting,
+        correct: true,
+      ),
+      _task(
+        'connect-needs-work',
+        GermanCompetencyId.sentenceConnections,
+        correct: false,
+        incorrectAttempts: 1,
+      ),
+    ]);
+
+    final feedback = GermanRoundFeedback.forSession(result);
+
+    expect(feedback.detail, contains('Eigene Sätze schreiben'));
+    expect(feedback.detail, isNot(contains('Wörter sicher lesen')));
+  });
+
   test('difficult German round names the strongest practice need', () {
     final result = _session(<GermanTaskResult>[
       _task(
@@ -101,10 +128,12 @@ GermanTaskResult _task(
   GermanCompetencyId competency, {
   required bool correct,
   int incorrectAttempts = 0,
+  bool usedReadAloud = false,
 }) => GermanTaskResult(
   taskId: id,
   competencyId: competency,
   correctFirstTry: correct,
   incorrectAttempts: incorrectAttempts,
   responseMs: 1000,
+  usedReadAloud: usedReadAloud,
 );

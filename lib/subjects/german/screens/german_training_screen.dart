@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../../../core/grade_level.dart';
 import '../../../models/active_response_timer.dart';
 import '../german_answer_feedback.dart';
+import '../german_competency_catalog.dart';
+import '../german_learning_domain.dart';
 import '../german_round_draft.dart';
 import '../german_round_feedback.dart';
 import '../german_session.dart';
@@ -24,6 +26,7 @@ class GermanTrainingScreen extends StatefulWidget {
     required this.tasks,
     required this.speak,
     this.autoSpeak,
+    this.readAloudEnabled = false,
     this.speakCompletion = false,
     this.sessionKind = GermanSessionKind.practice,
     this.supportEnabled = true,
@@ -37,6 +40,7 @@ class GermanTrainingScreen extends StatefulWidget {
   final List<GermanTask> tasks;
   final GermanSpeak speak;
   final GermanSpeak? autoSpeak;
+  final bool readAloudEnabled;
   final bool speakCompletion;
   final GermanSessionKind sessionKind;
   final bool supportEnabled;
@@ -61,10 +65,16 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
   int _index = 0;
   int _incorrectAttempts = 0;
   bool _completed = false;
+  bool _usedReadAloudForCurrentTask = false;
   GermanSessionResult? _completedResult;
   String? _feedback;
 
   GermanTask get _task => widget.tasks[_index];
+
+  bool get _currentTaskMeasuresReading =>
+      !_task.requiresSpeech &&
+      GermanCompetencyCatalog.definition(_task.competencyId).domain ==
+          GermanLearningDomain.reading;
 
   bool _canRestoreOrderedWords(GermanTask task, List<String> words) {
     if (words.length > task.choices.length) return false;
@@ -99,6 +109,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       _startedAt = draft.startedAt;
       _index = draft.currentIndex;
       _incorrectAttempts = draft.incorrectAttempts;
+      _usedReadAloudForCurrentTask = draft.currentReadAloudUsed;
       _results.addAll(draft.completedResults);
       final currentTask = widget.tasks[_index];
       if (currentTask.interaction == GermanTaskInteraction.typedText) {
@@ -157,6 +168,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
             _task.interaction == GermanTaskInteraction.wordOrder
             ? List<String>.unmodifiable(_orderedWords)
             : const <String>[],
+        currentReadAloudUsed: _usedReadAloudForCurrentTask,
         assignmentPayload: widget.draft?.assignmentPayload,
         sessionKind: widget.sessionKind,
       ),
@@ -188,6 +200,11 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
   Future<void> _autoReadCurrentTask() async {
     final speaker = widget.autoSpeak;
     if (speaker == null || _completed) return;
+    if (!_task.requiresSpeech && !widget.readAloudEnabled) return;
+    if (_currentTaskMeasuresReading && widget.readAloudEnabled) {
+      _usedReadAloudForCurrentTask = true;
+      _emitDraft();
+    }
     final text = _task.requiresSpeech
         ? _task.spokenText!
         : '${_task.instruction} ${_task.promptForSpeech}';
@@ -216,6 +233,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
         correctFirstTry: _incorrectAttempts == 0,
         incorrectAttempts: _incorrectAttempts,
         responseMs: _responseTimer.elapsed(at: now).inMilliseconds,
+        usedReadAloud: _usedReadAloudForCurrentTask,
       ),
     );
 
@@ -244,6 +262,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     setState(() {
       _index += 1;
       _incorrectAttempts = 0;
+      _usedReadAloudForCurrentTask = false;
       _feedback = null;
       _answerController.clear();
       _orderedWords.clear();

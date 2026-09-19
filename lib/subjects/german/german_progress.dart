@@ -10,6 +10,7 @@ class GermanCompetencyProgress {
   const GermanCompetencyProgress({
     required this.competencyId,
     required this.attempts,
+    required this.independentAttempts,
     required this.correctFirstTry,
     required this.incorrectAttempts,
     required this.averageResponseMs,
@@ -22,6 +23,7 @@ class GermanCompetencyProgress {
 
   final GermanCompetencyId competencyId;
   final int attempts;
+  final int independentAttempts;
   final int correctFirstTry;
   final int incorrectAttempts;
   final double averageResponseMs;
@@ -31,13 +33,14 @@ class GermanCompetencyProgress {
   final int recentCorrectFirstTry;
   final DateTime? lastPracticedAt;
 
-  double get accuracy => attempts == 0 ? 0 : correctFirstTry / attempts;
+  double get accuracy =>
+      independentAttempts == 0 ? 0 : correctFirstTry / independentAttempts;
   double get recentAccuracy =>
       recentAttempts == 0 ? 0 : recentCorrectFirstTry / recentAttempts;
 
   GermanCompetencyState get state {
     if (attempts == 0) return GermanCompetencyState.newSkill;
-    if (attempts >= 3 &&
+    if (independentAttempts >= 3 &&
         distinctTaskCount >= 3 &&
         sessionCount >= 2 &&
         accuracy >= 0.8 &&
@@ -58,7 +61,9 @@ class GermanCompetencyProgress {
   }
 
   GermanPracticeAttention attention({DateTime? now}) {
-    if (state == GermanCompetencyState.learning && recentAccuracy < 0.8) {
+    if (state == GermanCompetencyState.learning &&
+        independentAttempts > 0 &&
+        recentAccuracy < 0.8) {
       return GermanPracticeAttention.needsPractice;
     }
     if (needsReview(now: now)) return GermanPracticeAttention.reviewDue;
@@ -93,6 +98,7 @@ class GermanProgressAnalyzer {
       return GermanCompetencyProgress(
         competencyId: competencyId,
         attempts: 0,
+        independentAttempts: 0,
         correctFirstTry: 0,
         incorrectAttempts: 0,
         averageResponseMs: 0,
@@ -104,21 +110,25 @@ class GermanProgressAnalyzer {
     }
 
     matching.sort((a, b) => b.finishedAt.compareTo(a.finishedAt));
-    final recent = matching.take(5).toList(growable: false);
-    final correct = matching
+    final independent = matching
+        .where((entry) => !entry.result.usedReadAloud)
+        .toList(growable: false);
+    final recent = independent.take(5).toList(growable: false);
+    final correct = independent
         .where((entry) => entry.result.correctFirstTry)
         .length;
     final recentCorrect = recent
         .where((entry) => entry.result.correctFirstTry)
         .length;
-    final distinctTaskCount = matching
+    final distinctTaskCount = independent
         .map((entry) => entry.result.taskId)
         .toSet()
         .length;
     var sessionCount = 0;
     for (final session in sessions) {
       if (session.taskResults.any(
-        (result) => result.competencyId == competencyId,
+        (result) =>
+            result.competencyId == competencyId && !result.usedReadAloud,
       )) {
         sessionCount += 1;
       }
@@ -131,13 +141,15 @@ class GermanProgressAnalyzer {
       0,
       (sum, entry) => sum + entry.result.responseMs,
     );
-    final lastPracticedAt = matching
+    final recencyEvidence = independent.isEmpty ? matching : independent;
+    final lastPracticedAt = recencyEvidence
         .map((entry) => entry.finishedAt)
         .reduce((a, b) => a.isAfter(b) ? a : b);
 
     return GermanCompetencyProgress(
       competencyId: competencyId,
       attempts: matching.length,
+      independentAttempts: independent.length,
       correctFirstTry: correct,
       incorrectAttempts: incorrect,
       averageResponseMs: responseTotal / matching.length,

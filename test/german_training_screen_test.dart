@@ -16,6 +16,7 @@ Widget _app({
   required GermanTask task,
   required Future<void> Function(String) speak,
   Future<void> Function(String)? autoSpeak,
+  bool readAloudEnabled = false,
   void Function(GermanSessionResult)? onComplete,
   void Function(GermanRoundDraft)? onDraftChanged,
   bool speakCompletion = false,
@@ -31,6 +32,7 @@ Widget _app({
     tasks: <GermanTask>[task],
     speak: speak,
     autoSpeak: autoSpeak,
+    readAloudEnabled: readAloudEnabled,
     speakCompletion: speakCompletion,
     supportEnabled: supportEnabled,
     now: now ?? DateTime.now,
@@ -81,6 +83,7 @@ void main() {
         task: task,
         speak: (_) async {},
         autoSpeak: (text) async => spoken.add(text),
+        readAloudEnabled: true,
       ),
     );
     await tester.pump();
@@ -103,6 +106,7 @@ void main() {
         task: task,
         speak: (_) async {},
         autoSpeak: (text) async => spoken.add(text),
+        readAloudEnabled: true,
       ),
     );
     await tester.pump();
@@ -122,6 +126,94 @@ void main() {
     expect(semantics.properties.label, task.accessiblePrompt);
     expect(semantics.excludeSemantics, isTrue);
   });
+
+  testWidgets('read-aloud reading task is stored as assisted evidence', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g1-read-word-sonne',
+    );
+    GermanSessionResult? completed;
+
+    await tester.pumpWidget(
+      _app(
+        task: task,
+        speak: (_) async {},
+        autoSpeak: (_) async {},
+        readAloudEnabled: true,
+        onComplete: (result) => completed = result,
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, task.acceptedAnswers.single),
+    );
+    await tester.pump();
+
+    final result = completed!.taskResults.single;
+    expect(result.correctFirstTry, isTrue);
+    expect(result.usedReadAloud, isTrue);
+    expect(result.independentCorrectFirstTry, isFalse);
+  });
+
+  testWidgets('read-aloud state is persisted in the current German draft', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g1-read-word-sonne',
+    );
+    GermanRoundDraft? draft;
+
+    await tester.pumpWidget(
+      _app(
+        task: task,
+        speak: (_) async {},
+        autoSpeak: (_) async {},
+        readAloudEnabled: true,
+        onDraftChanged: (value) => draft = value,
+      ),
+    );
+    await tester.pump();
+
+    expect(draft, isNotNull);
+    expect(draft!.currentReadAloudUsed, isTrue);
+    final restored = GermanRoundDraft.fromJson(draft!.toJson());
+    expect(restored.currentReadAloudUsed, isTrue);
+  });
+
+  testWidgets(
+    'intrinsic listening audio plays without general read-aloud and is independent',
+    (tester) async {
+      final task = GermanStarterTaskCatalog.tasks.firstWhere(
+        (task) => task.interaction == GermanTaskInteraction.listeningChoice,
+      );
+      GermanSessionResult? completed;
+      final spoken = <String>[];
+
+      await tester.pumpWidget(
+        _app(
+          task: task,
+          speak: (_) async {},
+          autoSpeak: (text) async => spoken.add(text),
+          readAloudEnabled: false,
+          onComplete: (result) => completed = result,
+        ),
+      );
+      await tester.pump();
+
+      expect(spoken, <String>[task.spokenText!]);
+      await tester.tap(
+        find.widgetWithText(FilledButton, task.acceptedAnswers.single),
+      );
+      await tester.pump();
+
+      final result = completed!.taskResults.single;
+      expect(result.correctFirstTry, isTrue);
+      expect(result.usedReadAloud, isFalse);
+      expect(result.independentCorrectFirstTry, isTrue);
+    },
+  );
 
   testWidgets('listening task uses supplied local speech callback', (
     tester,

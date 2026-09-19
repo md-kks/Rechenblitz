@@ -14,6 +14,7 @@ class GermanRoundDraft {
     this.incorrectAttempts = 0,
     this.currentAnswer = '',
     this.currentOrderedWords = const <String>[],
+    this.currentReadAloudUsed = false,
     this.assignmentPayload,
     this.sessionKind = GermanSessionKind.practice,
   });
@@ -29,6 +30,7 @@ class GermanRoundDraft {
   final int incorrectAttempts;
   final String currentAnswer;
   final List<String> currentOrderedWords;
+  final bool currentReadAloudUsed;
   final String? assignmentPayload;
   final GermanSessionKind sessionKind;
 
@@ -73,6 +75,7 @@ class GermanRoundDraft {
     'incorrectAttempts': incorrectAttempts,
     'currentAnswer': currentAnswer,
     'currentOrderedWords': currentOrderedWords,
+    'currentReadAloudUsed': currentReadAloudUsed,
     'assignmentPayload': assignmentPayload,
     'sessionKind': sessionKind.name,
   };
@@ -101,6 +104,7 @@ class GermanRoundDraft {
       currentOrderedWords: rawOrderedWords is List<dynamic>
           ? rawOrderedWords.whereType<String>().toList(growable: false)
           : const <String>[],
+      currentReadAloudUsed: json['currentReadAloudUsed'] as bool? ?? false,
       assignmentPayload: json['assignmentPayload'] as String?,
       sessionKind: _parseSessionKind(json['sessionKind']),
     );

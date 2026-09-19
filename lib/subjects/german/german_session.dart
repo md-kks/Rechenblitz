@@ -12,6 +12,7 @@ class GermanTaskResult {
     required this.correctFirstTry,
     required this.incorrectAttempts,
     required this.responseMs,
+    this.usedReadAloud = false,
   });
 
   final String taskId;
@@ -19,6 +20,9 @@ class GermanTaskResult {
   final bool correctFirstTry;
   final int incorrectAttempts;
   final int responseMs;
+  final bool usedReadAloud;
+
+  bool get independentCorrectFirstTry => correctFirstTry && !usedReadAloud;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'taskId': taskId,
@@ -26,6 +30,7 @@ class GermanTaskResult {
     'correctFirstTry': correctFirstTry,
     'incorrectAttempts': incorrectAttempts,
     'responseMs': responseMs,
+    'usedReadAloud': usedReadAloud,
   };
 
   factory GermanTaskResult.fromJson(Map<String, dynamic> json) =>
@@ -37,6 +42,7 @@ class GermanTaskResult {
         correctFirstTry: json['correctFirstTry'] as bool,
         incorrectAttempts: (json['incorrectAttempts'] as num).toInt(),
         responseMs: (json['responseMs'] as num).toInt(),
+        usedReadAloud: json['usedReadAloud'] as bool? ?? false,
       );
 }
 
@@ -59,6 +65,18 @@ class GermanSessionResult {
 
   int get correctFirstTry =>
       taskResults.where((result) => result.correctFirstTry).length;
+
+  int get independentCorrectFirstTry =>
+      taskResults.where((result) => result.independentCorrectFirstTry).length;
+
+  int get readAloudAssistedAttempts =>
+      taskResults.where((result) => result.usedReadAloud).length;
+
+  int get independentAttempts => total - readAloudAssistedAttempts;
+
+  double get independentAccuracy => independentAttempts == 0
+      ? 0
+      : independentCorrectFirstTry / independentAttempts;
 
   int get incorrectAttempts =>
       taskResults.fold<int>(0, (sum, result) => sum + result.incorrectAttempts);

@@ -77,7 +77,8 @@ class _GermanParentOverviewScreenState
 
   Widget _buildOverview(BuildContext context, GermanParentOverview overview) {
     final percent = (overview.accuracy * 100).round();
-    final accuracyText = overview.totalTasks == 0 ? '–' : '$percent %';
+    final accuracyText = overview.independentTasks == 0 ? '–' : '$percent %';
+    final assistedTasks = overview.totalTasks - overview.independentTasks;
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 10, 18, 36),
       children: <Widget>[
@@ -101,7 +102,9 @@ class _GermanParentOverviewScreenState
                 _Metric('Runden', '${overview.sessionCount}'),
                 _Metric('Lernchecks', '${overview.assessmentCount}'),
                 _Metric('Aufgaben', '${overview.totalTasks}'),
-                _Metric('direkt richtig', accuracyText),
+                _Metric('selbstständig direkt richtig', accuracyText),
+                if (assistedTasks > 0)
+                  _Metric('mit Vorlesen geübt', '$assistedTasks'),
                 _Metric(
                   'Lernschritte sicher',
                   '${overview.secureCompetencies}/${overview.progress.length}',
@@ -210,7 +213,7 @@ class _GermanParentOverviewScreenState
           child: Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'Die Übersicht übernimmt sichere Grundlagen aus früheren Klassenstufen. Gibt es auf der aktuellen Stufe neue schwierigere Aufgaben zu derselben Kompetenz, wird die Grundlage kurz neu bestätigt. „Sicher“ verlangt mindestens drei verschiedene Aufgaben, verteilt über mindestens zwei Runden, insgesamt mindestens 80 % direkt richtige Antworten und in den letzten fünf Aufgaben mindestens 75 %. Die Anzeige ist eine Lernhilfe, keine Schulnote.',
+              'Die Übersicht übernimmt sichere Grundlagen aus früheren Klassenstufen. Gibt es auf der aktuellen Stufe neue schwierigere Aufgaben zu derselben Kompetenz, wird die Grundlage kurz neu bestätigt. „Sicher“ verlangt mindestens drei verschiedene Aufgaben, verteilt über mindestens zwei Runden, insgesamt mindestens 80 % selbstständig direkt richtige Antworten und in den letzten fünf Aufgaben mindestens 75 %. Bei Leselernzielen zählt Vorlesen als Unterstützung: Die Aufgabe bleibt ein Übungserfolg, aber kein selbstständiger Lesebeleg. Die Anzeige ist eine Lernhilfe, keine Schulnote.',
             ),
           ),
         ),
@@ -228,7 +231,15 @@ class _GermanParentOverviewScreenState
     if (domain.reviewDueCompetencies > 0) {
       parts.add('${domain.reviewDueCompetencies} Wiederholung fällig');
     }
-    parts.add('${(domain.accuracy * 100).round()} % direkt richtig');
+    if (domain.independentAttempts == 0) {
+      parts.add('noch keine selbstständige Beobachtung');
+    } else {
+      parts.add(
+        '${(domain.accuracy * 100).round()} % selbstständig direkt richtig',
+      );
+    }
+    final assisted = domain.attempts - domain.independentAttempts;
+    if (assisted > 0) parts.add('$assisted mit Vorlesen geübt');
     return parts.join(' · ');
   }
 
@@ -242,7 +253,7 @@ class _GermanParentOverviewScreenState
         final source = entry.sourceGrade?.label ?? 'einer früheren Klasse';
         final evidence = entry.currentGradeAttempts == 0
             ? 'noch keine aktuelle Bestätigung'
-            : '${entry.currentGradeCorrectFirstTry}/${entry.currentGradeAttempts} aktuelle Aufgaben direkt richtig';
+            : '${entry.currentGradeCorrectFirstTry}/${entry.currentGradeAttempts} aktuelle Aufgaben selbstständig direkt richtig';
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(
@@ -298,12 +309,16 @@ class _GermanParentOverviewScreenState
 }
 
 String _progressAccuracyLabel(GermanCompetencyProgress progress) {
+  if (progress.independentAttempts == 0) {
+    return 'mit Vorlesen geübt · noch keine selbstständige Beobachtung';
+  }
   final overall = (progress.accuracy * 100).round();
   final recent = (progress.recentAccuracy * 100).round();
-  if (progress.attempts <= progress.recentAttempts || recent == overall) {
-    return '$overall % direkt richtig';
+  if (progress.independentAttempts <= progress.recentAttempts ||
+      recent == overall) {
+    return '$overall % selbstständig direkt richtig';
   }
-  return 'aktuell $recent % · insgesamt $overall % direkt richtig';
+  return 'aktuell $recent % · insgesamt $overall % selbstständig direkt richtig';
 }
 
 class _InsightSection extends StatelessWidget {
@@ -368,6 +383,27 @@ class _Metric extends StatelessWidget {
   );
 }
 
+String _assessmentSnapshotText(GermanAssessmentSummary summary) {
+  final session = summary.session;
+  final assisted = session.readAloudAssistedAttempts;
+  final retrySentence = summary.solvedAfterRetry == 0
+      ? ''
+      : ' ${summary.solvedAfterRetry} ${summary.solvedAfterRetry == 1 ? 'Aufgabe' : 'Aufgaben'} nach weiteren Versuchen gelöst.';
+  if (assisted == 0) {
+    return '${session.correctFirstTry} von ${session.total} direkt richtig.$retrySentence '
+        'Keine Note – eine Momentaufnahme für die nächste Übungsplanung.';
+  }
+  if (session.independentAttempts == 0) {
+    return '${session.correctFirstTry} von ${session.total} direkt richtig · '
+        '$assisted mit Vorlesen.$retrySentence Noch keine selbstständige '
+        'Lese-Beobachtung. Keine Note – eine Momentaufnahme für die nächste Übungsplanung.';
+  }
+  final percent = (session.independentAccuracy * 100).round();
+  return '${session.independentCorrectFirstTry} von ${session.independentAttempts} '
+      'selbstständig direkt richtig · $assisted mit Vorlesen · $percent % selbstständig.'
+      '$retrySentence Keine Note – eine Momentaufnahme für die nächste Übungsplanung.';
+}
+
 class _AssessmentSnapshot extends StatelessWidget {
   const _AssessmentSnapshot({required this.summary});
 
@@ -385,11 +421,7 @@ class _AssessmentSnapshot extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 6),
-          Text(
-            summary.solvedAfterRetry == 0
-                ? '${summary.session.correctFirstTry} von ${summary.session.total} direkt richtig. Keine Note – eine Momentaufnahme für die nächste Übungsplanung.'
-                : '${summary.session.correctFirstTry} von ${summary.session.total} direkt richtig; ${summary.solvedAfterRetry} ${summary.solvedAfterRetry == 1 ? 'Aufgabe' : 'Aufgaben'} nach weiteren Versuchen gelöst. Keine Note – eine Momentaufnahme für die nächste Übungsplanung.',
-          ),
+          Text(_assessmentSnapshotText(summary)),
           if (summary.nextDomains.isNotEmpty) ...<Widget>[
             const SizedBox(height: 10),
             Text(

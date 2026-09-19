@@ -45,6 +45,51 @@ void main() {
     expect(find.textContaining('nach weiteren Versuchen gelöst'), findsNothing);
   });
 
+  testWidgets('Lerncheck shows assisted reading without fake weakness', (
+    tester,
+  ) async {
+    final summary = GermanAssessmentSummary.fromSession(
+      _session(const <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: 'read-assisted',
+          competencyId: GermanCompetencyId.wordRecognition,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+          usedReadAloud: true,
+        ),
+        GermanTaskResult(
+          taskId: 'language-independent',
+          competencyId: GermanCompetencyId.nounArticle,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+        ),
+      ]),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanAssessmentResultScreen(summary: summary)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('mit Vorlesen geübt'), findsOneWidget);
+    final reading = find.widgetWithText(ListTile, 'Lesen');
+    await tester.scrollUntilVisible(
+      reading,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.descendant(
+        of: reading,
+        matching: find.textContaining('noch keine selbstständige Beobachtung'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Als Nächstes üben'), findsNothing);
+  });
+
   testWidgets('Lerncheck result makes retry evidence visible', (tester) async {
     final summary = GermanAssessmentSummary.fromSession(
       _session(const <GermanTaskResult>[

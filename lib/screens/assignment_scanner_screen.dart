@@ -133,6 +133,8 @@ class _AssignmentScannerScreenState extends State<AssignmentScannerScreen> {
               tasks: tasks,
               speak: widget.controller.speakOnDemand,
               autoSpeak: widget.controller.speak,
+              readAloudEnabled:
+                  widget.controller.accessibilityPreferences.readAloud,
               speakCompletion: widget
                   .controller
                   .accessibilityPreferences

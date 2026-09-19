@@ -142,11 +142,14 @@ class GermanGradeBridgeAnalyzer {
       }
     }
 
-    final attempts = currentResults.length;
-    final correct = currentResults
+    final independentResults = currentResults
+        .where((result) => !result.usedReadAloud)
+        .toList(growable: false);
+    final attempts = independentResults.length;
+    final correct = independentResults
         .where((result) => result.correctFirstTry)
         .length;
-    final distinct = currentResults
+    final distinct = independentResults
         .map((result) => result.taskId)
         .toSet()
         .length;
@@ -187,12 +190,20 @@ class GermanGradeBridgeAnalyzer {
         }
       }
     }
-    if (results.length < 2) return false;
-    final distinct = results.map((result) => result.taskId).toSet().length;
+    final independentResults = results
+        .where((result) => !result.usedReadAloud)
+        .toList(growable: false);
+    if (independentResults.length < 2) return false;
+    final distinct = independentResults
+        .map((result) => result.taskId)
+        .toSet()
+        .length;
     final requiredDistinct = taskCount < 2 ? 1 : 2;
     if (distinct < requiredDistinct) return false;
-    final correct = results.where((result) => result.correctFirstTry).length;
-    return correct / results.length >= 0.75;
+    final correct = independentResults
+        .where((result) => result.correctFirstTry)
+        .length;
+    return correct / independentResults.length >= 0.75;
   }
 
   static GermanGradeBridgeStatus _notNeeded({

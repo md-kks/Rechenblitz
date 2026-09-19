@@ -98,6 +98,35 @@ void main() {
     expect(bridge.currentGradeDistinctTasks, 2);
   });
 
+  test('read-aloud bridge evidence does not confirm reading mastery', () {
+    final history = _securePriorHistory(
+      competency: GermanCompetencyId.readingInference,
+      sourceGrade: GradeLevel.third,
+      currentGrade: GradeLevel.fourth,
+    );
+    final currentTasks = _currentGradeTasks(
+      GermanCompetencyId.readingInference,
+      GradeLevel.fourth,
+    );
+    history.add(
+      _session(
+        grade: GradeLevel.fourth,
+        taskIds: currentTasks.take(2).toList(growable: false),
+        readAloudIndexes: const <int>{0, 1},
+      ),
+    );
+
+    final bridge = GermanGradeBridgeAnalyzer.forCompetency(
+      competencyId: GermanCompetencyId.readingInference,
+      currentGrade: GradeLevel.fourth,
+      history: history,
+    );
+
+    expect(bridge.state, GermanGradeBridgeState.pending);
+    expect(bridge.currentGradeAttempts, 0);
+    expect(bridge.currentGradeCorrectFirstTry, 0);
+  });
+
   test('skipped grade still checks the newest available extension', () {
     final history = _securePriorHistory(
       competency: GermanCompetencyId.sentenceWordOrder,
@@ -431,6 +460,7 @@ GermanSessionResult _session({
   required List<String> taskIds,
   int minute = 0,
   Set<int> incorrectIndexes = const <int>{},
+  Set<int> readAloudIndexes = const <int>{},
 }) => GermanSessionResult(
   gradeLevel: grade,
   startedAt: DateTime(2026, 9, 17, 10, minute),
@@ -443,6 +473,7 @@ GermanSessionResult _session({
         correctFirstTry: !incorrectIndexes.contains(index),
         incorrectAttempts: incorrectIndexes.contains(index) ? 1 : 0,
         responseMs: 1200,
+        usedReadAloud: readAloudIndexes.contains(index),
       ),
   ],
 );

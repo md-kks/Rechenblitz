@@ -143,6 +143,55 @@ void main() {
     expect(await storage.loadHistory(), isEmpty);
   });
 
+  test('read-aloud reading success does not count as independent mastery', () {
+    final sessions = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'read-a',
+        usedReadAloud: true,
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'read-b',
+        finishedAt: DateTime(2026, 9, 18, 13),
+        usedReadAloud: true,
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'read-c',
+        finishedAt: DateTime(2026, 9, 18, 14),
+        usedReadAloud: true,
+      ),
+    ];
+
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      sessions,
+    );
+
+    expect(progress.attempts, 3);
+    expect(progress.correctFirstTry, 0);
+    expect(progress.accuracy, 0);
+    expect(progress.state, GermanCompetencyState.learning);
+  });
+
+  test('legacy German result defaults read-aloud assistance to false', () {
+    final original = _session(
+      GermanCompetencyId.wordRecognition,
+      correct: true,
+      taskId: 'legacy-read',
+    ).taskResults.single;
+    final json = original.toJson()..remove('usedReadAloud');
+
+    final restored = GermanTaskResult.fromJson(json);
+
+    expect(restored.usedReadAloud, isFalse);
+    expect(restored.independentCorrectFirstTry, isTrue);
+  });
+
   test('duplicate session cannot inflate competency evidence', () {
     final session = _session(
       GermanCompetencyId.wordRecognition,
@@ -744,6 +793,7 @@ GermanSessionResult _session(
   String? taskId,
   DateTime? finishedAt,
   GradeLevel gradeLevel = GradeLevel.second,
+  bool usedReadAloud = false,
 }) {
   final finished = finishedAt ?? DateTime(2026, 9, 17, 12);
   return GermanSessionResult(
@@ -757,6 +807,7 @@ GermanSessionResult _session(
         correctFirstTry: correct,
         incorrectAttempts: incorrectAttempts,
         responseMs: 1400,
+        usedReadAloud: usedReadAloud,
       ),
     ],
   );

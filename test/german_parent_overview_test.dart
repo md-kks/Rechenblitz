@@ -16,6 +16,7 @@ GermanSessionResult _session({
   int minute = 0,
   GermanSessionKind kind = GermanSessionKind.practice,
   String taskPrefix = 'task',
+  Set<int> readAloudIndexes = const <int>{},
 }) => GermanSessionResult(
   gradeLevel: GradeLevel.second,
   startedAt: DateTime(2026, 9, 17, 10, minute),
@@ -29,6 +30,7 @@ GermanSessionResult _session({
         correctFirstTry: correct[i],
         incorrectAttempts: correct[i] ? 0 : 1,
         responseMs: 1200,
+        usedReadAloud: readAloudIndexes.contains(i),
       ),
   ],
 );
@@ -69,6 +71,42 @@ void main() {
     expect(
       overview.practiceNeeds.first.competencyId,
       GermanCompetencyId.wordRecognition,
+    );
+  });
+
+  test('read-aloud reading practice stays out of secure strengths', () {
+    final overview = GermanParentOverview.analyze(
+      gradeLevel: GradeLevel.second,
+      history: <GermanSessionResult>[
+        _session(
+          competency: GermanCompetencyId.wordRecognition,
+          correct: const <bool>[true, true],
+          taskPrefix: 'read-a',
+          readAloudIndexes: const <int>{0, 1},
+        ),
+        _session(
+          competency: GermanCompetencyId.wordRecognition,
+          correct: const <bool>[true],
+          minute: 2,
+          taskPrefix: 'read-b',
+          readAloudIndexes: const <int>{0},
+        ),
+      ],
+    );
+    final progress = overview.progress.firstWhere(
+      (entry) => entry.competencyId == GermanCompetencyId.wordRecognition,
+    );
+
+    expect(overview.totalTasks, 3);
+    expect(overview.correctFirstTry, 0);
+    expect(progress.attempts, 3);
+    expect(progress.correctFirstTry, 0);
+    expect(progress.state, GermanCompetencyState.learning);
+    expect(
+      overview.strengths.any(
+        (entry) => entry.competencyId == GermanCompetencyId.wordRecognition,
+      ),
+      isFalse,
     );
   });
 
@@ -224,7 +262,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final evidence = find.textContaining(
-      'aktuell 60 % · insgesamt 83 % direkt richtig',
+      'aktuell 60 % · insgesamt 83 % selbstständig direkt richtig',
     );
     await tester.scrollUntilVisible(
       evidence,

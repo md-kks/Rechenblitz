@@ -16,6 +16,7 @@ class GermanDomainProgressSummary {
     required this.gradeBridgeCompetencies,
     required this.reviewDueCompetencies,
     required this.attempts,
+    required this.independentAttempts,
     required this.correctFirstTry,
   });
 
@@ -26,9 +27,11 @@ class GermanDomainProgressSummary {
   final int gradeBridgeCompetencies;
   final int reviewDueCompetencies;
   final int attempts;
+  final int independentAttempts;
   final int correctFirstTry;
 
-  double get accuracy => attempts == 0 ? 0 : correctFirstTry / attempts;
+  double get accuracy =>
+      independentAttempts == 0 ? 0 : correctFirstTry / independentAttempts;
 }
 
 class GermanParentOverview {
@@ -36,6 +39,7 @@ class GermanParentOverview {
     required this.gradeLevel,
     required this.sessionCount,
     required this.totalTasks,
+    required this.independentTasks,
     required this.correctFirstTry,
     required this.incorrectAttempts,
     required this.progress,
@@ -49,6 +53,7 @@ class GermanParentOverview {
   final GradeLevel gradeLevel;
   final int sessionCount;
   final int totalTasks;
+  final int independentTasks;
   final int correctFirstTry;
   final int incorrectAttempts;
   final List<GermanCompetencyProgress> progress;
@@ -60,7 +65,8 @@ class GermanParentOverview {
 
   DateTime get _now => referenceNow ?? DateTime.now();
 
-  double get accuracy => totalTasks == 0 ? 0 : correctFirstTry / totalTasks;
+  double get accuracy =>
+      independentTasks == 0 ? 0 : correctFirstTry / independentTasks;
 
   int get practicedCompetencies =>
       progress.where((entry) => entry.attempts > 0).length;
@@ -218,6 +224,10 @@ class GermanParentOverview {
               0,
               (sum, entry) => sum + entry.attempts,
             ),
+            independentAttempts: domainProgress.fold<int>(
+              0,
+              (sum, entry) => sum + entry.independentAttempts,
+            ),
             correctFirstTry: domainProgress.fold<int>(
               0,
               (sum, entry) => sum + entry.correctFirstTry,
@@ -233,9 +243,15 @@ class GermanParentOverview {
         0,
         (sum, session) => sum + session.total,
       ),
+      independentTasks: currentGradeSessions.fold<int>(
+        0,
+        (sum, session) =>
+            sum +
+            session.taskResults.where((result) => !result.usedReadAloud).length,
+      ),
       correctFirstTry: currentGradeSessions.fold<int>(
         0,
-        (sum, session) => sum + session.correctFirstTry,
+        (sum, session) => sum + session.independentCorrectFirstTry,
       ),
       incorrectAttempts: currentGradeSessions.fold<int>(
         0,
