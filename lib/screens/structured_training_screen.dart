@@ -102,6 +102,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
   String feedback = '';
   ErrorPattern? currentErrorPattern;
   final List<int> responseTimes = [];
+  final List<RoundAttemptReview> attemptReviews = [];
   int checkpointIndex = 0;
   final Set<int> checkpointAttempted = <int>{};
   final Map<int, int> checkpointWrongAttempts = <int, int>{};
@@ -178,6 +179,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
       taskFirstAttemptRecorded = saved.taskFirstAttemptRecorded;
       pendingFirstAttemptEvidence = saved.pendingFirstAttemptEvidence;
       responseTimes.addAll(saved.responseTimes);
+      attemptReviews.addAll(saved.attemptReviews);
       responseTimer = ActiveResponseTimer(startedAt: now);
       resumedFromDraft = true;
       resumeResolvedTask = saved.taskResolved;
@@ -258,6 +260,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
         pendingFirstAttemptEvidence:
             clearPendingFirstAttempt ? null : pendingFirstAttemptEvidence,
         responseTimes: List<int>.from(responseTimes),
+        attemptReviews: List<RoundAttemptReview>.from(attemptReviews),
         taskResolved: taskResolvedOverride ?? false,
       );
 
@@ -622,8 +625,11 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     completed += 1;
     segmentUsedHelp = segmentUsedHelp || showHint || helpLevel > 0;
     responseTimes.add(response.inMilliseconds.clamp(0, 30000).toInt());
-    if (wrongOnCurrent == 0 && !hadCheckpointError) {
+    final firstTry = wrongOnCurrent == 0 && !hadCheckpointError;
+    if (firstTry) {
       correctFirstTry += 1;
+    } else {
+      _rememberAttemptReview();
     }
     if (!restoring && widget.controller.hapticEnabled) {
       HapticFeedback.lightImpact();
@@ -664,6 +670,35 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     await _persistSession();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => widget.controller.speak(current.prompt),
+    );
+  }
+
+  String get _reviewCorrectAnswer {
+    final choices = current.choices;
+    if (choices != null &&
+        current.answer >= 0 &&
+        current.answer < choices.length) {
+      return choices[current.answer];
+    }
+    final suffix = current.answerSuffix?.trim();
+    return suffix == null || suffix.isEmpty
+        ? '${current.answer}'
+        : '${current.answer} $suffix';
+  }
+
+  void _rememberAttemptReview() {
+    if (completed <= 0 ||
+        attemptReviews.any((review) => review.taskNumber == completed)) {
+      return;
+    }
+    attemptReviews.add(
+      RoundAttemptReview(
+        taskNumber: completed,
+        taskKey: current.key,
+        prompt: current.prompt,
+        correctAnswer: _reviewCorrectAnswer,
+        hadCheckpointError: hadCheckpointError,
+      ),
     );
   }
 
@@ -730,6 +765,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
       context,
       completed: completed,
       correctFirstTry: correctFirstTry,
+      attemptReviews: attemptReviews,
       starsEarned: result.starsEarned,
       rewardReason: rewardReason,
       adaptiveNote: adaptiveStopReason,
