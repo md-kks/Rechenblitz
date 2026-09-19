@@ -72,8 +72,9 @@ class GermanAssignmentResultScreen extends StatelessWidget {
                       if (result.readAloudAssistedTasks > 0)
                         _Metric(
                           label: 'selbstständig direkt richtig',
-                          value:
-                              '${result.independentCorrectFirstTry}/${result.independentTasks}',
+                          value: result.independentTasks == 0
+                              ? '–'
+                              : '${result.independentCorrectFirstTry}/${result.independentTasks}',
                         ),
                       _Metric(
                         label: result.readAloudAssistedTasks > 0
@@ -93,6 +94,14 @@ class GermanAssignmentResultScreen extends StatelessWidget {
                       _Metric(label: 'Ø Antwort', value: seconds),
                     ],
                   ),
+                  if (result.readAloudAssistedTasks > 0 &&
+                      result.independentTasks == 0) ...<Widget>[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Mit Vorlesen geübt · noch keine selbstständige Beobachtung',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
             ),

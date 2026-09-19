@@ -239,6 +239,10 @@ class _GermanResultCard extends StatelessWidget {
     final breakdown =
         List<GermanAssignmentCompetencyResult>.from(result.competencyBreakdown)
           ..sort((a, b) {
+            final category = _evidenceSortCategory(
+              a,
+            ).compareTo(_evidenceSortCategory(b));
+            if (category != 0) return category;
             final accuracy = a.accuracy.compareTo(b.accuracy);
             if (accuracy != 0) return accuracy;
             final attempts = b.incorrectAttempts.compareTo(a.incorrectAttempts);
@@ -271,7 +275,9 @@ class _GermanResultCard extends StatelessWidget {
                 if (result.readAloudAssistedTasks > 0)
                   _Metric(
                     'selbstständig direkt richtig',
-                    '${result.independentCorrectFirstTry}/${result.independentTasks}',
+                    result.independentTasks == 0
+                        ? '–'
+                        : '${result.independentCorrectFirstTry}/${result.independentTasks}',
                   ),
                 _Metric(
                   result.readAloudAssistedTasks > 0
@@ -320,6 +326,10 @@ class _GermanResultCard extends StatelessWidget {
                             entry.readAloudAssistedTasks == 0
                                 ? '${entry.correctFirstTry}/${entry.completedTasks} direkt richtig · '
                                       '$entryPercent % · ${entry.incorrectAttempts} Fehlversuche'
+                                : entry.independentTasks == 0
+                                ? 'noch keine selbstständige Beobachtung · '
+                                      '${entry.readAloudAssistedTasks} mit Vorlesen · '
+                                      '${entry.incorrectAttempts} Fehlversuche'
                                 : '${entry.independentCorrectFirstTry}/${entry.independentTasks} '
                                       'selbstständig direkt richtig · '
                                       '${entry.readAloudAssistedTasks} mit Vorlesen · '
@@ -337,6 +347,16 @@ class _GermanResultCard extends StatelessWidget {
       ),
     );
   }
+}
+
+int _evidenceSortCategory(GermanAssignmentCompetencyResult entry) {
+  final observedDifficulty =
+      entry.incorrectAttempts > 0 ||
+      (entry.independentTasks > 0 &&
+          entry.independentCorrectFirstTry < entry.independentTasks);
+  if (observedDifficulty) return 0;
+  if (entry.independentTasks == 0) return 1;
+  return 2;
 }
 
 class _Metric extends StatelessWidget {

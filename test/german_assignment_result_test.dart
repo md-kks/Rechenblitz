@@ -4,10 +4,12 @@ import 'package:rechenblitz/core/assignments/subject_result_envelope.dart';
 import 'package:rechenblitz/core/grade_level.dart';
 import 'package:rechenblitz/screens/assignment_result_scanner_screen.dart';
 import 'package:rechenblitz/subjects/german/german_competency.dart';
+import 'package:rechenblitz/subjects/german/german_competency_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_learning_domain.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_teacher_assignment.dart';
 import 'package:rechenblitz/subjects/german/german_teacher_assignment_result.dart';
+import 'package:rechenblitz/subjects/german/screens/german_assignment_result_screen.dart';
 
 void main() {
   const assignment = GermanTeacherAssignment(
@@ -208,7 +210,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('0/0'), findsOneWidget);
+    expect(find.text('0/0'), findsNothing);
     expect(find.text('–'), findsWidgets);
     expect(find.text('0 %'), findsNothing);
     expect(find.text('2'), findsWidgets);
@@ -389,6 +391,146 @@ void main() {
     ).toPayload();
 
     expect(GermanTeacherAssignmentResult.tryParse(invalid), isNull);
+  });
+
+  testWidgets(
+    'teacher result orders difficulty before unknown and strong evidence',
+    (tester) async {
+      const domainAssignment = GermanTeacherAssignment(
+        gradeLevel: GradeLevel.fourth,
+        domain: GermanLearningDomain.reading,
+        tasks: 3,
+      );
+      final mixedSession = GermanSessionResult(
+        gradeLevel: GradeLevel.fourth,
+        startedAt: DateTime(2026, 9, 18, 11),
+        finishedAt: DateTime(2026, 9, 18, 11, 3),
+        kind: GermanSessionKind.teacherAssignment,
+        taskResults: const <GermanTaskResult>[
+          GermanTaskResult(
+            taskId: 'difficulty',
+            competencyId: GermanCompetencyId.textMainIdea,
+            correctFirstTry: false,
+            incorrectAttempts: 1,
+            responseMs: 1200,
+          ),
+          GermanTaskResult(
+            taskId: 'assisted-only',
+            competencyId: GermanCompetencyId.readingInference,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 1000,
+            usedReadAloud: true,
+          ),
+          GermanTaskResult(
+            taskId: 'independent-strong',
+            competencyId: GermanCompetencyId.textInformation,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 900,
+          ),
+        ],
+      );
+      final result = GermanTeacherAssignmentResult.fromSession(
+        assignment: domainAssignment,
+        session: mixedSession,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(home: AssignmentResultScannerScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      final input = find.byKey(const ValueKey('assignment-result-code-input'));
+      await tester.ensureVisible(input);
+      await tester.enterText(input, result.toPayload());
+      await tester.tap(
+        find.byKey(const ValueKey('assignment-result-code-submit')),
+      );
+      await tester.pumpAndSettle();
+
+      final difficulty = find.text(
+        GermanCompetencyCatalog.definition(
+          GermanCompetencyId.textMainIdea,
+        ).label,
+      );
+      final unknown = find.text(
+        GermanCompetencyCatalog.definition(
+          GermanCompetencyId.readingInference,
+        ).label,
+      );
+      final strong = find.text(
+        GermanCompetencyCatalog.definition(
+          GermanCompetencyId.textInformation,
+        ).label,
+      );
+      expect(difficulty, findsOneWidget);
+      expect(unknown, findsOneWidget);
+      expect(strong, findsOneWidget);
+      expect(
+        tester.getTopLeft(difficulty).dy,
+        lessThan(tester.getTopLeft(unknown).dy),
+      );
+      expect(
+        tester.getTopLeft(unknown).dy,
+        lessThan(tester.getTopLeft(strong).dy),
+      );
+      expect(
+        find.textContaining('noch keine selbstständige Beobachtung'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('child result explains fully assisted reading evidence', (
+    tester,
+  ) async {
+    const assistedAssignment = GermanTeacherAssignment(
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      tasks: 2,
+      targetCompetency: GermanCompetencyId.textMainIdea,
+    );
+    final assistedSession = GermanSessionResult(
+      gradeLevel: GradeLevel.fourth,
+      startedAt: DateTime(2026, 9, 18, 9),
+      finishedAt: DateTime(2026, 9, 18, 9, 2),
+      kind: GermanSessionKind.teacherAssignment,
+      taskResults: const <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: 'assisted-a',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+          usedReadAloud: true,
+        ),
+        GermanTaskResult(
+          taskId: 'assisted-b',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+          usedReadAloud: true,
+        ),
+      ],
+    );
+    final result = GermanTeacherAssignmentResult.fromSession(
+      assignment: assistedAssignment,
+      session: assistedSession,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanAssignmentResultScreen(result: result)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('0/0'), findsNothing);
+    expect(find.text('–'), findsWidgets);
+    expect(
+      find.text('Mit Vorlesen geübt · noch keine selbstständige Beobachtung'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('result scanner shows domain competency breakdown', (
