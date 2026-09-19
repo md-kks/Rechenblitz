@@ -281,10 +281,45 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final compactLargeText =
+        size.width < 600 &&
+        size.height < 720 &&
+        MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final compactNumberBond =
+        compactLargeText &&
+        widget.plan.kind == TouchInteractionKind.numberBondComposer;
+    final instructionWidget = compactNumberBond
+        ? FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              widget.plan.dataValues.isEmpty
+                  ? widget.plan.instruction
+                  : 'Ergänze bis ${widget.plan.dataValues.first}.',
+              maxLines: 1,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          )
+        : compactLargeText
+            ? MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(1.5),
+                ),
+                child: Text(
+                  widget.plan.instruction,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              )
+            : Text(
+                widget.plan.instruction,
+                style: Theme.of(context).textTheme.titleMedium,
+              );
+
+    return Card(
     key: const ValueKey('touch-answer-interaction'),
     child: Padding(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(compactLargeText ? 10 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -295,12 +330,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                 color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  widget.plan.instruction,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
+              Expanded(child: instructionWidget),
             ],
           ),
           const SizedBox(height: 14),
@@ -421,6 +451,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       ),
     ),
   );
+  }
 
   Widget _buildStoryRelevantFacts(BuildContext context) {
     final expectedSet = widget.plan.correctSelectionIndexes.toSet();
@@ -1151,51 +1182,93 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final target = values[0];
     final known = values[1];
     final expected = widget.plan.expectedAnswer ?? math.max(0, target - known);
+    final size = MediaQuery.sizeOf(context);
+    final compactLargeText =
+        size.width < 600 &&
+        size.height < 720 &&
+        MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+
+    final groups = compactLargeText
+        ? Row(
+            key: const ValueKey('touch-number-bond-groups'),
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _StaticCounterGroup(
+                label: 'Bekannt',
+                count: known,
+                width: 92,
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.add_rounded),
+              const SizedBox(width: 8),
+              _CounterGroupCard(
+                key: const ValueKey('touch-number-bond-missing'),
+                label: 'Fehlt',
+                count: numberBondMissing,
+                width: 112,
+                compact: true,
+                onAdd: widget.locked || numberBondMissing >= target
+                    ? null
+                    : () => setState(() => numberBondMissing += 1),
+                onRemove: widget.locked || numberBondMissing == 0
+                    ? null
+                    : () => setState(() => numberBondMissing -= 1),
+                addKey: const ValueKey('touch-number-bond-add'),
+                removeKey: const ValueKey('touch-number-bond-remove'),
+              ),
+            ],
+          )
+        : Wrap(
+            key: const ValueKey('touch-number-bond-groups'),
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _StaticCounterGroup(label: 'Bekannter Teil', count: known),
+              const Icon(Icons.add_rounded),
+              _CounterGroupCard(
+                key: const ValueKey('touch-number-bond-missing'),
+                label: 'Fehlender Teil',
+                count: numberBondMissing,
+                onAdd: widget.locked || numberBondMissing >= target
+                    ? null
+                    : () => setState(() => numberBondMissing += 1),
+                onRemove: widget.locked || numberBondMissing == 0
+                    ? null
+                    : () => setState(() => numberBondMissing -= 1),
+                addKey: const ValueKey('touch-number-bond-add'),
+                removeKey: const ValueKey('touch-number-bond-remove'),
+              ),
+            ],
+          );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Zielzahl: $target',
-          key: const ValueKey('touch-number-bond-target'),
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-              ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          key: const ValueKey('touch-number-bond-groups'),
-          alignment: WrapAlignment.center,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            _StaticCounterGroup(label: 'Bekannter Teil', count: known),
-            const Icon(Icons.add_rounded),
-            _CounterGroupCard(
-              key: const ValueKey('touch-number-bond-missing'),
-              label: 'Fehlender Teil',
-              count: numberBondMissing,
-              onAdd: widget.locked || numberBondMissing >= target
-                  ? null
-                  : () => setState(() => numberBondMissing += 1),
-              onRemove: widget.locked || numberBondMissing == 0
-                  ? null
-                  : () => setState(() => numberBondMissing -= 1),
-              addKey: const ValueKey('touch-number-bond-add'),
-              removeKey: const ValueKey('touch-number-bond-remove'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '$known + $numberBondMissing sollen zusammen $target ergeben.',
-          key: const ValueKey('touch-number-bond-equation'),
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 8),
+        if (!compactLargeText) ...[
+          Text(
+            'Zielzahl: $target',
+            key: const ValueKey('touch-number-bond-target'),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 10),
+        ],
+        groups,
+        if (!compactLargeText) ...[
+          const SizedBox(height: 8),
+          Text(
+            '$known + $numberBondMissing sollen zusammen $target ergeben.',
+            key: const ValueKey('touch-number-bond-equation'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+        ] else
+          const SizedBox(height: 6),
         FilledButton.tonalIcon(
           key: const ValueKey('touch-number-bond-submit'),
           onPressed: widget.locked ||
@@ -1207,7 +1280,12 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                         : _wrongAnswer(numberBondMissing, expected),
                   ),
           icon: const Icon(Icons.check_rounded),
-          label: const Text('Zerlegung prüfen'),
+          label: compactLargeText
+              ? const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('Prüfen', maxLines: 1),
+                )
+              : const Text('Zerlegung prüfen'),
         ),
       ],
     );
@@ -7415,6 +7493,8 @@ class _CounterGroupCard extends StatelessWidget {
     required this.onRemove,
     required this.addKey,
     required this.removeKey,
+    this.width = 122,
+    this.compact = false,
   });
 
   final String label;
@@ -7423,20 +7503,28 @@ class _CounterGroupCard extends StatelessWidget {
   final VoidCallback? onRemove;
   final Key addKey;
   final Key removeKey;
+  final double width;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => Card.outlined(
     child: SizedBox(
-      width: 122,
+      width: width,
       child: Padding(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(compact ? 4 : 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label),
-            const SizedBox(height: 6),
-            _CounterDots(count: count),
-            Text('$count'),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label, maxLines: 1),
+            ),
+            SizedBox(height: compact ? 2 : 6),
+            _CounterDots(count: count, compact: compact),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text('$count', maxLines: 1),
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -7444,12 +7532,24 @@ class _CounterGroupCard extends StatelessWidget {
                   key: removeKey,
                   tooltip: 'Einen Punkt entfernen',
                   onPressed: onRemove,
+                  visualDensity:
+                      compact ? VisualDensity.compact : VisualDensity.standard,
+                  constraints: compact
+                      ? const BoxConstraints.tightFor(width: 40, height: 40)
+                      : null,
+                  iconSize: compact ? 22 : null,
                   icon: const Icon(Icons.remove_circle_outline_rounded),
                 ),
                 IconButton(
                   key: addKey,
                   tooltip: 'Einen Punkt hinzufügen',
                   onPressed: onAdd,
+                  visualDensity:
+                      compact ? VisualDensity.compact : VisualDensity.standard,
+                  constraints: compact
+                      ? const BoxConstraints.tightFor(width: 40, height: 40)
+                      : null,
+                  iconSize: compact ? 22 : null,
                   icon: const Icon(Icons.add_circle_outline_rounded),
                 ),
               ],
@@ -7466,21 +7566,26 @@ class _StaticCounterGroup extends StatelessWidget {
     super.key,
     required this.label,
     required this.count,
+    this.width = 110,
   });
 
   final String label;
   final int count;
+  final double width;
 
   @override
   Widget build(BuildContext context) => Card.outlined(
     child: SizedBox(
-      width: 110,
+      width: width,
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label, maxLines: 1),
+            ),
             const SizedBox(height: 4),
             _CounterDots(count: count),
           ],
@@ -7491,13 +7596,14 @@ class _StaticCounterGroup extends StatelessWidget {
 }
 
 class _CounterDots extends StatelessWidget {
-  const _CounterDots({required this.count});
+  const _CounterDots({required this.count, this.compact = false});
 
   final int count;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => ConstrainedBox(
-    constraints: const BoxConstraints(minHeight: 28),
+    constraints: BoxConstraints(minHeight: compact ? 20 : 28),
     child: Wrap(
       alignment: WrapAlignment.center,
       spacing: 3,

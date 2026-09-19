@@ -2083,8 +2083,7 @@ class TouchInteractionPlan {
             return TouchInteractionPlan(
               taskKey: taskKey,
               kind: TouchInteractionKind.numberBondComposer,
-              instruction:
-                  'Baue den fehlenden Teil so, dass beide Teile zusammen genau $target ergeben.',
+              instruction: 'Ergänze den fehlenden Teil bis $target.',
               dataValues: <int>[target, known],
               expectedAnswer: answer,
               maxValue: target,
