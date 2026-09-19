@@ -127,6 +127,82 @@ void main() {
     expect(semantics.excludeSemantics, isTrue);
   });
 
+  testWidgets(
+    'manual read-aloud marks only the selected reading task as assisted',
+    (tester) async {
+      final task = GermanStarterTaskCatalog.tasks.firstWhere(
+        (task) => task.id == 'g1-read-word-sonne',
+      );
+      final spoken = <String>[];
+      GermanRoundDraft? draft;
+      GermanSessionResult? completed;
+
+      await tester.pumpWidget(
+        _app(
+          task: task,
+          speak: (text) async => spoken.add(text),
+          readAloudEnabled: false,
+          onDraftChanged: (value) => draft = value,
+          onComplete: (result) => completed = result,
+        ),
+      );
+      await tester.pump();
+
+      expect(spoken, isEmpty);
+      expect(draft?.currentReadAloudUsed ?? false, isFalse);
+
+      await tester.tap(find.byKey(const ValueKey('german-task-read-aloud')));
+      await tester.pump();
+
+      expect(spoken, hasLength(1));
+      expect(spoken.single, contains(task.instruction));
+      expect(spoken.single, contains(task.promptForSpeech));
+      expect(draft, isNotNull);
+      expect(draft!.currentReadAloudUsed, isTrue);
+
+      await tester.tap(
+        find.widgetWithText(FilledButton, task.acceptedAnswers.single),
+      );
+      await tester.pump();
+
+      expect(completed, isNotNull);
+      expect(completed!.taskResults.single.usedReadAloud, isTrue);
+      expect(completed!.taskResults.single.independentCorrectFirstTry, isFalse);
+    },
+  );
+
+  testWidgets('manual read-aloud keeps non-reading evidence independent', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g2-noun-article-tree',
+    );
+    final spoken = <String>[];
+    GermanSessionResult? completed;
+
+    await tester.pumpWidget(
+      _app(
+        task: task,
+        speak: (text) async => spoken.add(text),
+        readAloudEnabled: false,
+        onComplete: (result) => completed = result,
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('german-task-read-aloud')));
+    await tester.pump();
+    await tester.tap(
+      find.widgetWithText(FilledButton, task.acceptedAnswers.single),
+    );
+    await tester.pump();
+
+    expect(spoken, hasLength(1));
+    expect(completed, isNotNull);
+    expect(completed!.taskResults.single.usedReadAloud, isFalse);
+    expect(completed!.taskResults.single.independentCorrectFirstTry, isTrue);
+  });
+
   testWidgets('read-aloud reading task is stored as assisted evidence', (
     tester,
   ) async {

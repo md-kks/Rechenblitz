@@ -197,6 +197,15 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     }
   }
 
+  Future<void> _readCurrentTaskOnDemand() async {
+    if (_completed || _task.requiresSpeech) return;
+    if (_currentTaskMeasuresReading && !_usedReadAloudForCurrentTask) {
+      _usedReadAloudForCurrentTask = true;
+      _emitDraft();
+    }
+    await _speakWithoutTiming('${_task.instruction} ${_task.promptForSpeech}');
+  }
+
   Future<void> _autoReadCurrentTask() async {
     final speaker = widget.autoSpeak;
     if (speaker == null || _completed) return;
@@ -319,7 +328,19 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            if (!_task.requiresSpeech) ...<Widget>[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const ValueKey('german-task-read-aloud'),
+                  onPressed: () => unawaited(_readCurrentTaskOnDemand()),
+                  icon: const Icon(Icons.volume_up_outlined),
+                  label: const Text('Aufgabe vorlesen'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 12),
             _buildInteraction(context),
             if (_feedback != null) ...<Widget>[
               const SizedBox(height: 16),
