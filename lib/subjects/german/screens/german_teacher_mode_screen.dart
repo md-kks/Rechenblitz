@@ -92,7 +92,7 @@ class _GermanTeacherModeScreenState extends State<GermanTeacherModeScreen> {
             gradeLevel: assignment.gradeLevel,
             tasks: round,
             speak: widget.controller.speakOnDemand,
-            autoSpeak: widget.controller.speak,
+            autoSpeak: widget.controller.speakOnDemand,
             readAloudEnabled:
                 widget.controller.accessibilityPreferences.readAloud,
             speakCompletion:

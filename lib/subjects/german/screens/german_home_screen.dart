@@ -259,7 +259,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
             gradeLevel: roundGradeLevel,
             tasks: tasks,
             speak: widget.controller.speakOnDemand,
-            autoSpeak: widget.controller.speak,
+            autoSpeak: widget.controller.speakOnDemand,
             readAloudEnabled:
                 widget.controller.accessibilityPreferences.readAloud,
             speakCompletion:

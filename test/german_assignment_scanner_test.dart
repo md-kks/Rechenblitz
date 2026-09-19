@@ -3,10 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/core/grade_level.dart';
 import 'package:rechenblitz/screens/assignment_scanner_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
+import 'package:rechenblitz/services/speech_service.dart';
 import 'package:rechenblitz/subjects/german/german_competency.dart';
 import 'package:rechenblitz/subjects/german/german_learning_domain.dart';
 import 'package:rechenblitz/subjects/german/german_teacher_assignment.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _RecordingSpeechService extends SpeechService {
+  final List<String> spoken = <String>[];
+
+  @override
+  Future<void> speak(String text, {double rate = 0.45}) async {
+    spoken.add(text);
+  }
+}
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
@@ -45,6 +55,43 @@ void main() {
     );
     expect(start.onPressed, isNull);
   });
+
+  testWidgets(
+    'listening assignment auto-plays with general read-aloud disabled',
+    (tester) async {
+      final speech = _RecordingSpeechService();
+      final controller = AppController(speech: speech);
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      expect(controller.accessibilityPreferences.readAloud, isFalse);
+      const assignment = GermanTeacherAssignment(
+        gradeLevel: GradeLevel.second,
+        domain: GermanLearningDomain.listening,
+        tasks: 1,
+        targetCompetency: GermanCompetencyId.listeningComprehension,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: AssignmentScannerScreen(controller: controller)),
+      );
+      await tester.pumpAndSettle();
+
+      final input = find.byKey(const ValueKey('assignment-code-input')).first;
+      await tester.ensureVisible(input);
+      await tester.enterText(input, assignment.toPayload());
+      await tester.tap(
+        find.byKey(const ValueKey('assignment-code-submit')).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Auftrag starten'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Deutsch-Schulauftrag'), findsOneWidget);
+      expect(find.text('1 von 1'), findsOneWidget);
+      expect(speech.spoken, hasLength(1));
+      expect(speech.spoken.single.trim(), isNotEmpty);
+    },
+  );
 
   testWidgets('manual scanner accepts a German offline assignment', (
     tester,
