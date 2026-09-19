@@ -160,6 +160,7 @@ class _TrainingScreenState extends State<TrainingScreen>
   Future<void>? taskRememberFuture;
   String checkpointFeedback = '';
   final List<int> completedResponseMs = [];
+  final List<RoundAttemptReview> attemptReviews = [];
   int plusTotal = 0;
   int plusCorrect = 0;
   int minusTotal = 0;
@@ -257,6 +258,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       factAttemptSequence = saved.factAttemptSequence;
       pendingFactAttempt = saved.pendingFactAttempt;
       completedResponseMs.addAll(saved.responseTimes);
+      attemptReviews.addAll(saved.attemptReviews);
       plusTotal = saved.plusTotal;
       plusCorrect = saved.plusCorrect;
       minusTotal = saved.minusTotal;
@@ -385,6 +387,7 @@ class _TrainingScreenState extends State<TrainingScreen>
         pendingFactAttempt:
             clearPendingFactAttempt ? null : pendingFactAttempt,
         responseTimes: List<int>.from(completedResponseMs),
+        attemptReviews: List<RoundAttemptReview>.from(attemptReviews),
         plusTotal: plusTotal,
         plusCorrect: plusCorrect,
         minusTotal: minusTotal,
@@ -696,6 +699,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       incorrectAttempts += 1;
       completed += 1;
       completedResponseMs.add(receipt.responseMs);
+      _rememberAttemptReview();
       _countCompletedFact(firstTryCorrect: false);
       locked = true;
       setState(() => feedback = 'Weiter geht’s.');
@@ -764,7 +768,11 @@ class _TrainingScreenState extends State<TrainingScreen>
     segmentUsedHelp = segmentUsedHelp || usedHelp || showHelp || helpLevel > 0;
     completedResponseMs.add(receipt.responseMs);
     final firstTry = wrongOnCurrent == 0 && !hadCheckpointError;
-    if (firstTry) correctFirstTry += 1;
+    if (firstTry) {
+      correctFirstTry += 1;
+    } else {
+      _rememberAttemptReview();
+    }
     _countCompletedFact(firstTryCorrect: firstTry);
     if (!restoring && widget.controller.hapticEnabled) {
       HapticFeedback.lightImpact();
@@ -830,6 +838,26 @@ class _TrainingScreenState extends State<TrainingScreen>
       submitting = false;
       rethrow;
     }
+  }
+
+  String get _reviewPrompt => widget.mode == TrainingMode.numberFriends
+      ? '${current.result} = ${current.a} + ?'
+      : '${current.a} ${current.symbol} ${current.b} = ?';
+
+  void _rememberAttemptReview() {
+    if (completed <= 0 ||
+        attemptReviews.any((review) => review.taskNumber == completed)) {
+      return;
+    }
+    attemptReviews.add(
+      RoundAttemptReview(
+        taskNumber: completed,
+        taskKey: current.key,
+        prompt: _reviewPrompt,
+        correctAnswer: '$_expectedAnswer',
+        hadCheckpointError: hadCheckpointError,
+      ),
+    );
   }
 
   void _countCompletedFact({required bool firstTryCorrect}) {
@@ -944,6 +972,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       context,
       completed: completed,
       correctFirstTry: correctFirstTry,
+      attemptReviews: attemptReviews,
       starsEarned: result.starsEarned,
       rewardReason: rewardReason,
       adaptiveNote: adaptiveStopReason,

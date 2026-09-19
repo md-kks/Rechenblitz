@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../models/learning_path.dart';
 import '../models/reward_badge.dart';
+import '../models/training_session_progress.dart';
 
 Future<void> showRoundCompletionDialog(
   BuildContext context, {
   required int completed,
   required int correctFirstTry,
+  List<RoundAttemptReview> attemptReviews = const <RoundAttemptReview>[],
   required int starsEarned,
   String? rewardReason,
   List<RewardBadge> newBadges = const <RewardBadge>[],
@@ -46,6 +48,65 @@ Future<void> showRoundCompletionDialog(
             textAlign: TextAlign.center,
             style: Theme.of(dialogContext).textTheme.titleMedium,
           ),
+          if (attemptReviews.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              key: const ValueKey('round-attempt-review'),
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.fact_check_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Nicht beim ersten Versuch',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Diese Aufgaben wurden am Ende richtig gelöst, brauchten aber mehr als einen Versuch.',
+                      style: Theme.of(dialogContext).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 10),
+                    ...attemptReviews.map(
+                      (review) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Column(
+                          key: ValueKey(
+                            'round-attempt-review-${review.taskNumber}',
+                          ),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Aufgabe ${review.taskNumber}: ${review.prompt}',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 3),
+                            Text('Richtige Antwort: ${review.correctAnswer}'),
+                            if (review.hadCheckpointError)
+                              Text(
+                                'Ein Zwischenschritt wurde korrigiert.',
+                                style:
+                                    Theme.of(dialogContext).textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (averageSeconds != null) ...[
             const SizedBox(height: 6),
             Text(

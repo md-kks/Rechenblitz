@@ -130,6 +130,45 @@ class PendingFirstAttemptEvidence {
       );
 }
 
+class RoundAttemptReview {
+  const RoundAttemptReview({
+    required this.taskNumber,
+    required this.taskKey,
+    required this.prompt,
+    required this.correctAnswer,
+    this.hadCheckpointError = false,
+  });
+
+  final int taskNumber;
+  final String taskKey;
+  final String prompt;
+  final String correctAnswer;
+  final bool hadCheckpointError;
+
+  bool get hasSaneState =>
+      taskNumber > 0 &&
+      taskKey.trim().isNotEmpty &&
+      prompt.trim().isNotEmpty &&
+      correctAnswer.trim().isNotEmpty;
+
+  Map<String, dynamic> toJson() => {
+        'taskNumber': taskNumber,
+        'taskKey': taskKey,
+        'prompt': prompt,
+        'correctAnswer': correctAnswer,
+        'hadCheckpointError': hadCheckpointError,
+      };
+
+  factory RoundAttemptReview.fromJson(Map<String, dynamic> json) =>
+      RoundAttemptReview(
+        taskNumber: json['taskNumber'] as int,
+        taskKey: json['taskKey'] as String,
+        prompt: json['prompt'] as String,
+        correctAnswer: json['correctAnswer'] as String,
+        hadCheckpointError: json['hadCheckpointError'] as bool? ?? false,
+      );
+}
+
 class CoreTrainingSessionProgress {
   const CoreTrainingSessionProgress({
     required this.kind,
@@ -171,6 +210,7 @@ class CoreTrainingSessionProgress {
     this.pendingFactAttempt,
     this.pendingFirstAttemptEvidence,
     this.responseTimes = const <int>[],
+    this.attemptReviews = const <RoundAttemptReview>[],
     this.plusTotal = 0,
     this.plusCorrect = 0,
     this.minusTotal = 0,
@@ -223,6 +263,7 @@ class CoreTrainingSessionProgress {
   final PendingFactAttempt? pendingFactAttempt;
   final PendingFirstAttemptEvidence? pendingFirstAttemptEvidence;
   final List<int> responseTimes;
+  final List<RoundAttemptReview> attemptReviews;
   final int plusTotal;
   final int plusCorrect;
   final int minusTotal;
@@ -258,7 +299,14 @@ class CoreTrainingSessionProgress {
         checkpointWrongAttempts.entries.any(
           (entry) => entry.key < 0 || entry.value < 0,
         ) ||
-        responseTimes.any((value) => value < 0)) {
+        responseTimes.any((value) => value < 0) ||
+        attemptReviews.any(
+          (review) =>
+              !review.hasSaneState ||
+              review.taskNumber > completed,
+        ) ||
+        attemptReviews.map((review) => review.taskNumber).toSet().length !=
+            attemptReviews.length) {
       return false;
     }
     if (!validCounterPair(plusTotal, plusCorrect) ||
@@ -379,6 +427,8 @@ class CoreTrainingSessionProgress {
     'pendingFactAttempt': pendingFactAttempt?.toJson(),
     'pendingFirstAttemptEvidence': pendingFirstAttemptEvidence?.toJson(),
     'responseTimes': responseTimes,
+    'attemptReviews':
+        attemptReviews.map((review) => review.toJson()).toList(growable: false),
     'plusTotal': plusTotal,
     'plusCorrect': plusCorrect,
     'minusTotal': minusTotal,
@@ -462,6 +512,11 @@ class CoreTrainingSessionProgress {
               : null,
       responseTimes: (json['responseTimes'] as List<dynamic>? ?? const [])
           .cast<int>(),
+      attemptReviews:
+          (json['attemptReviews'] as List<dynamic>? ?? const <dynamic>[])
+              .whereType<Map<String, dynamic>>()
+              .map(RoundAttemptReview.fromJson)
+              .toList(growable: false),
       plusTotal: json['plusTotal'] as int? ?? 0,
       plusCorrect: json['plusCorrect'] as int? ?? 0,
       minusTotal: json['minusTotal'] as int? ?? 0,
