@@ -268,6 +268,34 @@ void main() {
     }
   });
 
+  test('Gleichschenklige Dreiecke werden eindeutig beschrieben', () {
+    final generator = CurriculumExerciseGenerator(random: Random(9154));
+    var seen = 0;
+
+    for (var i = 0; i < 300; i++) {
+      final exercise = generator.generate(
+        mode: TrainingMode.geometryRelations,
+        gradeLevel: GradeLevel.third,
+        maxValue: 1000,
+        targetCompetency: MicroCompetencyId.figureClassification,
+      );
+      if (exercise.answer != 3) continue;
+      seen += 1;
+
+      expect(exercise.prompt, isNot(contains('mindestens zwei')));
+      expect(
+        exercise.prompt,
+        anyOf(
+          contains('genau zwei'),
+          contains('nicht drei'),
+          contains('dritte Seite'),
+        ),
+      );
+    }
+
+    expect(seen, greaterThan(20));
+  });
+
   test('Gezielter Rauminhalt hält Schicht und Gesamtzahl getrennt', () {
     final generator = CurriculumExerciseGenerator(random: Random(909));
 
