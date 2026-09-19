@@ -70,6 +70,61 @@ class GermanTeacherAssignmentResult {
   }) : independentCorrectFirstTry =
            independentCorrectFirstTry ?? correctFirstTry;
 
+  // Compact QR codes are a persisted wire format. Keep these codebooks
+  // stable: append new values, never reorder existing entries.
+  static const _gradeCodes = <GradeLevel>[
+    GradeLevel.first,
+    GradeLevel.second,
+    GradeLevel.third,
+    GradeLevel.fourth,
+  ];
+  static const _domainCodes = <GermanLearningDomain>[
+    GermanLearningDomain.reading,
+    GermanLearningDomain.spelling,
+    GermanLearningDomain.language,
+    GermanLearningDomain.vocabulary,
+    GermanLearningDomain.listening,
+    GermanLearningDomain.writing,
+  ];
+  static const _competencyCodes = <GermanCompetencyId>[
+    GermanCompetencyId.letterSoundMatch,
+    GermanCompetencyId.vowelConsonantRecognition,
+    GermanCompetencyId.alphabeticalOrder,
+    GermanCompetencyId.syllableSegmentation,
+    GermanCompetencyId.wordBuilding,
+    GermanCompetencyId.wordFamilies,
+    GermanCompetencyId.nounArticle,
+    GermanCompetencyId.singularPlural,
+    GermanCompetencyId.adjectiveRecognition,
+    GermanCompetencyId.verbRecognition,
+    GermanCompetencyId.verbInflection,
+    GermanCompetencyId.sentenceWordOrder,
+    GermanCompetencyId.sentencePunctuation,
+    GermanCompetencyId.sentenceTypes,
+    GermanCompetencyId.wordRecognition,
+    GermanCompetencyId.sentenceComprehension,
+    GermanCompetencyId.textInformation,
+    GermanCompetencyId.listeningComprehension,
+    GermanCompetencyId.conversationRules,
+    GermanCompetencyId.oralRetelling,
+    GermanCompetencyId.sentenceWriting,
+    GermanCompetencyId.spellingStrategies,
+    GermanCompetencyId.dictionarySkills,
+    GermanCompetencyId.compoundWords,
+    GermanCompetencyId.subjectPredicate,
+    GermanCompetencyId.sentenceConstituents,
+    GermanCompetencyId.verbTenses,
+    GermanCompetencyId.readingInference,
+    GermanCompetencyId.textSequence,
+    GermanCompetencyId.textMainIdea,
+    GermanCompetencyId.sentenceConnections,
+    GermanCompetencyId.textRevision,
+    GermanCompetencyId.listeningMainIdeas,
+    GermanCompetencyId.presentationStructure,
+    GermanCompetencyId.discussionReasoning,
+    GermanCompetencyId.directSpeechPunctuation,
+  ];
+
   final String assignmentId;
   final GradeLevel gradeLevel;
   final GermanLearningDomain domain;
@@ -125,7 +180,39 @@ class GermanTeacherAssignmentResult {
     },
   );
 
-  String toPayload() => toEnvelope().toPayload();
+  SubjectResultEnvelope _toCompactEnvelope() => SubjectResultEnvelope(
+    subject: LearningSubject.german,
+    data: <String, dynamic>{
+      'k': 'r',
+      'a': assignmentId,
+      'g': _codeFor(_gradeCodes, gradeLevel),
+      'd': _codeFor(_domainCodes, domain),
+      'q': requestedTasks,
+      'n': completedTasks,
+      'c': correctFirstTry,
+      's': independentCorrectFirstTry,
+      'r': readAloudAssistedTasks,
+      'i': incorrectAttempts,
+      'm': averageResponseMs.round(),
+      if (targetCompetency != null)
+        't': _codeFor(_competencyCodes, targetCompetency!),
+      if (competencyBreakdown.isNotEmpty)
+        'b': competencyBreakdown
+            .map(
+              (entry) => <int>[
+                _codeFor(_competencyCodes, entry.competencyId),
+                entry.completedTasks,
+                entry.correctFirstTry,
+                entry.independentCorrectFirstTry,
+                entry.readAloudAssistedTasks,
+                entry.incorrectAttempts,
+              ],
+            )
+            .toList(growable: false),
+    },
+  );
+
+  String toPayload() => _toCompactEnvelope().toPayload();
 
   static GermanTeacherAssignmentResult fromSession({
     required GermanTeacherAssignment assignment,
@@ -180,6 +267,31 @@ class GermanTeacherAssignmentResult {
     );
   }
 
+  static int _codeFor<T>(List<T> values, T value) {
+    final code = values.indexOf(value);
+    if (code < 0) throw StateError('value missing from compact codebook');
+    return code;
+  }
+
+  static int _compactInt(Object? raw) {
+    if (raw is! num || !raw.isFinite) {
+      throw const FormatException('compact integer is not numeric');
+    }
+    final value = raw.toInt();
+    if (raw != value) {
+      throw const FormatException('compact integer is not integral');
+    }
+    return value;
+  }
+
+  static T _enumAt<T>(List<T> values, Object? raw) {
+    final index = _compactInt(raw);
+    if (index < 0 || index >= values.length) {
+      throw const FormatException('enum index out of range');
+    }
+    return values[index];
+  }
+
   static GermanTeacherAssignmentResult? tryParse(String payload) {
     final envelope = SubjectResultEnvelope.tryParse(payload);
     if (envelope == null || envelope.subject != LearningSubject.german) {
@@ -187,34 +299,70 @@ class GermanTeacherAssignmentResult {
     }
     try {
       final data = envelope.data;
-      if (data['kind'] != 'assignmentResult') return null;
-      final targetRaw = data['target'] as String?;
-      final rawBreakdown = data['breakdown'];
+      final compact = data['k'] == 'r';
+      if (!compact && data['kind'] != 'assignmentResult') return null;
+
       final breakdown = <GermanAssignmentCompetencyResult>[];
+      final rawBreakdown = compact ? data['b'] : data['breakdown'];
       if (rawBreakdown != null) {
         if (rawBreakdown is! List<dynamic>) return null;
         for (final raw in rawBreakdown) {
-          if (raw is! Map<String, dynamic>) return null;
-          breakdown.add(GermanAssignmentCompetencyResult.fromJson(raw));
+          if (compact) {
+            if (raw is! List<dynamic> || raw.length != 6) return null;
+            breakdown.add(
+              GermanAssignmentCompetencyResult(
+                competencyId: _enumAt(_competencyCodes, raw[0]),
+                completedTasks: _compactInt(raw[1]),
+                correctFirstTry: _compactInt(raw[2]),
+                independentCorrectFirstTry: _compactInt(raw[3]),
+                readAloudAssistedTasks: _compactInt(raw[4]),
+                incorrectAttempts: _compactInt(raw[5]),
+              ),
+            );
+          } else {
+            if (raw is! Map<String, dynamic>) return null;
+            breakdown.add(GermanAssignmentCompetencyResult.fromJson(raw));
+          }
         }
       }
+
+      final correctFirstTry = compact
+          ? _compactInt(data['c'])
+          : (data['correctFirstTry'] as num).toInt();
       final result = GermanTeacherAssignmentResult(
-        assignmentId: data['assignmentId'] as String,
-        gradeLevel: GradeLevel.values.byName(data['grade'] as String),
-        domain: GermanLearningDomain.values.byName(data['domain'] as String),
-        requestedTasks: (data['requestedTasks'] as num).toInt(),
-        completedTasks: (data['completedTasks'] as num).toInt(),
-        correctFirstTry: (data['correctFirstTry'] as num).toInt(),
-        independentCorrectFirstTry:
-            (data['independentCorrectFirstTry'] as num?)?.toInt() ??
-            (data['correctFirstTry'] as num).toInt(),
-        readAloudAssistedTasks:
-            (data['readAloudAssistedTasks'] as num?)?.toInt() ?? 0,
-        incorrectAttempts: (data['incorrectAttempts'] as num).toInt(),
-        averageResponseMs: (data['averageResponseMs'] as num).toDouble(),
-        targetCompetency: targetRaw == null
+        assignmentId: (compact ? data['a'] : data['assignmentId']) as String,
+        gradeLevel: compact
+            ? _enumAt(_gradeCodes, data['g'])
+            : GradeLevel.values.byName(data['grade'] as String),
+        domain: compact
+            ? _enumAt(_domainCodes, data['d'])
+            : GermanLearningDomain.values.byName(data['domain'] as String),
+        requestedTasks: compact
+            ? _compactInt(data['q'])
+            : (data['requestedTasks'] as num).toInt(),
+        completedTasks: compact
+            ? _compactInt(data['n'])
+            : (data['completedTasks'] as num).toInt(),
+        correctFirstTry: correctFirstTry,
+        independentCorrectFirstTry: compact
+            ? _compactInt(data['s'])
+            : (data['independentCorrectFirstTry'] as num?)?.toInt() ??
+                  correctFirstTry,
+        readAloudAssistedTasks: compact
+            ? _compactInt(data['r'])
+            : (data['readAloudAssistedTasks'] as num?)?.toInt() ?? 0,
+        incorrectAttempts: compact
+            ? _compactInt(data['i'])
+            : (data['incorrectAttempts'] as num).toInt(),
+        averageResponseMs:
+            (compact ? data['m'] : data['averageResponseMs'] as num).toDouble(),
+        targetCompetency: compact
+            ? data['t'] == null
+                  ? null
+                  : _enumAt(_competencyCodes, data['t'])
+            : data['target'] == null
             ? null
-            : GermanCompetencyId.values.byName(targetRaw),
+            : GermanCompetencyId.values.byName(data['target'] as String),
         competencyBreakdown:
             List<GermanAssignmentCompetencyResult>.unmodifiable(breakdown),
       );

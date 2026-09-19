@@ -35,6 +35,19 @@ void main() {
     ],
   );
 
+  String mutateCompactPayload(
+    GermanTeacherAssignmentResult result,
+    void Function(Map<String, dynamic> data) mutate,
+  ) {
+    final envelope = SubjectResultEnvelope.tryParse(result.toPayload())!;
+    final data = Map<String, dynamic>.from(envelope.data);
+    mutate(data);
+    return SubjectResultEnvelope(
+      subject: envelope.subject,
+      data: data,
+    ).toPayload();
+  }
+
   test('German assignment result round-trips anonymously', () {
     final result = GermanTeacherAssignmentResult.fromSession(
       assignment: assignment,
@@ -54,6 +67,159 @@ void main() {
     expect(envelope, isNotNull);
     expect(envelope!.data.containsKey('name'), isFalse);
     expect(envelope.data.containsKey('profileId'), isFalse);
+  });
+
+  test('compact result round-trips target and multi-competency evidence', () {
+    const targeted = GermanTeacherAssignmentResult(
+      assignmentId: 'g4-reading-target',
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      requestedTasks: 6,
+      completedTasks: 6,
+      correctFirstTry: 5,
+      independentCorrectFirstTry: 4,
+      readAloudAssistedTasks: 2,
+      incorrectAttempts: 2,
+      averageResponseMs: 1250,
+      targetCompetency: GermanCompetencyId.textMainIdea,
+      competencyBreakdown: <GermanAssignmentCompetencyResult>[
+        GermanAssignmentCompetencyResult(
+          competencyId: GermanCompetencyId.textMainIdea,
+          completedTasks: 6,
+          correctFirstTry: 5,
+          independentCorrectFirstTry: 4,
+          readAloudAssistedTasks: 2,
+          incorrectAttempts: 2,
+        ),
+      ],
+    );
+    const domainWide = GermanTeacherAssignmentResult(
+      assignmentId: 'g4-reading-domain',
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      requestedTasks: 9,
+      completedTasks: 9,
+      correctFirstTry: 7,
+      independentCorrectFirstTry: 5,
+      readAloudAssistedTasks: 2,
+      incorrectAttempts: 3,
+      averageResponseMs: 1400,
+      competencyBreakdown: <GermanAssignmentCompetencyResult>[
+        GermanAssignmentCompetencyResult(
+          competencyId: GermanCompetencyId.textInformation,
+          completedTasks: 3,
+          correctFirstTry: 3,
+          independentCorrectFirstTry: 2,
+          readAloudAssistedTasks: 1,
+          incorrectAttempts: 0,
+        ),
+        GermanAssignmentCompetencyResult(
+          competencyId: GermanCompetencyId.readingInference,
+          completedTasks: 3,
+          correctFirstTry: 2,
+          independentCorrectFirstTry: 2,
+          incorrectAttempts: 1,
+        ),
+        GermanAssignmentCompetencyResult(
+          competencyId: GermanCompetencyId.textSequence,
+          completedTasks: 3,
+          correctFirstTry: 2,
+          independentCorrectFirstTry: 1,
+          readAloudAssistedTasks: 1,
+          incorrectAttempts: 2,
+        ),
+      ],
+    );
+
+    final targetedParsed = GermanTeacherAssignmentResult.tryParse(
+      targeted.toPayload(),
+    );
+    final domainParsed = GermanTeacherAssignmentResult.tryParse(
+      domainWide.toPayload(),
+    );
+
+    expect(targetedParsed, isNotNull);
+    expect(targetedParsed!.assignmentId, targeted.assignmentId);
+    expect(targetedParsed.gradeLevel, targeted.gradeLevel);
+    expect(targetedParsed.domain, targeted.domain);
+    expect(targetedParsed.requestedTasks, targeted.requestedTasks);
+    expect(targetedParsed.completedTasks, targeted.completedTasks);
+    expect(targetedParsed.correctFirstTry, targeted.correctFirstTry);
+    expect(
+      targetedParsed.independentCorrectFirstTry,
+      targeted.independentCorrectFirstTry,
+    );
+    expect(
+      targetedParsed.readAloudAssistedTasks,
+      targeted.readAloudAssistedTasks,
+    );
+    expect(targetedParsed.incorrectAttempts, targeted.incorrectAttempts);
+    expect(targetedParsed.averageResponseMs, targeted.averageResponseMs);
+    expect(targetedParsed.targetCompetency, targeted.targetCompetency);
+    expect(
+      targetedParsed.competencyBreakdown.single.competencyId,
+      GermanCompetencyId.textMainIdea,
+    );
+
+    expect(domainParsed, isNotNull);
+    expect(domainParsed!.competencyBreakdown, hasLength(3));
+    expect(
+      domainParsed.competencyBreakdown.map((entry) => entry.competencyId),
+      <GermanCompetencyId>[
+        GermanCompetencyId.textInformation,
+        GermanCompetencyId.readingInference,
+        GermanCompetencyId.textSequence,
+      ],
+    );
+    expect(domainParsed.independentCorrectFirstTry, 5);
+    expect(domainParsed.readAloudAssistedTasks, 2);
+    expect(domainParsed.incorrectAttempts, 3);
+  });
+
+  test('compact result payload is substantially smaller at QR-scale loads', () {
+    GermanTeacherAssignmentResult buildResult(List<int> counts) {
+      const ids = <GermanCompetencyId>[
+        GermanCompetencyId.textInformation,
+        GermanCompetencyId.readingInference,
+        GermanCompetencyId.textSequence,
+        GermanCompetencyId.textMainIdea,
+      ];
+      final breakdown = <GermanAssignmentCompetencyResult>[
+        for (var index = 0; index < counts.length; index++)
+          GermanAssignmentCompetencyResult(
+            competencyId: ids[index],
+            completedTasks: counts[index],
+            correctFirstTry: counts[index] - 1,
+            independentCorrectFirstTry: counts[index] - 2,
+            readAloudAssistedTasks: 1,
+            incorrectAttempts: 1,
+          ),
+      ];
+      final completed = counts.fold<int>(0, (sum, value) => sum + value);
+      return GermanTeacherAssignmentResult(
+        assignmentId: 'g4-reading-$completed',
+        gradeLevel: GradeLevel.fourth,
+        domain: GermanLearningDomain.reading,
+        requestedTasks: completed,
+        completedTasks: completed,
+        correctFirstTry: completed - counts.length,
+        independentCorrectFirstTry: completed - counts.length * 2,
+        readAloudAssistedTasks: counts.length,
+        incorrectAttempts: counts.length,
+        averageResponseMs: 1450,
+        competencyBreakdown: breakdown,
+      );
+    }
+
+    final twenty = buildResult(<int>[5, 5, 5, 5]);
+    final thirty = buildResult(<int>[8, 8, 7, 7]);
+
+    for (final result in <GermanTeacherAssignmentResult>[twenty, thirty]) {
+      final compact = result.toPayload();
+      final verbose = result.toEnvelope().toPayload();
+      expect(GermanTeacherAssignmentResult.tryParse(compact), isNotNull);
+      expect(compact.length, lessThan(verbose.length * 0.7));
+    }
   });
 
   test('reading assignment carries anonymous read-aloud evidence', () {
@@ -288,6 +454,81 @@ void main() {
     expect(inference.completedTasks, 3);
     expect(inference.correctFirstTry, 2);
     expect(inference.incorrectAttempts, 2);
+  });
+
+  test('compact result rejects malformed codes, breakdowns, and sums', () {
+    final result = GermanTeacherAssignmentResult.fromSession(
+      assignment: assignment,
+      session: session(),
+    );
+
+    String withBreakdownValue(int index, Object? value) =>
+        mutateCompactPayload(result, (data) {
+          final rows = (data['b'] as List<dynamic>)
+              .map((raw) => List<dynamic>.from(raw as List<dynamic>))
+              .toList(growable: false);
+          rows.single[index] = value;
+          data['b'] = rows;
+        });
+
+    final invalidPayloads = <String>[
+      mutateCompactPayload(result, (data) => data['g'] = -1),
+      mutateCompactPayload(result, (data) => data['g'] = 4),
+      mutateCompactPayload(result, (data) => data['g'] = 3.5),
+      mutateCompactPayload(result, (data) => data['g'] = '3'),
+      mutateCompactPayload(result, (data) => data['d'] = 99),
+      mutateCompactPayload(result, (data) => data['t'] = 99),
+      mutateCompactPayload(result, (data) => data['b'] = <String, dynamic>{}),
+      mutateCompactPayload(
+        result,
+        (data) => data['b'] = <dynamic>[
+          <dynamic>[29, 5, 4, 4, 0],
+        ],
+      ),
+      withBreakdownValue(0, 99),
+      withBreakdownValue(1, '5'),
+      withBreakdownValue(1, 5.5),
+      mutateCompactPayload(result, (data) => data['n'] = 4),
+    ];
+
+    for (final payload in invalidPayloads) {
+      expect(GermanTeacherAssignmentResult.tryParse(payload), isNull);
+    }
+  });
+
+  test('verbose German result with assisted evidence remains readable', () {
+    const result = GermanTeacherAssignmentResult(
+      assignmentId: 'legacy-current-fields',
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      requestedTasks: 2,
+      completedTasks: 2,
+      correctFirstTry: 2,
+      independentCorrectFirstTry: 1,
+      readAloudAssistedTasks: 1,
+      incorrectAttempts: 0,
+      averageResponseMs: 950,
+      targetCompetency: GermanCompetencyId.textMainIdea,
+      competencyBreakdown: <GermanAssignmentCompetencyResult>[
+        GermanAssignmentCompetencyResult(
+          competencyId: GermanCompetencyId.textMainIdea,
+          completedTasks: 2,
+          correctFirstTry: 2,
+          independentCorrectFirstTry: 1,
+          readAloudAssistedTasks: 1,
+          incorrectAttempts: 0,
+        ),
+      ],
+    );
+
+    final parsed = GermanTeacherAssignmentResult.tryParse(
+      result.toEnvelope().toPayload(),
+    );
+
+    expect(parsed, isNotNull);
+    expect(parsed!.independentCorrectFirstTry, 1);
+    expect(parsed.readAloudAssistedTasks, 1);
+    expect(parsed.competencyBreakdown.single.readAloudAssistedTasks, 1);
   });
 
   test('old German result without breakdown stays readable', () {
