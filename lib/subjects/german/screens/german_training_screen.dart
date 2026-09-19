@@ -76,9 +76,10 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       GermanCompetencyCatalog.definition(_task.competencyId).domain ==
           GermanLearningDomain.reading;
 
-  bool get _usesOrderedChunks =>
+  bool get _usesStoredParts =>
       _task.interaction == GermanTaskInteraction.wordOrder ||
-      _task.interaction == GermanTaskInteraction.wordBuilder;
+      _task.interaction == GermanTaskInteraction.wordBuilder ||
+      _task.interaction == GermanTaskInteraction.tokenSelection;
 
   bool _canRestoreOrderedWords(GermanTask task, List<String> words) {
     if (words.length > task.choices.length) return false;
@@ -119,7 +120,9 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       if (currentTask.interaction == GermanTaskInteraction.typedText) {
         _answerController.text = draft.currentAnswer;
       } else if ((currentTask.interaction == GermanTaskInteraction.wordOrder ||
-              currentTask.interaction == GermanTaskInteraction.wordBuilder) &&
+              currentTask.interaction == GermanTaskInteraction.wordBuilder ||
+              currentTask.interaction ==
+                  GermanTaskInteraction.tokenSelection) &&
           _canRestoreOrderedWords(currentTask, draft.currentOrderedWords)) {
         _orderedWords.addAll(draft.currentOrderedWords);
       }
@@ -175,7 +178,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
         currentAnswer: _task.interaction == GermanTaskInteraction.typedText
             ? _answerController.text
             : '',
-        currentOrderedWords: _usesOrderedChunks
+        currentOrderedWords: _usesStoredParts
             ? List<String>.unmodifiable(_orderedWords)
             : const <String>[],
         currentReadAloudUsed: _usedReadAloudForCurrentTask,
@@ -230,10 +233,18 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     await _speakWith(speaker, text);
   }
 
-  void _submit(String answer) {
+  void _submit(String answer) =>
+      _submitEvaluated(answer: answer, correct: _task.accepts(answer));
+
+  void _submitSelection() => _submitEvaluated(
+    answer: _orderedWords.join(' · '),
+    correct: _task.acceptsSelection(_orderedWords),
+  );
+
+  void _submitEvaluated({required String answer, required bool correct}) {
     if (_completed) return;
     _draftDebounce?.cancel();
-    if (!_task.accepts(answer)) {
+    if (!correct) {
       setState(() {
         _incorrectAttempts += 1;
         _feedback = widget.supportEnabled
@@ -416,6 +427,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
   Widget _buildInteraction(BuildContext context) => switch (_task.interaction) {
     GermanTaskInteraction.singleChoice => _buildChoices(),
     GermanTaskInteraction.listeningChoice => _buildListening(),
+    GermanTaskInteraction.tokenSelection => _buildTokenSelection(context),
     GermanTaskInteraction.wordOrder => _buildWordOrder(context),
     GermanTaskInteraction.wordBuilder => _buildWordBuilder(context),
     GermanTaskInteraction.typedText => _buildTypedAnswer(),
@@ -423,6 +435,9 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
 
   List<String> _presentedChoices() {
     final choices = List<String>.from(_task.choices);
+    if (_task.interaction == GermanTaskInteraction.tokenSelection) {
+      return choices;
+    }
     if (choices.length < 2) return choices;
     final seed = _stablePresentationSeed(
       '${_startedAt.microsecondsSinceEpoch}:$_index:${_task.id}',
@@ -487,6 +502,65 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       _buildChoices(),
     ],
   );
+
+  Widget _buildTokenSelection(BuildContext context) {
+    final choices = _presentedChoices();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: choices.asMap().entries.map((entry) {
+            final selected = _orderedWords.contains(entry.value);
+            return FilterChip(
+              key: ValueKey('german-token-${_task.id}-${entry.key}'),
+              label: Text(entry.value),
+              selected: selected,
+              onSelected: (value) {
+                setState(() {
+                  if (value) {
+                    _orderedWords.add(entry.value);
+                  } else {
+                    _orderedWords.remove(entry.value);
+                  }
+                  _feedback = null;
+                });
+                _emitDraft();
+              },
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _orderedWords.isEmpty
+                    ? null
+                    : () {
+                        setState(() {
+                          _orderedWords.clear();
+                          _feedback = null;
+                        });
+                        _emitDraft();
+                      },
+                child: const Text('Auswahl löschen'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                key: const ValueKey('german-token-submit'),
+                onPressed: _orderedWords.isEmpty ? null : _submitSelection,
+                child: const Text('Prüfen'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   Widget _buildWordOrder(BuildContext context) {
     final remainingUsed = <String, int>{};

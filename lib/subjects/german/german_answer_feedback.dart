@@ -15,6 +15,9 @@ class GermanAnswerFeedback {
       case GermanTaskInteraction.listeningChoice:
         return 'Noch nicht. Hör die Aufgabe noch einmal an und achte nur auf '
             'die gesuchte Information.';
+      case GermanTaskInteraction.tokenSelection:
+        return 'Noch nicht. Prüfe jedes markierte Wort und überlege, ob noch '
+            'etwas dazugehört oder eine Markierung zu viel ist.';
       case GermanTaskInteraction.wordOrder:
         return 'Alle Satzbausteine sind da. Prüfe noch einmal ihre '
             'Reihenfolge.';

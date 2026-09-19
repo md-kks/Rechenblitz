@@ -3,6 +3,7 @@ import 'german_competency.dart';
 
 enum GermanTaskInteraction {
   singleChoice,
+  tokenSelection,
   wordOrder,
   wordBuilder,
   typedText,
@@ -42,6 +43,14 @@ class GermanTask {
 
   bool get requiresSpeech =>
       interaction == GermanTaskInteraction.listeningChoice;
+
+  bool acceptsSelection(Iterable<String> selection) {
+    if (interaction != GermanTaskInteraction.tokenSelection) return false;
+    final selected = selection.map(_normalize).toSet();
+    final expected = acceptedAnswers.map(_normalize).toSet();
+    return selected.length == expected.length && selected.containsAll(expected);
+  }
+
   bool accepts(String answer) {
     if (interaction == GermanTaskInteraction.typedText) {
       final normalized = _normalizeTyped(answer);
@@ -77,6 +86,8 @@ class GermanTask {
       case GermanTaskInteraction.singleChoice:
       case GermanTaskInteraction.listeningChoice:
         return _singleChoiceAnswersValid();
+      case GermanTaskInteraction.tokenSelection:
+        return _tokenSelectionAnswersValid();
       case GermanTaskInteraction.wordOrder:
         return choices.length >= 2 &&
             acceptedAnswers.every(_canBuildAnswerFromChoices);
@@ -93,6 +104,18 @@ class GermanTask {
     final accepted = _normalize(acceptedAnswers.single);
     return choices.where((choice) => _normalize(choice) == accepted).length ==
         1;
+  }
+
+  bool _tokenSelectionAnswersValid() {
+    if (choices.length < 2 ||
+        acceptedAnswers.isEmpty ||
+        acceptedAnswers.length >= choices.length) {
+      return false;
+    }
+    final available = choices.map(_normalize).toSet();
+    return acceptedAnswers.every(
+      (answer) => available.contains(_normalize(answer)),
+    );
   }
 
   bool _canBuildAnswerFromChoices(String answer) {

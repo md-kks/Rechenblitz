@@ -4,6 +4,7 @@ import 'german_competency_catalog.dart';
 import 'german_extra_task_catalog.dart';
 import 'german_grade_four_extension_task_catalog.dart';
 import 'german_grade_three_extension_task_catalog.dart';
+import 'german_grammar_touch_task_catalog.dart';
 import 'german_learning_domain.dart';
 import 'german_lower_primary_task_catalog.dart';
 import 'german_more_task_catalog.dart';
@@ -24,6 +25,7 @@ class GermanTaskCatalog {
     ...GermanMoreTaskCatalog.tasks,
     ...GermanSpeakingTaskCatalog.tasks,
     ...GermanTouchTaskCatalog.tasks,
+    ...GermanGrammarTouchTaskCatalog.tasks,
     ...GermanLowerPrimaryTaskCatalog.tasks,
     ...GermanGradeThreeExtensionTaskCatalog.tasks,
     ...GermanGradeFourExtensionTaskCatalog.tasks,
