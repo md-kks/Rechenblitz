@@ -21,6 +21,7 @@ Widget _app({
   void Function(GermanRoundDraft)? onDraftChanged,
   bool speakCompletion = false,
   bool supportEnabled = true,
+  GermanRoundDraft? draft,
   DateTime Function()? now,
 }) => MaterialApp(
   theme: LearningAppTheme.build(
@@ -35,6 +36,7 @@ Widget _app({
     readAloudEnabled: readAloudEnabled,
     speakCompletion: speakCompletion,
     supportEnabled: supportEnabled,
+    draft: draft,
     now: now ?? DateTime.now,
     onComplete: onComplete,
     onDraftChanged: onDraftChanged,
@@ -259,6 +261,47 @@ void main() {
     expect(result.usedReadAloud, isTrue);
     expect(result.independentCorrectFirstTry, isFalse);
   });
+
+  testWidgets(
+    'resumed reading draft is marked assisted when auto read-aloud is enabled',
+    (tester) async {
+      final task = GermanStarterTaskCatalog.tasks.firstWhere(
+        (task) => task.id == 'g1-read-word-sonne',
+      );
+      final startedAt = DateTime(2026, 9, 19, 10);
+      final legacyDraft = GermanRoundDraft(
+        gradeLevel: task.recommendedFromGrade,
+        taskIds: <String>[task.id],
+        currentIndex: 0,
+        startedAt: startedAt,
+        updatedAt: startedAt,
+        completedResults: const <GermanTaskResult>[],
+        currentReadAloudUsed: false,
+      );
+      GermanSessionResult? completed;
+
+      await tester.pumpWidget(
+        _app(
+          task: task,
+          speak: (_) async {},
+          autoSpeak: (_) async {},
+          readAloudEnabled: true,
+          draft: legacyDraft,
+          now: () => startedAt.add(const Duration(seconds: 1)),
+          onComplete: (result) => completed = result,
+        ),
+      );
+
+      await tester.tap(
+        find.widgetWithText(FilledButton, task.acceptedAnswers.single),
+      );
+      await tester.pump();
+
+      expect(completed, isNotNull);
+      expect(completed!.taskResults.single.usedReadAloud, isTrue);
+      expect(completed!.taskResults.single.independentCorrectFirstTry, isFalse);
+    },
+  );
 
   testWidgets('read-aloud state is persisted in the current German draft', (
     tester,

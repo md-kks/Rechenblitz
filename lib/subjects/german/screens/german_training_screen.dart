@@ -123,6 +123,12 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       _startedAt = initialNow;
       _responseTimer = ActiveResponseTimer(startedAt: initialNow);
     }
+    if (widget.readAloudEnabled && _currentTaskMeasuresReading) {
+      // Mark the evidence before the first interactive frame. The post-frame
+      // speech callback persists the same state, but a very fast answer can
+      // never slip through as independent reading evidence.
+      _usedReadAloudForCurrentTask = true;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(_autoReadCurrentTask());
