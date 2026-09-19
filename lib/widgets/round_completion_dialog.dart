@@ -42,7 +42,7 @@ Future<void> showRoundCompletionDialog(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '$correctFirstTry von $completed direkt richtig',
+            '$correctFirstTry von $completed beim ersten Versuch richtig',
             textAlign: TextAlign.center,
             style: Theme.of(dialogContext).textTheme.titleMedium,
           ),
