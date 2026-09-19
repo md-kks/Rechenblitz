@@ -153,8 +153,9 @@ class AdaptiveEngine {
                 fact.operation == MathOperation.multiply &&
                 fact.a > 0 &&
                 fact.b > 0 &&
-                min(fact.a, fact.b) <= 6 &&
-                fact.result <= 48,
+                fact.a <= 8 &&
+                fact.b <= 10 &&
+                fact.result <= 80,
           )
           .toList();
       if (groupFacts.isNotEmpty) candidates = groupFacts;

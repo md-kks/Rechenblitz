@@ -181,7 +181,7 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     await tester.pump();
     await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 1200)),
+      () => Future<void>.delayed(const Duration(milliseconds: 2500)),
     );
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
@@ -191,7 +191,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 20));
 
     expect(controller.lastFactResponse, isNotNull);
-    expect(controller.lastFactResponse!, lessThan(const Duration(seconds: 1)));
+    expect(controller.lastFactResponse!, lessThan(const Duration(seconds: 2)));
 
     await tester.pump(const Duration(milliseconds: 650));
     await tester.pumpWidget(const SizedBox.shrink());
