@@ -350,13 +350,17 @@ class _GermanResultCard extends StatelessWidget {
 }
 
 int _evidenceSortCategory(GermanAssignmentCompetencyResult entry) {
-  final observedDifficulty =
-      entry.incorrectAttempts > 0 ||
-      (entry.independentTasks > 0 &&
-          entry.independentCorrectFirstTry < entry.independentTasks);
-  if (observedDifficulty) return 0;
-  if (entry.independentTasks == 0) return 1;
-  return 2;
+  final independentDifficulty =
+      entry.independentTasks > 0 &&
+      entry.independentCorrectFirstTry < entry.independentTasks;
+  if (independentDifficulty) return 0;
+
+  final assistedDifficulty =
+      entry.readAloudAssistedTasks > 0 && entry.incorrectAttempts > 0;
+  if (assistedDifficulty) return 1;
+
+  if (entry.independentTasks == 0) return 2;
+  return 3;
 }
 
 class _Metric extends StatelessWidget {

@@ -609,6 +609,91 @@ void main() {
     );
   });
 
+  testWidgets(
+    'result scanner prioritizes independent difficulty over assisted difficulty',
+    (tester) async {
+      const domainAssignment = GermanTeacherAssignment(
+        gradeLevel: GradeLevel.fourth,
+        domain: GermanLearningDomain.reading,
+        tasks: 4,
+      );
+      final mixedEvidenceSession = GermanSessionResult(
+        gradeLevel: GradeLevel.fourth,
+        startedAt: DateTime(2026, 9, 19, 10),
+        finishedAt: DateTime(2026, 9, 19, 10, 3),
+        kind: GermanSessionKind.teacherAssignment,
+        taskResults: const <GermanTaskResult>[
+          GermanTaskResult(
+            taskId: 'assisted-infer-a',
+            competencyId: GermanCompetencyId.readingInference,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 1000,
+            usedReadAloud: true,
+          ),
+          GermanTaskResult(
+            taskId: 'assisted-infer-b',
+            competencyId: GermanCompetencyId.readingInference,
+            correctFirstTry: false,
+            incorrectAttempts: 1,
+            responseMs: 1300,
+            usedReadAloud: true,
+          ),
+          GermanTaskResult(
+            taskId: 'independent-main-a',
+            competencyId: GermanCompetencyId.textMainIdea,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 1000,
+          ),
+          GermanTaskResult(
+            taskId: 'independent-main-b',
+            competencyId: GermanCompetencyId.textMainIdea,
+            correctFirstTry: false,
+            incorrectAttempts: 1,
+            responseMs: 1300,
+          ),
+        ],
+      );
+      final result = GermanTeacherAssignmentResult.fromSession(
+        assignment: domainAssignment,
+        session: mixedEvidenceSession,
+      );
+
+      expect(
+        result.competencyBreakdown.first.competencyId,
+        GermanCompetencyId.readingInference,
+        reason: 'The encoded breakdown starts in catalog order.',
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(home: AssignmentResultScannerScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      final input = find.byKey(const ValueKey('assignment-result-code-input'));
+      await tester.ensureVisible(input);
+      await tester.enterText(input, result.toPayload());
+      await tester.tap(
+        find.byKey(const ValueKey('assignment-result-code-submit')),
+      );
+      await tester.pumpAndSettle();
+
+      final independentDifficulty = find.text(
+        'Kernaussage eines Textes erfassen',
+      );
+      final assistedDifficulty = find.text('Zwischen den Zeilen lesen');
+      expect(independentDifficulty, findsOneWidget);
+      expect(assistedDifficulty, findsOneWidget);
+      expect(
+        tester.getTopLeft(independentDifficulty).dy,
+        lessThan(tester.getTopLeft(assistedDifficulty).dy),
+        reason:
+            'Selbstständige Schwierigkeit soll vor Schwierigkeit mit Vorlesen stehen.',
+      );
+    },
+  );
+
   testWidgets('result scanner accepts German LBR1 result code', (tester) async {
     final result = GermanTeacherAssignmentResult.fromSession(
       assignment: assignment,
