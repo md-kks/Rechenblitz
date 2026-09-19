@@ -1664,7 +1664,7 @@ class CurriculumExerciseGenerator {
   }
 
   CurriculumExercise _dataRepresentationChoice() {
-    final scenario = _random.nextInt(6);
+    final scenario = _random.nextInt(9);
     final answer = scenario % 3;
     const choices = ['Strichliste', 'Tabelle', 'Balkendiagramm'];
     final prompt = switch (scenario) {
@@ -1678,8 +1678,14 @@ class CurriculumExerciseGenerator {
         'Beim Sportfest möchtest du während des Weitsprungs jeden gültigen Versuch direkt mitzählen. Welche Darstellung eignet sich am besten?',
       4 =>
         'Du willst die exakten Temperaturen einer Woche für jeden Wochentag übersichtlich nachschlagen. Welche Darstellung eignet sich am besten?',
-      _ =>
+      5 =>
         'Du möchtest schnell erkennen, welche von mehreren Klassen die meisten Bücher gelesen hat. Welche Darstellung eignet sich am besten?',
+      6 =>
+        'Bei einer Verkehrszählung fährt ein Fahrzeug nach dem anderen vorbei. Jede Beobachtung soll sofort markiert werden. Welche Darstellung eignet sich am besten?',
+      7 =>
+        'Du möchtest die Pflanzenhöhe an mehreren Messtagen mit den exakten Zentimeterwerten geordnet nachschlagen. Welche Darstellung eignet sich am besten?',
+      _ =>
+        'Vier Gruppen haben unterschiedlich viele Batterien gesammelt. Du möchtest die Mengen auf einen Blick vergleichen. Welche Darstellung eignet sich am besten?',
     };
     return CurriculumExercise(
       mode: TrainingMode.dataCharts,
@@ -1932,7 +1938,7 @@ class CurriculumExerciseGenerator {
 
     if (kind == 0) {
       final parallel = _random.nextBool();
-      final context = _random.nextInt(3);
+      final context = _random.nextInt(4);
       const choices = ['parallel', 'senkrecht', 'weder noch'];
       final prompt = parallel
           ? switch (context) {
@@ -1940,16 +1946,20 @@ class CurriculumExerciseGenerator {
                 'Zwei Geraden haben überall den gleichen Abstand und schneiden sich nicht. Wie liegen sie zueinander?',
               1 =>
                 'Die beiden langen Kanten eines geraden Papierstreifens verlaufen in gleicher Richtung und bleiben gleich weit voneinander entfernt. Welche Lagebeziehung beschreibt die zugehörigen Geraden?',
-              _ =>
+              2 =>
                 'Zwei gedachte Geraden entlang gegenüberliegender Linien eines karierten Blattes laufen gleichgerichtet weiter und treffen sich nicht. Wie liegen sie zueinander?',
+              _ =>
+                'Zwei gerade Schienen verlaufen nebeneinander mit konstantem Abstand. Welche Lagebeziehung beschreibt ihre gedachten Geraden?',
             }
           : switch (context) {
               0 =>
                 'Zwei Geraden schneiden sich so, dass vier rechte Winkel entstehen. Wie liegen sie zueinander?',
               1 =>
                 'Eine waagerechte und eine senkrechte Gitterlinie treffen sich wie an einer Rechteck-Ecke. Wie liegen die Geraden zueinander?',
-              _ =>
+              2 =>
                 'Zwei Geraden kreuzen sich im rechten Winkel. Welche Lagebeziehung haben sie?',
+              _ =>
+                'Eine senkrechte Regalstütze trifft auf eine waagerechte Ablage und bildet einen rechten Winkel. Wie liegen die gedachten Geraden zueinander?',
             };
       return CurriculumExercise(
         mode: TrainingMode.geometryRelations,
@@ -1973,10 +1983,12 @@ class CurriculumExerciseGenerator {
       ];
       if (targetCompetency == MicroCompetencyId.rightAngle) {
         final relation = _random.nextInt(3);
-        final reference = _random.nextInt(2);
-        final referenceLabel = reference == 0
-            ? 'Ecke eines rechteckigen Blattes'
-            : '90°-Ecke eines Geodreiecks';
+        final reference = _random.nextInt(3);
+        final referenceLabel = switch (reference) {
+          0 => 'Ecke eines rechteckigen Blattes',
+          1 => '90°-Ecke eines Geodreiecks',
+          _ => 'Ecke einer quadratischen Bodenfliese',
+        };
         final prompt = switch (relation) {
           0 =>
             'Ein Winkel ist kleiner als die $referenceLabel. Wie heißt dieser Winkel?',
@@ -1991,7 +2003,11 @@ class CurriculumExerciseGenerator {
           _ => 2,
         };
         final keyRelation = ['smaller', 'equal', 'larger'][relation];
-        final referenceKey = reference == 0 ? 'paper' : 'set-square';
+        final referenceKey = switch (reference) {
+          0 => 'paper',
+          1 => 'set-square',
+          _ => 'tile',
+        };
         return CurriculumExercise(
           mode: TrainingMode.geometryRelations,
           prompt: prompt,
@@ -2018,21 +2034,38 @@ class CurriculumExerciseGenerator {
 
     if (kind == 2) {
       final variant = _random.nextInt(4);
+      final context = _random.nextInt(3);
       const choices = [
         'Quadrat',
         'Rechteck',
         'gleichseitiges Dreieck',
         'gleichschenkliges Dreieck',
       ];
-      final prompt = switch (variant) {
-        0 =>
+      final prompt = switch ((variant, context)) {
+        (0, 0) =>
           'Welche Figur hat vier gleich lange Seiten und vier rechte Winkel?',
-        1 =>
+        (0, 1) =>
+          'Ein Viereck hat vier gleich lange Seiten und jede Ecke ist 90°. Welche Figur ist es?',
+        (0, _) =>
+          'Welche Figur ist zugleich ein Rechteck und hat vier gleich lange Seiten?',
+        (1, 0) =>
           'Welche Figur hat vier rechte Winkel, aber nicht zwingend vier gleich lange Seiten?',
-        2 =>
+        (1, 1) =>
+          'Ein Viereck hat vier rechte Winkel. Gegenüberliegende Seiten sind gleich lang, aber nicht alle vier müssen gleich lang sein. Welche Figur ist es?',
+        (1, _) =>
+          'Welche Figur kann zwei lange und zwei kurze Seiten haben und besitzt trotzdem vier rechte Winkel?',
+        (2, 0) =>
           'Welche Figur hat drei gleich lange Seiten?',
+        (2, 1) =>
+          'Ein Dreieck hat drei Seiten derselben Länge. Wie heißt diese Figurenklasse?',
+        (2, _) =>
+          'Welche Figur hat drei Ecken und alle drei Seiten sind gleich lang?',
+        (3, 0) =>
+          'Welche Figur ist ein Dreieck mit genau zwei gleich langen Seiten?',
+        (3, 1) =>
+          'Welche Figur hat zwei gleich lange Schenkel, aber nicht drei gleich lange Seiten?',
         _ =>
-          'Welche Figur hat mindestens zwei gleich lange Seiten und ist ein Dreieck?',
+          'Bei welchem Dreieck sind zwei Seiten gleich lang und die dritte Seite hat eine andere Länge?',
       };
       return CurriculumExercise(
         mode: TrainingMode.geometryRelations,
@@ -2040,28 +2073,39 @@ class CurriculumExerciseGenerator {
         answer: variant,
         hint:
             'Achte auf Seitenlängen und Winkel. Diese Eigenschaften bestimmen die Figurenklasse.',
-        key: 'geomrel:figure:$variant:${grade.name}',
+        key: 'geomrel:figure:' +
+            variant.toString() +
+            ':context' +
+            context.toString() +
+            ':' +
+            grade.name,
         choices: choices,
         method: 'Figuren über Eigenschaften einordnen',
       );
     }
 
     final concept = _random.nextInt(3);
-    final context = _random.nextInt(2);
+    final context = _random.nextInt(3);
     const choices = ['Radius', 'Durchmesser', 'Mittelpunkt'];
     final prompt = switch ((concept, context)) {
       (0, 0) =>
         'Wie heißt die Strecke vom Mittelpunkt eines Kreises bis zum Rand?',
-      (0, _) =>
+      (0, 1) =>
         'Vom Zentrum eines Kreises wird eine gerade Strecke bis zur Kreislinie gezeichnet. Wie heißt diese Strecke?',
+      (0, _) =>
+        'Eine Speiche reicht vom Mittelpunkt eines kreisförmigen Rads genau bis zum Rand. Welchen Kreisbegriff beschreibt sie?',
       (1, 0) =>
         'Wie heißt die Strecke, die von einem Randpunkt durch den Mittelpunkt bis zum gegenüberliegenden Randpunkt eines Kreises geht?',
-      (1, _) =>
+      (1, 1) =>
         'Eine gerade Strecke verbindet zwei gegenüberliegende Randpunkte und läuft dabei durch das Zentrum des Kreises. Wie heißt sie?',
+      (1, _) =>
+        'Eine Linie geht quer durch einen Kreis, durch seinen Mittelpunkt und endet an beiden Seiten am Rand. Welcher Kreisbegriff passt?',
       (2, 0) =>
         'Wie heißt der Punkt genau in der Mitte eines Kreises, von dem alle Punkte am Rand gleich weit entfernt sind?',
-      _ =>
+      (2, 1) =>
         'Ein Punkt liegt im Zentrum des Kreises. Von ihm aus werden Radius und Durchmesser beschrieben. Wie heißt dieser Punkt?',
+      _ =>
+        'Beim Zeichnen mit dem Zirkel bleibt die Spitze an einem festen Punkt im Zentrum. Wie heißt dieser Punkt des Kreises?',
     };
     final term = ['radius', 'diameter', 'center'][concept];
     final hint = switch (concept) {
