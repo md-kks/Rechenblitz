@@ -111,6 +111,110 @@ void main() {
     expect(parsed.competencyBreakdown.single.readAloudAssistedTasks, 2);
   });
 
+  test('German result rejects impossible independent success counts', () {
+    final assistedSession = GermanSessionResult(
+      gradeLevel: GradeLevel.fourth,
+      startedAt: DateTime(2026, 9, 18, 9),
+      finishedAt: DateTime(2026, 9, 18, 9, 2),
+      kind: GermanSessionKind.teacherAssignment,
+      taskResults: const <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: 'independent',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+        ),
+        GermanTaskResult(
+          taskId: 'assisted',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+          usedReadAloud: true,
+        ),
+      ],
+    );
+    const assistedAssignment = GermanTeacherAssignment(
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      tasks: 2,
+      targetCompetency: GermanCompetencyId.textMainIdea,
+    );
+    final envelope = GermanTeacherAssignmentResult.fromSession(
+      assignment: assistedAssignment,
+      session: assistedSession,
+    ).toEnvelope();
+    final data = Map<String, dynamic>.from(envelope.data)
+      ..['independentCorrectFirstTry'] = 2;
+    final invalid = SubjectResultEnvelope(
+      subject: envelope.subject,
+      data: data,
+    ).toPayload();
+
+    expect(GermanTeacherAssignmentResult.tryParse(invalid), isNull);
+  });
+
+  testWidgets('all-assisted German result shows no fake zero-percent score', (
+    tester,
+  ) async {
+    const assistedAssignment = GermanTeacherAssignment(
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      tasks: 2,
+      targetCompetency: GermanCompetencyId.textMainIdea,
+    );
+    final assistedSession = GermanSessionResult(
+      gradeLevel: GradeLevel.fourth,
+      startedAt: DateTime(2026, 9, 18, 9),
+      finishedAt: DateTime(2026, 9, 18, 9, 2),
+      kind: GermanSessionKind.teacherAssignment,
+      taskResults: const <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: 'assisted-a',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+          usedReadAloud: true,
+        ),
+        GermanTaskResult(
+          taskId: 'assisted-b',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+          usedReadAloud: true,
+        ),
+      ],
+    );
+    final result = GermanTeacherAssignmentResult.fromSession(
+      assignment: assistedAssignment,
+      session: assistedSession,
+    );
+
+    expect(result.independentTasks, 0);
+    expect(result.accuracy, 0);
+
+    await tester.pumpWidget(
+      const MaterialApp(home: AssignmentResultScannerScreen()),
+    );
+    await tester.pumpAndSettle();
+    final input = find.byKey(const ValueKey('assignment-result-code-input'));
+    await tester.ensureVisible(input);
+    await tester.enterText(input, result.toPayload());
+    await tester.tap(
+      find.byKey(const ValueKey('assignment-result-code-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('0/0'), findsOneWidget);
+    expect(find.text('–'), findsWidgets);
+    expect(find.text('0 %'), findsNothing);
+    expect(find.text('2'), findsWidgets);
+    expect(find.text('mit Vorlesen'), findsOneWidget);
+  });
+
   test('domain-wide result carries anonymous competency breakdown', () {
     const domainAssignment = GermanTeacherAssignment(
       gradeLevel: GradeLevel.fourth,
@@ -204,6 +308,54 @@ void main() {
     expect(parsed!.competencyBreakdown, isEmpty);
     expect(parsed.independentCorrectFirstTry, parsed.correctFirstTry);
     expect(parsed.readAloudAssistedTasks, 0);
+  });
+
+  test('German result rejects impossible independent breakdown counts', () {
+    final assistedSession = GermanSessionResult(
+      gradeLevel: GradeLevel.fourth,
+      startedAt: DateTime(2026, 9, 18, 9),
+      finishedAt: DateTime(2026, 9, 18, 9, 2),
+      kind: GermanSessionKind.teacherAssignment,
+      taskResults: const <GermanTaskResult>[
+        GermanTaskResult(
+          taskId: 'independent',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+        ),
+        GermanTaskResult(
+          taskId: 'assisted',
+          competencyId: GermanCompetencyId.textMainIdea,
+          correctFirstTry: true,
+          incorrectAttempts: 0,
+          responseMs: 900,
+          usedReadAloud: true,
+        ),
+      ],
+    );
+    const assistedAssignment = GermanTeacherAssignment(
+      gradeLevel: GradeLevel.fourth,
+      domain: GermanLearningDomain.reading,
+      tasks: 2,
+      targetCompetency: GermanCompetencyId.textMainIdea,
+    );
+    final envelope = GermanTeacherAssignmentResult.fromSession(
+      assignment: assistedAssignment,
+      session: assistedSession,
+    ).toEnvelope();
+    final data = Map<String, dynamic>.from(envelope.data);
+    final breakdown = (data['breakdown'] as List<dynamic>)
+        .map((value) => Map<String, dynamic>.from(value as Map))
+        .toList(growable: false);
+    breakdown.single['s'] = 2;
+    data['breakdown'] = breakdown;
+    final invalid = SubjectResultEnvelope(
+      subject: envelope.subject,
+      data: data,
+    ).toPayload();
+
+    expect(GermanTeacherAssignmentResult.tryParse(invalid), isNull);
   });
 
   test('German assignment result rejects inconsistent breakdown', () {

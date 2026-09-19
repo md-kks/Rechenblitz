@@ -74,6 +74,31 @@ void main() {
     expect(feedback.detail, isNot(contains('Wörter sicher lesen')));
   });
 
+  test('all-assisted reading round avoids fake independent praise', () {
+    final result = _session(<GermanTaskResult>[
+      _task(
+        'read-assisted-a',
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        usedReadAloud: true,
+      ),
+      _task(
+        'read-assisted-b',
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        usedReadAloud: true,
+      ),
+    ]);
+
+    final feedback = GermanRoundFeedback.forSession(result);
+
+    expect(feedback.headline, 'Runde geschafft');
+    expect(feedback.detail, contains('2 Aufgaben mit Vorlesen geübt'));
+    expect(feedback.detail, contains('selbstständiges Lesen'));
+    expect(feedback.detail, isNot(contains('besonders gut')));
+    expect(feedback.detail, isNot(contains('Alles direkt geschafft')));
+  });
+
   test('difficult German round names the strongest practice need', () {
     final result = _session(<GermanTaskResult>[
       _task(

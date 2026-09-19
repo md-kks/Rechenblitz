@@ -446,6 +446,55 @@ void main() {
     expect(find.text('Deutsch üben'), findsOneWidget);
     expect(find.text('1 von 6'), findsOneWidget);
   });
+  testWidgets('German home marks assisted Lerncheck as non-independent', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.setIntroComplete(true);
+    await storage.saveHistory(<GermanSessionResult>[
+      GermanSessionResult(
+        gradeLevel: controller.gradeLevel,
+        startedAt: DateTime(2026, 9, 18, 8),
+        finishedAt: DateTime(2026, 9, 18, 8, 4),
+        kind: GermanSessionKind.assessment,
+        taskResults: const <GermanTaskResult>[
+          GermanTaskResult(
+            taskId: 'assisted-assessment',
+            competencyId: GermanCompetencyId.wordRecognition,
+            correctFirstTry: true,
+            incorrectAttempts: 0,
+            responseMs: 900,
+            usedReadAloud: true,
+          ),
+        ],
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanHomeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    final summary = find.textContaining('Letzter Lerncheck:');
+    await tester.scrollUntilVisible(
+      summary,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.textContaining(
+        '1 mit Vorlesen · selbstständig noch keine Beobachtung',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Letzter Lerncheck: 1 von 1 direkt richtig · 100 %'),
+      findsNothing,
+    );
+  });
+
   testWidgets('old-grade Lerncheck is not shown as current snapshot', (
     tester,
   ) async {

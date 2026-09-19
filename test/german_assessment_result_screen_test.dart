@@ -88,6 +88,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Als Nächstes üben'), findsNothing);
+    expect(find.text('Selbstständige Beobachtung ergänzen'), findsOneWidget);
+    expect(find.text('Heute direkt gelungen'), findsNothing);
   });
 
   testWidgets('Lerncheck result makes retry evidence visible', (tester) async {

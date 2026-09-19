@@ -228,6 +228,40 @@ void main() {
     expect(overview.latestAssessment!.kind, GermanSessionKind.assessment);
   });
 
+  testWidgets('parent Lerncheck labels read-aloud evidence as assisted', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    final storage = GermanStorageService(profileId: controller.activeProfileId);
+    await storage.saveHistory(<GermanSessionResult>[
+      _session(
+        competency: GermanCompetencyId.wordRecognition,
+        correct: const <bool>[true],
+        kind: GermanSessionKind.assessment,
+        readAloudIndexes: const <int>{0},
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: GermanParentOverviewScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    final snapshot = find.text('Letzter Lerncheck');
+    await tester.scrollUntilVisible(
+      snapshot,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(snapshot, findsOneWidget);
+    expect(find.textContaining('1 mit Vorlesen'), findsOneWidget);
+    expect(
+      find.textContaining('Noch keine selbstständige Lese-Beobachtung'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('German parent overview shows current and overall evidence', (
     tester,
   ) async {
