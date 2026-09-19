@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../core/grade_level.dart';
 import '../../../models/active_response_timer.dart';
 import '../german_answer_feedback.dart';
+import '../german_competency.dart';
 import '../german_competency_catalog.dart';
 import '../german_learning_domain.dart';
 import '../german_round_draft.dart';
@@ -563,6 +564,21 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
   }
 
   Widget _buildWordOrder(BuildContext context) {
+    final isTextSequence =
+        _task.competencyId == GermanCompetencyId.textSequence;
+    final isAlphabetical =
+        _task.competencyId == GermanCompetencyId.alphabeticalOrder ||
+        _task.competencyId == GermanCompetencyId.dictionarySkills;
+    final emptyPrompt = isTextSequence
+        ? 'Tippe die Schritte in der richtigen Reihenfolge an.'
+        : isAlphabetical
+        ? 'Tippe die Wörter in alphabetischer Reihenfolge an.'
+        : 'Tippe die Satzbausteine der Reihe nach an.';
+    final undoLabel = isTextSequence
+        ? 'Letzten Schritt zurück'
+        : isAlphabetical
+        ? 'Letztes Wort zurück'
+        : 'Letzten Baustein zurück';
     final remainingUsed = <String, int>{};
     for (final word in _orderedWords) {
       remainingUsed[word] = (remainingUsed[word] ?? 0) + 1;
@@ -587,9 +603,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
             borderRadius: BorderRadius.circular(16),
           ),
           child: Text(
-            _orderedWords.isEmpty
-                ? 'Tippe die Wörter der Reihe nach an.'
-                : _orderedWords.join(' '),
+            _orderedWords.isEmpty ? emptyPrompt : _orderedWords.join(' '),
             style: Theme.of(context).textTheme.titleLarge,
           ),
         ),
@@ -630,7 +644,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
                     _emitDraft();
                   },
             icon: const Icon(Icons.undo_rounded),
-            label: const Text('Letztes Wort zurück'),
+            label: Text(undoLabel),
           ),
         ),
         const SizedBox(height: 8),

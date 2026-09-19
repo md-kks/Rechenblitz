@@ -100,6 +100,17 @@ class GermanSupportCatalog {
           'nacheinander? Nicht jeder angebotene Baustein muss passen.';
     }
     if (task.interaction == GermanTaskInteraction.wordOrder &&
+        (task.competencyId == GermanCompetencyId.alphabeticalOrder ||
+            task.competencyId == GermanCompetencyId.dictionarySkills)) {
+      return 'Vergleiche zuerst den ersten Buchstaben. Sind sie gleich, '
+          'vergleiche den zweiten, dann den dritten Buchstaben.';
+    }
+    if (task.interaction == GermanTaskInteraction.wordOrder &&
+        task.competencyId == GermanCompetencyId.textSequence) {
+      return 'Suche zuerst den Schritt, der noch nichts Vorheriges voraussetzt. '
+          'Ordne danach Ursache und Folge Schritt für Schritt.';
+    }
+    if (task.interaction == GermanTaskInteraction.wordOrder &&
         task.instruction.toLowerCase().contains('beginnt')) {
       return 'Nutze zuerst den vorgegebenen Satzanfang. Im Aussagesatz steht '
           'das gebeugte Verb meist an zweiter Stelle.';
@@ -128,6 +139,15 @@ class GermanSupportCatalog {
           'wenn er beim langsamen Sprechen nicht zum Wort passt.';
     }
     if (task.interaction == GermanTaskInteraction.wordOrder) {
+      if (task.competencyId == GermanCompetencyId.alphabeticalOrder ||
+          task.competencyId == GermanCompetencyId.dictionarySkills) {
+        return 'Gehe nur bis zur ersten Stelle, an der sich die Wörter '
+            'unterscheiden. Der frühere Buchstabe entscheidet die Reihenfolge.';
+      }
+      if (task.competencyId == GermanCompetencyId.textSequence) {
+        return 'Prüfe jeden Übergang: Kann dieser Schritt wirklich erst nach '
+            'dem vorherigen passieren? Wenn nicht, ordne noch einmal um.';
+      }
       if (task.instruction.toLowerCase().contains('beginnt')) {
         return 'Lass den vorgegebenen Anfang stehen. Setze danach das Verb '
             'an die zweite Stelle. Bei trennbaren Verben kann ein Teil wie '

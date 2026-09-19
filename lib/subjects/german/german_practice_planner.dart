@@ -427,12 +427,11 @@ class GermanPracticePlanner {
       }
 
       final domain = GermanCompetencyCatalog.definition(a.competencyId).domain;
-      if (domain == GermanLearningDomain.writing) {
-        final interaction = _writingInteractionPriority(
-          a.interaction,
-        ).compareTo(_writingInteractionPriority(b.interaction));
-        if (interaction != 0) return interaction;
-      }
+      final interaction = _interactionPriority(
+        a.interaction,
+        domain,
+      ).compareTo(_interactionPriority(b.interaction, domain));
+      if (interaction != 0) return interaction;
       final idOrder = a.id.compareTo(b.id);
       if (idOrder != 0) return idOrder;
     }
@@ -490,15 +489,22 @@ class GermanPracticePlanner {
     };
   }
 
-  static int _writingInteractionPriority(GermanTaskInteraction interaction) =>
-      switch (interaction) {
-        GermanTaskInteraction.typedText => 0,
-        GermanTaskInteraction.wordOrder => 1,
-        GermanTaskInteraction.tokenSelection => 2,
-        GermanTaskInteraction.wordBuilder => 3,
-        GermanTaskInteraction.singleChoice => 4,
-        GermanTaskInteraction.listeningChoice => 5,
-      };
+  static int _interactionPriority(
+    GermanTaskInteraction interaction,
+    GermanLearningDomain domain,
+  ) {
+    if (domain == GermanLearningDomain.listening) {
+      return interaction == GermanTaskInteraction.listeningChoice ? 0 : 1;
+    }
+    return switch (interaction) {
+      GermanTaskInteraction.typedText => 0,
+      GermanTaskInteraction.wordOrder => 1,
+      GermanTaskInteraction.tokenSelection => 2,
+      GermanTaskInteraction.wordBuilder => 3,
+      GermanTaskInteraction.singleChoice => 4,
+      GermanTaskInteraction.listeningChoice => 5,
+    };
+  }
 
   static DateTime? _lastPracticedTaskAt(
     String taskId,

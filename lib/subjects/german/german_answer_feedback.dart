@@ -1,3 +1,4 @@
+import 'german_competency.dart';
 import 'german_task.dart';
 
 class GermanAnswerFeedback {
@@ -19,6 +20,15 @@ class GermanAnswerFeedback {
         return 'Noch nicht. Prüfe jedes markierte Wort und überlege, ob noch '
             'etwas dazugehört oder eine Markierung zu viel ist.';
       case GermanTaskInteraction.wordOrder:
+        if (task.competencyId == GermanCompetencyId.alphabeticalOrder ||
+            task.competencyId == GermanCompetencyId.dictionarySkills) {
+          return 'Noch nicht alphabetisch. Vergleiche die Wörter noch einmal '
+              'Buchstabe für Buchstabe.';
+        }
+        if (task.competencyId == GermanCompetencyId.textSequence) {
+          return 'Noch nicht. Prüfe, welcher Schritt zuerst möglich ist und '
+              'was jeweils danach folgen muss.';
+        }
         return 'Alle Satzbausteine sind da. Prüfe noch einmal ihre '
             'Reihenfolge.';
       case GermanTaskInteraction.wordBuilder:
