@@ -5,6 +5,7 @@ import 'german_learning_domain.dart';
 import 'german_session.dart';
 import 'german_task.dart';
 import 'german_task_catalog.dart';
+import 'german_task_evidence_priority.dart';
 
 class GermanAssessmentPlanner {
   const GermanAssessmentPlanner._();
@@ -95,6 +96,11 @@ class GermanAssessmentPlanner {
       if (aCompetencyDistance != bCompetencyDistance) {
         return aCompetencyDistance.compareTo(bCompetencyDistance);
       }
+
+      final evidence = GermanTaskEvidencePriority.rank(
+        a,
+      ).compareTo(GermanTaskEvidencePriority.rank(b));
+      if (evidence != 0) return evidence;
 
       final aUsage = usage[a.id];
       final bUsage = usage[b.id];

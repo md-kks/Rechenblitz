@@ -6,6 +6,8 @@ import 'package:rechenblitz/subjects/german/german_competency_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_learning_domain.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_task.dart';
+import 'package:rechenblitz/subjects/german/german_task_catalog.dart';
+import 'package:rechenblitz/subjects/german/german_task_evidence_priority.dart';
 
 void main() {
   test('Lerncheck covers every available German domain', () {
@@ -26,6 +28,56 @@ void main() {
       );
     }
   });
+  test('Lerncheck prefers stronger evidence over avoidable single choice', () {
+    final expectedSingleChoice = <GradeLevel, int>{
+      GradeLevel.first: 1,
+      GradeLevel.second: 0,
+      GradeLevel.third: 0,
+      GradeLevel.fourth: 0,
+    };
+
+    for (final grade in GradeLevel.values) {
+      final tasks = GermanAssessmentPlanner.buildRound(grade);
+      expect(
+        tasks
+            .where(
+              (task) => task.interaction == GermanTaskInteraction.singleChoice,
+            )
+            .length,
+        expectedSingleChoice[grade],
+        reason: grade.name,
+      );
+
+      for (final task in tasks) {
+        final sameSkill = GermanTaskCatalog.forCompetency(task.competencyId)
+            .where(
+              (candidate) =>
+                  candidate.recommendedFromGrade == task.recommendedFromGrade,
+            );
+        final bestRank = sameSkill
+            .map(GermanTaskEvidencePriority.rank)
+            .fold<int>(999, (best, rank) => rank < best ? rank : best);
+        expect(
+          GermanTaskEvidencePriority.rank(task),
+          bestRank,
+          reason: '${grade.name}/${task.id}',
+        );
+      }
+    }
+  });
+
+  test('Lerncheck measures letter-sound matching through listening', () {
+    for (final grade in GradeLevel.values) {
+      final phonics = GermanAssessmentPlanner.buildRound(grade).where(
+        (task) => task.competencyId == GermanCompetencyId.letterSoundMatch,
+      );
+      for (final task in phonics) {
+        expect(task.interaction, GermanTaskInteraction.listeningChoice);
+        expect(task.requiresSpeech, isTrue);
+      }
+    }
+  });
+
   test('upper-primary Lernchecks use current-grade tasks first', () {
     for (final grade in <GradeLevel>[GradeLevel.third, GradeLevel.fourth]) {
       final tasks = GermanAssessmentPlanner.buildRound(grade);

@@ -8,6 +8,7 @@ import 'german_progress.dart';
 import 'german_session.dart';
 import 'german_task_catalog.dart';
 import 'german_task.dart';
+import 'german_task_evidence_priority.dart';
 import 'german_teacher_assignment.dart';
 
 class GermanPracticePlanner {
@@ -426,17 +427,9 @@ class GermanPracticePlanner {
         return aTaskLast.compareTo(bTaskLast);
       }
 
-      if (a.competencyId == GermanCompetencyId.letterSoundMatch) {
-        final interaction = _letterSoundInteractionPriority(
-          a.interaction,
-        ).compareTo(_letterSoundInteractionPriority(b.interaction));
-        if (interaction != 0) return interaction;
-      }
-      final domain = GermanCompetencyCatalog.definition(a.competencyId).domain;
-      final interaction = _interactionPriority(
-        a.interaction,
-        domain,
-      ).compareTo(_interactionPriority(b.interaction, domain));
+      final interaction = GermanTaskEvidencePriority.rank(
+        a,
+      ).compareTo(GermanTaskEvidencePriority.rank(b));
       if (interaction != 0) return interaction;
       final idOrder = a.id.compareTo(b.id);
       if (idOrder != 0) return idOrder;
@@ -492,31 +485,6 @@ class GermanPracticePlanner {
       GermanCompetencyState.newSkill => 3,
       GermanCompetencyState.learning => 4,
       GermanCompetencyState.secure => 5,
-    };
-  }
-
-  static int _letterSoundInteractionPriority(
-    GermanTaskInteraction interaction,
-  ) => switch (interaction) {
-    GermanTaskInteraction.listeningChoice => 0,
-    GermanTaskInteraction.singleChoice => 1,
-    _ => 2,
-  };
-
-  static int _interactionPriority(
-    GermanTaskInteraction interaction,
-    GermanLearningDomain domain,
-  ) {
-    if (domain == GermanLearningDomain.listening) {
-      return interaction == GermanTaskInteraction.listeningChoice ? 0 : 1;
-    }
-    return switch (interaction) {
-      GermanTaskInteraction.typedText => 0,
-      GermanTaskInteraction.wordOrder => 1,
-      GermanTaskInteraction.tokenSelection => 2,
-      GermanTaskInteraction.wordBuilder => 3,
-      GermanTaskInteraction.singleChoice => 4,
-      GermanTaskInteraction.listeningChoice => 5,
     };
   }
 
