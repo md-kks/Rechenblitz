@@ -32,6 +32,7 @@ void main() {
       correctFirstTry: 1,
       incorrectAttempts: 1,
       firstWrongAnswer: 9,
+      firstWrongAnswerLabel: 'Gruppen: 1, 0, 0 Punkte',
       hadCheckpointError: true,
       firstCheckpointAttempt: const CheckpointAttemptReview(
         question: 'Wie viel fehlt bis 10?',
@@ -68,17 +69,18 @@ void main() {
       '2',
     );
     expect(restored.firstWrongAnswer, 9);
+    expect(restored.firstWrongAnswerLabel, 'Gruppen: 1, 0, 0 Punkte');
     expect(restored.firstCheckpointAttempt?.question, 'Wie viel fehlt bis 10?');
     expect(restored.firstCheckpointAttempt?.firstAnswer, '3');
     expect(restored.firstCheckpointAttempt?.correctAnswer, '2');
     expect(restored.hasSaneState(now: now), isTrue);
 
     final legacy = Map<String, dynamic>.from(progress.toJson())
-      ..remove('attemptReviews');
-    expect(
-      CoreTrainingSessionProgress.fromJson(legacy).attemptReviews,
-      isEmpty,
-    );
+      ..remove('attemptReviews')
+      ..remove('firstWrongAnswerLabel');
+    final restoredLegacy = CoreTrainingSessionProgress.fromJson(legacy);
+    expect(restoredLegacy.attemptReviews, isEmpty);
+    expect(restoredLegacy.firstWrongAnswerLabel, isNull);
   });
 
   testWidgets('Abschluss zeigt konkrete Aufgaben statt nur Fehlerzahl', (

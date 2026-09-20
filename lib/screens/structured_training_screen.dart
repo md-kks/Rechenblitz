@@ -89,6 +89,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
   int incorrectAttempts = 0;
   int wrongOnCurrent = 0;
   int? firstWrongAnswer;
+  String? firstWrongAnswerLabel;
+  String? pendingTouchReviewLabel;
   bool locked = false;
   bool finishing = false;
   bool submitting = false;
@@ -170,6 +172,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
       incorrectAttempts = saved.incorrectAttempts;
       wrongOnCurrent = saved.wrongOnCurrent;
       firstWrongAnswer = saved.firstWrongAnswer;
+      firstWrongAnswerLabel = saved.firstWrongAnswerLabel;
       segmentUsedHelp = saved.segmentUsedHelp;
       showHint = saved.assistanceVisible;
       useTouchInput = saved.useTouchInput;
@@ -251,6 +254,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
         correctFirstTry: correctFirstTry,
         wrongOnCurrent: wrongOnCurrent,
         firstWrongAnswer: firstWrongAnswer,
+        firstWrongAnswerLabel: firstWrongAnswerLabel,
         segmentUsedHelp: segmentUsedHelp,
         assistanceVisible: showHint,
         useTouchInput: useTouchInput,
@@ -326,6 +330,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     hadCheckpointError = false;
     firstCheckpointAttempt = null;
     firstWrongAnswer = null;
+    firstWrongAnswerLabel = null;
+    pendingTouchReviewLabel = null;
     taskRememberFuture = null;
     taskFirstAttemptRecorded = false;
     pendingFirstAttemptEvidence = null;
@@ -551,7 +557,18 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     }
   }
 
-  Future<void> _answer(int answer) async {
+  void _rememberTouchReviewLabel(String label) {
+    final value = label.trim();
+    pendingTouchReviewLabel = value.isEmpty ? null : value;
+  }
+
+  Future<void> _answerFromTouch(int answer) {
+    final reviewLabel = pendingTouchReviewLabel;
+    pendingTouchReviewLabel = null;
+    return _answer(answer, reviewLabel: reviewLabel);
+  }
+
+  Future<void> _answer(int answer, {String? reviewLabel}) async {
     if (finishing || !_checkpointsComplete || submitting) return;
     final pending = pendingFirstAttemptEvidence;
     if (pending != null) {
@@ -574,6 +591,14 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     if (locked) return;
     submitting = true;
     try {
+      final normalizedReviewLabel = reviewLabel?.trim();
+      if (!taskFirstAttemptRecorded &&
+          answer != current.answer &&
+          firstWrongAnswerLabel == null &&
+          normalizedReviewLabel != null &&
+          normalizedReviewLabel.isNotEmpty) {
+        firstWrongAnswerLabel = normalizedReviewLabel;
+      }
       final response = responseTimer.elapsed();
       if (!taskFirstAttemptRecorded) {
         final receipt = _pendingFirstAttempt(answer, response);
@@ -717,7 +742,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
         correctAnswer: _reviewCorrectAnswer,
         firstAnswer: firstWrongAnswer == null
             ? null
-            : _reviewAnswerLabel(firstWrongAnswer!),
+            : firstWrongAnswerLabel ?? _reviewAnswerLabel(firstWrongAnswer!),
         hadCheckpointError: hadCheckpointError,
         checkpointAttempt: firstCheckpointAttempt,
       ),
@@ -1038,7 +1063,8 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
                   key: ValueKey('touch:${current.key}:$completed'),
                   plan: _touchInteraction!,
                   locked: locked,
-                  onAnswer: _answer,
+                  onReviewAnswer: _rememberTouchReviewLabel,
+                  onAnswer: _answerFromTouch,
                 ),
                 const SizedBox(height: 6),
                 TextButton.icon(
