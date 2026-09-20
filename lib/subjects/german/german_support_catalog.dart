@@ -106,6 +106,11 @@ class GermanSupportCatalog {
           'langsam nach und halte den Anfang kurz fest.';
     }
     if (task.interaction == GermanTaskInteraction.tokenSelection &&
+        task.competencyId == GermanCompetencyId.subjectPredicate) {
+      return 'Frage zuerst: Wer oder was tut etwas? Das ist das Subjekt. '
+          'Suche danach alle Verbteile des Prädikats – sie können getrennt stehen.';
+    }
+    if (task.interaction == GermanTaskInteraction.tokenSelection &&
         task.competencyId == GermanCompetencyId.sentenceConstituents) {
       return 'Stelle die Frageprobe direkt an den Satz: Wann? Wo? Wohin? '
           'Womit? Warum? Wer? oder Was? Markiere jeweils den ganzen Satzteil.';
@@ -195,6 +200,12 @@ class GermanSupportCatalog {
         task.competencyId == GermanCompetencyId.letterSoundMatch) {
       return 'Vergleiche den gehörten Anfangslaut mit den Buchstaben. Denke '
           'nicht an den Buchstabennamen, sondern an den Laut im Wortanfang.';
+    }
+    if (task.interaction == GermanTaskInteraction.tokenSelection &&
+        task.competencyId == GermanCompetencyId.subjectPredicate) {
+      return 'Prüfe das Prädikat als Verbklammer: Hilfsverb, Modalverb oder '
+          'abgetrennter Verbteil gehören gemeinsam dazu. Lass Objekte und '
+          'Zeit- oder Ortsangaben unmarkiert.';
     }
     if (task.interaction == GermanTaskInteraction.tokenSelection &&
         task.competencyId == GermanCompetencyId.sentenceConstituents) {

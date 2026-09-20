@@ -35,6 +35,11 @@ class GermanAnswerFeedback {
               'Es muss wirklich zur selben Wortfamilie gehören, nicht nur '
               'ähnlich klingen oder ähnlich aussehen.';
         }
+        if (task.competencyId == GermanCompetencyId.subjectPredicate) {
+          return 'Noch nicht. Finde zuerst mit „Wer oder was?“ das Subjekt. '
+              'Prüfe danach alle Verbteile des Prädikats – sie können im Satz '
+              'getrennt stehen.';
+        }
         if (task.competencyId == GermanCompetencyId.sentenceConstituents) {
           return 'Noch nicht. Nutze die Frageprobe für jede Markierung: '
               'Passt der ganze Satzteil zur gesuchten Frage? Prüfe auch, ob '
