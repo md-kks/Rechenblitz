@@ -94,7 +94,21 @@ Future<void> showRoundCompletionDialog(
                             if (review.firstAnswer != null)
                               Text('Dein erster Versuch: ${review.firstAnswer}'),
                             Text('Richtige Antwort: ${review.correctAnswer}'),
-                            if (review.hadCheckpointError)
+                            if (review.checkpointAttempt case final step?) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                'Zwischenschritt: ${step.question}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                'Dein erster Versuch im Schritt: ${step.firstAnswer}',
+                              ),
+                              Text(
+                                'Richtig im Schritt: ${step.correctAnswer}',
+                              ),
+                            ] else if (review.hadCheckpointError)
                               Text(
                                 'Ein Zwischenschritt wurde korrigiert.',
                                 style:

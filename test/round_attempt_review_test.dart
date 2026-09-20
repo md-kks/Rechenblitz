@@ -32,6 +32,12 @@ void main() {
       correctFirstTry: 1,
       incorrectAttempts: 1,
       firstWrongAnswer: 9,
+      hadCheckpointError: true,
+      firstCheckpointAttempt: const CheckpointAttemptReview(
+        question: 'Wie viel fehlt bis 10?',
+        firstAnswer: '3',
+        correctAnswer: '2',
+      ),
       attemptReviews: const <RoundAttemptReview>[
         RoundAttemptReview(
           taskNumber: 1,
@@ -39,6 +45,12 @@ void main() {
           prompt: '7 + 5 = ?',
           correctAnswer: '12',
           firstAnswer: '11',
+          hadCheckpointError: true,
+          checkpointAttempt: CheckpointAttemptReview(
+            question: 'Wie viel fehlt bis 10?',
+            firstAnswer: '3',
+            correctAnswer: '2',
+          ),
         ),
       ],
     );
@@ -50,7 +62,15 @@ void main() {
     expect(restored.attemptReviews.single.prompt, '7 + 5 = ?');
     expect(restored.attemptReviews.single.correctAnswer, '12');
     expect(restored.attemptReviews.single.firstAnswer, '11');
+    expect(restored.attemptReviews.single.checkpointAttempt?.firstAnswer, '3');
+    expect(
+      restored.attemptReviews.single.checkpointAttempt?.correctAnswer,
+      '2',
+    );
     expect(restored.firstWrongAnswer, 9);
+    expect(restored.firstCheckpointAttempt?.question, 'Wie viel fehlt bis 10?');
+    expect(restored.firstCheckpointAttempt?.firstAnswer, '3');
+    expect(restored.firstCheckpointAttempt?.correctAnswer, '2');
     expect(restored.hasSaneState(now: now), isTrue);
 
     final legacy = Map<String, dynamic>.from(progress.toJson())
@@ -284,6 +304,73 @@ void main() {
     expect(find.text('Dein erster Versuch: 100 min'), findsOneWidget);
     expect(find.text('Richtige Antwort: 120 min'), findsOneWidget);
   });
+
+  testWidgets(
+    'falscher Zwischenschritt zeigt erste und richtige Auswahl konkret',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.twenty;
+      const task = StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt: '5 rote und 3 blaue Steine. Wie viele sind es zusammen?',
+        answer: 8,
+        hint: 'Addiere beide Mengen.',
+        key: 'review:structured:checkpoint',
+        maxAnswerValue: 20,
+        checkpoints: <ExerciseCheckpoint>[
+          ExerciseCheckpoint(
+            key: 'review-add-step',
+            question: 'Welche Rechnung passt zum ersten Schritt?',
+            choices: <String>['5 + 2', '5 + 3', '3 + 3'],
+            correctChoice: 1,
+            competencyId: MicroCompetencyId.additionNoBridge,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StructuredTrainingScreen(
+            controller: controller,
+            mode: TrainingMode.wordProblems,
+            targetTasks: 1,
+            announceCompletion: false,
+            exerciseGenerator: _FixedStructuredGenerator(task),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.widgetWithText(FilledButton, '5 + 2'));
+      await tester.pump();
+      expect(
+        find.text('Noch nicht. Probier den Schritt noch einmal.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, '5 + 3'));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final pad = tester.widget<NumberAnswerPad>(find.byType(NumberAnswerPad));
+      pad.onAnswer(8);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Runde geschafft!'), findsOneWidget);
+      expect(
+        find.text('Zwischenschritt: Welche Rechnung passt zum ersten Schritt?'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Dein erster Versuch im Schritt: 5 + 2'),
+        findsOneWidget,
+      );
+      expect(find.text('Richtig im Schritt: 5 + 3'), findsOneWidget);
+    },
+  );
 
   testWidgets('Rückschau bleibt bei 200 Prozent Schrift scrollbar und lesbar', (
     tester,

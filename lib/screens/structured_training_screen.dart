@@ -109,6 +109,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
   final Map<int, int> checkpointWrongAttempts = <int, int>{};
   bool checkpointLocked = false;
   bool hadCheckpointError = false;
+  CheckpointAttemptReview? firstCheckpointAttempt;
   Future<void>? taskRememberFuture;
   String checkpointFeedback = '';
 
@@ -178,6 +179,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
       checkpointAttempted.addAll(saved.checkpointAttempted);
       checkpointWrongAttempts.addAll(saved.checkpointWrongAttempts);
       hadCheckpointError = saved.hadCheckpointError;
+      firstCheckpointAttempt = saved.firstCheckpointAttempt;
       taskFirstAttemptRecorded = saved.taskFirstAttemptRecorded;
       pendingFirstAttemptEvidence = saved.pendingFirstAttemptEvidence;
       responseTimes.addAll(saved.responseTimes);
@@ -259,6 +261,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
         checkpointWrongAttempts:
             Map<int, int>.from(checkpointWrongAttempts),
         hadCheckpointError: hadCheckpointError,
+        firstCheckpointAttempt: firstCheckpointAttempt,
         taskFirstAttemptRecorded: taskFirstAttemptRecorded,
         pendingFirstAttemptEvidence:
             clearPendingFirstAttempt ? null : pendingFirstAttemptEvidence,
@@ -320,6 +323,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     checkpointWrongAttempts.clear();
     checkpointLocked = false;
     hadCheckpointError = false;
+    firstCheckpointAttempt = null;
     firstWrongAnswer = null;
     taskRememberFuture = null;
     taskFirstAttemptRecorded = false;
@@ -425,6 +429,12 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
 
     if (!correct) {
       hadCheckpointError = true;
+      firstCheckpointAttempt ??= CheckpointAttemptReview.tryFromChoices(
+        question: checkpoint.question,
+        choices: checkpoint.choices,
+        firstChoice: choice,
+        correctChoice: checkpoint.correctChoice,
+      );
       final attempts = (checkpointWrongAttempts[index] ?? 0) + 1;
       checkpointWrongAttempts[index] = attempts;
       final retryHelp = _manualHelpLevel;
@@ -708,6 +718,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
             ? null
             : _reviewAnswerLabel(firstWrongAnswer!),
         hadCheckpointError: hadCheckpointError,
+        checkpointAttempt: firstCheckpointAttempt,
       ),
     );
   }

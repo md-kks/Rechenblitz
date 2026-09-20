@@ -130,6 +130,58 @@ class PendingFirstAttemptEvidence {
       );
 }
 
+class CheckpointAttemptReview {
+  const CheckpointAttemptReview({
+    required this.question,
+    required this.firstAnswer,
+    required this.correctAnswer,
+  });
+
+  final String question;
+  final String firstAnswer;
+  final String correctAnswer;
+
+  static CheckpointAttemptReview? tryFromChoices({
+    required String? question,
+    required List<String> choices,
+    required int firstChoice,
+    required int? correctChoice,
+  }) {
+    if (question == null ||
+        question.trim().isEmpty ||
+        firstChoice < 0 ||
+        firstChoice >= choices.length ||
+        correctChoice == null ||
+        correctChoice < 0 ||
+        correctChoice >= choices.length) {
+      return null;
+    }
+    return CheckpointAttemptReview(
+      question: question,
+      firstAnswer: choices[firstChoice],
+      correctAnswer: choices[correctChoice],
+    );
+  }
+
+  bool get hasSaneState =>
+      question.trim().isNotEmpty &&
+      firstAnswer.trim().isNotEmpty &&
+      correctAnswer.trim().isNotEmpty;
+
+  Map<String, dynamic> toJson() => {
+        'question': question,
+        'firstAnswer': firstAnswer,
+        'correctAnswer': correctAnswer,
+      };
+
+  factory CheckpointAttemptReview.fromJson(Map<String, dynamic> json) =>
+      CheckpointAttemptReview(
+        question: json['question'] as String,
+        firstAnswer: json['firstAnswer'] as String,
+        correctAnswer: json['correctAnswer'] as String,
+      );
+}
+
 class RoundAttemptReview {
   const RoundAttemptReview({
     required this.taskNumber,
@@ -137,6 +189,7 @@ class RoundAttemptReview {
     required this.prompt,
     required this.correctAnswer,
     this.firstAnswer,
+    this.checkpointAttempt,
     this.hadCheckpointError = false,
   });
 
@@ -145,6 +198,7 @@ class RoundAttemptReview {
   final String prompt;
   final String correctAnswer;
   final String? firstAnswer;
+  final CheckpointAttemptReview? checkpointAttempt;
   final bool hadCheckpointError;
 
   bool get hasSaneState =>
@@ -152,7 +206,9 @@ class RoundAttemptReview {
       taskKey.trim().isNotEmpty &&
       prompt.trim().isNotEmpty &&
       correctAnswer.trim().isNotEmpty &&
-      (firstAnswer == null || firstAnswer!.trim().isNotEmpty);
+      (firstAnswer == null || firstAnswer!.trim().isNotEmpty) &&
+      (checkpointAttempt == null ||
+          (hadCheckpointError && checkpointAttempt!.hasSaneState));
 
   Map<String, dynamic> toJson() => {
         'taskNumber': taskNumber,
@@ -160,6 +216,8 @@ class RoundAttemptReview {
         'prompt': prompt,
         'correctAnswer': correctAnswer,
         if (firstAnswer != null) 'firstAnswer': firstAnswer,
+        if (checkpointAttempt != null)
+          'checkpointAttempt': checkpointAttempt!.toJson(),
         'hadCheckpointError': hadCheckpointError,
       };
 
@@ -170,6 +228,11 @@ class RoundAttemptReview {
         prompt: json['prompt'] as String,
         correctAnswer: json['correctAnswer'] as String,
         firstAnswer: json['firstAnswer'] as String?,
+        checkpointAttempt: json['checkpointAttempt'] is Map<String, dynamic>
+            ? CheckpointAttemptReview.fromJson(
+                json['checkpointAttempt'] as Map<String, dynamic>,
+              )
+            : null,
         hadCheckpointError: json['hadCheckpointError'] as bool? ?? false,
       );
 }
@@ -210,6 +273,7 @@ class CoreTrainingSessionProgress {
     this.checkpointAttempted = const <int>[],
     this.checkpointWrongAttempts = const <int, int>{},
     this.hadCheckpointError = false,
+    this.firstCheckpointAttempt,
     this.taskFirstAttemptRecorded = false,
     this.helpCountedForCurrent = false,
     this.factAttemptSequence = 0,
@@ -264,6 +328,7 @@ class CoreTrainingSessionProgress {
   final List<int> checkpointAttempted;
   final Map<int, int> checkpointWrongAttempts;
   final bool hadCheckpointError;
+  final CheckpointAttemptReview? firstCheckpointAttempt;
   final bool taskFirstAttemptRecorded;
   final bool helpCountedForCurrent;
   final int factAttemptSequence;
@@ -306,6 +371,8 @@ class CoreTrainingSessionProgress {
         checkpointWrongAttempts.entries.any(
           (entry) => entry.key < 0 || entry.value < 0,
         ) ||
+        (firstCheckpointAttempt != null &&
+            (!hadCheckpointError || !firstCheckpointAttempt!.hasSaneState)) ||
         responseTimes.any((value) => value < 0) ||
         attemptReviews.any(
           (review) =>
@@ -429,6 +496,8 @@ class CoreTrainingSessionProgress {
       (key, value) => MapEntry(key.toString(), value),
     ),
     'hadCheckpointError': hadCheckpointError,
+    if (firstCheckpointAttempt != null)
+      'firstCheckpointAttempt': firstCheckpointAttempt!.toJson(),
     'taskFirstAttemptRecorded': taskFirstAttemptRecorded,
     'helpCountedForCurrent': helpCountedForCurrent,
     'factAttemptSequence': factAttemptSequence,
@@ -504,6 +573,12 @@ class CoreTrainingSessionProgress {
               .cast<int>(),
       checkpointWrongAttempts: wrongAttempts,
       hadCheckpointError: json['hadCheckpointError'] as bool? ?? false,
+      firstCheckpointAttempt:
+          json['firstCheckpointAttempt'] is Map<String, dynamic>
+              ? CheckpointAttemptReview.fromJson(
+                  json['firstCheckpointAttempt'] as Map<String, dynamic>,
+                )
+              : null,
       taskFirstAttemptRecorded:
           json['taskFirstAttemptRecorded'] as bool? ?? false,
       helpCountedForCurrent: json['helpCountedForCurrent'] as bool? ?? false,

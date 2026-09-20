@@ -109,6 +109,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
   final Map<int, int> checkpointWrongAttempts = <int, int>{};
   bool checkpointLocked = false;
   bool hadCheckpointError = false;
+  CheckpointAttemptReview? firstCheckpointAttempt;
   Future<void>? taskRememberFuture;
   String checkpointFeedback = '';
 
@@ -175,6 +176,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
       checkpointAttempted.addAll(saved.checkpointAttempted);
       checkpointWrongAttempts.addAll(saved.checkpointWrongAttempts);
       hadCheckpointError = saved.hadCheckpointError;
+      firstCheckpointAttempt = saved.firstCheckpointAttempt;
       taskFirstAttemptRecorded = saved.taskFirstAttemptRecorded;
       pendingFirstAttemptEvidence = saved.pendingFirstAttemptEvidence;
       responseTimes.addAll(saved.responseTimes);
@@ -256,6 +258,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         checkpointWrongAttempts:
             Map<int, int>.from(checkpointWrongAttempts),
         hadCheckpointError: hadCheckpointError,
+        firstCheckpointAttempt: firstCheckpointAttempt,
         taskFirstAttemptRecorded: taskFirstAttemptRecorded,
         pendingFirstAttemptEvidence:
             clearPendingFirstAttempt ? null : pendingFirstAttemptEvidence,
@@ -318,6 +321,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
     checkpointWrongAttempts.clear();
     checkpointLocked = false;
     hadCheckpointError = false;
+    firstCheckpointAttempt = null;
     firstWrongAnswer = null;
     taskRememberFuture = null;
     taskFirstAttemptRecorded = false;
@@ -443,6 +447,12 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
 
     if (!correct) {
       hadCheckpointError = true;
+      firstCheckpointAttempt ??= CheckpointAttemptReview.tryFromChoices(
+        question: step.question,
+        choices: step.choices,
+        firstChoice: choice,
+        correctChoice: step.correctChoice,
+      );
       final attempts = (checkpointWrongAttempts[index] ?? 0) + 1;
       checkpointWrongAttempts[index] = attempts;
       final retryHelp = _manualHelpLevel;
@@ -715,6 +725,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
             ? null
             : _reviewAnswerLabel(firstWrongAnswer!),
         hadCheckpointError: hadCheckpointError,
+        checkpointAttempt: firstCheckpointAttempt,
       ),
     );
   }
