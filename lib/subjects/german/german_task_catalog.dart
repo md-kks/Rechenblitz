@@ -12,6 +12,7 @@ import 'german_grade_two_diversity_task_catalog.dart';
 import 'german_grammar_touch_task_catalog.dart';
 import 'german_learning_domain.dart';
 import 'german_listening_touch_task_catalog.dart';
+import 'german_lower_primary_depth_task_catalog.dart';
 import 'german_lower_primary_task_catalog.dart';
 import 'german_more_task_catalog.dart';
 import 'german_morphology_touch_task_catalog.dart';
@@ -45,6 +46,7 @@ class GermanTaskCatalog {
     ...GermanTouchTaskCatalog.tasks,
     ...GermanGrammarTouchTaskCatalog.tasks,
     ...GermanListeningTouchTaskCatalog.tasks,
+    ...GermanLowerPrimaryDepthTaskCatalog.tasks,
     ...GermanMorphologyTouchTaskCatalog.tasks,
     ...GermanOrderingTouchTaskCatalog.tasks,
     ...GermanPhonicsListeningTaskCatalog.tasks,

@@ -915,7 +915,7 @@ void main() {
       ),
       isTrue,
     );
-    expect(round.map((task) => task.id).toSet(), hasLength(6));
+    expect(round.map((task) => task.id).toSet(), hasLength(8));
   });
 
   test('domain teacher assignment mixes and balances learning goals', () {
