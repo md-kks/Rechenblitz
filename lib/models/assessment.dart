@@ -131,17 +131,46 @@ bool _saneAssessmentTask(AssessmentTask task) {
       task.maxAnswerValue < 0) {
     return false;
   }
-  final wallValues = task.wallValues;
-  final hiddenIndex = task.hiddenWallIndex;
-  if (hiddenIndex != null &&
-      (wallValues == null || hiddenIndex < 0 || hiddenIndex >= wallValues.length)) {
+
+  final choices = task.choices;
+  if (choices != null && choices.isNotEmpty) {
+    if (task.answer < 0 || task.answer >= choices.length) return false;
+    if (choices.any((choice) => choice.trim().isEmpty) ||
+        choices.toSet().length != choices.length) {
+      return false;
+    }
+  } else if (task.answer < 0 || task.answer > task.maxAnswerValue) {
     return false;
   }
-  if (task.clockHour case final hour?) {
-    if (hour < 0 || hour > 23) return false;
+
+  final wallValues = task.wallValues;
+  final hiddenIndex = task.hiddenWallIndex;
+  if ((wallValues == null) != (hiddenIndex == null)) return false;
+  if (wallValues != null) {
+    if (wallValues.isEmpty ||
+        hiddenIndex! < 0 ||
+        hiddenIndex >= wallValues.length) {
+      return false;
+    }
   }
-  if (task.clockMinute case final minute?) {
-    if (minute < 0 || minute > 59) return false;
+
+  final hour = task.clockHour;
+  final minute = task.clockMinute;
+  if ((hour == null) != (minute == null)) return false;
+  if (hour != null && (hour < 0 || hour > 23)) return false;
+  if (minute != null && (minute < 0 || minute > 59)) return false;
+
+  final fact = task.fact;
+  if (fact != null && fact.key != task.taskKey) return false;
+
+  final target = task.targetCompetency;
+  if (target != null &&
+      !MicroCompetencyCatalog.tagsForTask(
+        mode: task.mode,
+        taskKey: task.taskKey,
+        fact: task.fact,
+      ).any((tag) => tag.id == target)) {
+    return false;
   }
   return true;
 }
@@ -185,6 +214,9 @@ class AssessmentProgress {
             gradeLevel,
             numberRange,
           ).map((definition) => definition.id).toSet();
+    if (tasks.map((task) => task.taskKey).toSet().length != tasks.length) {
+      return false;
+    }
     for (final task in tasks) {
       if (!_saneAssessmentTask(task)) return false;
       final target = task.targetCompetency;
@@ -199,7 +231,9 @@ class AssessmentProgress {
       final task = tasks[i];
       if (result.taskKey.trim().isEmpty ||
           result.taskKey != task.taskKey ||
-          result.mode != task.mode) {
+          result.mode != task.mode ||
+          result.targetCompetency != task.targetCompetency ||
+          result.fact?.key != task.fact?.key) {
         return false;
       }
     }
