@@ -1776,10 +1776,24 @@ class AppController extends ChangeNotifier {
   }
 
   String _microEvidenceTaskKey(MicroCompetencyObservation observation) {
-    final key = observation.taskKey;
+    var key = observation.taskKey;
     if (key.startsWith('independent:')) {
       final parts = key.split(':');
-      if (parts.length >= 3) return parts.sublist(2).join(':');
+      if (parts.length >= 3) {
+        key = parts.sublist(2).join(':');
+      }
+    }
+
+    final parts = key.split(':');
+    if (parts.length == 8 &&
+        parts[0] == 'story' &&
+        parts[1] == 'transfer' &&
+        parts[2] == 'skill' &&
+        const <String>{'+', '-', 'x', 'divide'}.contains(parts[4])) {
+      return <String>[
+        ...parts.take(5),
+        ...parts.skip(6),
+      ].join(':');
     }
     return key;
   }
