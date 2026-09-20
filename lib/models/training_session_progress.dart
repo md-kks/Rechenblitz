@@ -189,6 +189,8 @@ class RoundAttemptReview {
     required this.prompt,
     required this.correctAnswer,
     this.firstAnswer,
+    this.wrongAnswerAttempts,
+    this.usedHelp,
     this.checkpointAttempt,
     this.hadCheckpointError = false,
   });
@@ -198,6 +200,8 @@ class RoundAttemptReview {
   final String prompt;
   final String correctAnswer;
   final String? firstAnswer;
+  final int? wrongAnswerAttempts;
+  final bool? usedHelp;
   final CheckpointAttemptReview? checkpointAttempt;
   final bool hadCheckpointError;
 
@@ -207,6 +211,9 @@ class RoundAttemptReview {
       prompt.trim().isNotEmpty &&
       correctAnswer.trim().isNotEmpty &&
       (firstAnswer == null || firstAnswer!.trim().isNotEmpty) &&
+      (wrongAnswerAttempts == null ||
+          (wrongAnswerAttempts! >= 0 &&
+              (wrongAnswerAttempts == 0 || firstAnswer != null))) &&
       (checkpointAttempt == null ||
           (hadCheckpointError && checkpointAttempt!.hasSaneState));
 
@@ -216,6 +223,9 @@ class RoundAttemptReview {
         'prompt': prompt,
         'correctAnswer': correctAnswer,
         if (firstAnswer != null) 'firstAnswer': firstAnswer,
+        if (wrongAnswerAttempts != null)
+          'wrongAnswerAttempts': wrongAnswerAttempts,
+        if (usedHelp != null) 'usedHelp': usedHelp,
         if (checkpointAttempt != null)
           'checkpointAttempt': checkpointAttempt!.toJson(),
         'hadCheckpointError': hadCheckpointError,
@@ -228,6 +238,8 @@ class RoundAttemptReview {
         prompt: json['prompt'] as String,
         correctAnswer: json['correctAnswer'] as String,
         firstAnswer: json['firstAnswer'] as String?,
+        wrongAnswerAttempts: json['wrongAnswerAttempts'] as int?,
+        usedHelp: json['usedHelp'] as bool?,
         checkpointAttempt: json['checkpointAttempt'] is Map<String, dynamic>
             ? CheckpointAttemptReview.fromJson(
                 json['checkpointAttempt'] as Map<String, dynamic>,

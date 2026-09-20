@@ -38,6 +38,8 @@ const _review = TrainingAttemptReview(
   prompt: '8 + 7 = ?',
   correctAnswer: '15',
   firstAnswer: '14',
+  wrongAnswerAttempts: 2,
+  usedHelp: true,
   checkpointQuestion: 'Wie viel fehlt bis 10?',
   checkpointFirstAnswer: '3',
   checkpointCorrectAnswer: '2',
@@ -58,6 +60,8 @@ void main() {
       expect(restored.attemptReviews!.single.taskNumber, 3);
       expect(restored.attemptReviews!.single.firstAnswer, '14');
       expect(restored.attemptReviews!.single.correctAnswer, '15');
+      expect(restored.attemptReviews!.single.wrongAnswerAttempts, 2);
+      expect(restored.attemptReviews!.single.usedHelp, isTrue);
       expect(restored.attemptReviews!.single.checkpointFirstAnswer, '3');
       expect(restored.attemptReviews!.single.checkpointCorrectAnswer, '2');
 
@@ -166,6 +170,11 @@ void main() {
 
     expect(find.text('Aufgabe 3: 8 + 7 = ?'), findsOneWidget);
     expect(find.text('Erster Versuch: 14'), findsOneWidget);
+    expect(
+      find.text('2 Fehlversuche vor der richtigen Lösung'),
+      findsOneWidget,
+    );
+    expect(find.text('Mit Hilfe gelöst'), findsOneWidget);
     expect(find.text('Richtig: 15'), findsOneWidget);
     expect(
       find.text('Zwischenschritt: Wie viel fehlt bis 10?'),

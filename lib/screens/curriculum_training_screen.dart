@@ -750,6 +750,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         firstAnswer: firstWrongAnswer == null
             ? null
             : firstWrongAnswerLabel ?? _reviewAnswerLabel(firstWrongAnswer!),
+        wrongAnswerAttempts: wrongOnCurrent,
+        usedHelp: showHint || helpLevel > 0,
         hadCheckpointError: hadCheckpointError,
         checkpointAttempt: firstCheckpointAttempt,
       ),

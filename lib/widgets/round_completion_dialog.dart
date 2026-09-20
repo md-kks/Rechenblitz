@@ -93,6 +93,19 @@ Future<void> showRoundCompletionDialog(
                             const SizedBox(height: 3),
                             if (review.firstAnswer != null)
                               Text('Dein erster Versuch: ${review.firstAnswer}'),
+                            if (review.wrongAnswerAttempts case final count?
+                                when count > 0)
+                              Text(
+                                count == 1
+                                    ? '1 Fehlversuch vor der richtigen Lösung'
+                                    : '$count Fehlversuche vor der richtigen Lösung',
+                              ),
+                            if (review.usedHelp case final helped?)
+                              Text(
+                                helped
+                                    ? 'Mit Hilfe gelöst'
+                                    : 'Ohne Hilfe gelöst',
+                              ),
                             Text('Richtige Antwort: ${review.correctAnswer}'),
                             if (review.checkpointAttempt case final step?) ...[
                               const SizedBox(height: 3),
