@@ -75,6 +75,92 @@ void main() {
     );
   });
 
+  test(
+    'gesprochenes Feedback erklärt einen korrigierten Erstversuch eindeutig',
+    () {
+      final controller = AppController();
+      final started = DateTime(2026, 9, 20, 8);
+      final feedback = controller.roundSpokenFeedback(
+        result: _result(
+          startedAt: started,
+          finishedAt: started.add(const Duration(minutes: 3)),
+          total: 5,
+          correctFirstTry: 4,
+          incorrectAttempts: 3,
+        ),
+        targetCompetency: null,
+      );
+
+      expect(
+        feedback,
+        contains('Eine Aufgabe brauchte mehr als einen Versuch'),
+      );
+      expect(feedback, contains('am Ende richtig gelöst'));
+      expect(feedback, isNot(contains('noch knifflig')));
+      expect(feedback, isNot(contains('war falsch')));
+      expect(feedback, isNot(contains('3 Aufgaben')));
+    },
+  );
+
+  test('gesprochenes Feedback nennt die Zahl korrigierter Aufgaben', () {
+    final controller = AppController();
+    final started = DateTime(2026, 9, 20, 8);
+    final feedback = controller.roundSpokenFeedback(
+      result: _result(
+        startedAt: started,
+        finishedAt: started.add(const Duration(minutes: 3)),
+        total: 5,
+        correctFirstTry: 3,
+        incorrectAttempts: 4,
+      ),
+      targetCompetency: null,
+    );
+
+    expect(feedback, contains('2 Aufgaben brauchten mehr als einen Versuch'));
+    expect(feedback, contains('am Ende richtig gelöst'));
+  });
+
+  test('komplett direkte Runde wird gesprochen ausdrücklich so benannt', () {
+    final controller = AppController();
+    final started = DateTime(2026, 9, 20, 8);
+    final feedback = controller.roundSpokenFeedback(
+      result: _result(
+        startedAt: started,
+        finishedAt: started.add(const Duration(minutes: 3)),
+        total: 5,
+        correctFirstTry: 5,
+        incorrectAttempts: 0,
+      ),
+      targetCompetency: null,
+    );
+
+    expect(
+      feedback,
+      contains('Alle 5 Aufgaben waren beim ersten Versuch richtig'),
+    );
+  });
+
+  test('gezieltes Lernfeedback behält Erstversuch-Klarheit', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.twenty;
+    final started = DateTime(2026, 9, 20, 8);
+    final feedback = controller.roundSpokenFeedback(
+      result: _result(
+        startedAt: started,
+        finishedAt: started.add(const Duration(minutes: 3)),
+        total: 4,
+        correctFirstTry: 3,
+        incorrectAttempts: 1,
+      ),
+      targetCompetency: MicroCompetencyId.additionNoBridge,
+    );
+
+    expect(feedback, contains('Eine Aufgabe brauchte mehr als einen Versuch'));
+    expect(feedback, contains('am Ende richtig gelöst'));
+    expect(feedback, contains('Plus ohne Zehnerübergang'));
+  });
+
   test('Rundenfeedback unterscheidet Hilfe von selbstständigem Erfolg', () {
     final controller = AppController()
       ..gradeLevel = GradeLevel.second
@@ -190,8 +276,7 @@ void main() {
                   completed: 5,
                   correctFirstTry: 4,
                   starsEarned: 1,
-                  spokenFeedback:
-                      'Runde geschafft. Heute hast du den Zehnerübergang geübt.',
+                  spokenFeedback: 'Runde geschafft. Heute hast du den Zehnerübergang geübt.',
                   autoSpeakSpokenFeedback: true,
                   onSpeakSpokenFeedback: () async {
                     calls += 1;

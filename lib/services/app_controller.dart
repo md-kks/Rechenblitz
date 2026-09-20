@@ -5155,15 +5155,13 @@ class AppController extends ChangeNotifier {
     bool transferEmphasis = false,
     bool fluencyEmphasis = false,
   }) {
+    final attemptSummary = _spokenFirstAttemptSummary(result);
     if (targetCompetency == null) {
       final activity = result.mode.title;
-      if (result.accuracy >= 0.9 && result.incorrectAttempts <= 1) {
-        return 'Runde geschafft. Heute hast du $activity geübt. Viele Aufgaben gingen schon direkt.';
+      if (result.correctFirstTry == result.total && result.total > 0) {
+        return 'Runde geschafft. Heute hast du $activity geübt. $attemptSummary';
       }
-      if (result.incorrectAttempts >= 2) {
-        return 'Runde geschafft. Heute hast du $activity geübt. Einige Aufgaben waren noch knifflig. Die nehmen wir beim nächsten Mal wieder mit.';
-      }
-      return 'Runde geschafft. Heute hast du $activity geübt. Rechenblitz plant passend dazu weiter.';
+      return 'Runde geschafft. Heute hast du $activity geübt. $attemptSummary Rechenblitz plant passend dazu weiter.';
     }
 
     final progress = microCompetencyProgress(targetCompetency);
@@ -5182,39 +5180,57 @@ class AppController extends ChangeNotifier {
     );
 
     if (helpedCorrect && independentCorrect) {
-      return 'Runde geschafft. Bei „$label“ bist du heute mit Hilfe gestartet. Danach hat der Schritt auch ohne Hilfe geklappt.';
+      return 'Runde geschafft. $attemptSummary Bei „$label“ bist du heute mit Hilfe gestartet. Danach hat der Schritt auch ohne Hilfe geklappt.';
     }
     if (helpedCorrect && !independentCorrect) {
-      return 'Runde geschafft. Bei „$label“ hat dir heute eine Hilfe geholfen. Beim nächsten Mal probieren wir den Schritt wieder selbstständig.';
+      return 'Runde geschafft. $attemptSummary Bei „$label“ hat dir heute eine Hilfe geholfen. Beim nächsten Mal probieren wir den Schritt wieder selbstständig.';
     }
     if (fluencyEmphasis) {
       return progress.fluencyState == MicroFluencyState.fluent
-          ? 'Runde geschafft. „$label“ sitzt schon sicher und wird inzwischen flüssig abgerufen.'
-          : 'Runde geschafft. Heute hast du „$label“ weiter flüssig geübt, ohne Zeitdruck.';
+          ? 'Runde geschafft. $attemptSummary „$label“ sitzt schon sicher und wird inzwischen flüssig abgerufen.'
+          : 'Runde geschafft. $attemptSummary Heute hast du „$label“ weiter flüssig geübt, ohne Zeitdruck.';
     }
     if (transferEmphasis) {
       return progress.hasIndependentTransferEvidence
-          ? 'Runde geschafft. Heute hast du „$label“ auch in einer neuen Aufgabe selbstständig angewendet.'
-          : 'Runde geschafft. Heute hast du „$label“ in einer neuen Aufgabe ausprobiert. Das schauen wir uns später noch einmal an.';
+          ? 'Runde geschafft. $attemptSummary Heute hast du „$label“ auch in einer neuen Aufgabe selbstständig angewendet.'
+          : 'Runde geschafft. $attemptSummary Heute hast du „$label“ in einer neuen Aufgabe ausprobiert. Das schauen wir uns später noch einmal an.';
     }
     if (reviewEmphasis) {
       return progress.hasIndependentReviewEvidence
-          ? 'Runde geschafft. „$label“ hat heute auch nach einer Pause wieder selbstständig geklappt.'
-          : 'Runde geschafft. Heute hast du „$label“ nach einer Pause wiederholt. Beim nächsten Mal prüfen wir es noch einmal selbstständig.';
+          ? 'Runde geschafft. $attemptSummary „$label“ hat heute auch nach einer Pause wieder selbstständig geklappt.'
+          : 'Runde geschafft. $attemptSummary Heute hast du „$label“ nach einer Pause wiederholt. Beim nächsten Mal prüfen wir es noch einmal selbstständig.';
     }
 
     return switch (progress.state) {
       MicroCompetencyState.mastered =>
-        'Runde geschafft. „$label“ sitzt schon richtig stabil. Später reicht eine kurze Wiederholung.',
+        'Runde geschafft. $attemptSummary „$label“ sitzt schon richtig stabil. Später reicht eine kurze Wiederholung.',
       MicroCompetencyState.secure =>
-        'Runde geschafft. „$label“ klappt schon sicher. Als Nächstes prüfen wir es nach einer Pause oder in einer neuen Aufgabe.',
+        'Runde geschafft. $attemptSummary „$label“ klappt schon sicher. Als Nächstes prüfen wir es nach einer Pause oder in einer neuen Aufgabe.',
       MicroCompetencyState.practicing =>
-        'Runde geschafft. Heute hast du „$label“ weiter geübt. Beim nächsten Mal festigen wir den Schritt noch ein bisschen.',
+        'Runde geschafft. $attemptSummary Heute hast du „$label“ weiter geübt. Beim nächsten Mal festigen wir den Schritt noch ein bisschen.',
       MicroCompetencyState.discovering =>
-        'Runde geschafft. Heute hast du „$label“ weiter aufgebaut. Beim nächsten Mal geht es in einem kleinen Schritt weiter.',
+        'Runde geschafft. $attemptSummary Heute hast du „$label“ weiter aufgebaut. Beim nächsten Mal geht es in einem kleinen Schritt weiter.',
       MicroCompetencyState.newSkill =>
-        'Runde geschafft. Heute hast du „$label“ kennengelernt. Beim nächsten Mal probieren wir noch ein paar passende Aufgaben.',
+        'Runde geschafft. $attemptSummary Heute hast du „$label“ kennengelernt. Beim nächsten Mal probieren wir noch ein paar passende Aufgaben.',
     };
+  }
+
+  String _spokenFirstAttemptSummary(TrainingSessionResult result) {
+    final total = result.total < 0 ? 0 : result.total;
+    final direct = result.correctFirstTry.clamp(0, total).toInt();
+    final retries = total - direct;
+    if (total == 0) {
+      return 'Die Runde ist abgeschlossen.';
+    }
+    if (retries == 0) {
+      return total == 1
+          ? 'Die Aufgabe war beim ersten Versuch richtig.'
+          : 'Alle $total Aufgaben waren beim ersten Versuch richtig.';
+    }
+    if (retries == 1) {
+      return 'Eine Aufgabe brauchte mehr als einen Versuch, wurde aber am Ende richtig gelöst.';
+    }
+    return '$retries Aufgaben brauchten mehr als einen Versuch, wurden aber am Ende richtig gelöst.';
   }
 
   String guidedRoundSpokenFeedback({
