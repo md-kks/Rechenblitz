@@ -31,12 +31,14 @@ void main() {
       completed: 2,
       correctFirstTry: 1,
       incorrectAttempts: 1,
+      firstWrongAnswer: 9,
       attemptReviews: const <RoundAttemptReview>[
         RoundAttemptReview(
           taskNumber: 1,
           taskKey: 'plus:7:5',
           prompt: '7 + 5 = ?',
           correctAnswer: '12',
+          firstAnswer: '11',
         ),
       ],
     );
@@ -47,6 +49,8 @@ void main() {
     expect(restored.attemptReviews.single.taskNumber, 1);
     expect(restored.attemptReviews.single.prompt, '7 + 5 = ?');
     expect(restored.attemptReviews.single.correctAnswer, '12');
+    expect(restored.attemptReviews.single.firstAnswer, '11');
+    expect(restored.firstWrongAnswer, 9);
     expect(restored.hasSaneState(now: now), isTrue);
 
     final legacy = Map<String, dynamic>.from(progress.toJson())
@@ -75,6 +79,7 @@ void main() {
                     taskKey: 'plus:3:17',
                     prompt: '20 = 3 + ?',
                     correctAnswer: '17',
+                    firstAnswer: '0',
                   ),
                 ],
                 starsEarned: 1,
@@ -92,6 +97,7 @@ void main() {
     expect(find.byKey(const ValueKey('round-attempt-review')), findsOneWidget);
     expect(find.text('4 von 5 beim ersten Versuch richtig'), findsOneWidget);
     expect(find.text('Aufgabe 3: 20 = 3 + ?'), findsOneWidget);
+    expect(find.text('Dein erster Versuch: 0'), findsOneWidget);
     expect(find.text('Richtige Antwort: 17'), findsOneWidget);
     expect(find.textContaining('am Ende richtig gelöst'), findsOneWidget);
   });
@@ -133,6 +139,7 @@ void main() {
     expect(find.text('Runde geschafft!'), findsOneWidget);
     expect(find.text('0 von 1 beim ersten Versuch richtig'), findsOneWidget);
     expect(find.text('Aufgabe 1: 7 + 5 = ?'), findsOneWidget);
+    expect(find.text('Dein erster Versuch: 11'), findsOneWidget);
     expect(find.text('Richtige Antwort: 12'), findsOneWidget);
   });
 
@@ -183,7 +190,49 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('Dein erster Versuch: 7'), findsOneWidget);
     expect(find.text('Richtige Antwort: 8'), findsOneWidget);
+  });
+
+  testWidgets('Auswahlaufgabe zeigt sichtbaren Text statt internen Index', (
+    tester,
+  ) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.twenty;
+    const task = StructuredExercise(
+      mode: TrainingMode.wordProblems,
+      prompt: 'Welche Farbe passt?',
+      answer: 1,
+      hint: 'Wähle die passende Farbe.',
+      key: 'review:choice:color',
+      choices: <String>['Rot', 'Blau', 'Grün'],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StructuredTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.wordProblems,
+          targetTasks: 1,
+          announceCompletion: false,
+          exerciseGenerator: _FixedStructuredGenerator(task),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Rot'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.widgetWithText(FilledButton, 'Blau'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dein erster Versuch: Rot'), findsOneWidget);
+    expect(find.text('Richtige Antwort: Blau'), findsOneWidget);
   });
 
   testWidgets('Lehrplan-Aufgabe zeigt Einheit in der Rundenrückschau', (
@@ -232,6 +281,7 @@ void main() {
       find.text('Aufgabe 1: Wie viele Minuten sind 2 Stunden?'),
       findsOneWidget,
     );
+    expect(find.text('Dein erster Versuch: 100 min'), findsOneWidget);
     expect(find.text('Richtige Antwort: 120 min'), findsOneWidget);
   });
 

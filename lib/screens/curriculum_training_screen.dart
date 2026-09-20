@@ -86,6 +86,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
   int correctFirstTry = 0;
   int incorrectAttempts = 0;
   int wrongOnCurrent = 0;
+  int? firstWrongAnswer;
   bool locked = false;
   bool finishing = false;
   bool submitting = false;
@@ -163,6 +164,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
       correctFirstTry = saved.correctFirstTry;
       incorrectAttempts = saved.incorrectAttempts;
       wrongOnCurrent = saved.wrongOnCurrent;
+      firstWrongAnswer = saved.firstWrongAnswer;
       segmentUsedHelp = saved.segmentUsedHelp;
       showHint = saved.assistanceVisible;
       useTouchInput = saved.useTouchInput;
@@ -242,6 +244,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         incorrectAttempts: incorrectAttempts,
         correctFirstTry: correctFirstTry,
         wrongOnCurrent: wrongOnCurrent,
+        firstWrongAnswer: firstWrongAnswer,
         segmentUsedHelp: segmentUsedHelp,
         assistanceVisible: showHint,
         useTouchInput: useTouchInput,
@@ -315,6 +318,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
     checkpointWrongAttempts.clear();
     checkpointLocked = false;
     hadCheckpointError = false;
+    firstWrongAnswer = null;
     taskRememberFuture = null;
     taskFirstAttemptRecorded = false;
     pendingFirstAttemptEvidence = null;
@@ -586,6 +590,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
             actual: answer,
           );
     if (answer != current.answer) {
+      firstWrongAnswer ??= answer;
       incorrectAttempts += 1;
       wrongOnCurrent += 1;
       final retryHelp = _manualHelpLevel;
@@ -680,18 +685,20 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
     );
   }
 
-  String get _reviewCorrectAnswer {
+  String _reviewAnswerLabel(int answer) {
     final choices = current.choices;
     if (choices != null &&
-        current.answer >= 0 &&
-        current.answer < choices.length) {
-      return choices[current.answer];
+        answer >= 0 &&
+        answer < choices.length) {
+      return choices[answer];
     }
     final suffix = current.answerSuffix?.trim();
     return suffix == null || suffix.isEmpty
-        ? '${current.answer}'
-        : '${current.answer} $suffix';
+        ? '$answer'
+        : '$answer $suffix';
   }
+
+  String get _reviewCorrectAnswer => _reviewAnswerLabel(current.answer);
 
   void _rememberAttemptReview() {
     if (completed <= 0 ||
@@ -704,6 +711,9 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         taskKey: current.key,
         prompt: current.prompt,
         correctAnswer: _reviewCorrectAnswer,
+        firstAnswer: firstWrongAnswer == null
+            ? null
+            : _reviewAnswerLabel(firstWrongAnswer!),
         hadCheckpointError: hadCheckpointError,
       ),
     );
