@@ -1001,13 +1001,12 @@ class AppController extends ChangeNotifier {
   int rewardStarsForSession(TrainingSessionResult result) {
     if (result.total == 0) return 0;
     var value = 1;
-    if (result.total >= 5 && result.accuracy >= 0.80) value += 1;
+    if (_isSecureRewardRound(result)) value += 1;
     if (!history.any((entry) =>
         !entry.isAssessment && entry.mode == result.mode)) {
       value += 1;
     }
     if (_isMeaningfulProgress(result)) value += 1;
-    if (_isCourageRound(result)) value += 1;
     return value.clamp(1, 5).toInt();
   }
 
@@ -1017,11 +1016,23 @@ class AppController extends ChangeNotifier {
         !entry.isAssessment && entry.mode == result.mode)) {
       reasons.add('Neue Lernwelt entdeckt');
     }
-    if (result.accuracy >= 0.80) reasons.add('sicher gerechnet');
+    if (_isSecureRewardRound(result)) reasons.add('sicher gerechnet');
     if (_isMeaningfulProgress(result)) reasons.add('deutlich verbessert');
     if (_isCourageRound(result)) reasons.add('trotz Knacknüssen drangeblieben');
     if (reasons.isEmpty) return 'Runde konzentriert abgeschlossen.';
     return '${reasons.join(' · ')}.';
+  }
+
+  bool _isSecureRewardRound(TrainingSessionResult result) {
+    if (result.total < 5 || result.accuracy < 0.80) return false;
+    final retryLimit = (result.total ~/ 5).clamp(1, result.total).toInt();
+    if (result.incorrectAttempts > retryLimit) return false;
+    final reviews = result.attemptReviews;
+    if (reviews != null &&
+        reviews.any((review) => review.usedHelp == true)) {
+      return false;
+    }
+    return true;
   }
 
   bool _isMeaningfulProgress(TrainingSessionResult result) {

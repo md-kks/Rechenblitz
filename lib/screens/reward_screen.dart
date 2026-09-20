@@ -119,7 +119,7 @@ class RewardScreen extends StatelessWidget {
                   icon: Icons.psychology_alt_rounded,
                   title: 'Dranbleiben',
                   text:
-                      'Auch eine schwierige Runde zu Ende zu bringen kann belohnt werden.',
+                      'Schwierige Runden werden im Feedback gewürdigt. Das Mut-Abzeichen gibt es einmalig – zusätzliche Fehlversuche bringen keine Extra-Sterne.',
                 ),
                 _RewardRule(
                   icon: Icons.workspace_premium_outlined,

@@ -11,6 +11,7 @@ TrainingSessionResult session({
   int correct = 8,
   int errors = 0,
   GradeLevel grade = GradeLevel.second,
+  List<TrainingAttemptReview>? attemptReviews,
 }) =>
     TrainingSessionResult(
       mode: mode,
@@ -27,6 +28,7 @@ TrainingSessionResult session({
       numberRange: range,
       gradeLevel: grade,
       starsEarned: 1,
+      attemptReviews: attemptReviews,
     );
 
 void main() {
@@ -52,7 +54,7 @@ void main() {
     expect(controller.rewardReasonForSession(improved), contains('verbessert'));
   });
 
-  test('Dranbleiben trotz Fehlern wird belohnt', () {
+  test('mehr Fehlversuche erzeugen keinen wiederholbaren Stern-Vorteil', () {
     final controller = AppController();
     controller.history = [
       session(
@@ -61,14 +63,126 @@ void main() {
         correct: 7,
       ),
     ];
+    final cleanRound = session(
+      mode: TrainingMode.practice,
+      range: NumberRangeLevel.twenty,
+      correct: 7,
+      errors: 0,
+    );
     final hardRound = session(
       mode: TrainingMode.practice,
       range: NumberRangeLevel.twenty,
       correct: 7,
       errors: 3,
     );
-    expect(controller.rewardStarsForSession(hardRound), greaterThanOrEqualTo(2));
+
+    expect(
+      controller.rewardStarsForSession(hardRound),
+      controller.rewardStarsForSession(cleanRound),
+    );
     expect(controller.rewardReasonForSession(hardRound), contains('drangeblieben'));
+  });
+
+  test('Sicherheitsstern verlangt stabile Runde ohne viele Retries', () {
+    final controller = AppController();
+    controller.history = [
+      session(
+        mode: TrainingMode.practice,
+        range: NumberRangeLevel.twenty,
+        correct: 8,
+      ),
+    ];
+    final stable = session(
+      mode: TrainingMode.practice,
+      range: NumberRangeLevel.twenty,
+      total: 10,
+      correct: 9,
+      errors: 1,
+    );
+    final retryHeavy = session(
+      mode: TrainingMode.practice,
+      range: NumberRangeLevel.twenty,
+      total: 10,
+      correct: 9,
+      errors: 3,
+    );
+
+    final stableStars = controller.rewardStarsForSession(stable);
+    expect(stableStars, 3);
+    expect(controller.rewardReasonForSession(stable), contains('sicher gerechnet'));
+    expect(controller.rewardStarsForSession(retryHeavy), stableStars - 1);
+    expect(
+      controller.rewardReasonForSession(retryHeavy),
+      isNot(contains('sicher gerechnet')),
+    );
+  });
+
+  test('dokumentierte Hilfe blockiert den Sicherheitsstern', () {
+    final controller = AppController();
+    controller.history = [
+      session(
+        mode: TrainingMode.numberWall,
+        range: NumberRangeLevel.twenty,
+        correct: 8,
+      ),
+    ];
+    final supported = session(
+      mode: TrainingMode.numberWall,
+      range: NumberRangeLevel.twenty,
+      total: 10,
+      correct: 9,
+      errors: 1,
+      attemptReviews: const [
+        TrainingAttemptReview(
+          taskNumber: 4,
+          taskKey: 'wall:review',
+          prompt: 'Ergänze die Zahlenmauer.',
+          correctAnswer: '8',
+          firstAnswer: '7',
+          wrongAnswerAttempts: 1,
+          usedHelp: true,
+        ),
+      ],
+    );
+
+    final independent = session(
+      mode: TrainingMode.numberWall,
+      range: NumberRangeLevel.twenty,
+      total: 10,
+      correct: 9,
+      errors: 1,
+    );
+    expect(
+      controller.rewardStarsForSession(supported),
+      controller.rewardStarsForSession(independent) - 1,
+    );
+    expect(
+      controller.rewardReasonForSession(supported),
+      isNot(contains('sicher gerechnet')),
+    );
+  });
+
+  test('Dranbleiben schaltet Mut-Abzeichen nur einmal frei', () async {
+    final controller = AppController();
+    final hardRound = session(
+      mode: TrainingMode.practice,
+      range: NumberRangeLevel.twenty,
+      total: 10,
+      correct: 7,
+      errors: 3,
+    );
+
+    await controller.addSession(hardRound);
+    expect(controller.unlockedBadges, contains('courage'));
+    final badgeStars = controller.badgeStars;
+    expect(badgeStars, 2);
+
+    await controller.addSession(hardRound);
+    expect(controller.badgeStars, badgeStars);
+    expect(
+      controller.unlockedBadges.where((id) => id == 'courage'),
+      hasLength(1),
+    );
   });
 
   test('fünf Lernwelten schalten Entdecker nur einmal frei', () async {
