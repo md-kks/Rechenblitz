@@ -1276,11 +1276,18 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           onPressed: widget.locked ||
                   (numberBondMissing == 0 && expected != 0)
               ? null
-              : () => widget.onAnswer(
+              : () {
+                  if (numberBondMissing != expected) {
+                    _reportReviewAnswer(
+                      'Fehlender Teil: $numberBondMissing',
+                    );
+                  }
+                  widget.onAnswer(
                     numberBondMissing == expected
                         ? expected
                         : _wrongAnswer(numberBondMissing, expected),
-                  ),
+                  );
+                },
           icon: const Icon(Icons.check_rounded),
           label: compactLargeText
               ? const FittedBox(
@@ -5006,7 +5013,15 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           key: const ValueKey('touch-number-line-submit'),
           onPressed: widget.locked
               ? null
-              : () => widget.onAnswer(selectedValue),
+              : () {
+                  final expected = plan.expectedAnswer;
+                  if (expected != null && selectedValue != expected) {
+                    _reportReviewAnswer(
+                      'Zahl $selectedValue auf dem Zahlenstrahl',
+                    );
+                  }
+                  widget.onAnswer(selectedValue);
+                },
           icon: const Icon(Icons.check_rounded),
           label: const Text('Zahl einsetzen'),
         ),

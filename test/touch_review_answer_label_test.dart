@@ -51,6 +51,79 @@ void main() {
       expect(reviewLabel, 'Gruppen: 1, 0, 0 Punkte');
     },
   );
+  testWidgets('Zahlenstrahlfehler nennt die sichtbar gewählte Zahl', (
+    tester,
+  ) async {
+    var answer = -1;
+    String? reviewLabel;
+    const plan = TouchInteractionPlan(
+      taskKey: 'plus:5:4',
+      kind: TouchInteractionKind.numberLine,
+      instruction: 'Starte bei 5 und gehe 4 Schritte weiter.',
+      minValue: 3,
+      maxValue: 11,
+      startValue: 5,
+      dataValues: <int>[5, 4],
+      dataOperation: '+',
+      expectedAnswer: 9,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TouchAnswerInteraction(
+            plan: plan,
+            onReviewAnswer: (label) => reviewLabel = label,
+            onAnswer: (value) => answer = value,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-number-line-submit')));
+    await tester.pump();
+
+    expect(answer, 5);
+    expect(reviewLabel, 'Zahl 5 auf dem Zahlenstrahl');
+  });
+
+  testWidgets('Zahlenfreunde-Fehler nennt den gebauten fehlenden Teil', (
+    tester,
+  ) async {
+    var answer = -1;
+    String? reviewLabel;
+    const plan = TouchInteractionPlan(
+      taskKey: 'plus:3:17',
+      kind: TouchInteractionKind.numberBondComposer,
+      instruction: 'Baue den fehlenden Teil.',
+      dataValues: <int>[20, 3],
+      expectedAnswer: 17,
+      maxValue: 20,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: plan,
+              onReviewAnswer: (label) => reviewLabel = label,
+              onAnswer: (value) => answer = value,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-number-bond-add')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-number-bond-submit')));
+    await tester.pump();
+
+    expect(answer, 1);
+    expect(reviewLabel, 'Fehlender Teil: 1');
+  });
+
   testWidgets('Diagrammfehler nennt die tatsächlich markierten Balken', (
     tester,
   ) async {
