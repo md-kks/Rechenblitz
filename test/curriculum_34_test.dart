@@ -142,19 +142,20 @@ void main() {
         expect(exercise.key, startsWith('geomrel:angle:'));
         expect(<String>{'smaller', 'equal', 'larger'}, contains(relation));
         expect(exercise.usesChoices, isTrue);
-        expect(exercise.choices, [
-          'rechter Winkel',
-          'spitzer Winkel',
-          'stumpfer Winkel',
-        ]);
         expect(
-          exercise.answer,
-          relation == 'smaller'
-              ? 1
-              : relation == 'equal'
-                  ? 0
-                  : 2,
+          exercise.choices,
+          unorderedEquals([
+            'rechter Winkel',
+            'spitzer Winkel',
+            'stumpfer Winkel',
+          ]),
         );
+        final expected = switch (relation) {
+          'smaller' => 'spitzer Winkel',
+          'equal' => 'rechter Winkel',
+          _ => 'stumpfer Winkel',
+        };
+        expect(exercise.choices![exercise.answer], expected);
         expect(exercise.method, 'Rechte Winkel erkennen');
       }
     }
@@ -256,13 +257,14 @@ void main() {
         expect(exercise.key, startsWith('geomrel:figure:'));
         expect(variant, inInclusiveRange(0, 3));
         expect(exercise.usesChoices, isTrue);
-        expect(exercise.choices, [
+        const labels = [
           'Quadrat',
           'Rechteck',
           'gleichseitiges Dreieck',
           'gleichschenkliges Dreieck',
-        ]);
-        expect(exercise.answer, variant);
+        ];
+        expect(exercise.choices, unorderedEquals(labels));
+        expect(exercise.choices![exercise.answer], labels[variant]);
         expect(exercise.method, 'Figuren über Eigenschaften einordnen');
       }
     }
@@ -279,7 +281,8 @@ void main() {
         maxValue: 1000,
         targetCompetency: MicroCompetencyId.figureClassification,
       );
-      if (exercise.answer != 3) continue;
+      final variant = int.parse(exercise.key.split(':')[2]);
+      if (variant != 3) continue;
       seen += 1;
 
       expect(exercise.prompt, isNot(contains('mindestens zwei')));
