@@ -171,6 +171,94 @@ void main() {
     expect(stored.single.correctAnswer, '12');
   });
 
+  testWidgets(
+    'Grundrechnen behält Touch-Fehlerbeschreibung über Neustart',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      await controller.setGradeLevel(GradeLevel.second);
+      await controller.setNumberRange(NumberRangeLevel.twenty);
+      controller.facts = <MathFact>[
+        MathFact(a: 5, b: 4, operation: MathOperation.plus),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainingScreen(
+            controller: controller,
+            mode: TrainingMode.practice,
+            targetTasks: 1,
+            targetCompetency: MicroCompetencyId.additionNoBridge,
+            transferEmphasis: true,
+            announceCompletion: false,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final submit = find.byKey(const ValueKey('touch-number-line-submit'));
+      expect(submit, findsOneWidget);
+      await tester.tap(submit);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+
+      expect(
+        controller.coreTrainingSessionProgress?.firstWrongAnswerLabel,
+        'Zahl 5 auf dem Zahlenstrahl',
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+
+      final restarted = AppController();
+      await restarted.load();
+      restarted.facts = <MathFact>[
+        MathFact(a: 5, b: 4, operation: MathOperation.plus),
+      ];
+      expect(
+        restarted.coreTrainingSessionProgress?.firstWrongAnswerLabel,
+        'Zahl 5 auf dem Zahlenstrahl',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainingScreen(
+            controller: restarted,
+            mode: TrainingMode.practice,
+            targetTasks: 1,
+            targetCompetency: MicroCompetencyId.additionNoBridge,
+            transferEmphasis: true,
+            announceCompletion: false,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final slider = tester.widget<Slider>(
+        find.byKey(const ValueKey('touch-number-line-slider')),
+      );
+      slider.onChanged!(9);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('touch-number-line-submit')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Runde geschafft!'), findsOneWidget);
+      expect(
+        find.text(
+          'Dein erster Versuch: Zahl 5 auf dem Zahlenstrahl',
+        ),
+        findsOneWidget,
+      );
+      final stored = restarted.history.single.attemptReviews;
+      expect(stored, isNotNull);
+      expect(stored, hasLength(1));
+      expect(stored!.single.firstAnswer, 'Zahl 5 auf dem Zahlenstrahl');
+      expect(stored.single.correctAnswer, '9');
+    },
+  );
+
   testWidgets('strukturierte Aufgabe erscheint in der Rundenrückschau', (
     tester,
   ) async {

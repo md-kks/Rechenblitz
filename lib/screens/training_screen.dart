@@ -136,6 +136,8 @@ class _TrainingScreenState extends State<TrainingScreen>
   int correctFirstTry = 0;
   int wrongOnCurrent = 0;
   int? firstWrongAnswer;
+  String? firstWrongAnswerLabel;
+  String? pendingTouchReviewLabel;
   bool usedHelp = false;
   bool showHelp = false;
   bool locked = false;
@@ -246,6 +248,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       correctFirstTry = saved.correctFirstTry;
       wrongOnCurrent = saved.wrongOnCurrent;
       firstWrongAnswer = saved.firstWrongAnswer;
+      firstWrongAnswerLabel = saved.firstWrongAnswerLabel;
       segmentUsedHelp = saved.segmentUsedHelp;
       showHelp = saved.assistanceVisible;
       usedHelp = saved.usedHelp;
@@ -375,6 +378,7 @@ class _TrainingScreenState extends State<TrainingScreen>
         correctFirstTry: correctFirstTry,
         wrongOnCurrent: wrongOnCurrent,
         firstWrongAnswer: firstWrongAnswer,
+        firstWrongAnswerLabel: firstWrongAnswerLabel,
         segmentUsedHelp: segmentUsedHelp,
         assistanceVisible: showHelp,
         usedHelp: usedHelp,
@@ -438,6 +442,9 @@ class _TrainingScreenState extends State<TrainingScreen>
     checkpointLocked = false;
     hadCheckpointError = false;
     firstCheckpointAttempt = null;
+    firstWrongAnswer = null;
+    firstWrongAnswerLabel = null;
+    pendingTouchReviewLabel = null;
     taskRememberFuture = null;
     taskFirstAttemptRecorded = false;
     pendingFactAttempt = null;
@@ -822,7 +829,18 @@ class _TrainingScreenState extends State<TrainingScreen>
     _showNextTask();
   }
 
-  Future<void> _answer(int answer) async {
+  void _rememberTouchReviewLabel(String label) {
+    final value = label.trim();
+    pendingTouchReviewLabel = value.isEmpty ? null : value;
+  }
+
+  Future<void> _answerFromTouch(int answer) {
+    final reviewLabel = pendingTouchReviewLabel;
+    pendingTouchReviewLabel = null;
+    return _answer(answer, reviewLabel: reviewLabel);
+  }
+
+  Future<void> _answer(int answer, {String? reviewLabel}) async {
     if (locked || finishing || !_checkpointsComplete || submitting) return;
     final pending = pendingFactAttempt;
     if (pending != null) {
@@ -840,6 +858,14 @@ class _TrainingScreenState extends State<TrainingScreen>
     try {
       final response = responseTimer.elapsed();
       final correct = answer == _expectedAnswer;
+      final normalizedReviewLabel = reviewLabel?.trim();
+      if (!taskFirstAttemptRecorded &&
+          !correct &&
+          firstWrongAnswerLabel == null &&
+          normalizedReviewLabel != null &&
+          normalizedReviewLabel.isNotEmpty) {
+        firstWrongAnswerLabel = normalizedReviewLabel;
+      }
       factAttemptSequence += 1;
       final receipt = PendingFactAttempt(
         id: _factAttemptId(factAttemptSequence),
@@ -873,8 +899,9 @@ class _TrainingScreenState extends State<TrainingScreen>
         taskKey: current.key,
         prompt: _reviewPrompt,
         correctAnswer: '$_expectedAnswer',
-        firstAnswer:
-            firstWrongAnswer == null ? null : '$firstWrongAnswer',
+        firstAnswer: firstWrongAnswer == null
+            ? null
+            : firstWrongAnswerLabel ?? '$firstWrongAnswer',
         hadCheckpointError: hadCheckpointError,
         checkpointAttempt: firstCheckpointAttempt,
       ),
@@ -908,7 +935,6 @@ class _TrainingScreenState extends State<TrainingScreen>
       current = _next();
       responseTimer.reset();
       wrongOnCurrent = 0;
-      firstWrongAnswer = null;
       helpCountedForCurrent = false;
       _prepareHelpForCurrent();
       currentErrorPattern = null;
@@ -1248,7 +1274,8 @@ class _TrainingScreenState extends State<TrainingScreen>
                       key: ValueKey('touch:${current.key}:$completed'),
                       plan: _touchInteraction!,
                       locked: locked,
-                      onAnswer: _answer,
+                      onReviewAnswer: _rememberTouchReviewLabel,
+                      onAnswer: _answerFromTouch,
                     ),
                     if (!compactPhone) ...[
                       const SizedBox(height: 6),
