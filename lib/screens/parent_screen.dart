@@ -1376,6 +1376,15 @@ class _RoundReviewEntry extends StatelessWidget {
               ),
               if (review.firstAnswer != null)
                 Text('Erster Versuch: ${review.firstAnswer}'),
+              if (review.wrongAnswerAttempts case final count?
+                  when count > 0)
+                Text(
+                  count == 1
+                      ? '1 Fehlversuch vor der richtigen Lösung'
+                      : '$count Fehlversuche vor der richtigen Lösung',
+                ),
+              if (review.usedHelp case final helped?)
+                Text(helped ? 'Mit Hilfe gelöst' : 'Ohne Hilfe gelöst'),
               Text('Richtig: ${review.correctAnswer}'),
               if (review.hasCheckpointReview) ...[
                 const SizedBox(height: 4),

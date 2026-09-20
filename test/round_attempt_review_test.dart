@@ -46,6 +46,8 @@ void main() {
           prompt: '7 + 5 = ?',
           correctAnswer: '12',
           firstAnswer: '11',
+          wrongAnswerAttempts: 2,
+          usedHelp: true,
           hadCheckpointError: true,
           checkpointAttempt: CheckpointAttemptReview(
             question: 'Wie viel fehlt bis 10?',
@@ -63,6 +65,8 @@ void main() {
     expect(restored.attemptReviews.single.prompt, '7 + 5 = ?');
     expect(restored.attemptReviews.single.correctAnswer, '12');
     expect(restored.attemptReviews.single.firstAnswer, '11');
+    expect(restored.attemptReviews.single.wrongAnswerAttempts, 2);
+    expect(restored.attemptReviews.single.usedHelp, isTrue);
     expect(restored.attemptReviews.single.checkpointAttempt?.firstAnswer, '3');
     expect(
       restored.attemptReviews.single.checkpointAttempt?.correctAnswer,
@@ -102,6 +106,8 @@ void main() {
                     prompt: '20 = 3 + ?',
                     correctAnswer: '17',
                     firstAnswer: '0',
+                    wrongAnswerAttempts: 1,
+                    usedHelp: false,
                   ),
                 ],
                 starsEarned: 1,
@@ -120,6 +126,11 @@ void main() {
     expect(find.text('4 von 5 beim ersten Versuch richtig'), findsOneWidget);
     expect(find.text('Aufgabe 3: 20 = 3 + ?'), findsOneWidget);
     expect(find.text('Dein erster Versuch: 0'), findsOneWidget);
+    expect(
+      find.text('1 Fehlversuch vor der richtigen Lösung'),
+      findsOneWidget,
+    );
+    expect(find.text('Ohne Hilfe gelöst'), findsOneWidget);
     expect(find.text('Richtige Antwort: 17'), findsOneWidget);
     expect(find.textContaining('am Ende richtig gelöst'), findsOneWidget);
   });
@@ -168,6 +179,8 @@ void main() {
     expect(stored, hasLength(1));
     expect(stored!.single.prompt, '7 + 5 = ?');
     expect(stored.single.firstAnswer, '11');
+    expect(stored.single.wrongAnswerAttempts, 1);
+    expect(stored.single.usedHelp, isFalse);
     expect(stored.single.correctAnswer, '12');
   });
 
@@ -294,6 +307,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     pad = tester.widget<NumberAnswerPad>(find.byType(NumberAnswerPad));
+    pad.onAnswer(6);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    pad = tester.widget<NumberAnswerPad>(find.byType(NumberAnswerPad));
     pad.onAnswer(8);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 700));
@@ -307,11 +325,18 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Dein erster Versuch: 7'), findsOneWidget);
+    expect(
+      find.text('2 Fehlversuche vor der richtigen Lösung'),
+      findsOneWidget,
+    );
+    expect(find.text('Mit Hilfe gelöst'), findsOneWidget);
     expect(find.text('Richtige Antwort: 8'), findsOneWidget);
     final stored = controller.history.single.attemptReviews;
     expect(stored, isNotNull);
     expect(stored, hasLength(1));
     expect(stored!.single.firstAnswer, '7');
+    expect(stored.single.wrongAnswerAttempts, 2);
+    expect(stored.single.usedHelp, isTrue);
     expect(stored.single.correctAnswer, '8');
   });
 
@@ -408,6 +433,8 @@ void main() {
     expect(stored, isNotNull);
     expect(stored, hasLength(1));
     expect(stored!.single.firstAnswer, '100 min');
+    expect(stored.single.wrongAnswerAttempts, 1);
+    expect(stored.single.usedHelp, isFalse);
     expect(stored.single.correctAnswer, '120 min');
   });
 

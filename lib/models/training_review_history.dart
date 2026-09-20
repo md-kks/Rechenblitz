@@ -11,6 +11,8 @@ List<TrainingAttemptReview> trainingAttemptReviews(
         prompt: review.prompt,
         correctAnswer: review.correctAnswer,
         firstAnswer: review.firstAnswer,
+        wrongAnswerAttempts: review.wrongAnswerAttempts,
+        usedHelp: review.usedHelp,
         checkpointQuestion: review.checkpointAttempt?.question,
         checkpointFirstAnswer: review.checkpointAttempt?.firstAnswer,
         checkpointCorrectAnswer: review.checkpointAttempt?.correctAnswer,

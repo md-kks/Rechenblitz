@@ -200,6 +200,8 @@ class TrainingAttemptReview {
     required this.prompt,
     required this.correctAnswer,
     this.firstAnswer,
+    this.wrongAnswerAttempts,
+    this.usedHelp,
     this.checkpointQuestion,
     this.checkpointFirstAnswer,
     this.checkpointCorrectAnswer,
@@ -210,6 +212,8 @@ class TrainingAttemptReview {
   final String prompt;
   final String correctAnswer;
   final String? firstAnswer;
+  final int? wrongAnswerAttempts;
+  final bool? usedHelp;
   final String? checkpointQuestion;
   final String? checkpointFirstAnswer;
   final String? checkpointCorrectAnswer;
@@ -225,6 +229,9 @@ class TrainingAttemptReview {
       prompt.trim().isNotEmpty &&
       correctAnswer.trim().isNotEmpty &&
       (firstAnswer == null || firstAnswer!.trim().isNotEmpty) &&
+      (wrongAnswerAttempts == null ||
+          (wrongAnswerAttempts! >= 0 &&
+              (wrongAnswerAttempts == 0 || firstAnswer != null))) &&
       ((checkpointQuestion == null &&
               checkpointFirstAnswer == null &&
               checkpointCorrectAnswer == null) ||
@@ -238,6 +245,9 @@ class TrainingAttemptReview {
         'prompt': prompt,
         'correctAnswer': correctAnswer,
         if (firstAnswer != null) 'firstAnswer': firstAnswer,
+        if (wrongAnswerAttempts != null)
+          'wrongAnswerAttempts': wrongAnswerAttempts,
+        if (usedHelp != null) 'usedHelp': usedHelp,
         if (checkpointQuestion != null)
           'checkpointQuestion': checkpointQuestion,
         if (checkpointFirstAnswer != null)
@@ -254,6 +264,8 @@ class TrainingAttemptReview {
         prompt: json['prompt'] as String,
         correctAnswer: json['correctAnswer'] as String,
         firstAnswer: json['firstAnswer'] as String?,
+        wrongAnswerAttempts: json['wrongAnswerAttempts'] as int?,
+        usedHelp: json['usedHelp'] as bool?,
         checkpointQuestion: json['checkpointQuestion'] as String?,
         checkpointFirstAnswer: json['checkpointFirstAnswer'] as String?,
         checkpointCorrectAnswer: json['checkpointCorrectAnswer'] as String?,

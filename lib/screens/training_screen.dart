@@ -902,6 +902,8 @@ class _TrainingScreenState extends State<TrainingScreen>
         firstAnswer: firstWrongAnswer == null
             ? null
             : firstWrongAnswerLabel ?? '$firstWrongAnswer',
+        wrongAnswerAttempts: wrongOnCurrent,
+        usedHelp: usedHelp || showHelp || helpLevel > 0,
         hadCheckpointError: hadCheckpointError,
         checkpointAttempt: firstCheckpointAttempt,
       ),
