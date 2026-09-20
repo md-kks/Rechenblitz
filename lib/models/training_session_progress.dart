@@ -262,6 +262,7 @@ class CoreTrainingSessionProgress {
     this.correctFirstTry = 0,
     this.wrongOnCurrent = 0,
     this.firstWrongAnswer,
+    this.firstWrongAnswerLabel,
     this.segmentUsedHelp = false,
     this.assistanceVisible = false,
     this.usedHelp = false,
@@ -317,6 +318,7 @@ class CoreTrainingSessionProgress {
   final int correctFirstTry;
   final int wrongOnCurrent;
   final int? firstWrongAnswer;
+  final String? firstWrongAnswerLabel;
   final bool segmentUsedHelp;
   final bool assistanceVisible;
   final bool usedHelp;
@@ -364,7 +366,9 @@ class CoreTrainingSessionProgress {
         helpLevel < 0 ||
         helpLevel > 3 ||
         checkpointIndex < 0 ||
-        factAttemptSequence < 0) {
+        factAttemptSequence < 0 ||
+        (firstWrongAnswerLabel != null &&
+            firstWrongAnswerLabel!.trim().isEmpty)) {
       return false;
     }
     if (checkpointAttempted.any((index) => index < 0) ||
@@ -483,6 +487,8 @@ class CoreTrainingSessionProgress {
     'correctFirstTry': correctFirstTry,
     'wrongOnCurrent': wrongOnCurrent,
     if (firstWrongAnswer != null) 'firstWrongAnswer': firstWrongAnswer,
+    if (firstWrongAnswerLabel != null)
+      'firstWrongAnswerLabel': firstWrongAnswerLabel,
     'segmentUsedHelp': segmentUsedHelp,
     'assistanceVisible': assistanceVisible,
     'usedHelp': usedHelp,
@@ -558,6 +564,7 @@ class CoreTrainingSessionProgress {
       correctFirstTry: json['correctFirstTry'] as int? ?? 0,
       wrongOnCurrent: json['wrongOnCurrent'] as int? ?? 0,
       firstWrongAnswer: json['firstWrongAnswer'] as int?,
+      firstWrongAnswerLabel: json['firstWrongAnswerLabel'] as String?,
       segmentUsedHelp: json['segmentUsedHelp'] as bool? ?? false,
       assistanceVisible: json['assistanceVisible'] as bool? ?? false,
       usedHelp: json['usedHelp'] as bool? ?? false,

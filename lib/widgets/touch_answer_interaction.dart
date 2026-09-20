@@ -11,11 +11,13 @@ class TouchAnswerInteraction extends StatefulWidget {
     super.key,
     required this.plan,
     required this.onAnswer,
+    this.onReviewAnswer,
     this.locked = false,
   });
 
   final TouchInteractionPlan plan;
   final ValueChanged<int> onAnswer;
+  final ValueChanged<String>? onReviewAnswer;
   final bool locked;
 
   @override
@@ -2251,6 +2253,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         multiplicationStepFeedback =
             'Prüfe Ergebnisziffer und Übertrag in dieser Spalte.';
       });
+      _reportReviewAnswer(
+        'Ergebnisziffer ${selectedMultiplicationDigit ?? '–'} · '
+        'Übertrag ${selectedMultiplicationCarry ?? '–'}',
+      );
       widget.onAnswer(_wrongAnswer(expected, expected));
       return;
     }
@@ -2437,6 +2443,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         divisionStepFeedback =
             'Prüfe Quotientenziffer und Rest dieses Divisionsschritts.';
       });
+      _reportReviewAnswer(
+        'Quotientenziffer ${selectedDivisionQuotient ?? '–'} · '
+        'Rest ${selectedDivisionRemainder ?? '–'}',
+      );
       widget.onAnswer(_wrongAnswer(expected, expected));
       return;
     }
@@ -2674,6 +2684,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         selectedWrittenRegroup == expectedRegroup;
 
     if (!stepCorrect) {
+      _reportReviewAnswer(
+        'Ergebnisziffer ${selectedWrittenDigit ?? '–'} · '
+        '${addition ? 'Übertrag' : 'Entleihen'} '
+        '${selectedWrittenRegroup ?? '–'}',
+      );
       setState(() {
         writtenStepFeedback = addition
             ? 'Prüfe Ergebnisziffer und Übertrag in dieser Spalte.'
@@ -4373,6 +4388,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final targetLayers = widget.plan.dataValues[2];
     final expected = widget.plan.expectedAnswer ?? 0;
     final correct = volumeLayers == targetLayers && candidate == expected;
+    if (!correct) {
+      _reportReviewAnswer(
+        '$volumeLayers Schichten gebaut · Antwort $candidate',
+      );
+    }
     widget.onAnswer(correct ? expected : _wrongAnswer(candidate, expected));
   }
 
@@ -5573,6 +5593,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       return;
     }
     final candidate = fractionPartSize * selectedFractionParts.length;
+    _reportReviewAnswer(
+      'Teilgröße $fractionPartSize · '
+      '${selectedFractionParts.length} von $denominator Teilen markiert',
+    );
     widget.onAnswer(_wrongAnswer(candidate, expected));
   }
 
@@ -5770,6 +5794,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final expectedMoves = _expectedRouteMoves();
     final expectedAnswer = widget.plan.expectedAnswer ?? 0;
     final exact = _listEqualsString(routeMoves, expectedMoves);
+    if (!exact) {
+      _reportReviewAnswer(
+        routeMoves.isEmpty ? 'Keine Route gebaut' : 'Route: ${routeMoves.join(' → ')}',
+      );
+    }
     widget.onAnswer(
       exact ? expectedAnswer : _wrongAnswer(expectedAnswer, expectedAnswer),
     );
@@ -5868,8 +5897,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     if (pathX == goalRight && pathY == goalUp) {
       widget.onAnswer(expected);
     } else if (total != expected) {
+      _reportReviewAnswer('$pathX nach rechts · $pathY nach oben');
       widget.onAnswer(total);
     } else {
+      _reportReviewAnswer('$pathX nach rechts · $pathY nach oben');
       widget.onAnswer(math.max(0, expected - 1));
     }
   }
@@ -5941,8 +5972,14 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         selectedAxes.containsAll(expectedSet)) {
       widget.onAnswer(expected);
     } else if (selectedAxes.length != expected) {
+      _reportReviewAnswer(
+        '${selectedAxes.length} Symmetrieachsen markiert',
+      );
       widget.onAnswer(selectedAxes.length);
     } else {
+      _reportReviewAnswer(
+        '${selectedAxes.length} Symmetrieachsen markiert',
+      );
       widget.onAnswer(math.max(0, expected - 1));
     }
   }
@@ -6159,8 +6196,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     if (setEquals(selectedShapePoints, expectedSet)) {
       widget.onAnswer(expected);
     } else if (selectedShapePoints.length != expected) {
+      _reportReviewAnswer('${selectedShapePoints.length} Ecken markiert');
       widget.onAnswer(selectedShapePoints.length);
     } else {
+      _reportReviewAnswer('${selectedShapePoints.length} Ecken markiert');
       widget.onAnswer(math.max(0, expected - 1));
     }
   }
@@ -6267,6 +6306,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     if (setEquals(selectedShapeSides, expectedSet)) {
       widget.onAnswer(expected);
     } else {
+      _reportReviewAnswer('${selectedShapeSides.length} Seiten markiert');
       widget.onAnswer(_wrongAnswer(selectedShapeSides.length, expected));
     }
   }
@@ -6519,6 +6559,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         (areaColumns == targetWidth && areaRows == targetHeight) ||
         (areaColumns == targetHeight && areaRows == targetWidth);
     final candidate = areaColumns * areaRows;
+    if (!exactStructure) {
+      _reportReviewAnswer('$areaColumns Spalten × $areaRows Reihen');
+    }
     widget.onAnswer(
       exactStructure ? expected : _wrongAnswer(candidate, expected),
     );
@@ -6626,6 +6669,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       return;
     }
     final total = groupCounters.fold<int>(0, (sum, count) => sum + count);
+    _reportReviewAnswer('Gruppen: ${groupCounters.join(', ')} Punkte');
     widget.onAnswer(_wrongAnswer(total, expected));
   }
 
@@ -6711,6 +6755,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       return;
     }
     final candidate = groupCounters.isEmpty ? 0 : groupCounters.first;
+    _reportReviewAnswer('Verteilung: ${groupCounters.join(', ')}');
     widget.onAnswer(_wrongAnswer(candidate, expected));
   }
 
@@ -6785,6 +6830,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final each = widget.plan.itemsPerGroup ?? 1;
     final expected = widget.plan.expectedAnswer ?? 0;
     final used = builtDivisionGroups * each;
+    if (used != total) {
+      _reportReviewAnswer(
+        '$builtDivisionGroups Gruppen gebaut · $used von $total verteilt',
+      );
+    }
     widget.onAnswer(
       used == total
           ? builtDivisionGroups
@@ -6923,15 +6973,42 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final candidate = selectedDataBars.length == 1
         ? values[selectedDataBars.single]
         : selectedDataBars.length;
+    final fits = _dataSelectionFits();
+    if (!fits) {
+      final labels = selectedDataBars
+          .map(
+            (index) => index < widget.plan.dataLabels.length
+                ? widget.plan.dataLabels[index]
+                : '${index + 1}',
+          )
+          .join(', ');
+      _reportReviewAnswer(
+        labels.isEmpty ? 'Keine Balken markiert' : 'Markierte Balken: $labels',
+      );
+    }
     widget.onAnswer(
-      _dataSelectionFits() ? expected : _wrongAnswer(candidate, expected),
+      fits ? expected : _wrongAnswer(candidate, expected),
     );
   }
 
   void _submitDataCalculation(int candidate) {
     final expected = widget.plan.expectedAnswer ?? 0;
+    final fits = _dataSelectionFits();
+    if (!fits || candidate != expected) {
+      final labels = selectedDataBars
+          .map(
+            (index) => index < widget.plan.dataLabels.length
+                ? widget.plan.dataLabels[index]
+                : '${index + 1}',
+          )
+          .join(', ');
+      _reportReviewAnswer(
+        '${labels.isEmpty ? 'Keine Balken markiert' : 'Markierte Balken: $labels'}'
+        ' · Antwort $candidate',
+      );
+    }
     widget.onAnswer(
-      _dataSelectionFits() ? candidate : _wrongAnswer(candidate, expected),
+      fits ? candidate : _wrongAnswer(candidate, expected),
     );
   }
 
@@ -6996,6 +7073,12 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       (sum, index) => sum + units[index],
     );
     final allMarked = selectedTallyUnits.length == units.length;
+    if (!allMarked || counted != expected) {
+      _reportReviewAnswer(
+        '${selectedTallyUnits.length} von ${units.length} Strichgruppen '
+        'markiert · gezählt $counted',
+      );
+    }
     widget.onAnswer(allMarked ? expected : _wrongAnswer(counted, expected));
   }
 
@@ -7030,6 +7113,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
       if (first[index] != second[index]) return false;
     }
     return true;
+  }
+
+  void _reportReviewAnswer(String label) {
+    final value = label.trim();
+    if (value.isNotEmpty) widget.onReviewAnswer?.call(value);
   }
 
   int _wrongAnswer(int candidate, int expected) {
