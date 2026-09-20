@@ -102,6 +102,14 @@ class GermanAnswerFeedback {
       return 'Die passenden Wörter sind da. Prüfe ihre Reihenfolge.';
     }
 
+    if (task.competencyId == GermanCompetencyId.sentenceConnections) {
+      return 'Noch nicht. Prüfe das verlangte Verbindungswort, die Satzstellung '
+          'und das Komma. Beide Aussagen müssen vollständig erhalten bleiben.';
+    }
+    if (task.competencyId == GermanCompetencyId.textRevision) {
+      return 'Noch nicht. Prüfe genau die verlangte Überarbeitung: '
+          'Wiederholung, Wortwahl oder Reihenfolge soll gezielt verbessert werden.';
+    }
     return 'Noch nicht. Prüfe, ob du alle vorgegebenen Wörter '
         'vollständig und richtig verwendet hast.';
   }

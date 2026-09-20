@@ -24,6 +24,7 @@ import 'german_vocabulary_touch_task_catalog.dart';
 import 'german_word_recognition_task_catalog.dart';
 import 'german_upper_primary_task_catalog.dart';
 import 'german_writing_production_task_catalog.dart';
+import 'german_writing_revision_expansion_task_catalog.dart';
 
 class GermanTaskCatalog {
   const GermanTaskCatalog._();
@@ -48,6 +49,7 @@ class GermanTaskCatalog {
     ...GermanGradeThreeExtensionTaskCatalog.tasks,
     ...GermanGradeFourExtensionTaskCatalog.tasks,
     ...GermanWritingProductionTaskCatalog.tasks,
+    ...GermanWritingRevisionExpansionTaskCatalog.tasks,
     ...GermanUpperPrimaryTaskCatalog.tasks,
     ...GermanUpperPrimaryExpansionTaskCatalog.tasks,
   ];
