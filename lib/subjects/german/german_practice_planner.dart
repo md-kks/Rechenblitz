@@ -98,7 +98,35 @@ class GermanPracticePlanner {
       }
     }
 
-    // Fill non-focus space evenly so adaptivity does not crowd out whole areas.
+    // Keep ordinary practice on the child's current grade before using
+    // untouched older competencies merely for variety. Prefer a second current
+    // competency first, then allow a second task from the same current-grade
+    // competency when a domain has only one skill introduced at this grade.
+    for (final task in ranked) {
+      if (selectedIds.contains(task.id)) continue;
+      if (task.recommendedFromGrade != gradeLevel) continue;
+      final domain = GermanCompetencyCatalog.definition(
+        task.competencyId,
+      ).domain;
+      if ((domainCount[domain] ?? 0) >= balancedDomainCap) continue;
+      if ((competencyCount[task.competencyId] ?? 0) >= 1) continue;
+      add(task);
+      if (selected.length == taskCount) return selected;
+    }
+
+    for (final task in ranked) {
+      if (selectedIds.contains(task.id)) continue;
+      if (task.recommendedFromGrade != gradeLevel) continue;
+      final domain = GermanCompetencyCatalog.definition(
+        task.competencyId,
+      ).domain;
+      if ((domainCount[domain] ?? 0) >= balancedDomainCap) continue;
+      add(task);
+      if (selected.length == taskCount) return selected;
+    }
+
+    // Fill any remaining non-focus space evenly. This is where older material
+    // may enter when the current grade genuinely cannot supply the slot.
     for (final task in ranked) {
       if (selectedIds.contains(task.id)) continue;
       final domain = GermanCompetencyCatalog.definition(
@@ -441,16 +469,17 @@ class _GermanRankingContext {
     final bProgress = progressFor(b.competencyId);
     final aBucket = priorityBucket(a, progress: aProgress);
     final bBucket = priorityBucket(b, progress: bProgress);
-    if (aBucket != bBucket) return aBucket.compareTo(bBucket);
+    final aHasAdaptivePriority = aBucket <= 2;
+    final bHasAdaptivePriority = bBucket <= 2;
 
-    if (aProgress.state == GermanCompetencyState.learning &&
-        bProgress.state == GermanCompetencyState.learning &&
-        aProgress.recentAccuracy != bProgress.recentAccuracy) {
-      return aProgress.recentAccuracy.compareTo(bProgress.recentAccuracy);
-    }
-
-    if (aProgress.state == GermanCompetencyState.newSkill &&
-        bProgress.state == GermanCompetencyState.newSkill) {
+    // Proven weakness, independent-reading follow-up, grade bridges and due
+    // reviews may intentionally pull older material forward. In ordinary
+    // practice, however, current-grade work must outrank merely unseen older
+    // tasks. Otherwise a successful upper-primary round immediately regresses
+    // into lower-primary content just because it has not been attempted yet.
+    if (aHasAdaptivePriority || bHasAdaptivePriority) {
+      if (aBucket != bBucket) return aBucket.compareTo(bBucket);
+    } else {
       final aDistance = gradeLevel.index - a.recommendedFromGrade.index;
       final bDistance = gradeLevel.index - b.recommendedFromGrade.index;
       if (aDistance != bDistance) return aDistance.compareTo(bDistance);
@@ -466,6 +495,13 @@ class _GermanRankingContext {
       if (aCompetencyDistance != bCompetencyDistance) {
         return aCompetencyDistance.compareTo(bCompetencyDistance);
       }
+      if (aBucket != bBucket) return aBucket.compareTo(bBucket);
+    }
+
+    if (aProgress.state == GermanCompetencyState.learning &&
+        bProgress.state == GermanCompetencyState.learning &&
+        aProgress.recentAccuracy != bProgress.recentAccuracy) {
+      return aProgress.recentAccuracy.compareTo(bProgress.recentAccuracy);
     }
 
     final aPrerequisites = unmetPrerequisitesFor(a.competencyId);
