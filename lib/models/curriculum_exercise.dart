@@ -2144,7 +2144,9 @@ class CurriculumExerciseGenerator {
     if (kind == 0) {
       final parallel = _random.nextBool();
       final context = _random.nextInt(4);
-      const choices = ['parallel', 'senkrecht', 'weder noch'];
+      final correct = parallel ? 'parallel' : 'senkrecht';
+      final choices = <String>['parallel', 'senkrecht', 'weder noch']
+        ..shuffle(_random);
       final prompt = parallel
           ? switch (context) {
               0 =>
@@ -2169,7 +2171,7 @@ class CurriculumExerciseGenerator {
       return CurriculumExercise(
         mode: TrainingMode.geometryRelations,
         prompt: prompt,
-        answer: parallel ? 0 : 1,
+        answer: choices.indexOf(correct),
         hint: parallel
             ? 'Parallele Geraden behalten überall den gleichen Abstand.'
             : 'Senkrechte Geraden schneiden sich im rechten Winkel.',
@@ -2181,11 +2183,11 @@ class CurriculumExerciseGenerator {
     }
 
     if (kind == 1) {
-      const choices = [
+      final choices = <String>[
         'rechter Winkel',
         'spitzer Winkel',
         'stumpfer Winkel',
-      ];
+      ]..shuffle(_random);
       if (targetCompetency == MicroCompetencyId.rightAngle) {
         final relation = _random.nextInt(3);
         final reference = _random.nextInt(3);
@@ -2202,10 +2204,10 @@ class CurriculumExerciseGenerator {
           _ =>
             'Ein Winkel ist größer als die $referenceLabel. Wie heißt dieser Winkel?',
         };
-        final answer = switch (relation) {
-          0 => 1,
-          1 => 0,
-          _ => 2,
+        final correct = switch (relation) {
+          0 => 'spitzer Winkel',
+          1 => 'rechter Winkel',
+          _ => 'stumpfer Winkel',
         };
         final keyRelation = ['smaller', 'equal', 'larger'][relation];
         final referenceKey = switch (reference) {
@@ -2216,7 +2218,7 @@ class CurriculumExerciseGenerator {
         return CurriculumExercise(
           mode: TrainingMode.geometryRelations,
           prompt: prompt,
-          answer: answer,
+          answer: choices.indexOf(correct),
           hint:
               'Vergleiche mit einer Rechteck-Ecke: kleiner = spitz, gleich = recht, größer = stumpf.',
           key:
@@ -2229,7 +2231,7 @@ class CurriculumExerciseGenerator {
         mode: TrainingMode.geometryRelations,
         prompt:
             'Eine Ecke sieht genau so aus wie die Ecke eines rechteckigen Blattes. Wie heißt dieser Winkel?',
-        answer: 0,
+        answer: choices.indexOf('rechter Winkel'),
         hint: 'Die Ecke eines Rechtecks ist ein rechter Winkel.',
         key: 'geomrel:angle:right:paper:${grade.name}',
         choices: choices,
@@ -2240,12 +2242,14 @@ class CurriculumExerciseGenerator {
     if (kind == 2) {
       final variant = _random.nextInt(4);
       final context = _random.nextInt(3);
-      const choices = [
+      const baseChoices = [
         'Quadrat',
         'Rechteck',
         'gleichseitiges Dreieck',
         'gleichschenkliges Dreieck',
       ];
+      final correct = baseChoices[variant];
+      final choices = List<String>.from(baseChoices)..shuffle(_random);
       final prompt = switch ((variant, context)) {
         (0, 0) =>
           'Welche Figur hat vier gleich lange Seiten und vier rechte Winkel?',
@@ -2275,7 +2279,7 @@ class CurriculumExerciseGenerator {
       return CurriculumExercise(
         mode: TrainingMode.geometryRelations,
         prompt: prompt,
-        answer: variant,
+        answer: choices.indexOf(correct),
         hint:
             'Achte auf Seitenlängen und Winkel. Diese Eigenschaften bestimmen die Figurenklasse.',
         key: 'geomrel:figure:' +
@@ -2291,7 +2295,9 @@ class CurriculumExerciseGenerator {
 
     final concept = _random.nextInt(3);
     final context = _random.nextInt(3);
-    const choices = ['Radius', 'Durchmesser', 'Mittelpunkt'];
+    const baseChoices = ['Radius', 'Durchmesser', 'Mittelpunkt'];
+    final correct = baseChoices[concept];
+    final choices = List<String>.from(baseChoices)..shuffle(_random);
     final prompt = switch ((concept, context)) {
       (0, 0) =>
         'Wie heißt die Strecke vom Mittelpunkt eines Kreises bis zum Rand?',
@@ -2321,7 +2327,7 @@ class CurriculumExerciseGenerator {
     return CurriculumExercise(
       mode: TrainingMode.geometryRelations,
       prompt: prompt,
-      answer: concept,
+      answer: choices.indexOf(correct),
       hint: hint,
       key: 'geomrel:circle:$term:context$context:${grade.name}',
       choices: choices,

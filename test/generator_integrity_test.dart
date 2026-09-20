@@ -223,9 +223,9 @@ void main() {
 
     final geometryGenerator =
         CurriculumExerciseGenerator(random: Random(9187));
-    final lineAnswers = <int>{};
+    final lineAnswers = <String>{};
     final lineKeys = <String>{};
-    final angleAnswers = <int>{};
+    final angleAnswers = <String>{};
     final angleKeys = <String>{};
     for (var i = 0; i < 64; i++) {
       final line = geometryGenerator.generate(
@@ -234,7 +234,7 @@ void main() {
         maxValue: 1000,
         targetCompetency: MicroCompetencyId.lineRelations,
       );
-      lineAnswers.add(line.answer);
+      lineAnswers.add(line.choices![line.answer]);
       lineKeys.add(line.key);
 
       final angle = geometryGenerator.generate(
@@ -243,19 +243,19 @@ void main() {
         maxValue: 1000,
         targetCompetency: MicroCompetencyId.rightAngle,
       );
-      angleAnswers.add(angle.answer);
+      angleAnswers.add(angle.choices![angle.answer]);
       angleKeys.add(angle.key);
     }
 
-    expect(lineAnswers, {0, 1});
+    expect(lineAnswers, {'parallel', 'senkrecht'});
     expect(lineKeys.length, greaterThanOrEqualTo(6));
-    expect(angleAnswers, {0, 1, 2});
+    expect(angleAnswers, {'rechter Winkel', 'spitzer Winkel', 'stumpfer Winkel'});
     expect(angleKeys.length, greaterThanOrEqualTo(6));
   });
 
   test('Kreisbegriffe erzeugen Radius, Durchmesser und Mittelpunkt', () {
     final generator = CurriculumExerciseGenerator(random: Random(9188));
-    final answers = <int>{};
+    final answers = <String>{};
     final keys = <String>{};
 
     for (var i = 0; i < 48; i++) {
@@ -265,15 +265,15 @@ void main() {
         maxValue: 1000,
         targetCompetency: MicroCompetencyId.circleParts,
       );
-      answers.add(exercise.answer);
+      answers.add(exercise.choices![exercise.answer]);
       keys.add(exercise.key);
       if (exercise.key.contains(':center:')) {
-        expect(exercise.answer, 2);
+        expect(exercise.choices![exercise.answer], 'Mittelpunkt');
         expect(exercise.hint, contains('Mittelpunkt'));
       }
     }
 
-    expect(answers, {0, 1, 2});
+    expect(answers, {'Radius', 'Durchmesser', 'Mittelpunkt'});
     expect(keys.where((key) => key.contains(':center:')), isNotEmpty);
     expect(keys.length, greaterThanOrEqualTo(6));
   });

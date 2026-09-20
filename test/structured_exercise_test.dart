@@ -211,7 +211,10 @@ void main() {
       expect(checkpoint.key, 'minuteHandMinutes');
       expect(checkpoint.competencyId, MicroCompetencyId.clockReading);
       expect(checkpoint.evidenceWeight, 0.40);
-      expect(checkpoint.choices, ['0 Minuten', '30 Minuten']);
+      expect(
+        checkpoint.choices,
+        unorderedEquals(['0 Minuten', '30 Minuten']),
+      );
       expect(checkpoint.choices[checkpoint.correctChoice], '30 Minuten');
     }
 
@@ -233,9 +236,11 @@ void main() {
       );
       expect(
         checkpoint.choices,
-        exercise.clockMinute == 30
-            ? ['0 Minuten', '30 Minuten']
-            : ['0 Minuten', '15 Minuten', '30 Minuten', '45 Minuten'],
+        unorderedEquals(
+          exercise.clockMinute == 30
+              ? ['0 Minuten', '30 Minuten']
+              : ['0 Minuten', '15 Minuten', '30 Minuten', '45 Minuten'],
+        ),
       );
     }
   });
