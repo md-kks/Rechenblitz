@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'curriculum_audit.dart';
 import 'learner_profile.dart';
+import 'method_key_label.dart';
 import 'micro_competency.dart';
 import 'teacher_assignment.dart';
 import 'training.dart';
@@ -44,6 +45,21 @@ class TeacherAssignmentResult {
   double get accuracy =>
       completedTasks == 0 ? 0 : correctFirstTry / completedTasks;
 
+  bool get isComplete => completedTasks >= requestedTasks;
+
+  int get correctedAfterRetry =>
+      completedTasks <= correctFirstTry ? 0 : completedTasks - correctFirstTry;
+
+  List<String> get methodLabels {
+    final labels = methodsUsed
+        .map(MethodKeyLabel.resolve)
+        .whereType<String>()
+        .toSet()
+        .toList()
+      ..sort();
+    return labels;
+  }
+
   bool get hasSaneContext {
     if (assignmentId.trim().isEmpty ||
         requestedTasks < 1 ||
@@ -77,7 +93,11 @@ class TeacherAssignmentResult {
         ? mode.title
         : MicroCompetencyCatalog.definition(targetCompetency!).label;
     final stateText = state == null ? '' : ' · ${state!.label}';
-    return 'Auftrag $assignmentId$stateText · $target · $correctFirstTry/$completedTasks direkt richtig';
+    final progress = isComplete
+        ? ''
+        : ' · $completedTasks/$requestedTasks bearbeitet';
+    return 'Auftrag $assignmentId$stateText · $target · '
+        '$correctFirstTry/$completedTasks beim ersten Versuch richtig$progress';
   }
 
   Map<String, dynamic> toJson() => {
