@@ -183,10 +183,19 @@ class _ResultCard extends StatelessWidget {
               runSpacing: 14,
               children: [
                 _Metric(
-                  'direkt richtig',
+                  'beim ersten Versuch',
                   '${result.correctFirstTry}/${result.completedTasks}',
                 ),
-                _Metric('Trefferquote', '$percent %'),
+                _Metric('Erstversuchquote', '$percent %'),
+                _Metric(
+                  'bearbeitet',
+                  '${result.completedTasks}/${result.requestedTasks}',
+                ),
+                if (result.correctedAfterRetry > 0)
+                  _Metric(
+                    'nach Korrektur gelöst',
+                    '${result.correctedAfterRetry}',
+                  ),
                 _Metric('Fehlversuche', '${result.incorrectAttempts}'),
                 _Metric('Ø Antwort', seconds),
                 _Metric(
@@ -201,14 +210,14 @@ class _ResultCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (result.methodsUsed.isNotEmpty) ...[
+            if (result.methodLabels.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
                 'Verwendete Rechenwege',
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),
-              ...result.methodsUsed.map(
+              ...result.methodLabels.map(
                 (method) => Text('• $method'),
               ),
             ],
