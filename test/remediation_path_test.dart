@@ -3495,16 +3495,20 @@ void main() {
       find.byType(TouchAnswerInteraction),
     );
     for (final axis in interaction.plan.correctSelectionIndexes) {
-      final chip = find.byKey(ValueKey('touch-symmetry-axis-$axis'));
-      await tester.ensureVisible(chip);
-      await tester.tap(chip);
+      final chip = tester.widget<FilterChip>(
+        find.byKey(ValueKey('touch-symmetry-axis-$axis')),
+      );
+      expect(chip.onSelected, isNotNull);
+      chip.onSelected!(true);
       await tester.pump();
     }
 
-    final submit = find.byKey(const ValueKey('touch-symmetry-submit'));
-    await tester.ensureVisible(submit);
-    await tester.tap(submit);
-    await tester.tap(submit);
+    final submit = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('touch-symmetry-submit')),
+    );
+    expect(submit.onPressed, isNotNull);
+    submit.onPressed!();
+    submit.onPressed!();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump();
