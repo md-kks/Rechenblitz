@@ -2,6 +2,7 @@ import '../../core/grade_level.dart';
 import 'german_competency.dart';
 import 'german_competency_catalog.dart';
 import 'german_extra_task_catalog.dart';
+import 'german_grade_four_diversity_task_catalog.dart';
 import 'german_grade_four_extension_task_catalog.dart';
 import 'german_grade_three_extension_task_catalog.dart';
 import 'german_grammar_touch_task_catalog.dart';
@@ -51,6 +52,7 @@ class GermanTaskCatalog {
     ...GermanWordRecognitionTaskCatalog.tasks,
     ...GermanLowerPrimaryTaskCatalog.tasks,
     ...GermanGradeThreeExtensionTaskCatalog.tasks,
+    ...GermanGradeFourDiversityTaskCatalog.tasks,
     ...GermanGradeFourExtensionTaskCatalog.tasks,
     ...GermanWritingProductionTaskCatalog.tasks,
     ...GermanWritingRevisionExpansionTaskCatalog.tasks,
