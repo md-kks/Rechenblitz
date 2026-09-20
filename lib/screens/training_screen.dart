@@ -134,6 +134,7 @@ class _TrainingScreenState extends State<TrainingScreen>
   int incorrectAttempts = 0;
   int correctFirstTry = 0;
   int wrongOnCurrent = 0;
+  int? firstWrongAnswer;
   bool usedHelp = false;
   bool showHelp = false;
   bool locked = false;
@@ -242,6 +243,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       incorrectAttempts = saved.incorrectAttempts;
       correctFirstTry = saved.correctFirstTry;
       wrongOnCurrent = saved.wrongOnCurrent;
+      firstWrongAnswer = saved.firstWrongAnswer;
       segmentUsedHelp = saved.segmentUsedHelp;
       showHelp = saved.assistanceVisible;
       usedHelp = saved.usedHelp;
@@ -369,6 +371,7 @@ class _TrainingScreenState extends State<TrainingScreen>
         incorrectAttempts: incorrectAttempts,
         correctFirstTry: correctFirstTry,
         wrongOnCurrent: wrongOnCurrent,
+        firstWrongAnswer: firstWrongAnswer,
         segmentUsedHelp: segmentUsedHelp,
         assistanceVisible: showHelp,
         usedHelp: usedHelp,
@@ -695,6 +698,10 @@ class _TrainingScreenState extends State<TrainingScreen>
       return;
     }
 
+    if (!receipt.correct) {
+      firstWrongAnswer ??= receipt.actualAnswer;
+    }
+
     if (!receipt.correct && widget.mode == TrainingMode.tempo) {
       incorrectAttempts += 1;
       completed += 1;
@@ -855,6 +862,8 @@ class _TrainingScreenState extends State<TrainingScreen>
         taskKey: current.key,
         prompt: _reviewPrompt,
         correctAnswer: '$_expectedAnswer',
+        firstAnswer:
+            firstWrongAnswer == null ? null : '$firstWrongAnswer',
         hadCheckpointError: hadCheckpointError,
       ),
     );
@@ -887,6 +896,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       current = _next();
       responseTimer.reset();
       wrongOnCurrent = 0;
+      firstWrongAnswer = null;
       helpCountedForCurrent = false;
       _prepareHelpForCurrent();
       currentErrorPattern = null;

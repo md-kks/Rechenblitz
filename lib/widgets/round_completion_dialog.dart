@@ -91,6 +91,8 @@ Future<void> showRoundCompletionDialog(
                                   const TextStyle(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 3),
+                            if (review.firstAnswer != null)
+                              Text('Dein erster Versuch: ${review.firstAnswer}'),
                             Text('Richtige Antwort: ${review.correctAnswer}'),
                             if (review.hadCheckpointError)
                               Text(

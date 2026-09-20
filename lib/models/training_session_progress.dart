@@ -136,6 +136,7 @@ class RoundAttemptReview {
     required this.taskKey,
     required this.prompt,
     required this.correctAnswer,
+    this.firstAnswer,
     this.hadCheckpointError = false,
   });
 
@@ -143,19 +144,22 @@ class RoundAttemptReview {
   final String taskKey;
   final String prompt;
   final String correctAnswer;
+  final String? firstAnswer;
   final bool hadCheckpointError;
 
   bool get hasSaneState =>
       taskNumber > 0 &&
       taskKey.trim().isNotEmpty &&
       prompt.trim().isNotEmpty &&
-      correctAnswer.trim().isNotEmpty;
+      correctAnswer.trim().isNotEmpty &&
+      (firstAnswer == null || firstAnswer!.trim().isNotEmpty);
 
   Map<String, dynamic> toJson() => {
         'taskNumber': taskNumber,
         'taskKey': taskKey,
         'prompt': prompt,
         'correctAnswer': correctAnswer,
+        if (firstAnswer != null) 'firstAnswer': firstAnswer,
         'hadCheckpointError': hadCheckpointError,
       };
 
@@ -165,6 +169,7 @@ class RoundAttemptReview {
         taskKey: json['taskKey'] as String,
         prompt: json['prompt'] as String,
         correctAnswer: json['correctAnswer'] as String,
+        firstAnswer: json['firstAnswer'] as String?,
         hadCheckpointError: json['hadCheckpointError'] as bool? ?? false,
       );
 }
@@ -193,6 +198,7 @@ class CoreTrainingSessionProgress {
     this.incorrectAttempts = 0,
     this.correctFirstTry = 0,
     this.wrongOnCurrent = 0,
+    this.firstWrongAnswer,
     this.segmentUsedHelp = false,
     this.assistanceVisible = false,
     this.usedHelp = false,
@@ -246,6 +252,7 @@ class CoreTrainingSessionProgress {
   final int incorrectAttempts;
   final int correctFirstTry;
   final int wrongOnCurrent;
+  final int? firstWrongAnswer;
   final bool segmentUsedHelp;
   final bool assistanceVisible;
   final bool usedHelp;
@@ -408,6 +415,7 @@ class CoreTrainingSessionProgress {
     'incorrectAttempts': incorrectAttempts,
     'correctFirstTry': correctFirstTry,
     'wrongOnCurrent': wrongOnCurrent,
+    if (firstWrongAnswer != null) 'firstWrongAnswer': firstWrongAnswer,
     'segmentUsedHelp': segmentUsedHelp,
     'assistanceVisible': assistanceVisible,
     'usedHelp': usedHelp,
@@ -480,6 +488,7 @@ class CoreTrainingSessionProgress {
       incorrectAttempts: json['incorrectAttempts'] as int? ?? 0,
       correctFirstTry: json['correctFirstTry'] as int? ?? 0,
       wrongOnCurrent: json['wrongOnCurrent'] as int? ?? 0,
+      firstWrongAnswer: json['firstWrongAnswer'] as int?,
       segmentUsedHelp: json['segmentUsedHelp'] as bool? ?? false,
       assistanceVisible: json['assistanceVisible'] as bool? ?? false,
       usedHelp: json['usedHelp'] as bool? ?? false,
