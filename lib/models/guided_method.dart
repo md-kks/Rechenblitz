@@ -2007,7 +2007,9 @@ class GuidedMethodFactory {
               ),
             GuidedMethodStep(
               title: 'Alle Gruppen sehen',
-              instruction: '${List.filled(min(a, 6), '$b').join(' + ')}${a > 6 ? ' + …' : ''}',
+              instruction: a == 0
+                  ? '0 Gruppen enthalten insgesamt 0 Elemente.'
+                  : '${List.filled(min(a, 6), '$b').join(' + ')}${a > 6 ? ' + …' : ''}',
             ),
             GuidedMethodStep(
               title: 'Ergebnis',
@@ -3109,8 +3111,8 @@ class GuidedMethodFactory {
             '$a und $b Kinder',
             <String>[
               '$a und $b Kinder',
-              '$a Kinder und $distractor Seiten',
-              '$b Kinder und $distractor Seiten',
+              'Die $a Kinder der ersten Gruppe und $distractor Seiten',
+              'Die $b Kinder der zweiten Gruppe und $distractor Seiten',
               'Nur die $distractor Seiten',
             ],
           ),
@@ -3168,13 +3170,18 @@ class GuidedMethodFactory {
         _ => '',
       };
       if (correct.isEmpty) return null;
-      final choices = switch (operation) {
-        '+' => <String>[correct, '$a − $b', '$a × $b', '$b + $a'],
-        '-' => <String>[correct, '$a + $b', '$b − $a', '$a × $b'],
-        'x' => <String>[correct, '$a + $b', '$a − $b', '$b ÷ $a'],
-        'divide' => <String>[correct, '$a − $b', '$a + $b', '$b ÷ $a'],
+      final candidates = switch (operation) {
+        '+' => <String>[correct, '$a − $b', '$a × $b', '$b + $a', '$a + ${b + 1}', '${a + 1} + $b'],
+        '-' => <String>[correct, '$a + $b', '$b − $a', '$a × $b', '$a − ${b + 1}', '${a + 1} − $b'],
+        'x' => <String>[correct, '$a + $b', '$a − $b', '$b × $a', '$a × ${b + 1}', '${a + 1} × $b'],
+        'divide' => <String>[correct, '$a − $b', '$a + $b', '$b ÷ $a', '$a × $b', '$a ÷ ${b + 1}'],
         _ => <String>[],
       };
+      final choices = <String>[];
+      for (final candidate in candidates) {
+        if (!choices.contains(candidate)) choices.add(candidate);
+        if (choices.length == 4) break;
+      }
       return GuidedMethodStep(
         title: 'Rechnung aufschreiben',
         instruction:
