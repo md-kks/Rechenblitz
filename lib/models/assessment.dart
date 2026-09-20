@@ -490,7 +490,9 @@ class AssessmentGenerator {
 
     if (mode == TrainingMode.numberFriends) {
       final target = maxValue <= 10 ? 10 : 20;
-      final a = _between(0, target);
+      // A Lerncheck should probe a real decomposition, not reveal the
+      // untouched initial 0 of the number-bond interaction as the answer.
+      final a = _between(1, target - 1);
       final fact = MathFact(
         a: a,
         b: target - a,
