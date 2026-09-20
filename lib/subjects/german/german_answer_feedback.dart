@@ -25,6 +25,11 @@ class GermanAnswerFeedback {
         return 'Noch nicht. Hör die Aufgabe noch einmal an und achte nur auf '
             'die gesuchte Information.';
       case GermanTaskInteraction.tokenSelection:
+        if (task.competencyId == GermanCompetencyId.wordFamilies) {
+          return 'Noch nicht. Prüfe bei jedem markierten Wort den Wortstamm. '
+              'Es muss wirklich zur selben Wortfamilie gehören, nicht nur '
+              'ähnlich klingen oder ähnlich aussehen.';
+        }
         if (task.competencyId == GermanCompetencyId.sentenceConstituents) {
           return 'Noch nicht. Nutze die Frageprobe für jede Markierung: '
               'Passt der ganze Satzteil zur gesuchten Frage? Prüfe auch, ob '

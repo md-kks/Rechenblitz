@@ -80,6 +80,16 @@ class GermanSupportCatalog {
   };
 
   static String firstHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.tokenSelection &&
+        task.competencyId == GermanCompetencyId.wordFamilies) {
+      return 'Suche den gemeinsamen Wortstamm. Verwandte Wörter behalten '
+          'denselben Bedeutungskern, auch wenn Vor- oder Nachsilben dazukommen.';
+    }
+    if (task.interaction == GermanTaskInteraction.wordBuilder &&
+        task.competencyId == GermanCompetencyId.compoundWords) {
+      return 'Bestimme zuerst das Grundwort: Der letzte Wortteil sagt meist, '
+          'was die Sache hauptsächlich ist. Setze davor die genaueren Teile.';
+    }
     if (task.interaction == GermanTaskInteraction.listeningChoice &&
         task.competencyId == GermanCompetencyId.letterSoundMatch) {
       return 'Hör nur auf den allerersten Laut des Wortes. Sprich das Wort '
@@ -149,6 +159,17 @@ class GermanSupportCatalog {
   }
 
   static String secondHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.tokenSelection &&
+        task.competencyId == GermanCompetencyId.wordFamilies) {
+      return 'Lass ähnlich klingende Fremdwörter weg. Prüfe, ob sich bei allen '
+          'markierten Wörtern der gleiche Stamm und dieselbe Grundbedeutung '
+          'wiederfinden.';
+    }
+    if (task.interaction == GermanTaskInteraction.wordBuilder &&
+        task.competencyId == GermanCompetencyId.compoundWords) {
+      return 'Lies das fertige Kompositum von hinten nach vorn: Das Grundwort '
+          'steht zuletzt, die vorderen Wortteile grenzen seine Bedeutung ein.';
+    }
     if (task.interaction == GermanTaskInteraction.listeningChoice &&
         task.competencyId == GermanCompetencyId.letterSoundMatch) {
       return 'Vergleiche den gehörten Anfangslaut mit den Buchstaben. Denke '

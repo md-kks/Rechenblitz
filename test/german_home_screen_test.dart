@@ -7,6 +7,7 @@ import 'package:rechenblitz/subjects/german/german_learning_domain.dart';
 import 'package:rechenblitz/subjects/german/german_practice_planner.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 import 'package:rechenblitz/subjects/german/german_storage_service.dart';
+import 'package:rechenblitz/subjects/german/german_task.dart';
 import 'package:rechenblitz/subjects/german/german_task_catalog.dart';
 import 'package:rechenblitz/subjects/german/screens/german_home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -414,8 +415,13 @@ void main() {
     await tester.pumpAndSettle();
 
     for (var index = 0; index < bridgeTasks.length; index++) {
-      final answer = bridgeTasks[index].acceptedAnswers.first;
-      await tester.tap(find.widgetWithText(FilledButton, answer));
+      final task = bridgeTasks[index];
+      expect(task.interaction, GermanTaskInteraction.tokenSelection);
+      for (final answer in task.acceptedAnswers) {
+        await tester.tap(find.widgetWithText(FilterChip, answer));
+      }
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('german-token-submit')));
       await tester.pumpAndSettle();
     }
     expect(find.text('Runde geschafft'), findsWidgets);

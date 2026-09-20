@@ -26,7 +26,8 @@ void main() {
 
     expect(bridge.state, GermanGradeBridgeState.pending);
     expect(bridge.sourceGrade, GradeLevel.second);
-    expect(bridge.bridgeTaskCount, 2);
+    expect(bridge.bridgeTaskCount, greaterThanOrEqualTo(2));
+    expect(bridge.requiredDistinctTasks, 2);
     expect(bridge.bridgeTaskGrade, GradeLevel.third);
     expect(bridge.currentGradeAttempts, 0);
   });
