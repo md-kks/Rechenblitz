@@ -497,7 +497,11 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       FilledButton.icon(
         onPressed: () => unawaited(_speakWithoutTiming(_task.spokenText!)),
         icon: const Icon(Icons.volume_up_rounded),
-        label: const Text('Anhören'),
+        label: Text(
+          _task.competencyId == GermanCompetencyId.letterSoundMatch
+              ? 'Wort anhören'
+              : 'Anhören',
+        ),
       ),
       const SizedBox(height: 16),
       _buildChoices(),

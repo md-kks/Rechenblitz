@@ -166,7 +166,7 @@ class GermanLowerPrimaryTaskCatalog {
           'Ein großes gestreiftes Tier aus der Familie der Katzen.',
       interaction: GermanTaskInteraction.singleChoice,
       acceptedAnswers: <String>['Tiger'],
-      choices: <String>['Tiger', 'Teller', 'Tinte'],
+      choices: <String>['Tiger', 'Tinte', 'Taler'],
     ),
     GermanTask(
       id: 'g1-read-word-wolke',
@@ -177,7 +177,7 @@ class GermanLowerPrimaryTaskCatalog {
       accessiblePrompt: 'Etwas Weißes oder Graues zieht hoch am Himmel.',
       interaction: GermanTaskInteraction.singleChoice,
       acceptedAnswers: <String>['Wolke'],
-      choices: <String>['Wolke', 'Wolle', 'Wald'],
+      choices: <String>['Wolke', 'Wolle', 'Woche'],
     ),
     GermanTask(
       id: 'g1-read-word-hase',
@@ -188,7 +188,7 @@ class GermanLowerPrimaryTaskCatalog {
       accessiblePrompt: 'Ein Tier mit langen Ohren, das schnell hoppeln kann.',
       interaction: GermanTaskInteraction.singleChoice,
       acceptedAnswers: <String>['Hase'],
-      choices: <String>['Hase', 'Hose', 'Haus'],
+      choices: <String>['Hase', 'Hose', 'Nase'],
     ),
     GermanTask(
       id: 'g1-sentence-understand-lina',

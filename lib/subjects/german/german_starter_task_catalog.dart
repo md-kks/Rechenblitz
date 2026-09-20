@@ -57,7 +57,7 @@ class GermanStarterTaskCatalog {
       accessiblePrompt: 'Etwas am Himmel macht es tagsüber hell und warm.',
       interaction: GermanTaskInteraction.singleChoice,
       acceptedAnswers: <String>['Sonne'],
-      choices: <String>['Sonne', 'Mond', 'Stern'],
+      choices: <String>['Sonne', 'Tonne', 'Sinne'],
     ),
     GermanTask(
       id: 'g1-sentence-understand-dog',

@@ -426,6 +426,12 @@ class GermanPracticePlanner {
         return aTaskLast.compareTo(bTaskLast);
       }
 
+      if (a.competencyId == GermanCompetencyId.letterSoundMatch) {
+        final interaction = _letterSoundInteractionPriority(
+          a.interaction,
+        ).compareTo(_letterSoundInteractionPriority(b.interaction));
+        if (interaction != 0) return interaction;
+      }
       final domain = GermanCompetencyCatalog.definition(a.competencyId).domain;
       final interaction = _interactionPriority(
         a.interaction,
@@ -488,6 +494,14 @@ class GermanPracticePlanner {
       GermanCompetencyState.secure => 5,
     };
   }
+
+  static int _letterSoundInteractionPriority(
+    GermanTaskInteraction interaction,
+  ) => switch (interaction) {
+    GermanTaskInteraction.listeningChoice => 0,
+    GermanTaskInteraction.singleChoice => 1,
+    _ => 2,
+  };
 
   static int _interactionPriority(
     GermanTaskInteraction interaction,

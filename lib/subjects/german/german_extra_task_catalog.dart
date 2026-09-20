@@ -75,7 +75,7 @@ class GermanExtraTaskCatalog {
       accessiblePrompt: 'Etwas wächst im Beet und hat oft bunte Blüten.',
       interaction: GermanTaskInteraction.singleChoice,
       acceptedAnswers: <String>['Blume'],
-      choices: <String>['Blume', 'Baum', 'Brot'],
+      choices: <String>['Blume', 'Bluse', 'Bäume'],
     ),
     GermanTask(
       id: 'g1-sentence-understand-cat',

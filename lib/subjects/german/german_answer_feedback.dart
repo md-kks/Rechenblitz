@@ -11,9 +11,17 @@ class GermanAnswerFeedback {
 
     switch (task.interaction) {
       case GermanTaskInteraction.singleChoice:
+        if (task.competencyId == GermanCompetencyId.wordRecognition) {
+          return 'Noch nicht. Lies die Wörter langsam von links nach rechts. '
+              'Achte besonders auf die Stelle, an der sie sich unterscheiden.';
+        }
         return 'Noch nicht. Vergleiche deine Auswahl noch einmal genau mit '
             'der Aufgabe.';
       case GermanTaskInteraction.listeningChoice:
+        if (task.competencyId == GermanCompetencyId.letterSoundMatch) {
+          return 'Noch nicht. Hör das Wort noch einmal und sprich es langsam '
+              'nach. Welchen Laut hörst du ganz am Anfang?';
+        }
         return 'Noch nicht. Hör die Aufgabe noch einmal an und achte nur auf '
             'die gesuchte Information.';
       case GermanTaskInteraction.tokenSelection:

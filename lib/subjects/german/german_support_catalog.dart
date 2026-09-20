@@ -80,6 +80,11 @@ class GermanSupportCatalog {
   };
 
   static String firstHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.listeningChoice &&
+        task.competencyId == GermanCompetencyId.letterSoundMatch) {
+      return 'Hör nur auf den allerersten Laut des Wortes. Sprich das Wort '
+          'langsam nach und halte den Anfang kurz fest.';
+    }
     if (task.interaction == GermanTaskInteraction.tokenSelection &&
         task.competencyId == GermanCompetencyId.sentenceConstituents) {
       return 'Stelle die Frageprobe direkt an den Satz: Wann? Wo? Wohin? '
@@ -144,6 +149,11 @@ class GermanSupportCatalog {
   }
 
   static String secondHintForTask(GermanTask task) {
+    if (task.interaction == GermanTaskInteraction.listeningChoice &&
+        task.competencyId == GermanCompetencyId.letterSoundMatch) {
+      return 'Vergleiche den gehörten Anfangslaut mit den Buchstaben. Denke '
+          'nicht an den Buchstabennamen, sondern an den Laut im Wortanfang.';
+    }
     if (task.interaction == GermanTaskInteraction.tokenSelection &&
         task.competencyId == GermanCompetencyId.sentenceConstituents) {
       return 'Verschiebeprobe hilft zusätzlich: Ein Satzglied lässt sich oft '

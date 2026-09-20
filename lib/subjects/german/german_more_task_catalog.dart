@@ -65,7 +65,7 @@ class GermanMoreTaskCatalog {
       accessiblePrompt: 'Viele Wassertropfen fallen aus den Wolken.',
       interaction: GermanTaskInteraction.singleChoice,
       acceptedAnswers: <String>['Regen'],
-      choices: <String>['Regen', 'Rabe', 'Rose'],
+      choices: <String>['Regen', 'Regeln', 'Rasen'],
     ),
     GermanTask(
       id: 'g1-sentence-understand-grandma',
