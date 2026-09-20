@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:math';
+import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
 
 import '../../../core/grade_level.dart';
 import '../../../models/active_response_timer.dart';
 import '../german_answer_feedback.dart';
+import '../german_choice_presentation.dart';
 import '../german_competency.dart';
 import '../german_competency_catalog.dart';
 import '../german_learning_domain.dart';
@@ -444,41 +445,10 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     GermanTaskInteraction.typedText => _buildTypedAnswer(),
   };
 
-  List<String> _presentedChoices() {
-    final choices = List<String>.from(_task.choices);
-    if (_task.interaction == GermanTaskInteraction.tokenSelection) {
-      return choices;
-    }
-    if (choices.length < 2) return choices;
-    final seed = _stablePresentationSeed(
-      '${_startedAt.microsecondsSinceEpoch}:$_index:${_task.id}',
-    );
-    choices.shuffle(Random(seed));
-    if ((_task.interaction == GermanTaskInteraction.wordOrder ||
-            _task.interaction == GermanTaskInteraction.wordBuilder) &&
-        _sameOrder(choices, _task.choices)) {
-      final first = choices.removeAt(0);
-      choices.add(first);
-    }
-    return choices;
-  }
-
-  int _stablePresentationSeed(String value) {
-    var hash = 0x811c9dc5;
-    for (final codeUnit in value.codeUnits) {
-      hash ^= codeUnit;
-      hash = (hash * 0x01000193) & 0x7fffffff;
-    }
-    return hash;
-  }
-
-  bool _sameOrder(List<String> a, List<String> b) {
-    if (a.length != b.length) return false;
-    for (var index = 0; index < a.length; index++) {
-      if (a[index] != b[index]) return false;
-    }
-    return true;
-  }
+  List<String> _presentedChoices() => GermanChoicePresentation.present(
+    task: _task,
+    seedMaterial: '${_startedAt.microsecondsSinceEpoch}:$_index:${_task.id}',
+  );
 
   Widget _buildChoices() {
     final choices = _presentedChoices();
