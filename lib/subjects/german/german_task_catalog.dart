@@ -7,6 +7,7 @@ import 'german_grade_four_listening_diversity_task_catalog.dart';
 import 'german_grade_four_extension_task_catalog.dart';
 import 'german_grade_one_diversity_task_catalog.dart';
 import 'german_grade_three_extension_task_catalog.dart';
+import 'german_grade_two_diversity_task_catalog.dart';
 import 'german_grammar_touch_task_catalog.dart';
 import 'german_learning_domain.dart';
 import 'german_listening_touch_task_catalog.dart';
@@ -53,6 +54,7 @@ class GermanTaskCatalog {
     ...GermanVocabularyTouchTaskCatalog.tasks,
     ...GermanWordRecognitionTaskCatalog.tasks,
     ...GermanGradeOneDiversityTaskCatalog.tasks,
+    ...GermanGradeTwoDiversityTaskCatalog.tasks,
     ...GermanLowerPrimaryTaskCatalog.tasks,
     ...GermanGradeThreeExtensionTaskCatalog.tasks,
     ...GermanGradeFourDiversityTaskCatalog.tasks,
