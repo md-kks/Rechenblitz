@@ -2412,9 +2412,29 @@ class CurriculumExerciseGenerator {
     const axes = [4, 2, 3, 1];
     final index = _random.nextInt(names.length);
     final candidate = targetedAxis ? _random.nextInt(2) : null;
+    final candidateLine = candidate == null
+        ? null
+        : switch (index) {
+            0 => candidate == 0
+                ? 'eine Diagonale von einer Ecke zur gegenüberliegenden Ecke'
+                : 'eine Linie von einer Ecke zur Mitte einer benachbarten Seite',
+            1 => candidate == 0
+                ? 'eine Mittellinie durch die Mittelpunkte zweier gegenüberliegender Seiten'
+                : 'eine Diagonale von einer Ecke zur gegenüberliegenden Ecke',
+            2 => candidate == 0
+                ? 'eine Linie von einer Ecke zur Mitte der gegenüberliegenden Seite'
+                : 'eine Linie parallel zu einer Seite durch das Innere',
+            _ => candidate == 0
+                ? 'eine Linie von der Spitze zur Mitte der Grundseite'
+                : 'eine Linie von einer Basisecke zur Mitte der gegenüberliegenden gleich langen Seite',
+          };
+    final prompt = candidateLine == null
+        ? 'Wie viele Symmetrieachsen hat ein ${names[index]}?'
+        : 'Betrachte beim ${names[index]} zuerst $candidateLine. '
+            'Wie viele Symmetrieachsen hat die Figur insgesamt?';
     return CurriculumExercise(
       mode: TrainingMode.symmetry,
-      prompt: 'Wie viele Symmetrieachsen hat ein ' + names[index] + '?',
+      prompt: prompt,
       answer: axes[index],
       hint:
           'Eine Symmetrieachse teilt die Figur in zwei spiegelgleiche Hälften.',
