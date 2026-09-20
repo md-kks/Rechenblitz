@@ -335,20 +335,66 @@ class GermanCompetencyCatalog {
     ),
   ];
 
+  static final Map<GermanCompetencyId, GermanCompetencyDefinition>
+  _definitionsById =
+      Map<GermanCompetencyId, GermanCompetencyDefinition>.unmodifiable(
+        <GermanCompetencyId, GermanCompetencyDefinition>{
+          for (final definition in definitions) definition.id: definition,
+        },
+      );
+
+  static final Map<GradeLevel, List<GermanCompetencyDefinition>>
+  _definitionsByGrade =
+      Map<GradeLevel, List<GermanCompetencyDefinition>>.unmodifiable(
+        <GradeLevel, List<GermanCompetencyDefinition>>{
+          for (final grade in GradeLevel.values)
+            grade: List<GermanCompetencyDefinition>.unmodifiable(
+              definitions.where(
+                (definition) => definition.isRecommendedFor(grade),
+              ),
+            ),
+        },
+      );
+
+  static final Map<
+    GradeLevel,
+    Map<GermanLearningDomain, List<GermanCompetencyDefinition>>
+  >
+  _definitionsByDomainAndGrade =
+      Map<
+        GradeLevel,
+        Map<GermanLearningDomain, List<GermanCompetencyDefinition>>
+      >.unmodifiable(<
+        GradeLevel,
+        Map<GermanLearningDomain, List<GermanCompetencyDefinition>>
+      >{
+        for (final grade in GradeLevel.values)
+          grade:
+              Map<
+                GermanLearningDomain,
+                List<GermanCompetencyDefinition>
+              >.unmodifiable(
+                <GermanLearningDomain, List<GermanCompetencyDefinition>>{
+                  for (final domain in GermanLearningDomain.values)
+                    domain: List<GermanCompetencyDefinition>.unmodifiable(
+                      definitions.where(
+                        (definition) =>
+                            definition.domain == domain &&
+                            definition.isRecommendedFor(grade),
+                      ),
+                    ),
+                },
+              ),
+      });
+
   static GermanCompetencyDefinition definition(GermanCompetencyId id) =>
-      definitions.firstWhere((definition) => definition.id == id);
+      _definitionsById[id]!;
 
   static List<GermanCompetencyDefinition> recommendedFor(GradeLevel grade) =>
-      definitions
-          .where((definition) => definition.isRecommendedFor(grade))
-          .toList();
+      _definitionsByGrade[grade]!;
+
   static List<GermanCompetencyDefinition> forDomain(
     GermanLearningDomain domain,
     GradeLevel grade,
-  ) => definitions
-      .where(
-        (definition) =>
-            definition.domain == domain && definition.isRecommendedFor(grade),
-      )
-      .toList();
+  ) => _definitionsByDomainAndGrade[grade]![domain]!;
 }

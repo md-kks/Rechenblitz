@@ -48,12 +48,9 @@ class GermanRoundDraft {
   }
 
   List<GermanTask>? resolveTasks() {
-    final byId = <String, GermanTask>{
-      for (final task in GermanTaskCatalog.tasks) task.id: task,
-    };
     final resolved = <GermanTask>[];
     for (final id in taskIds) {
-      final task = byId[id];
+      final task = GermanTaskCatalog.byId(id);
       if (task == null || task.recommendedFromGrade.index > gradeLevel.index) {
         return null;
       }

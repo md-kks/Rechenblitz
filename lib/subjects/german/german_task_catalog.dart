@@ -74,21 +74,66 @@ class GermanTaskCatalog {
     ...GermanUpperPrimaryExpansionTaskCatalog.tasks,
   ];
 
-  static List<GermanTask> forGrade(GradeLevel grade) => tasks
-      .where((task) => task.recommendedFromGrade.index <= grade.index)
-      .toList();
+  static final Map<String, GermanTask> _tasksById =
+      Map<String, GermanTask>.unmodifiable(<String, GermanTask>{
+        for (final task in tasks) task.id: task,
+      });
+
+  static final Map<GermanCompetencyId, List<GermanTask>> _tasksByCompetency =
+      Map<GermanCompetencyId, List<GermanTask>>.unmodifiable(
+        <GermanCompetencyId, List<GermanTask>>{
+          for (final competencyId in GermanCompetencyId.values)
+            competencyId: List<GermanTask>.unmodifiable(
+              tasks.where((task) => task.competencyId == competencyId),
+            ),
+        },
+      );
+
+  static final Map<GradeLevel, List<GermanTask>> _tasksThroughGrade =
+      Map<GradeLevel, List<GermanTask>>.unmodifiable(
+        <GradeLevel, List<GermanTask>>{
+          for (final grade in GradeLevel.values)
+            grade: List<GermanTask>.unmodifiable(
+              tasks.where(
+                (task) => task.recommendedFromGrade.index <= grade.index,
+              ),
+            ),
+        },
+      );
+
+  static final Map<GradeLevel, Map<GermanLearningDomain, List<GermanTask>>>
+  _tasksByDomainThroughGrade =
+      Map<GradeLevel, Map<GermanLearningDomain, List<GermanTask>>>.unmodifiable(
+        <GradeLevel, Map<GermanLearningDomain, List<GermanTask>>>{
+          for (final grade in GradeLevel.values)
+            grade: Map<GermanLearningDomain, List<GermanTask>>.unmodifiable(
+              <GermanLearningDomain, List<GermanTask>>{
+                for (final domain in GermanLearningDomain.values)
+                  domain: List<GermanTask>.unmodifiable(
+                    tasks.where(
+                      (task) =>
+                          task.recommendedFromGrade.index <= grade.index &&
+                          GermanCompetencyCatalog.definition(
+                                task.competencyId,
+                              ).domain ==
+                              domain,
+                    ),
+                  ),
+              },
+            ),
+        },
+      );
+
+  static GermanTask? byId(String id) => _tasksById[id];
+
+  static List<GermanTask> forGrade(GradeLevel grade) =>
+      _tasksThroughGrade[grade]!;
 
   static List<GermanTask> forDomain(
     GermanLearningDomain domain,
     GradeLevel grade,
-  ) => forGrade(grade)
-      .where(
-        (task) =>
-            GermanCompetencyCatalog.definition(task.competencyId).domain ==
-            domain,
-      )
-      .toList();
+  ) => _tasksByDomainThroughGrade[grade]![domain]!;
 
   static List<GermanTask> forCompetency(GermanCompetencyId competencyId) =>
-      tasks.where((task) => task.competencyId == competencyId).toList();
+      _tasksByCompetency[competencyId]!;
 }
