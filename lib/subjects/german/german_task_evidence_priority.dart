@@ -17,7 +17,15 @@ class GermanTaskEvidencePriority {
 
     final domain = GermanCompetencyCatalog.definition(task.competencyId).domain;
     if (domain == GermanLearningDomain.listening) {
-      return task.interaction == GermanTaskInteraction.listeningChoice ? 0 : 1;
+      if (!task.requiresSpeech) return 6;
+      return switch (task.interaction) {
+        GermanTaskInteraction.wordOrder => 0,
+        GermanTaskInteraction.tokenSelection => 1,
+        GermanTaskInteraction.listeningChoice => 2,
+        GermanTaskInteraction.typedText => 3,
+        GermanTaskInteraction.wordBuilder => 4,
+        GermanTaskInteraction.singleChoice => 5,
+      };
     }
 
     return switch (task.interaction) {

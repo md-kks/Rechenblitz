@@ -80,6 +80,16 @@ class GermanSupportCatalog {
   };
 
   static String firstHintForTask(GermanTask task) {
+    if (task.requiresSpeech &&
+        task.interaction == GermanTaskInteraction.tokenSelection) {
+      return 'Hör den Text noch einmal mit der Frage im Kopf. Markiere nur '
+          'Aussagen, die im Hörtext wirklich vorkommen oder klar daraus folgen.';
+    }
+    if (task.requiresSpeech &&
+        task.interaction == GermanTaskInteraction.wordOrder) {
+      return 'Hör gezielt auf Reihenfolgewörter und Ereignisse. Suche zuerst '
+          'den Anfang, dann den nächsten Schritt und zuletzt den Schluss.';
+    }
     if (task.interaction == GermanTaskInteraction.tokenSelection &&
         task.competencyId == GermanCompetencyId.wordFamilies) {
       return 'Suche den gemeinsamen Wortstamm. Verwandte Wörter behalten '
@@ -159,6 +169,17 @@ class GermanSupportCatalog {
   }
 
   static String secondHintForTask(GermanTask task) {
+    if (task.requiresSpeech &&
+        task.interaction == GermanTaskInteraction.tokenSelection) {
+      return 'Prüfe jede Markierung einzeln: Hast du diese Aussage wirklich '
+          'gehört? Streiche Nebendetails und ergänze nur Aussagen, die zur '
+          'Frage gehören.';
+    }
+    if (task.requiresSpeech &&
+        task.interaction == GermanTaskInteraction.wordOrder) {
+      return 'Sprich den Ablauf nach dem Hören leise mit: zuerst – dann – '
+          'danach – zuletzt. Ordne die Schritte genau in diese Kette.';
+    }
     if (task.interaction == GermanTaskInteraction.tokenSelection &&
         task.competencyId == GermanCompetencyId.wordFamilies) {
       return 'Lass ähnlich klingende Fremdwörter weg. Prüfe, ob sich bei allen '

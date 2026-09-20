@@ -41,8 +41,7 @@ class GermanTask {
 
   String get promptForSpeech => accessiblePrompt ?? prompt;
 
-  bool get requiresSpeech =>
-      interaction == GermanTaskInteraction.listeningChoice;
+  bool get requiresSpeech => spokenText?.trim().isNotEmpty ?? false;
 
   bool acceptsSelection(Iterable<String> selection) {
     if (interaction != GermanTaskInteraction.tokenSelection) return false;
@@ -77,7 +76,10 @@ class GermanTask {
         !_allUniqueNormalized(choices)) {
       return false;
     }
-    if (requiresSpeech && (spokenText?.trim().isEmpty ?? true)) return false;
+    if (interaction == GermanTaskInteraction.listeningChoice &&
+        !requiresSpeech) {
+      return false;
+    }
     if (accessiblePrompt != null && accessiblePrompt!.trim().isEmpty) {
       return false;
     }

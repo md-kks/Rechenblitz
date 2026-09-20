@@ -361,6 +361,16 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
                 ),
               ),
               const SizedBox(height: 8),
+            ] else if (_task.interaction !=
+                GermanTaskInteraction.listeningChoice) ...<Widget>[
+              FilledButton.icon(
+                key: const ValueKey('german-listening-replay'),
+                onPressed: () =>
+                    unawaited(_speakWithoutTiming(_task.spokenText!)),
+                icon: const Icon(Icons.volume_up_rounded),
+                label: const Text('Hörtext anhören'),
+              ),
+              const SizedBox(height: 8),
             ],
             const SizedBox(height: 12),
             _buildInteraction(context),
@@ -573,12 +583,14 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     final isAlphabetical =
         _task.competencyId == GermanCompetencyId.alphabeticalOrder ||
         _task.competencyId == GermanCompetencyId.dictionarySkills;
-    final emptyPrompt = isTextSequence
+    final emptyPrompt = _task.requiresSpeech
+        ? 'Tippe die gehörten Schritte in der richtigen Reihenfolge an.'
+        : isTextSequence
         ? 'Tippe die Schritte in der richtigen Reihenfolge an.'
         : isAlphabetical
         ? 'Tippe die Wörter in alphabetischer Reihenfolge an.'
         : 'Tippe die Satzbausteine der Reihe nach an.';
-    final undoLabel = isTextSequence
+    final undoLabel = _task.requiresSpeech || isTextSequence
         ? 'Letzten Schritt zurück'
         : isAlphabetical
         ? 'Letztes Wort zurück'

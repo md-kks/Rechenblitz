@@ -25,6 +25,11 @@ class GermanAnswerFeedback {
         return 'Noch nicht. Hör die Aufgabe noch einmal an und achte nur auf '
             'die gesuchte Information.';
       case GermanTaskInteraction.tokenSelection:
+        if (task.requiresSpeech) {
+          return 'Noch nicht. Hör den Text noch einmal und prüfe jede '
+              'Markierung: Wurde diese Information wirklich gesagt und fehlt '
+              'noch eine wichtige Aussage?';
+        }
         if (task.competencyId == GermanCompetencyId.wordFamilies) {
           return 'Noch nicht. Prüfe bei jedem markierten Wort den Wortstamm. '
               'Es muss wirklich zur selben Wortfamilie gehören, nicht nur '
@@ -51,6 +56,10 @@ class GermanAnswerFeedback {
         return 'Noch nicht. Prüfe jedes markierte Wort und überlege, ob noch '
             'etwas dazugehört oder eine Markierung zu viel ist.';
       case GermanTaskInteraction.wordOrder:
+        if (task.requiresSpeech) {
+          return 'Noch nicht. Hör den Ablauf noch einmal und achte auf '
+              'Signalwörter wie zuerst, danach und zuletzt.';
+        }
         if (task.competencyId == GermanCompetencyId.alphabeticalOrder ||
             task.competencyId == GermanCompetencyId.dictionarySkills) {
           return 'Noch nicht alphabetisch. Vergleiche die Wörter noch einmal '
