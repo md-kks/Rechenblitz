@@ -192,6 +192,79 @@ extension TrainingModeX on TrainingMode {
       this == TrainingMode.perimeterArea;
 }
 
+
+class TrainingAttemptReview {
+  const TrainingAttemptReview({
+    required this.taskNumber,
+    required this.taskKey,
+    required this.prompt,
+    required this.correctAnswer,
+    this.firstAnswer,
+    this.checkpointQuestion,
+    this.checkpointFirstAnswer,
+    this.checkpointCorrectAnswer,
+  });
+
+  final int taskNumber;
+  final String taskKey;
+  final String prompt;
+  final String correctAnswer;
+  final String? firstAnswer;
+  final String? checkpointQuestion;
+  final String? checkpointFirstAnswer;
+  final String? checkpointCorrectAnswer;
+
+  bool get hasCheckpointReview =>
+      checkpointQuestion != null &&
+      checkpointFirstAnswer != null &&
+      checkpointCorrectAnswer != null;
+
+  bool get hasSaneState =>
+      taskNumber > 0 &&
+      taskKey.trim().isNotEmpty &&
+      prompt.trim().isNotEmpty &&
+      correctAnswer.trim().isNotEmpty &&
+      (firstAnswer == null || firstAnswer!.trim().isNotEmpty) &&
+      ((checkpointQuestion == null &&
+              checkpointFirstAnswer == null &&
+              checkpointCorrectAnswer == null) ||
+          (checkpointQuestion?.trim().isNotEmpty == true &&
+              checkpointFirstAnswer?.trim().isNotEmpty == true &&
+              checkpointCorrectAnswer?.trim().isNotEmpty == true));
+
+  Map<String, dynamic> toJson() => {
+        'taskNumber': taskNumber,
+        'taskKey': taskKey,
+        'prompt': prompt,
+        'correctAnswer': correctAnswer,
+        if (firstAnswer != null) 'firstAnswer': firstAnswer,
+        if (checkpointQuestion != null)
+          'checkpointQuestion': checkpointQuestion,
+        if (checkpointFirstAnswer != null)
+          'checkpointFirstAnswer': checkpointFirstAnswer,
+        if (checkpointCorrectAnswer != null)
+          'checkpointCorrectAnswer': checkpointCorrectAnswer,
+      };
+
+  static TrainingAttemptReview? tryFromJson(Map<String, dynamic> json) {
+    try {
+      final review = TrainingAttemptReview(
+        taskNumber: json['taskNumber'] as int,
+        taskKey: json['taskKey'] as String,
+        prompt: json['prompt'] as String,
+        correctAnswer: json['correctAnswer'] as String,
+        firstAnswer: json['firstAnswer'] as String?,
+        checkpointQuestion: json['checkpointQuestion'] as String?,
+        checkpointFirstAnswer: json['checkpointFirstAnswer'] as String?,
+        checkpointCorrectAnswer: json['checkpointCorrectAnswer'] as String?,
+      );
+      return review.hasSaneState ? review : null;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
 class TrainingSessionResult {
   TrainingSessionResult({
     required this.mode,
@@ -215,6 +288,7 @@ class TrainingSessionResult {
     this.isAssessment = false,
     this.plannedTotal,
     this.adaptiveStopReason,
+    this.attemptReviews,
   });
 
   final TrainingMode mode;
@@ -238,6 +312,7 @@ class TrainingSessionResult {
   final bool isAssessment;
   final int? plannedTotal;
   final String? adaptiveStopReason;
+  final List<TrainingAttemptReview>? attemptReviews;
 
   double get accuracy => total == 0 ? 0 : correctFirstTry / total;
   bool get endedAdaptively =>
@@ -247,6 +322,7 @@ class TrainingSessionResult {
     int? starsEarned,
     int? plannedTotal,
     String? adaptiveStopReason,
+    List<TrainingAttemptReview>? attemptReviews,
   }) => TrainingSessionResult(
         mode: mode,
         startedAt: startedAt,
@@ -269,6 +345,7 @@ class TrainingSessionResult {
         isAssessment: isAssessment,
         plannedTotal: plannedTotal ?? this.plannedTotal,
         adaptiveStopReason: adaptiveStopReason ?? this.adaptiveStopReason,
+        attemptReviews: attemptReviews ?? this.attemptReviews,
       );
 
   Map<String, dynamic> toJson() => {
@@ -293,6 +370,9 @@ class TrainingSessionResult {
         'isAssessment': isAssessment,
         'plannedTotal': plannedTotal,
         'adaptiveStopReason': adaptiveStopReason,
+        if (attemptReviews != null)
+          'attemptReviews':
+              attemptReviews!.map((review) => review.toJson()).toList(),
       };
 
   factory TrainingSessionResult.fromJson(Map<String, dynamic> json) =>
@@ -323,5 +403,12 @@ class TrainingSessionResult {
         isAssessment: json['isAssessment'] as bool? ?? false,
         plannedTotal: json['plannedTotal'] as int?,
         adaptiveStopReason: json['adaptiveStopReason'] as String?,
+        attemptReviews: json['attemptReviews'] is List<dynamic>
+            ? (json['attemptReviews'] as List<dynamic>)
+                .whereType<Map<String, dynamic>>()
+                .map(TrainingAttemptReview.tryFromJson)
+                .whereType<TrainingAttemptReview>()
+                .toList(growable: false)
+            : null,
       );
 }

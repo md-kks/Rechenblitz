@@ -13,6 +13,7 @@ import '../models/help_preferences.dart';
 import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../models/training_session_progress.dart';
+import '../models/training_review_history.dart';
 import '../models/touch_interaction.dart';
 import '../services/app_controller.dart';
 import '../widgets/geometry_relation_visual.dart';
@@ -753,6 +754,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
       starsEarned: 0,
       plannedTotal: widget.targetTasks,
       adaptiveStopReason: adaptiveStopReason,
+      attemptReviews: trainingAttemptReviews(attemptReviews),
     );
     final reason = widget.controller.rewardReasonForSession(result);
     result = result.copyWith(

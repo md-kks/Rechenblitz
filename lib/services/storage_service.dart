@@ -340,9 +340,20 @@ class StorageService {
 
   Future<void> saveHistory(List<TrainingSessionResult> history) async {
     final prefs = await SharedPreferences.getInstance();
+    const detailedReviewLimit = 50;
+    final payload = <Map<String, dynamic>>[];
+    var index = 0;
+    for (final session in history.take(300)) {
+      final json = session.toJson();
+      if (index >= detailedReviewLimit) {
+        json.remove('attemptReviews');
+      }
+      payload.add(json);
+      index += 1;
+    }
     await prefs.setString(
       _profileKey(_historyKey),
-      jsonEncode(history.take(300).map((e) => e.toJson()).toList()),
+      jsonEncode(payload),
     );
   }
 

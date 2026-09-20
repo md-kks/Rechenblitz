@@ -161,6 +161,12 @@ void main() {
     expect(find.text('Aufgabe 1: 7 + 5 = ?'), findsOneWidget);
     expect(find.text('Dein erster Versuch: 11'), findsOneWidget);
     expect(find.text('Richtige Antwort: 12'), findsOneWidget);
+    final stored = controller.history.single.attemptReviews;
+    expect(stored, isNotNull);
+    expect(stored, hasLength(1));
+    expect(stored!.single.prompt, '7 + 5 = ?');
+    expect(stored.single.firstAnswer, '11');
+    expect(stored.single.correctAnswer, '12');
   });
 
   testWidgets('strukturierte Aufgabe erscheint in der Rundenrückschau', (
@@ -212,6 +218,11 @@ void main() {
     );
     expect(find.text('Dein erster Versuch: 7'), findsOneWidget);
     expect(find.text('Richtige Antwort: 8'), findsOneWidget);
+    final stored = controller.history.single.attemptReviews;
+    expect(stored, isNotNull);
+    expect(stored, hasLength(1));
+    expect(stored!.single.firstAnswer, '7');
+    expect(stored.single.correctAnswer, '8');
   });
 
   testWidgets('Auswahlaufgabe zeigt sichtbaren Text statt internen Index', (
@@ -303,6 +314,11 @@ void main() {
     );
     expect(find.text('Dein erster Versuch: 100 min'), findsOneWidget);
     expect(find.text('Richtige Antwort: 120 min'), findsOneWidget);
+    final stored = controller.history.single.attemptReviews;
+    expect(stored, isNotNull);
+    expect(stored, hasLength(1));
+    expect(stored!.single.firstAnswer, '100 min');
+    expect(stored.single.correctAnswer, '120 min');
   });
 
   testWidgets(
