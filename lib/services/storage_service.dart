@@ -44,6 +44,23 @@ class StorageService {
   static const _profilesKey = 'learner_profiles_v1';
   static const _activeProfileKey = 'active_learner_profile_v1';
 
+  static const _progressKeys = <String>[
+    _factsKey,
+    _historyKey,
+    _badgesKey,
+    _recoveredWeakFactsKey,
+    _diagnosticsKey,
+    _remediationKey,
+    _taskDiversityKey,
+    _microCompetencyKey,
+    _guidedRoundKey,
+    _assessmentProgressKey,
+    _remediationSessionKey,
+    _stepRecoverySessionKey,
+    _coreTrainingSessionKey,
+    _activeTeacherAssignmentKey,
+  ];
+
   String _activeProfileId = 'default';
 
   String get activeProfileId => _activeProfileId;
@@ -130,26 +147,10 @@ class StorageService {
 
   Future<void> deleteProfileData(String id) async {
     final prefs = await SharedPreferences.getInstance();
-    for (final key in [
-      _factsKey,
-      _historyKey,
-      _numberRangeKey,
-      _gradeLevelKey,
-      _badgesKey,
-      _recoveredWeakFactsKey,
-      _methodsKey,
-      _diagnosticsKey,
-      _remediationKey,
-      _taskDiversityKey,
-      _microCompetencyKey,
-      _guidedRoundKey,
-      _assessmentProgressKey,
-      _remediationSessionKey,
-      _stepRecoverySessionKey,
-      _coreTrainingSessionKey,
-      _activeTeacherAssignmentKey,
-    ]) {
-      await prefs.remove('profile:$id:$key');
+    final prefix = 'profile:$id:';
+    final keys = prefs.getKeys().where((key) => key.startsWith(prefix)).toList();
+    for (final key in keys) {
+      await prefs.remove(key);
     }
   }
 
@@ -645,20 +646,9 @@ class StorageService {
 
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_profileKey(_factsKey));
-    await prefs.remove(_profileKey(_historyKey));
-    await prefs.remove(_profileKey(_badgesKey));
-    await prefs.remove(_profileKey(_recoveredWeakFactsKey));
-    await prefs.remove(_profileKey(_diagnosticsKey));
-    await prefs.remove(_profileKey(_remediationKey));
-    await prefs.remove(_profileKey(_taskDiversityKey));
-    await prefs.remove(_profileKey(_microCompetencyKey));
-    await prefs.remove(_profileKey(_guidedRoundKey));
-    await prefs.remove(_profileKey(_assessmentProgressKey));
-    await prefs.remove(_profileKey(_remediationSessionKey));
-    await prefs.remove(_profileKey(_stepRecoverySessionKey));
-    await prefs.remove(_profileKey(_coreTrainingSessionKey));
-    await prefs.remove(_profileKey(_activeTeacherAssignmentKey));
+    for (final key in _progressKeys) {
+      await prefs.remove(_profileKey(key));
+    }
   }
 
   List<LearnerProfile> _decodeProfiles(String raw) {
