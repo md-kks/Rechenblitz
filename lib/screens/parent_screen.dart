@@ -913,6 +913,11 @@ class _ParentScreenState extends State<ParentScreen> {
           ),
           const SizedBox(height: 14),
           _Section(
+            title: 'Letzte Runden im Detail',
+            child: _RecentRoundReview(history: c.history),
+          ),
+          const SizedBox(height: 14),
+          _Section(
             title: 'Empfehlung',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1278,6 +1283,116 @@ class _FactList extends StatelessWidget {
                     )
                     .toList(),
               ),
+      );
+}
+
+
+class _RecentRoundReview extends StatelessWidget {
+  const _RecentRoundReview({required this.history});
+  final List<TrainingSessionResult> history;
+
+  String _stamp(DateTime value) {
+    String two(int number) => number.toString().padLeft(2, '0');
+    return '${two(value.day)}.${two(value.month)}. · '
+        '${two(value.hour)}:${two(value.minute)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sessions = history
+        .where((entry) => entry.total > 0 && !entry.isAssessment)
+        .take(5)
+        .toList(growable: false);
+    if (sessions.isEmpty) {
+      return const Text('Noch keine abgeschlossene Übungsrunde.');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Die Aufgabendetails bleiben lokal auf diesem Gerät und werden '
+          'nicht in Lehrer-QRs übernommen.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        for (final session in sessions)
+          Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ExpansionTile(
+              key: ValueKey(
+                'parent-round-review-${session.startedAt.millisecondsSinceEpoch}',
+              ),
+              title: Text(
+                '${session.mode.title} · ${_stamp(session.startedAt)}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                '${session.correctFirstTry} von ${session.total} '
+                'beim ersten Versuch richtig',
+              ),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              children: [
+                if (session.attemptReviews == null)
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Für diese ältere Runde sind keine '
+                      'Aufgabendetails gespeichert.',
+                    ),
+                  )
+                else if (session.attemptReviews!.isEmpty)
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Alle Aufgaben waren beim ersten Versuch richtig.'),
+                  )
+                else
+                  for (final review in session.attemptReviews!)
+                    _RoundReviewEntry(review: review),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _RoundReviewEntry extends StatelessWidget {
+  const _RoundReviewEntry({required this.review});
+  final TrainingAttemptReview review;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        key: ValueKey('parent-round-review-task-${review.taskNumber}'),
+        padding: const EdgeInsets.only(top: 10),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Aufgabe ${review.taskNumber}: ${review.prompt}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              if (review.firstAnswer != null)
+                Text('Erster Versuch: ${review.firstAnswer}'),
+              Text('Richtig: ${review.correctAnswer}'),
+              if (review.hasCheckpointReview) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Zwischenschritt: ${review.checkpointQuestion}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  'Erster Versuch im Schritt: ${review.checkpointFirstAnswer}',
+                ),
+                Text(
+                  'Richtig im Schritt: ${review.checkpointCorrectAnswer}',
+                ),
+              ],
+            ],
+          ),
+        ),
       );
 }
 
