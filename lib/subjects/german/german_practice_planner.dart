@@ -23,12 +23,19 @@ class GermanPracticePlanner {
   }) {
     if (taskCount < 1) return const <GermanTask>[];
     final scopedHistory = GermanHistoryScope.throughGrade(history, gradeLevel);
+    final rankingContext = _GermanRankingContext(
+      history: scopedHistory,
+      gradeLevel: gradeLevel,
+      now: now,
+      prioritizeIndependentReading: prioritizeIndependentReading,
+    );
     final ranked = _ranked(
       GermanTaskCatalog.forGrade(gradeLevel),
       scopedHistory,
       gradeLevel: gradeLevel,
       now: now,
       prioritizeIndependentReading: prioritizeIndependentReading,
+      rankingContext: rankingContext,
     );
     if (ranked.length <= taskCount) return ranked;
 
@@ -42,19 +49,8 @@ class GermanPracticePlanner {
     final balancedDomainCap = evenShare < 1 ? 1 : evenShare;
     final focusedDomains = <GermanLearningDomain>{};
     for (final task in ranked) {
-      final progress = GermanProgressAnalyzer.forCompetency(
-        task.competencyId,
-        scopedHistory,
-      );
-      if (_taskPriorityBucket(
-            task,
-            progress,
-            scopedHistory,
-            gradeLevel: gradeLevel,
-            now: now,
-            prioritizeIndependentReading: prioritizeIndependentReading,
-          ) <=
-          2) {
+      final progress = rankingContext.progressFor(task.competencyId);
+      if (rankingContext.priorityBucket(task, progress: progress) <= 2) {
         focusedDomains.add(
           GermanCompetencyCatalog.definition(task.competencyId).domain,
         );
@@ -338,53 +334,113 @@ class GermanPracticePlanner {
     required GradeLevel gradeLevel,
     DateTime? now,
     bool prioritizeIndependentReading = false,
+    _GermanRankingContext? rankingContext,
   }) {
     final result = source.toList();
-    result.sort(
-      (a, b) => _compareTasks(
-        a,
-        b,
-        history,
-        gradeLevel: gradeLevel,
-        now: now,
-        prioritizeIndependentReading: prioritizeIndependentReading,
-      ),
-    );
+    final context =
+        rankingContext ??
+        _GermanRankingContext(
+          history: history,
+          gradeLevel: gradeLevel,
+          now: now,
+          prioritizeIndependentReading: prioritizeIndependentReading,
+        );
+    result.sort((a, b) => _compareTasks(a, b, context));
     return result;
   }
 
   static int _compareTasks(
     GermanTask a,
     GermanTask b,
-    Iterable<GermanSessionResult> history, {
-    required GradeLevel gradeLevel,
-    DateTime? now,
-    bool prioritizeIndependentReading = false,
-  }) {
-    final aProgress = GermanProgressAnalyzer.forCompetency(
-      a.competencyId,
-      history,
-    );
-    final bProgress = GermanProgressAnalyzer.forCompetency(
-      b.competencyId,
-      history,
-    );
-    final aBucket = _taskPriorityBucket(
-      a,
-      aProgress,
-      history,
-      gradeLevel: gradeLevel,
-      now: now,
-      prioritizeIndependentReading: prioritizeIndependentReading,
-    );
-    final bBucket = _taskPriorityBucket(
-      b,
-      bProgress,
-      history,
-      gradeLevel: gradeLevel,
-      now: now,
-      prioritizeIndependentReading: prioritizeIndependentReading,
-    );
+    _GermanRankingContext rankingContext,
+  ) => rankingContext.compare(a, b);
+}
+
+class _GermanRankingContext {
+  _GermanRankingContext({
+    required Iterable<GermanSessionResult> history,
+    required this.gradeLevel,
+    required this.now,
+    required this.prioritizeIndependentReading,
+  }) : history = history.toList(growable: false) {
+    for (final session in this.history) {
+      for (final result in session.taskResults) {
+        final previous = _lastPracticedTaskAt[result.taskId];
+        if (previous == null || session.finishedAt.isAfter(previous)) {
+          _lastPracticedTaskAt[result.taskId] = session.finishedAt;
+        }
+      }
+    }
+  }
+
+  final List<GermanSessionResult> history;
+  final GradeLevel gradeLevel;
+  final DateTime? now;
+  final bool prioritizeIndependentReading;
+
+  final Map<GermanCompetencyId, GermanCompetencyProgress>
+  _progressByCompetency = <GermanCompetencyId, GermanCompetencyProgress>{};
+  final Map<GermanCompetencyId, GermanGradeBridgeStatus> _bridgeByCompetency =
+      <GermanCompetencyId, GermanGradeBridgeStatus>{};
+  final Map<GermanCompetencyId, int> _unmetPrerequisitesByCompetency =
+      <GermanCompetencyId, int>{};
+  final Map<String, DateTime> _lastPracticedTaskAt = <String, DateTime>{};
+
+  GermanCompetencyProgress progressFor(GermanCompetencyId competencyId) =>
+      _progressByCompetency.putIfAbsent(
+        competencyId,
+        () => GermanProgressAnalyzer.forCompetency(competencyId, history),
+      );
+
+  GermanGradeBridgeStatus bridgeFor(GermanCompetencyId competencyId) =>
+      _bridgeByCompetency.putIfAbsent(
+        competencyId,
+        () => GermanGradeBridgeAnalyzer.forCompetency(
+          competencyId: competencyId,
+          currentGrade: gradeLevel,
+          history: history,
+        ),
+      );
+
+  int priorityBucket(GermanTask task, {GermanCompetencyProgress? progress}) {
+    final competencyProgress = progress ?? progressFor(task.competencyId);
+    final attention = competencyProgress.attention(now: now);
+    final bridge = bridgeFor(task.competencyId);
+    final isBridgeTask =
+        bridge.isPending &&
+        bridge.bridgeTaskGrade != null &&
+        task.recommendedFromGrade == bridge.bridgeTaskGrade;
+
+    if (attention == GermanPracticeAttention.needsPractice) {
+      if (bridge.isPending) return isBridgeTask ? 0 : 4;
+      return 0;
+    }
+
+    final needsIndependentReading =
+        prioritizeIndependentReading &&
+        GermanCompetencyCatalog.definition(task.competencyId).domain ==
+            GermanLearningDomain.reading &&
+        competencyProgress.needsMoreIndependentEvidence;
+    if (needsIndependentReading) return 1;
+
+    if (competencyProgress.state == GermanCompetencyState.secure &&
+        isBridgeTask) {
+      return 1;
+    }
+
+    if (attention == GermanPracticeAttention.reviewDue) return 2;
+    return switch (competencyProgress.state) {
+      GermanCompetencyState.newSkill => 3,
+      GermanCompetencyState.learning => 4,
+      GermanCompetencyState.secure => 5,
+    };
+  }
+
+  int compare(GermanTask a, GermanTask b) {
+    final aProgress = progressFor(a.competencyId);
+    final bProgress = progressFor(b.competencyId);
+    final aBucket = priorityBucket(a, progress: aProgress);
+    final bBucket = priorityBucket(b, progress: bProgress);
     if (aBucket != bBucket) return aBucket.compareTo(bBucket);
 
     if (aProgress.state == GermanCompetencyState.learning &&
@@ -412,15 +468,15 @@ class GermanPracticePlanner {
       }
     }
 
-    final aPrerequisites = _unmetPrerequisites(a.competencyId, history);
-    final bPrerequisites = _unmetPrerequisites(b.competencyId, history);
+    final aPrerequisites = unmetPrerequisitesFor(a.competencyId);
+    final bPrerequisites = unmetPrerequisitesFor(b.competencyId);
     if (aPrerequisites != bPrerequisites) {
       return aPrerequisites.compareTo(bPrerequisites);
     }
 
     if (a.competencyId == b.competencyId) {
-      final aTaskLast = _lastPracticedTaskAt(a.id, history);
-      final bTaskLast = _lastPracticedTaskAt(b.id, history);
+      final aTaskLast = _lastPracticedTaskAt[a.id];
+      final bTaskLast = _lastPracticedTaskAt[b.id];
       if (aTaskLast == null && bTaskLast != null) return -1;
       if (aTaskLast != null && bTaskLast == null) return 1;
       if (aTaskLast != null && bTaskLast != null && aTaskLast != bTaskLast) {
@@ -445,78 +501,15 @@ class GermanPracticePlanner {
     return a.competencyId.index.compareTo(b.competencyId.index);
   }
 
-  static int _taskPriorityBucket(
-    GermanTask task,
-    GermanCompetencyProgress progress,
-    Iterable<GermanSessionResult> history, {
-    required GradeLevel gradeLevel,
-    DateTime? now,
-    bool prioritizeIndependentReading = false,
-  }) {
-    final attention = progress.attention(now: now);
-    final bridge = GermanGradeBridgeAnalyzer.forCompetency(
-      competencyId: task.competencyId,
-      currentGrade: gradeLevel,
-      history: history,
-    );
-    final isBridgeTask =
-        bridge.isPending &&
-        bridge.bridgeTaskGrade != null &&
-        task.recommendedFromGrade == bridge.bridgeTaskGrade;
-
-    if (attention == GermanPracticeAttention.needsPractice) {
-      if (bridge.isPending) return isBridgeTask ? 0 : 4;
-      return 0;
-    }
-
-    final needsIndependentReading =
-        prioritizeIndependentReading &&
-        GermanCompetencyCatalog.definition(task.competencyId).domain ==
-            GermanLearningDomain.reading &&
-        progress.needsMoreIndependentEvidence;
-    if (needsIndependentReading) return 1;
-
-    if (progress.state == GermanCompetencyState.secure && isBridgeTask) {
-      return 1;
-    }
-
-    if (attention == GermanPracticeAttention.reviewDue) return 2;
-    return switch (progress.state) {
-      GermanCompetencyState.newSkill => 3,
-      GermanCompetencyState.learning => 4,
-      GermanCompetencyState.secure => 5,
-    };
-  }
-
-  static DateTime? _lastPracticedTaskAt(
-    String taskId,
-    Iterable<GermanSessionResult> history,
-  ) {
-    DateTime? latest;
-    for (final session in history) {
-      if (!session.taskResults.any((result) => result.taskId == taskId)) {
-        continue;
-      }
-      if (latest == null || session.finishedAt.isAfter(latest)) {
-        latest = session.finishedAt;
-      }
-    }
-    return latest;
-  }
-
-  static int _unmetPrerequisites(
-    GermanCompetencyId competencyId,
-    Iterable<GermanSessionResult> history,
-  ) {
-    final definition = GermanCompetencyCatalog.definition(competencyId);
-    var unmet = 0;
-    for (final prerequisite in definition.prerequisites) {
-      final progress = GermanProgressAnalyzer.forCompetency(
-        prerequisite,
-        history,
-      );
-      if (progress.state != GermanCompetencyState.secure) unmet += 1;
-    }
-    return unmet;
-  }
+  int unmetPrerequisitesFor(GermanCompetencyId competencyId) =>
+      _unmetPrerequisitesByCompetency.putIfAbsent(competencyId, () {
+        final definition = GermanCompetencyCatalog.definition(competencyId);
+        var unmet = 0;
+        for (final prerequisite in definition.prerequisites) {
+          if (progressFor(prerequisite).state != GermanCompetencyState.secure) {
+            unmet += 1;
+          }
+        }
+        return unmet;
+      });
 }
