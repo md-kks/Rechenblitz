@@ -37,6 +37,7 @@ TrainingSessionResult _result({
   int total = 4,
   int correctFirstTry = 3,
   int incorrectAttempts = 1,
+  List<TrainingAttemptReview>? attemptReviews,
 }) => TrainingSessionResult(
   mode: TrainingMode.practice,
   startedAt: startedAt,
@@ -51,6 +52,7 @@ TrainingSessionResult _result({
   averageResponseMs: 1200,
   gradeLevel: GradeLevel.second,
   numberRange: NumberRangeLevel.twenty,
+  attemptReviews: attemptReviews,
 );
 
 void main() {
@@ -118,6 +120,35 @@ void main() {
 
     expect(feedback, contains('2 Aufgaben brauchten mehr als einen Versuch'));
     expect(feedback, contains('am Ende richtig gelöst'));
+  });
+
+  test('allgemeines Rundenfeedback nennt Hilfe trotz richtigem Erstversuch', () {
+    final controller = AppController();
+    final started = DateTime(2026, 9, 21, 10);
+    final feedback = controller.roundSpokenFeedback(
+      result: _result(
+        startedAt: started,
+        finishedAt: started.add(const Duration(minutes: 2)),
+        total: 2,
+        correctFirstTry: 2,
+        incorrectAttempts: 0,
+        attemptReviews: const <TrainingAttemptReview>[
+          TrainingAttemptReview(
+            taskNumber: 1,
+            taskKey: 'plus:7:5',
+            prompt: '7 + 5 = ?',
+            correctAnswer: '12',
+            wrongAnswerAttempts: 0,
+            usedHelp: true,
+          ),
+        ],
+      ),
+      targetCompetency: null,
+    );
+
+    expect(feedback, contains('Alle 2 Aufgaben waren beim ersten Versuch richtig'));
+    expect(feedback, contains('Eine Aufgabe wurde mit Hilfe gelöst'));
+    expect(feedback, isNot(contains('mehr als einen Versuch')));
   });
 
   test('komplett direkte Runde wird gesprochen ausdrücklich so benannt', () {

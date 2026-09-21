@@ -795,7 +795,9 @@ class _TrainingScreenState extends State<TrainingScreen>
     final firstTry = wrongOnCurrent == 0 && !hadCheckpointError;
     if (firstTry) {
       correctFirstTry += 1;
-    } else {
+    }
+    final taskUsedHelp = usedHelp || showHelp || helpLevel > 0;
+    if (!firstTry || taskUsedHelp) {
       _rememberAttemptReview();
     }
     _countCompletedFact(firstTryCorrect: firstTry);

@@ -21,6 +21,21 @@ Future<void> showRoundCompletionDialog(
   bool autoSpeakSpokenFeedback = false,
   Future<void> Function()? onSpeakSpokenFeedback,
 }) {
+  final retryReviews = attemptReviews
+      .where(
+        (review) =>
+            (review.wrongAnswerAttempts ?? 0) > 0 ||
+            review.hadCheckpointError,
+      )
+      .toList(growable: false);
+  final helpOnlyReviews = attemptReviews
+      .where(
+        (review) =>
+            review.usedHelp == true &&
+            (review.wrongAnswerAttempts ?? 0) == 0 &&
+            !review.hadCheckpointError,
+      )
+      .toList(growable: false);
   final spoken = spokenFeedback?.trim();
   if (autoSpeakSpokenFeedback &&
       spoken != null &&
@@ -48,7 +63,7 @@ Future<void> showRoundCompletionDialog(
             textAlign: TextAlign.center,
             style: Theme.of(dialogContext).textTheme.titleMedium,
           ),
-          if (attemptReviews.isNotEmpty) ...[
+          if (retryReviews.isNotEmpty) ...[
             const SizedBox(height: 12),
             Card(
               key: const ValueKey('round-attempt-review'),
@@ -76,7 +91,7 @@ Future<void> showRoundCompletionDialog(
                       style: Theme.of(dialogContext).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 10),
-                    ...attemptReviews.map(
+                    ...retryReviews.map(
                       (review) => Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: Column(
@@ -127,6 +142,60 @@ Future<void> showRoundCompletionDialog(
                                 style:
                                     Theme.of(dialogContext).textTheme.bodySmall,
                               ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (helpOnlyReviews.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              key: const ValueKey('round-help-review'),
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.lightbulb_outline_rounded, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Beim ersten Versuch mit Hilfe',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Diese Aufgaben waren beim ersten Versuch richtig, wurden aber mit einer Hilfe gelöst.',
+                      style: Theme.of(dialogContext).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 10),
+                    ...helpOnlyReviews.map(
+                      (review) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Column(
+                          key: ValueKey(
+                            'round-help-review-${review.taskNumber}',
+                          ),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Aufgabe ${review.taskNumber}: ${review.prompt}',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 3),
+                            const Text('Mit Hilfe beim ersten Versuch richtig'),
+                            Text('Richtige Antwort: ${review.correctAnswer}'),
                           ],
                         ),
                       ),

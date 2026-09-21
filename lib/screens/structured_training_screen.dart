@@ -669,7 +669,9 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     final firstTry = wrongOnCurrent == 0 && !hadCheckpointError;
     if (firstTry) {
       correctFirstTry += 1;
-    } else {
+    }
+    final taskUsedHelp = showHint || helpLevel > 0;
+    if (!firstTry || taskUsedHelp) {
       _rememberAttemptReview();
     }
     if (!restoring && widget.controller.hapticEnabled) {

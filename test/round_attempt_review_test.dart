@@ -185,6 +185,158 @@ void main() {
   });
 
   testWidgets(
+    'erste Antwort richtig mit Hilfe bleibt im Abschluss sichtbar',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.twenty;
+      const task = StructuredExercise(
+        mode: TrainingMode.wordProblems,
+        prompt: 'In einer Kiste sind 5 rote und 3 blaue Steine. Wie viele sind es?',
+        answer: 8,
+        hint: 'Addiere beide Mengen.',
+        key: 'review:help-only:sum',
+        maxAnswerValue: 20,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StructuredTrainingScreen(
+            controller: controller,
+            mode: TrainingMode.wordProblems,
+            targetTasks: 1,
+            announceCompletion: false,
+            exerciseGenerator: _FixedStructuredGenerator(task),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final help = find.text('Ich brauche Hilfe');
+      expect(help, findsOneWidget);
+      await tester.ensureVisible(help);
+      await tester.tap(help);
+      await tester.pump();
+
+      final pad = tester.widget<NumberAnswerPad>(find.byType(NumberAnswerPad));
+      pad.onAnswer(8);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Runde geschafft!'), findsOneWidget);
+      expect(find.text('1 von 1 beim ersten Versuch richtig'), findsOneWidget);
+      expect(find.byKey(const ValueKey('round-attempt-review')), findsNothing);
+      expect(find.byKey(const ValueKey('round-help-review')), findsOneWidget);
+      expect(find.text('Beim ersten Versuch mit Hilfe'), findsOneWidget);
+      expect(
+        find.text('Mit Hilfe beim ersten Versuch richtig'),
+        findsOneWidget,
+      );
+
+      final stored = controller.history.single.attemptReviews;
+      expect(stored, isNotNull);
+      expect(stored, hasLength(1));
+      expect(stored!.single.wrongAnswerAttempts, 0);
+      expect(stored.single.usedHelp, isTrue);
+      expect(stored.single.firstAnswer, isNull);
+      expect(stored.single.correctAnswer, '8');
+    },
+  );
+
+  testWidgets('Grundrechnen speichert Hilfe trotz richtigem Erstversuch',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.twenty;
+    controller.facts = <MathFact>[
+      MathFact(a: 12, b: 5, operation: MathOperation.minus),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrainingScreen(
+          controller: controller,
+          mode: TrainingMode.practice,
+          targetTasks: 1,
+          announceCompletion: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final help = find.text('Ich brauche Hilfe');
+    expect(help, findsOneWidget);
+    await tester.ensureVisible(help);
+    await tester.tap(help);
+    await tester.pump();
+
+    final pad = tester.widget<NumberAnswerPad>(find.byType(NumberAnswerPad));
+    pad.onAnswer(7);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('round-help-review')), findsOneWidget);
+    expect(find.byKey(const ValueKey('round-attempt-review')), findsNothing);
+    final stored = controller.history.single.attemptReviews;
+    expect(stored, hasLength(1));
+    expect(stored!.single.usedHelp, isTrue);
+    expect(stored.single.wrongAnswerAttempts, 0);
+  });
+
+  testWidgets('Lehrplan-Aufgabe speichert Hilfe trotz richtigem Erstversuch',
+      (tester) async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    const task = CurriculumExercise(
+      mode: TrainingMode.rounding,
+      prompt: 'Runde 153 auf Zehner.',
+      answer: 150,
+      hint: 'Schau auf die Einerstelle.',
+      key: 'review:help-only:rounding',
+      maxAnswerValue: 200,
+      method: 'Runden',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurriculumTrainingScreen(
+          controller: controller,
+          mode: TrainingMode.rounding,
+          targetTasks: 1,
+          announceCompletion: false,
+          exerciseGenerator: _FixedCurriculumGenerator(task),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final help = find.text('Ich brauche Hilfe');
+    expect(help, findsOneWidget);
+    await tester.ensureVisible(help);
+    await tester.tap(help);
+    await tester.pump();
+
+    final pad = tester.widget<NumberAnswerPad>(find.byType(NumberAnswerPad));
+    pad.onAnswer(150);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('round-help-review')), findsOneWidget);
+    expect(find.byKey(const ValueKey('round-attempt-review')), findsNothing);
+    final stored = controller.history.single.attemptReviews;
+    expect(stored, hasLength(1));
+    expect(stored!.single.usedHelp, isTrue);
+    expect(stored.single.wrongAnswerAttempts, 0);
+  });
+
+  testWidgets(
     'Grundrechnen behält Touch-Fehlerbeschreibung über Neustart',
     (tester) async {
       final controller = AppController();
@@ -531,6 +683,8 @@ void main() {
                     prompt:
                         'In einer Kiste liegen 18 Karten. 7 kommen dazu. Wie viele Karten sind es jetzt?',
                     correctAnswer: '25 Karten',
+                    firstAnswer: '24 Karten',
+                    wrongAnswerAttempts: 1,
                   ),
                   RoundAttemptReview(
                     taskNumber: 4,
