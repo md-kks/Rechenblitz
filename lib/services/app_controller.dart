@@ -5181,12 +5181,14 @@ class AppController extends ChangeNotifier {
     bool fluencyEmphasis = false,
   }) {
     final attemptSummary = _spokenFirstAttemptSummary(result);
+    final helpSummary = _spokenHelpSummary(result);
     if (targetCompetency == null) {
       final activity = result.mode.title;
+      final helpSuffix = helpSummary.isEmpty ? '' : ' $helpSummary';
       if (result.correctFirstTry == result.total && result.total > 0) {
-        return 'Runde geschafft. Heute hast du $activity geübt. $attemptSummary';
+        return 'Runde geschafft. Heute hast du $activity geübt. $attemptSummary$helpSuffix';
       }
-      return 'Runde geschafft. Heute hast du $activity geübt. $attemptSummary Rechenblitz plant passend dazu weiter.';
+      return 'Runde geschafft. Heute hast du $activity geübt. $attemptSummary$helpSuffix Rechenblitz plant passend dazu weiter.';
     }
 
     final progress = microCompetencyProgress(targetCompetency);
@@ -5250,6 +5252,17 @@ class AppController extends ChangeNotifier {
       MicroCompetencyState.newSkill =>
         'Runde geschafft. $attemptSummary Heute hast du „$label“ kennengelernt. Beim nächsten Mal probieren wir noch ein paar passende Aufgaben.',
     };
+  }
+
+  String _spokenHelpSummary(TrainingSessionResult result) {
+    final helped = result.attemptReviews
+            ?.where((review) => review.usedHelp == true)
+            .length ??
+        0;
+    if (helped <= 0) return '';
+    return helped == 1
+        ? 'Eine Aufgabe wurde mit Hilfe gelöst.'
+        : '$helped Aufgaben wurden mit Hilfe gelöst.';
   }
 
   String _spokenFirstAttemptSummary(TrainingSessionResult result) {
