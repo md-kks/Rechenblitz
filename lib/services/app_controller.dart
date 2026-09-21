@@ -5203,6 +5203,18 @@ class AppController extends ChangeNotifier {
     final independentCorrect = sessionObservations.any(
       (entry) => entry.correct && !entry.usedHelp,
     );
+    final independentReviewCorrect = sessionObservations.any(
+      (entry) =>
+          entry.correct &&
+          !entry.usedHelp &&
+          entry.source == MicroEvidenceSource.review,
+    );
+    final independentTransferCorrect = sessionObservations.any(
+      (entry) =>
+          entry.correct &&
+          !entry.usedHelp &&
+          entry.source == MicroEvidenceSource.transfer,
+    );
 
     if (helpedCorrect && independentCorrect) {
       return 'Runde geschafft. $attemptSummary Bei „$label“ bist du heute mit Hilfe gestartet. Danach hat der Schritt auch ohne Hilfe geklappt.';
@@ -5216,12 +5228,12 @@ class AppController extends ChangeNotifier {
           : 'Runde geschafft. $attemptSummary Heute hast du „$label“ weiter flüssig geübt, ohne Zeitdruck.';
     }
     if (transferEmphasis) {
-      return progress.hasIndependentTransferEvidence
+      return independentTransferCorrect
           ? 'Runde geschafft. $attemptSummary Heute hast du „$label“ auch in einer neuen Aufgabe selbstständig angewendet.'
           : 'Runde geschafft. $attemptSummary Heute hast du „$label“ in einer neuen Aufgabe ausprobiert. Das schauen wir uns später noch einmal an.';
     }
     if (reviewEmphasis) {
-      return progress.hasIndependentReviewEvidence
+      return independentReviewCorrect
           ? 'Runde geschafft. $attemptSummary „$label“ hat heute auch nach einer Pause wieder selbstständig geklappt.'
           : 'Runde geschafft. $attemptSummary Heute hast du „$label“ nach einer Pause wiederholt. Beim nächsten Mal prüfen wir es noch einmal selbstständig.';
     }
@@ -5262,17 +5274,28 @@ class AppController extends ChangeNotifier {
     required List<String> strengthenedCompetencies,
     String? nextCompetency,
   }) {
-    final distinct = strengthenedCompetencies.toSet();
+    final distinct = strengthenedCompetencies.toSet().toList(growable: false);
     if (distinct.isEmpty) {
       return 'Deine Runde ist geschafft. Beim nächsten Mal plant Rechenblitz passend weiter.';
     }
-    final first = distinct.first;
+
+    final remaining = distinct.length - 2;
+    final strengthened = switch (distinct.length) {
+      1 => '„${distinct.first}“',
+      2 => '„${distinct[0]}“ und „${distinct[1]}“',
+      _ when remaining == 1 =>
+        '„${distinct[0]}“, „${distinct[1]}“ und noch ein weiteres Lernziel',
+      _ =>
+        '„${distinct[0]}“, „${distinct[1]}“ und noch $remaining weitere Lernziele',
+    };
     final next = nextCompetency == null
         ? 'Beim nächsten Mal plant Rechenblitz passend weiter.'
-        : nextCompetency == first
-            ? 'Das üben wir beim nächsten Mal kurz weiter.'
+        : distinct.contains(nextCompetency)
+            ? distinct.length == 1
+                ? 'Das üben wir beim nächsten Mal kurz weiter.'
+                : 'Eines davon üben wir beim nächsten Mal kurz weiter.'
             : 'Nächstes Mal geht es mit „$nextCompetency“ weiter.';
-    return 'Deine Runde ist geschafft. Heute hast du „$first“ gestärkt. $next';
+    return 'Deine Runde ist geschafft. Heute hast du $strengthened gestärkt. $next';
   }
 
   String? methodSupportInsight(MicroCompetencyId id) {

@@ -240,6 +240,223 @@ void main() {
     },
   );
 
+  test('alte Transfer-Evidenz wird nicht als heutiger Transfer ausgegeben', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.twenty;
+    final started = DateTime(2026, 9, 21, 14);
+    final finished = started.add(const Duration(minutes: 3));
+    controller.microObservations = <MicroCompetencyObservation>[
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: started.subtract(const Duration(days: 7)),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.transfer,
+        usedHelp: false,
+        mode: TrainingMode.wordProblems,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.twenty,
+        taskKey: 'story:transfer:old',
+      ),
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: started.add(const Duration(minutes: 1)),
+        correct: false,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.transfer,
+        usedHelp: false,
+        mode: TrainingMode.wordProblems,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.twenty,
+        taskKey: 'story:transfer:today',
+      ),
+    ];
+
+    final feedback = controller.roundSpokenFeedback(
+      result: _result(
+        startedAt: started,
+        finishedAt: finished,
+        total: 1,
+        correctFirstTry: 0,
+        incorrectAttempts: 1,
+      ),
+      targetCompetency: MicroCompetencyId.additionNoBridge,
+      transferEmphasis: true,
+    );
+
+    expect(feedback, contains('in einer neuen Aufgabe ausprobiert'));
+    expect(
+      feedback,
+      isNot(contains('selbstständig angewendet')),
+    );
+  });
+
+  test(
+    'aktueller selbstständiger Transfer wird als heutiger Erfolg benannt',
+    () {
+      final controller = AppController()
+        ..gradeLevel = GradeLevel.second
+        ..numberRange = NumberRangeLevel.twenty;
+      final started = DateTime(2026, 9, 21, 14);
+      final finished = started.add(const Duration(minutes: 3));
+      controller.microObservations = <MicroCompetencyObservation>[
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: started.add(const Duration(minutes: 1)),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.transfer,
+          usedHelp: false,
+          mode: TrainingMode.wordProblems,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.twenty,
+          taskKey: 'story:transfer:today',
+        ),
+      ];
+
+      final feedback = controller.roundSpokenFeedback(
+        result: _result(
+          startedAt: started,
+          finishedAt: finished,
+          total: 1,
+          correctFirstTry: 1,
+          incorrectAttempts: 0,
+        ),
+        targetCompetency: MicroCompetencyId.additionNoBridge,
+        transferEmphasis: true,
+      );
+
+      expect(
+        feedback,
+        contains('in einer neuen Aufgabe selbstständig angewendet'),
+      );
+    },
+  );
+
+  test(
+    'alte Review-Evidenz wird nicht als heutiger Review-Erfolg ausgegeben',
+    () {
+      final controller = AppController()
+        ..gradeLevel = GradeLevel.second
+        ..numberRange = NumberRangeLevel.twenty;
+      final started = DateTime(2026, 9, 21, 14);
+      final finished = started.add(const Duration(minutes: 3));
+      controller.microObservations = <MicroCompetencyObservation>[
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: started.subtract(const Duration(days: 7)),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.twenty,
+          taskKey: 'review:old',
+        ),
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.additionNoBridge,
+          occurredAt: started.add(const Duration(minutes: 1)),
+          correct: false,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.review,
+          usedHelp: false,
+          mode: TrainingMode.practice,
+          gradeLevel: GradeLevel.second,
+          numberRange: NumberRangeLevel.twenty,
+          taskKey: 'review:today',
+        ),
+      ];
+
+      final feedback = controller.roundSpokenFeedback(
+        result: _result(
+          startedAt: started,
+          finishedAt: finished,
+          total: 1,
+          correctFirstTry: 0,
+          incorrectAttempts: 1,
+        ),
+        targetCompetency: MicroCompetencyId.additionNoBridge,
+        reviewEmphasis: true,
+      );
+
+      expect(feedback, contains('nach einer Pause wiederholt'));
+      expect(feedback, isNot(contains('wieder selbstständig geklappt')));
+    },
+  );
+
+  test('aktueller selbstständiger Review wird als heutiger Erfolg benannt', () {
+    final controller = AppController()
+      ..gradeLevel = GradeLevel.second
+      ..numberRange = NumberRangeLevel.twenty;
+    final started = DateTime(2026, 9, 21, 14);
+    final finished = started.add(const Duration(minutes: 3));
+    controller.microObservations = <MicroCompetencyObservation>[
+      MicroCompetencyObservation(
+        id: MicroCompetencyId.additionNoBridge,
+        occurredAt: started.add(const Duration(minutes: 1)),
+        correct: true,
+        evidenceWeight: 1,
+        source: MicroEvidenceSource.review,
+        usedHelp: false,
+        mode: TrainingMode.practice,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.twenty,
+        taskKey: 'review:today',
+      ),
+    ];
+
+    final feedback = controller.roundSpokenFeedback(
+      result: _result(
+        startedAt: started,
+        finishedAt: finished,
+        total: 1,
+        correctFirstTry: 1,
+        incorrectAttempts: 0,
+      ),
+      targetCompetency: MicroCompetencyId.additionNoBridge,
+      reviewEmphasis: true,
+    );
+
+    expect(
+      feedback,
+      contains('nach einer Pause wieder selbstständig geklappt'),
+    );
+  });
+
+  test('Meine Runde nennt mehrere gestärkte Lernziele ohne TTS-Liste zu überladen', () {
+    final controller = AppController();
+    final feedback = controller.guidedRoundSpokenFeedback(
+      strengthenedCompetencies: const <String>[
+        'Plus über den Zehner',
+        'Zeitspannen',
+        'Daten lesen',
+        'Plus über den Zehner',
+      ],
+      nextCompetency: 'Zeitspannen',
+    );
+
+    expect(feedback, contains('„Plus über den Zehner“, „Zeitspannen“'));
+    expect(feedback, contains('noch ein weiteres Lernziel'));
+    expect(feedback, contains('Eines davon üben wir beim nächsten Mal kurz weiter'));
+    expect(feedback, isNot(contains('Daten lesen')));
+  });
+
+  test('Meine Runde nennt ein neues nächstes Lernziel ausdrücklich', () {
+    final controller = AppController();
+    final feedback = controller.guidedRoundSpokenFeedback(
+      strengthenedCompetencies: const <String>[
+        'Plus über den Zehner',
+        'Zeitspannen',
+      ],
+      nextCompetency: 'Daten lesen',
+    );
+
+    expect(feedback, contains('„Plus über den Zehner“ und „Zeitspannen“'));
+    expect(feedback, contains('Nächstes Mal geht es mit „Daten lesen“ weiter'));
+  });
+
   test(
     'automatisches Rundenfeedback respektiert Schalter und Sprechtempo',
     () async {
