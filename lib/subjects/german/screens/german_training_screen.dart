@@ -212,11 +212,20 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     }
   }
 
+  Future<void> _readInstructionOnDemand() async {
+    if (_completed || _task.requiresSpeech) return;
+    await _speakWithoutTiming(_task.instruction);
+  }
+
   Future<void> _readCurrentTaskOnDemand() async {
     if (_completed || _task.requiresSpeech) return;
-    if (_currentTaskMeasuresReading && !_usedReadAloudForCurrentTask) {
-      _usedReadAloudForCurrentTask = true;
-      _emitDraft();
+    if (_currentTaskMeasuresReading) {
+      if (!_usedReadAloudForCurrentTask) {
+        _usedReadAloudForCurrentTask = true;
+        _emitDraft();
+      }
+      await _speakWithoutTiming(_task.promptForSpeech);
+      return;
     }
     await _speakWithoutTiming('${_task.instruction} ${_task.promptForSpeech}');
   }
@@ -352,15 +361,43 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
               ),
             ),
             if (!_task.requiresSpeech) ...<Widget>[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  key: const ValueKey('german-task-read-aloud'),
-                  onPressed: () => unawaited(_readCurrentTaskOnDemand()),
-                  icon: const Icon(Icons.volume_up_outlined),
-                  label: const Text('Aufgabe vorlesen'),
+              if (_currentTaskMeasuresReading) ...<Widget>[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: <Widget>[
+                    TextButton.icon(
+                      key: const ValueKey('german-instruction-read-aloud'),
+                      onPressed: () => unawaited(_readInstructionOnDemand()),
+                      icon: const Icon(Icons.volume_up_outlined),
+                      label: const Text('Arbeitsauftrag anhören'),
+                    ),
+                    TextButton.icon(
+                      key: const ValueKey('german-task-read-aloud'),
+                      onPressed: () => unawaited(_readCurrentTaskOnDemand()),
+                      icon: const Icon(Icons.record_voice_over_outlined),
+                      label: const Text('Inhalt vorlesen'),
+                    ),
+                  ],
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    'Nur „Inhalt vorlesen“ zählt bei Leseaufgaben als Hilfe.',
+                    key: const ValueKey('german-reading-assistance-note'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ] else
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const ValueKey('german-task-read-aloud'),
+                    onPressed: () => unawaited(_readCurrentTaskOnDemand()),
+                    icon: const Icon(Icons.volume_up_outlined),
+                    label: const Text('Aufgabe vorlesen'),
+                  ),
+                ),
               const SizedBox(height: 8),
             ] else if (_task.interaction !=
                 GermanTaskInteraction.listeningChoice) ...<Widget>[

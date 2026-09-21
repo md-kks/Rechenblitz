@@ -158,8 +158,8 @@ void main() {
       await tester.pump();
 
       expect(spoken, hasLength(1));
-      expect(spoken.single, contains(task.instruction));
-      expect(spoken.single, contains(task.promptForSpeech));
+      expect(spoken.single, task.promptForSpeech);
+      expect(spoken.single, isNot(contains(task.instruction)));
       expect(draft, isNotNull);
       expect(draft!.currentReadAloudUsed, isTrue);
 
@@ -171,6 +171,55 @@ void main() {
       expect(completed, isNotNull);
       expect(completed!.taskResults.single.usedReadAloud, isTrue);
       expect(completed!.taskResults.single.independentCorrectFirstTry, isFalse);
+    },
+  );
+
+  testWidgets(
+    'reading instruction can be spoken without marking reading as assisted',
+    (tester) async {
+      final task = GermanStarterTaskCatalog.tasks.firstWhere(
+        (task) => task.id == 'g1-read-word-sonne',
+      );
+      final spoken = <String>[];
+      GermanRoundDraft? draft;
+      GermanSessionResult? completed;
+
+      await tester.pumpWidget(
+        _app(
+          task: task,
+          speak: (text) async => spoken.add(text),
+          readAloudEnabled: false,
+          onDraftChanged: (value) => draft = value,
+          onComplete: (result) => completed = result,
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey('german-instruction-read-aloud')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('german-reading-assistance-note')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('german-instruction-read-aloud')),
+      );
+      await tester.pump();
+
+      expect(spoken, <String>[task.instruction]);
+      expect(draft?.currentReadAloudUsed ?? false, isFalse);
+
+      await tester.tap(
+        find.widgetWithText(FilledButton, task.acceptedAnswers.single),
+      );
+      await tester.pump();
+
+      expect(completed, isNotNull);
+      expect(completed!.taskResults.single.usedReadAloud, isFalse);
+      expect(completed!.taskResults.single.independentCorrectFirstTry, isTrue);
     },
   );
 
