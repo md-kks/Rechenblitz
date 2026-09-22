@@ -393,9 +393,16 @@ class _GermanRankingContext {
   }) : history = history.toList(growable: false) {
     for (final session in this.history) {
       for (final result in session.taskResults) {
+        final previousCompetency =
+            _latestCompetencyPracticeAt[result.competencyId];
+        if (previousCompetency == null ||
+            session.finishedAt.isAfter(previousCompetency)) {
+          _latestCompetencyPracticeAt[result.competencyId] = session.finishedAt;
+        }
         final previous = _lastPracticedTaskAt[result.taskId];
         if (previous == null || session.finishedAt.isAfter(previous)) {
           _lastPracticedTaskAt[result.taskId] = session.finishedAt;
+          _latestTaskResult[result.taskId] = result;
         }
       }
     }
@@ -413,6 +420,10 @@ class _GermanRankingContext {
   final Map<GermanCompetencyId, int> _unmetPrerequisitesByCompetency =
       <GermanCompetencyId, int>{};
   final Map<String, DateTime> _lastPracticedTaskAt = <String, DateTime>{};
+  final Map<String, GermanTaskResult> _latestTaskResult =
+      <String, GermanTaskResult>{};
+  final Map<GermanCompetencyId, DateTime> _latestCompetencyPracticeAt =
+      <GermanCompetencyId, DateTime>{};
 
   GermanCompetencyProgress progressFor(GermanCompetencyId competencyId) =>
       _progressByCompetency.putIfAbsent(
@@ -513,10 +524,23 @@ class _GermanRankingContext {
     if (a.competencyId == b.competencyId) {
       final aTaskLast = _lastPracticedTaskAt[a.id];
       final bTaskLast = _lastPracticedTaskAt[b.id];
-      if (aTaskLast == null && bTaskLast != null) return -1;
-      if (aTaskLast != null && bTaskLast == null) return 1;
-      if (aTaskLast != null && bTaskLast != null && aTaskLast != bTaskLast) {
-        return aTaskLast.compareTo(bTaskLast);
+      if (aTaskLast == null && bTaskLast != null) {
+        if (_taskFollowUpIsDue(b)) return 1;
+        return -1;
+      }
+      if (aTaskLast != null && bTaskLast == null) {
+        if (_taskFollowUpIsDue(a)) return -1;
+        return 1;
+      }
+      if (aTaskLast != null && bTaskLast != null) {
+        final aFollowUp = _taskFollowUpPriority(a.id);
+        final bFollowUp = _taskFollowUpPriority(b.id);
+        if (aFollowUp != bFollowUp) {
+          return aFollowUp.compareTo(bFollowUp);
+        }
+        if (aTaskLast != bTaskLast) {
+          return aTaskLast.compareTo(bTaskLast);
+        }
       }
 
       final interaction = GermanTaskEvidencePriority.rank(
@@ -535,6 +559,22 @@ class _GermanRankingContext {
     if (aLast == null && bLast != null) return -1;
     if (aLast != null && bLast == null) return 1;
     return a.competencyId.index.compareTo(b.competencyId.index);
+  }
+
+  bool _taskFollowUpIsDue(GermanTask task) {
+    if (_taskFollowUpPriority(task.id) >= 2) return false;
+    final taskLast = _lastPracticedTaskAt[task.id];
+    final competencyLast = _latestCompetencyPracticeAt[task.competencyId];
+    if (taskLast == null || competencyLast == null) return false;
+    return competencyLast.isAfter(taskLast);
+  }
+
+  int _taskFollowUpPriority(String taskId) {
+    final result = _latestTaskResult[taskId];
+    if (result == null) return 3;
+    if (!result.correctFirstTry || result.incorrectAttempts > 0) return 0;
+    if (result.usedReadAloud) return 1;
+    return 2;
   }
 
   int unmetPrerequisitesFor(GermanCompetencyId competencyId) =>
