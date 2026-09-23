@@ -8,6 +8,7 @@ import 'german_progress.dart';
 import 'german_session.dart';
 import 'german_task_catalog.dart';
 import 'german_task.dart';
+import 'german_task_challenge.dart';
 import 'german_task_evidence_priority.dart';
 import 'german_teacher_assignment.dart';
 
@@ -547,6 +548,10 @@ class _GermanRankingContext {
         a,
       ).compareTo(GermanTaskEvidencePriority.rank(b));
       if (interaction != 0) return interaction;
+      if (a.recommendedFromGrade == b.recommendedFromGrade) {
+        final challenge = _compareChallenge(a, b, aProgress);
+        if (challenge != 0) return challenge;
+      }
       final idOrder = a.id.compareTo(b.id);
       if (idOrder != 0) return idOrder;
     }
@@ -559,6 +564,27 @@ class _GermanRankingContext {
     if (aLast == null && bLast != null) return -1;
     if (aLast != null && bLast == null) return 1;
     return a.competencyId.index.compareTo(b.competencyId.index);
+  }
+
+  int _compareChallenge(
+    GermanTask a,
+    GermanTask b,
+    GermanCompetencyProgress progress,
+  ) {
+    final aScore = GermanTaskChallenge.score(a);
+    final bScore = GermanTaskChallenge.score(b);
+    if (aScore == bScore) return 0;
+
+    final attention = progress.attention(now: now);
+    final prefersHigherChallenge =
+        progress.state == GermanCompetencyState.secure ||
+        (progress.state == GermanCompetencyState.learning &&
+            attention != GermanPracticeAttention.needsPractice &&
+            progress.recentAttempts >= 2 &&
+            progress.recentAccuracy >= 0.8);
+    return prefersHigherChallenge
+        ? bScore.compareTo(aScore)
+        : aScore.compareTo(bScore);
   }
 
   bool _taskFollowUpIsDue(GermanTask task) {
