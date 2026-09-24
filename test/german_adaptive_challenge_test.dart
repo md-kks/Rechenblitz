@@ -10,8 +10,9 @@ import 'package:rechenblitz/subjects/german/german_task_challenge.dart';
 GermanSessionResult _session({
   required DateTime at,
   required List<GermanTaskResult> results,
+  GradeLevel gradeLevel = GradeLevel.third,
 }) => GermanSessionResult(
-  gradeLevel: GradeLevel.third,
+  gradeLevel: gradeLevel,
   startedAt: at.subtract(const Duration(minutes: 4)),
   finishedAt: at,
   taskResults: results,
@@ -21,9 +22,10 @@ GermanTaskResult _result(
   String id, {
   bool correct = true,
   int incorrectAttempts = 0,
+  GermanCompetencyId competencyId = GermanCompetencyId.readingInference,
 }) => GermanTaskResult(
   taskId: id,
-  competencyId: GermanCompetencyId.readingInference,
+  competencyId: competencyId,
   correctFirstTry: correct,
   incorrectAttempts: incorrectAttempts,
   responseMs: 1400,
@@ -39,12 +41,8 @@ bool _isNonDecreasing(List<int> values) {
   return true;
 }
 
-bool _isNonIncreasing(List<int> values) {
-  for (var index = 1; index < values.length; index++) {
-    if (values[index] > values[index - 1]) return false;
-  }
-  return true;
-}
+int _totalChallenge(List<GermanTask> tasks) =>
+    _scores(tasks).fold<int>(0, (total, value) => total + value);
 
 void main() {
   test('challenge score reflects actual interaction workload', () {
@@ -118,7 +116,12 @@ void main() {
     expect(_isNonDecreasing(_scores(round)), isTrue);
   });
 
-  test('recent success in learning state raises challenge', () {
+  test('recent success raises selected challenge but keeps an upward ramp', () {
+    final baseline = GermanPracticePlanner.buildCompetencyRound(
+      gradeLevel: GradeLevel.third,
+      competencyId: GermanCompetencyId.readingInference,
+      history: const <GermanSessionResult>[],
+    );
     final history = <GermanSessionResult>[
       _session(
         at: DateTime(2026, 9, 20, 8),
@@ -137,7 +140,11 @@ void main() {
     );
 
     expect(round, hasLength(6));
-    expect(_isNonIncreasing(_scores(round)), isTrue);
+    expect(
+      _totalChallenge(round),
+      greaterThanOrEqualTo(_totalChallenge(baseline)),
+    );
+    expect(_isNonDecreasing(_scores(round)), isTrue);
   });
 
   test('proven weakness keeps challenge gentler', () {
@@ -160,7 +167,12 @@ void main() {
     expect(_isNonDecreasing(_scores(round)), isTrue);
   });
 
-  test('secure competency prefers higher challenge', () {
+  test('secure competency selects harder work but presents an upward ramp', () {
+    final baseline = GermanPracticePlanner.buildCompetencyRound(
+      gradeLevel: GradeLevel.third,
+      competencyId: GermanCompetencyId.readingInference,
+      history: const <GermanSessionResult>[],
+    );
     final history = <GermanSessionResult>[
       _session(
         at: DateTime(2026, 9, 18, 8),
@@ -183,7 +195,57 @@ void main() {
     );
 
     expect(round, hasLength(6));
-    expect(_isNonIncreasing(_scores(round)), isTrue);
+    expect(
+      _totalChallenge(round),
+      greaterThanOrEqualTo(_totalChallenge(baseline)),
+    );
+    expect(_isNonDecreasing(_scores(round)), isTrue);
+  });
+
+  test('secure grade-four revision practice ramps from easier to harder', () {
+    final history = <GermanSessionResult>[
+      _session(
+        at: DateTime(2026, 9, 18, 8),
+        gradeLevel: GradeLevel.fourth,
+        results: <GermanTaskResult>[
+          _result(
+            'revision-secure-a',
+            competencyId: GermanCompetencyId.textRevision,
+          ),
+        ],
+      ),
+      _session(
+        at: DateTime(2026, 9, 19, 8),
+        gradeLevel: GradeLevel.fourth,
+        results: <GermanTaskResult>[
+          _result(
+            'revision-secure-b',
+            competencyId: GermanCompetencyId.textRevision,
+          ),
+        ],
+      ),
+      _session(
+        at: DateTime(2026, 9, 20, 8),
+        gradeLevel: GradeLevel.fourth,
+        results: <GermanTaskResult>[
+          _result(
+            'revision-secure-c',
+            competencyId: GermanCompetencyId.textRevision,
+          ),
+        ],
+      ),
+    ];
+
+    final round = GermanPracticePlanner.buildCompetencyRound(
+      gradeLevel: GradeLevel.fourth,
+      competencyId: GermanCompetencyId.textRevision,
+      history: history,
+    );
+    final scores = _scores(round);
+
+    expect(round, hasLength(6));
+    expect(scores.toSet().length, greaterThan(1));
+    expect(_isNonDecreasing(scores), isTrue);
   });
 
   test('spaced failed task still outranks challenge preference', () {

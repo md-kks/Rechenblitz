@@ -199,18 +199,26 @@ class GermanPracticePlanner {
     final source = GermanTaskCatalog.forCompetency(
       competencyId,
     ).where((task) => task.recommendedFromGrade.index <= gradeLevel.index);
+    final rankingContext = _GermanRankingContext(
+      history: scopedHistory,
+      gradeLevel: gradeLevel,
+      now: now,
+      prioritizeIndependentReading: false,
+    );
     final ranked = _ranked(
       source,
       scopedHistory,
       gradeLevel: gradeLevel,
       now: now,
+      rankingContext: rankingContext,
     );
     if (ranked.isEmpty) return const <GermanTask>[];
-    return List<GermanTask>.generate(
+    final selected = List<GermanTask>.generate(
       taskCount,
       (index) => ranked[index % ranked.length],
       growable: false,
     );
+    return rankingContext.sequenceCompetencyRound(selected);
   }
 
   static List<GermanTask> buildGradeBridgeRound({
@@ -564,6 +572,42 @@ class _GermanRankingContext {
     if (aLast == null && bLast != null) return -1;
     if (aLast != null && bLast == null) return 1;
     return a.competencyId.index.compareTo(b.competencyId.index);
+  }
+
+  List<GermanTask> sequenceCompetencyRound(List<GermanTask> tasks) {
+    if (tasks.length < 2) return tasks;
+
+    final priority = <GermanTask>[];
+    final ramp = <GermanTask>[];
+    for (final task in tasks) {
+      final bridge = bridgeFor(task.competencyId);
+      final isBridgeTask =
+          bridge.isPending &&
+          bridge.bridgeTaskGrade != null &&
+          task.recommendedFromGrade == bridge.bridgeTaskGrade;
+      final isDueFollowUp =
+          _taskFollowUpPriority(task.id) <= 1 && _taskFollowUpIsDue(task);
+      (isBridgeTask || isDueFollowUp ? priority : ramp).add(task);
+    }
+
+    priority.sort(compare);
+    ramp.sort((a, b) {
+      final aDistance = gradeLevel.index - a.recommendedFromGrade.index;
+      final bDistance = gradeLevel.index - b.recommendedFromGrade.index;
+      if (aDistance != bDistance) return aDistance.compareTo(bDistance);
+
+      final evidence = GermanTaskEvidencePriority.rank(
+        a,
+      ).compareTo(GermanTaskEvidencePriority.rank(b));
+      if (evidence != 0) return evidence;
+
+      final challenge = GermanTaskChallenge.score(
+        a,
+      ).compareTo(GermanTaskChallenge.score(b));
+      if (challenge != 0) return challenge;
+      return a.id.compareTo(b.id);
+    });
+    return <GermanTask>[...priority, ...ramp];
   }
 
   int _compareChallenge(
