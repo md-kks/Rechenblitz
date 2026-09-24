@@ -105,7 +105,7 @@ class _GermanHomeScreenState extends State<GermanHomeScreen> {
     final history = await storage.loadHistory();
     var draft = await storage.loadRoundDraft();
     var introComplete = await storage.loadIntroComplete();
-    if (draft != null && !draft.isResumableFor(gradeLevel)) {
+    if (draft != null && !draft.isResumableFor(gradeLevel, now: widget.now())) {
       await storage.clearRoundDraft();
       draft = null;
     }

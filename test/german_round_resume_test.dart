@@ -348,12 +348,18 @@ void main() {
   ) async {
     final controller = AppController();
     await controller.load();
+    controller.gradeLevel = GradeLevel.second;
     final storage = GermanStorageService(profileId: controller.activeProfileId);
     final draft = draftForTwoTasks();
     await storage.saveRoundDraft(draft);
 
     await tester.pumpWidget(
-      MaterialApp(home: GermanHomeScreen(controller: controller)),
+      MaterialApp(
+        home: GermanHomeScreen(
+          controller: controller,
+          now: () => DateTime(2026, 9, 17, 10, 3),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
