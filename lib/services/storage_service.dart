@@ -42,6 +42,7 @@ class StorageService {
   static const _betaFeedbackKey = 'beta_feedback_v1';
 
   static const _profilesKey = 'learner_profiles_v1';
+  static const _profilesBackupKey = 'learner_profiles_backup_v1';
   static const _activeProfileKey = 'active_learner_profile_v1';
 
   static const _progressKeys = <String>[
@@ -71,17 +72,23 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_profilesKey);
 
-    if (raw != null) {
-      final profiles = _decodeProfiles(raw);
-      if (profiles.isNotEmpty) {
-        final requested = prefs.getString(_activeProfileKey);
-        final active = profiles.any((p) => p.id == requested)
-            ? requested!
-            : profiles.first.id;
-        _activeProfileId = active;
-        await prefs.setString(_activeProfileKey, active);
-        return profiles;
-      }
+    var profiles = raw == null ? <LearnerProfile>[] : _decodeProfiles(raw);
+    if (profiles.isEmpty) {
+      final backupRaw = prefs.getString(_profilesBackupKey);
+      if (backupRaw != null) profiles = _decodeProfiles(backupRaw);
+    }
+    if (profiles.isEmpty) {
+      profiles = _recoverProfilesFromScopedData(prefs);
+    }
+    if (profiles.isNotEmpty) {
+      final requested = prefs.getString(_activeProfileKey);
+      final active = profiles.any((p) => p.id == requested)
+          ? requested!
+          : profiles.first.id;
+      _activeProfileId = active;
+      await _persistProfileCatalog(prefs, profiles);
+      await prefs.setString(_activeProfileKey, active);
+      return profiles;
     }
 
     final hadLegacyData = [
@@ -107,10 +114,7 @@ class StorageService {
     );
 
     _activeProfileId = profile.id;
-    await prefs.setString(
-      _profilesKey,
-      jsonEncode([profile.toJson()]),
-    );
+    await _persistProfileCatalog(prefs, <LearnerProfile>[profile]);
     await prefs.setString(_activeProfileKey, profile.id);
     await prefs.setString(_profileKey(_gradeLevelKey), legacyGrade.name);
     await prefs.setString(_profileKey(_numberRangeKey), legacyRange.name);
@@ -133,10 +137,7 @@ class StorageService {
 
   Future<void> saveProfiles(List<LearnerProfile> profiles) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _profilesKey,
-      jsonEncode(profiles.map((profile) => profile.toJson()).toList()),
-    );
+    await _persistProfileCatalog(prefs, profiles);
   }
 
   Future<void> setActiveProfileId(String id) async {
@@ -648,6 +649,78 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     for (final key in _progressKeys) {
       await prefs.remove(_profileKey(key));
+    }
+  }
+
+  Future<void> _persistProfileCatalog(
+    SharedPreferences prefs,
+    List<LearnerProfile> profiles,
+  ) async {
+    final payload = jsonEncode(
+      profiles.map((profile) => profile.toJson()).toList(),
+    );
+    await prefs.setString(_profilesKey, payload);
+    await prefs.setString(_profilesBackupKey, payload);
+  }
+
+  List<LearnerProfile> _recoverProfilesFromScopedData(
+    SharedPreferences prefs,
+  ) {
+    const prefix = 'profile:';
+    final ids = <String>{};
+    for (final key in prefs.getKeys()) {
+      if (!key.startsWith(prefix)) continue;
+      final remainder = key.substring(prefix.length);
+      final separator = remainder.indexOf(':');
+      if (separator <= 0) continue;
+      final id = remainder.substring(0, separator);
+      if (RegExp(r'^[A-Za-z0-9_-]{1,80}$').hasMatch(id)) {
+        ids.add(id);
+      }
+    }
+    if (ids.isEmpty) return <LearnerProfile>[];
+
+    final requested = prefs.getString(_activeProfileKey);
+    final orderedIds = ids.toList()..sort();
+    if (requested != null && orderedIds.remove(requested)) {
+      orderedIds.insert(0, requested);
+    }
+
+    return <LearnerProfile>[
+      for (var index = 0; index < orderedIds.length; index++)
+        _recoveredProfile(prefs, orderedIds[index], index),
+    ];
+  }
+
+  LearnerProfile _recoveredProfile(
+    SharedPreferences prefs,
+    String id,
+    int index,
+  ) {
+    final grade = _parseGrade(
+          prefs.getString('profile:$id:$_gradeLevelKey'),
+        ) ??
+        GradeLevel.second;
+    final createdAt = _createdAtFromProfileId(id) ?? DateTime(2026, 1, 1);
+    return LearnerProfile(
+      id: id,
+      name: id == 'default'
+          ? 'Lernprofil'
+          : 'Wiederhergestelltes Profil ${index + 1}',
+      gradeLevel: grade,
+      createdAt: createdAt,
+      onboardingComplete: true,
+    );
+  }
+
+  DateTime? _createdAtFromProfileId(String id) {
+    if (!id.startsWith('p_')) return null;
+    final micros = int.tryParse(id.substring(2));
+    if (micros == null || micros <= 0) return null;
+    try {
+      return DateTime.fromMicrosecondsSinceEpoch(micros);
+    } catch (_) {
+      return null;
     }
   }
 
