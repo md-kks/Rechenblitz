@@ -138,6 +138,33 @@ void main() {
     );
   });
 
+  test('Packaging-CI räumt Release-Zwischenstände vor Debug auf', () {
+    final workflow =
+        File('.github/workflows/flutter.yml').readAsStringSync();
+
+    final releaseAabUpload = workflow.indexOf('name: Rechenblitz-Release-AAB');
+    final preDebugCleanup = workflow.indexOf(
+      'name: Free release build intermediates before debug package',
+    );
+    final debugBuild = workflow.indexOf('flutter build apk --debug');
+    final finalBuildCleanup = workflow.indexOf(
+      'name: Remove Android build intermediates',
+    );
+
+    expect(releaseAabUpload, greaterThanOrEqualTo(0));
+    expect(preDebugCleanup, greaterThan(releaseAabUpload));
+    expect(debugBuild, greaterThan(preDebugCleanup));
+    expect(finalBuildCleanup, greaterThan(debugBuild));
+    expect(
+      workflow.substring(preDebugCleanup, debugBuild),
+      contains('rm -rf build android/.gradle'),
+    );
+    expect(
+      workflow.substring(finalBuildCleanup),
+      contains('rm -rf build android/.gradle'),
+    );
+  });
+
   testWidgets('Datenschutzerklärung ist direkt in der App lesbar',
       (tester) async {
     await tester.pumpWidget(
