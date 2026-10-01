@@ -51,10 +51,7 @@ class HelpPreferences {
     return presentation == HelpPresentation.direct ? maximum : HelpLevel.nudge;
   }
 
-  HelpLevel? automaticStartLevel(HelpLevel requested) {
-    if (presentation == HelpPresentation.direct) return maxLevel;
-    return clamp(requested);
-  }
+  HelpLevel? automaticStartLevel(HelpLevel requested) => clamp(requested);
 
   HelpPreferences copyWith({
     HelpAccess? access,

@@ -12,6 +12,7 @@ import 'package:rechenblitz/screens/parent_screen.dart';
 import 'package:rechenblitz/screens/structured_training_screen.dart';
 import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
+import 'package:rechenblitz/widgets/learning_visual_aid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<AppController> _controller() async {
@@ -57,8 +58,13 @@ void main() {
     const disabled = HelpPreferences(access: HelpAccess.none);
 
     expect(allDirect.manualStartLevel, HelpLevel.guided);
-    expect(allDirect.automaticStartLevel(HelpLevel.nudge), HelpLevel.guided);
+    expect(allDirect.automaticStartLevel(HelpLevel.visual), HelpLevel.visual);
+    expect(allDirect.automaticStartLevel(HelpLevel.nudge), HelpLevel.nudge);
     expect(visualDirect.manualStartLevel, HelpLevel.visual);
+    expect(
+      visualDirect.automaticStartLevel(HelpLevel.guided),
+      HelpLevel.visual,
+    );
     expect(hintOnly.clamp(HelpLevel.guided), HelpLevel.nudge);
     expect(disabled.manualStartLevel, isNull);
   });
@@ -168,7 +174,7 @@ void main() {
     expect(find.byKey(const ValueKey('help-show-guided')), findsNothing);
   });
 
-  testWidgets('direkte volle Hilfe gilt auch für Meine-Runde-Scaffolding', (
+  testWidgets('direkte Hilfe überschreibt Meine-Runde-Fading nicht', (
     tester,
   ) async {
     final controller = await _controller();
@@ -179,7 +185,27 @@ void main() {
     await tester.pumpWidget(_structured(controller, scaffoldFading: true));
     await tester.pump();
 
-    expect(find.textContaining('Hilfe ·'), findsOneWidget);
+    expect(find.byType(LearningVisualAid), findsOneWidget);
+    expect(find.textContaining('Schritt 1 von'), findsNothing);
+  });
+
+  testWidgets('direkte Hilfe bleibt bei manueller Anforderung vollständig', (
+    tester,
+  ) async {
+    final controller = await _controller();
+    await controller.setHelpPreferences(
+      const HelpPreferences(presentation: HelpPresentation.direct),
+    );
+
+    await tester.pumpWidget(_structured(controller));
+    await tester.pump();
+
+    final helpButton = find.text('Ich brauche Hilfe');
+    expect(helpButton, findsOneWidget);
+    await tester.ensureVisible(helpButton);
+    await tester.tap(helpButton);
+    await tester.pump();
+
     expect(find.textContaining('Schritt 1 von'), findsOneWidget);
   });
 
@@ -268,6 +294,7 @@ void main() {
 
     expect(find.textContaining('Hilfe ·'), findsOneWidget);
     expect(find.text('Lückenweg'), findsOneWidget);
-    expect(find.textContaining('Schritt 1 von'), findsOneWidget);
+    expect(find.byType(LearningVisualAid), findsOneWidget);
+    expect(find.textContaining('Schritt 1 von'), findsNothing);
   });
 }
