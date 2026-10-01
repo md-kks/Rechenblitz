@@ -405,8 +405,9 @@ class _GermanRankingContext {
         final previousCompetency =
             _latestCompetencyPracticeAt[result.competencyId];
         if (previousCompetency == null ||
-            session.finishedAt.isAfter(previousCompetency)) {
+            !session.finishedAt.isBefore(previousCompetency)) {
           _latestCompetencyPracticeAt[result.competencyId] = session.finishedAt;
+          _latestCompetencyResult[result.competencyId] = result;
         }
         final previous = _lastPracticedTaskAt[result.taskId];
         if (previous == null || session.finishedAt.isAfter(previous)) {
@@ -433,6 +434,8 @@ class _GermanRankingContext {
       <String, GermanTaskResult>{};
   final Map<GermanCompetencyId, DateTime> _latestCompetencyPracticeAt =
       <GermanCompetencyId, DateTime>{};
+  final Map<GermanCompetencyId, GermanTaskResult> _latestCompetencyResult =
+      <GermanCompetencyId, GermanTaskResult>{};
 
   GermanCompetencyProgress progressFor(GermanCompetencyId competencyId) =>
       _progressByCompetency.putIfAbsent(
@@ -620,12 +623,19 @@ class _GermanRankingContext {
     if (aScore == bScore) return 0;
 
     final attention = progress.attention(now: now);
+    final latest = _latestCompetencyResult[a.competencyId];
+    final latestNeededSupport =
+        latest != null &&
+        (!latest.correctFirstTry ||
+            latest.incorrectAttempts > 0 ||
+            latest.usedReadAloud);
     final prefersHigherChallenge =
-        progress.state == GermanCompetencyState.secure ||
-        (progress.state == GermanCompetencyState.learning &&
-            attention != GermanPracticeAttention.needsPractice &&
-            progress.recentAttempts >= 2 &&
-            progress.recentAccuracy >= 0.8);
+        !latestNeededSupport &&
+        (progress.state == GermanCompetencyState.secure ||
+            (progress.state == GermanCompetencyState.learning &&
+                attention != GermanPracticeAttention.needsPractice &&
+                progress.recentAttempts >= 2 &&
+                progress.recentAccuracy >= 0.8));
     return prefersHigherChallenge
         ? bScore.compareTo(aScore)
         : aScore.compareTo(bScore);

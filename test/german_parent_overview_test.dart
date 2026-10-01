@@ -35,12 +35,15 @@ GermanSessionResult _session({
   ],
 );
 
+DateTime _referenceNow() => DateTime(2026, 9, 18, 12);
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
 
   test('parent overview separates strengths from practice needs', () {
     final overview = GermanParentOverview.analyze(
       gradeLevel: GradeLevel.second,
+      now: _referenceNow(),
       history: <GermanSessionResult>[
         _session(
           competency: GermanCompetencyId.nounArticle,
@@ -77,6 +80,7 @@ void main() {
   test('read-aloud reading practice stays out of secure strengths', () {
     final overview = GermanParentOverview.analyze(
       gradeLevel: GradeLevel.second,
+      now: _referenceNow(),
       history: <GermanSessionResult>[
         _session(
           competency: GermanCompetencyId.wordRecognition,
@@ -119,6 +123,7 @@ void main() {
 
     final overview = GermanParentOverview.analyze(
       gradeLevel: GradeLevel.second,
+      now: _referenceNow(),
       history: <GermanSessionResult>[session, session],
     );
 
@@ -185,6 +190,7 @@ void main() {
 
     final overview = GermanParentOverview.analyze(
       gradeLevel: GradeLevel.second,
+      now: _referenceNow(),
       history: history,
     );
     final progress = overview.progress.firstWhere(
@@ -209,6 +215,7 @@ void main() {
   test('parent overview tracks the latest Lerncheck separately', () {
     final overview = GermanParentOverview.analyze(
       gradeLevel: GradeLevel.second,
+      now: _referenceNow(),
       history: <GermanSessionResult>[
         _session(
           competency: GermanCompetencyId.wordRecognition,
@@ -244,7 +251,12 @@ void main() {
     ]);
 
     await tester.pumpWidget(
-      MaterialApp(home: GermanParentOverviewScreen(controller: controller)),
+      MaterialApp(
+        home: GermanParentOverviewScreen(
+          controller: controller,
+          now: _referenceNow,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -291,7 +303,12 @@ void main() {
     ]);
 
     await tester.pumpWidget(
-      MaterialApp(home: GermanParentOverviewScreen(controller: controller)),
+      MaterialApp(
+        home: GermanParentOverviewScreen(
+          controller: controller,
+          now: _referenceNow,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -415,7 +432,12 @@ void main() {
     ]);
 
     await tester.pumpWidget(
-      MaterialApp(home: GermanParentOverviewScreen(controller: controller)),
+      MaterialApp(
+        home: GermanParentOverviewScreen(
+          controller: controller,
+          now: _referenceNow,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 

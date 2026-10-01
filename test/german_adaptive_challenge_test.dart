@@ -22,6 +22,7 @@ GermanTaskResult _result(
   String id, {
   bool correct = true,
   int incorrectAttempts = 0,
+  bool usedReadAloud = false,
   GermanCompetencyId competencyId = GermanCompetencyId.readingInference,
 }) => GermanTaskResult(
   taskId: id,
@@ -29,6 +30,7 @@ GermanTaskResult _result(
   correctFirstTry: correct,
   incorrectAttempts: incorrectAttempts,
   responseMs: 1400,
+  usedReadAloud: usedReadAloud,
 );
 
 List<int> _scores(List<GermanTask> tasks) =>
@@ -247,6 +249,133 @@ void main() {
     expect(scores.toSet().length, greaterThan(1));
     expect(_isNonDecreasing(scores), isTrue);
   });
+
+  test(
+    'latest mistake temporarily lowers challenge despite secure history',
+    () {
+      final successHistory = <GermanSessionResult>[
+        for (var day = 16; day <= 20; day++)
+          _session(
+            at: DateTime(2026, 9, day, 8),
+            results: <GermanTaskResult>[_result('secure-success-$day')],
+          ),
+      ];
+      final struggleHistory = <GermanSessionResult>[
+        ...successHistory.take(4),
+        _session(
+          at: DateTime(2026, 9, 20, 8),
+          results: <GermanTaskResult>[
+            _result(
+              'secure-struggle-latest',
+              correct: false,
+              incorrectAttempts: 1,
+            ),
+          ],
+        ),
+      ];
+
+      final successRound = GermanPracticePlanner.buildCompetencyRound(
+        gradeLevel: GradeLevel.third,
+        competencyId: GermanCompetencyId.readingInference,
+        history: successHistory,
+      );
+      final struggleRound = GermanPracticePlanner.buildCompetencyRound(
+        gradeLevel: GradeLevel.third,
+        competencyId: GermanCompetencyId.readingInference,
+        history: struggleHistory,
+      );
+
+      expect(
+        _totalChallenge(struggleRound),
+        lessThan(_totalChallenge(successRound)),
+      );
+      expect(_isNonDecreasing(_scores(struggleRound)), isTrue);
+    },
+  );
+
+  test('latest read-aloud assistance temporarily lowers challenge', () {
+    final secureBase = <GermanSessionResult>[
+      for (var day = 17; day <= 19; day++)
+        _session(
+          at: DateTime(2026, 9, day, 8),
+          results: <GermanTaskResult>[_result('read-secure-$day')],
+        ),
+    ];
+    final assistedHistory = <GermanSessionResult>[
+      ...secureBase,
+      _session(
+        at: DateTime(2026, 9, 20, 8),
+        results: <GermanTaskResult>[
+          _result('read-assisted-latest', usedReadAloud: true),
+        ],
+      ),
+    ];
+    final independentHistory = <GermanSessionResult>[
+      ...secureBase,
+      _session(
+        at: DateTime(2026, 9, 20, 8),
+        results: <GermanTaskResult>[_result('read-independent-latest')],
+      ),
+    ];
+
+    final assistedRound = GermanPracticePlanner.buildCompetencyRound(
+      gradeLevel: GradeLevel.third,
+      competencyId: GermanCompetencyId.readingInference,
+      history: assistedHistory,
+    );
+    final independentRound = GermanPracticePlanner.buildCompetencyRound(
+      gradeLevel: GradeLevel.third,
+      competencyId: GermanCompetencyId.readingInference,
+      history: independentHistory,
+    );
+
+    expect(
+      _totalChallenge(assistedRound),
+      lessThan(_totalChallenge(independentRound)),
+    );
+    expect(_isNonDecreasing(_scores(assistedRound)), isTrue);
+  });
+
+  test(
+    'independent first-try success restores higher challenge after support',
+    () {
+      final history = <GermanSessionResult>[
+        for (var day = 16; day <= 18; day++)
+          _session(
+            at: DateTime(2026, 9, day, 8),
+            results: <GermanTaskResult>[_result('restore-secure-$day')],
+          ),
+        _session(
+          at: DateTime(2026, 9, 19, 8),
+          results: <GermanTaskResult>[
+            _result('restore-assisted', usedReadAloud: true),
+          ],
+        ),
+      ];
+      final assistedRound = GermanPracticePlanner.buildCompetencyRound(
+        gradeLevel: GradeLevel.third,
+        competencyId: GermanCompetencyId.readingInference,
+        history: history,
+      );
+      final restoredRound = GermanPracticePlanner.buildCompetencyRound(
+        gradeLevel: GradeLevel.third,
+        competencyId: GermanCompetencyId.readingInference,
+        history: <GermanSessionResult>[
+          ...history,
+          _session(
+            at: DateTime(2026, 9, 20, 8),
+            results: <GermanTaskResult>[_result('restore-independent')],
+          ),
+        ],
+      );
+
+      expect(
+        _totalChallenge(restoredRound),
+        greaterThan(_totalChallenge(assistedRound)),
+      );
+      expect(_isNonDecreasing(_scores(restoredRound)), isTrue);
+    },
+  );
 
   test('spaced failed task still outranks challenge preference', () {
     final actualTasks =
