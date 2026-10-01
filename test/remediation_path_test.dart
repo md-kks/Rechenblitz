@@ -3509,11 +3509,16 @@ void main() {
     expect(submit.onPressed, isNotNull);
     submit.onPressed!();
     submit.onPressed!();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
+
+    final secondTask = find.text('Aufgabe 2 von 8');
+    for (var attempt = 0;
+        attempt < 20 && secondTask.evaluate().isEmpty;
+        attempt++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
 
-    expect(find.text('Aufgabe 2 von 8'), findsOneWidget);
+    expect(secondTask, findsOneWidget);
     expect(find.text('Aufgabe 3 von 8'), findsNothing);
     expect(scrollable.position.pixels, scrollable.position.minScrollExtent);
   });
