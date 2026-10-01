@@ -205,6 +205,8 @@ class TrainingAttemptReview {
     this.checkpointQuestion,
     this.checkpointFirstAnswer,
     this.checkpointCorrectAnswer,
+    this.checkpointWrongAttempts,
+    this.checkpointUsedHelp,
   });
 
   final int taskNumber;
@@ -217,11 +219,26 @@ class TrainingAttemptReview {
   final String? checkpointQuestion;
   final String? checkpointFirstAnswer;
   final String? checkpointCorrectAnswer;
+  final int? checkpointWrongAttempts;
+  final bool? checkpointUsedHelp;
 
   bool get hasCheckpointReview =>
       checkpointQuestion != null &&
       checkpointFirstAnswer != null &&
       checkpointCorrectAnswer != null;
+
+  bool get _hasNoCheckpointReview =>
+      checkpointQuestion == null &&
+      checkpointFirstAnswer == null &&
+      checkpointCorrectAnswer == null &&
+      checkpointWrongAttempts == null &&
+      checkpointUsedHelp == null;
+
+  bool get _hasSaneCheckpointReview =>
+      checkpointQuestion?.trim().isNotEmpty == true &&
+      checkpointFirstAnswer?.trim().isNotEmpty == true &&
+      checkpointCorrectAnswer?.trim().isNotEmpty == true &&
+      (checkpointWrongAttempts == null || checkpointWrongAttempts! > 0);
 
   bool get hasSaneState =>
       taskNumber > 0 &&
@@ -232,12 +249,7 @@ class TrainingAttemptReview {
       (wrongAnswerAttempts == null ||
           (wrongAnswerAttempts! >= 0 &&
               (wrongAnswerAttempts == 0 || firstAnswer != null))) &&
-      ((checkpointQuestion == null &&
-              checkpointFirstAnswer == null &&
-              checkpointCorrectAnswer == null) ||
-          (checkpointQuestion?.trim().isNotEmpty == true &&
-              checkpointFirstAnswer?.trim().isNotEmpty == true &&
-              checkpointCorrectAnswer?.trim().isNotEmpty == true));
+      (_hasNoCheckpointReview || _hasSaneCheckpointReview);
 
   Map<String, dynamic> toJson() => {
         'taskNumber': taskNumber,
@@ -254,6 +266,10 @@ class TrainingAttemptReview {
           'checkpointFirstAnswer': checkpointFirstAnswer,
         if (checkpointCorrectAnswer != null)
           'checkpointCorrectAnswer': checkpointCorrectAnswer,
+        if (checkpointWrongAttempts != null)
+          'checkpointWrongAttempts': checkpointWrongAttempts,
+        if (checkpointUsedHelp != null)
+          'checkpointUsedHelp': checkpointUsedHelp,
       };
 
   static TrainingAttemptReview? tryFromJson(Map<String, dynamic> json) {
@@ -269,6 +285,8 @@ class TrainingAttemptReview {
         checkpointQuestion: json['checkpointQuestion'] as String?,
         checkpointFirstAnswer: json['checkpointFirstAnswer'] as String?,
         checkpointCorrectAnswer: json['checkpointCorrectAnswer'] as String?,
+        checkpointWrongAttempts: json['checkpointWrongAttempts'] as int?,
+        checkpointUsedHelp: json['checkpointUsedHelp'] as bool?,
       );
       return review.hasSaneState ? review : null;
     } catch (_) {

@@ -16,6 +16,8 @@ List<TrainingAttemptReview> trainingAttemptReviews(
         checkpointQuestion: review.checkpointAttempt?.question,
         checkpointFirstAnswer: review.checkpointAttempt?.firstAnswer,
         checkpointCorrectAnswer: review.checkpointAttempt?.correctAnswer,
+        checkpointWrongAttempts: review.checkpointAttempt?.wrongAttempts,
+        checkpointUsedHelp: review.checkpointAttempt?.usedHelp,
       ),
     )
     .toList(growable: false);

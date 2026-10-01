@@ -135,17 +135,26 @@ class CheckpointAttemptReview {
     required this.question,
     required this.firstAnswer,
     required this.correctAnswer,
+    this.checkpointIndex,
+    this.wrongAttempts,
+    this.usedHelp,
   });
 
   final String question;
   final String firstAnswer;
   final String correctAnswer;
+  final int? checkpointIndex;
+  final int? wrongAttempts;
+  final bool? usedHelp;
 
   static CheckpointAttemptReview? tryFromChoices({
     required String? question,
     required List<String> choices,
     required int firstChoice,
     required int? correctChoice,
+    int? checkpointIndex,
+    int? wrongAttempts,
+    bool? usedHelp,
   }) {
     if (question == null ||
         question.trim().isEmpty ||
@@ -160,18 +169,47 @@ class CheckpointAttemptReview {
       question: question,
       firstAnswer: choices[firstChoice],
       correctAnswer: choices[correctChoice],
+      checkpointIndex: checkpointIndex,
+      wrongAttempts: wrongAttempts,
+      usedHelp: usedHelp,
     );
   }
 
   bool get hasSaneState =>
       question.trim().isNotEmpty &&
       firstAnswer.trim().isNotEmpty &&
-      correctAnswer.trim().isNotEmpty;
+      correctAnswer.trim().isNotEmpty &&
+      (checkpointIndex == null || checkpointIndex! >= 0) &&
+      (wrongAttempts == null || wrongAttempts! > 0);
+
+  bool isForCheckpoint({
+    required int index,
+    required String? question,
+  }) =>
+      checkpointIndex != null
+          ? checkpointIndex == index
+          : question != null && this.question == question;
+
+  CheckpointAttemptReview copyWith({
+    int? wrongAttempts,
+    bool? usedHelp,
+  }) =>
+      CheckpointAttemptReview(
+        question: question,
+        firstAnswer: firstAnswer,
+        correctAnswer: correctAnswer,
+        checkpointIndex: checkpointIndex,
+        wrongAttempts: wrongAttempts ?? this.wrongAttempts,
+        usedHelp: usedHelp ?? this.usedHelp,
+      );
 
   Map<String, dynamic> toJson() => {
         'question': question,
         'firstAnswer': firstAnswer,
         'correctAnswer': correctAnswer,
+        if (checkpointIndex != null) 'checkpointIndex': checkpointIndex,
+        if (wrongAttempts != null) 'wrongAttempts': wrongAttempts,
+        if (usedHelp != null) 'usedHelp': usedHelp,
       };
 
   factory CheckpointAttemptReview.fromJson(Map<String, dynamic> json) =>
@@ -179,6 +217,9 @@ class CheckpointAttemptReview {
         question: json['question'] as String,
         firstAnswer: json['firstAnswer'] as String,
         correctAnswer: json['correctAnswer'] as String,
+        checkpointIndex: json['checkpointIndex'] as int?,
+        wrongAttempts: json['wrongAttempts'] as int?,
+        usedHelp: json['usedHelp'] as bool?,
       );
 }
 

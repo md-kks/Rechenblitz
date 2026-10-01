@@ -133,6 +133,19 @@ Future<void> showRoundCompletionDialog(
                               Text(
                                 'Dein erster Versuch im Schritt: ${step.firstAnswer}',
                               ),
+                              if (step.wrongAttempts case final count?
+                                  when count > 0)
+                                Text(
+                                  count == 1
+                                      ? '1 Fehlversuch in diesem Schritt'
+                                      : '$count Fehlversuche in diesem Schritt',
+                                ),
+                              if (step.usedHelp case final helped?)
+                                Text(
+                                  helped
+                                      ? 'Schritt mit Hilfe gelöst'
+                                      : 'Schritt ohne Hilfe gelöst',
+                                ),
                               Text(
                                 'Richtig im Schritt: ${step.correctAnswer}',
                               ),

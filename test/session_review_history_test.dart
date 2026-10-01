@@ -43,6 +43,8 @@ const _review = TrainingAttemptReview(
   checkpointQuestion: 'Wie viel fehlt bis 10?',
   checkpointFirstAnswer: '3',
   checkpointCorrectAnswer: '2',
+  checkpointWrongAttempts: 2,
+  checkpointUsedHelp: true,
 );
 
 void main() {
@@ -64,6 +66,8 @@ void main() {
       expect(restored.attemptReviews!.single.usedHelp, isTrue);
       expect(restored.attemptReviews!.single.checkpointFirstAnswer, '3');
       expect(restored.attemptReviews!.single.checkpointCorrectAnswer, '2');
+      expect(restored.attemptReviews!.single.checkpointWrongAttempts, 2);
+      expect(restored.attemptReviews!.single.checkpointUsedHelp, isTrue);
 
       raw.remove('attemptReviews');
       expect(TrainingSessionResult.fromJson(raw).attemptReviews, isNull);
@@ -78,6 +82,14 @@ void main() {
         'taskKey': '',
         'prompt': '',
         'correctAnswer': '',
+      },
+      <String, dynamic>{
+        'taskNumber': 4,
+        'taskKey': 'plus:4:5',
+        'prompt': '4 + 5 = ?',
+        'correctAnswer': '9',
+        'checkpointWrongAttempts': 2,
+        'checkpointUsedHelp': true,
       },
     ];
 
@@ -181,6 +193,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Erster Versuch im Schritt: 3'), findsOneWidget);
+    expect(find.text('2 Fehlversuche in diesem Schritt'), findsOneWidget);
+    expect(find.text('Schritt mit Hilfe gelöst'), findsOneWidget);
     expect(find.text('Richtig im Schritt: 2'), findsOneWidget);
   });
 

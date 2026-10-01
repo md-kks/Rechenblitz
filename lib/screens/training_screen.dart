@@ -590,12 +590,6 @@ class _TrainingScreenState extends State<TrainingScreen>
 
     if (!correct) {
       hadCheckpointError = true;
-      firstCheckpointAttempt ??= CheckpointAttemptReview.tryFromChoices(
-        question: step.question,
-        choices: step.choices,
-        firstChoice: choice,
-        correctChoice: step.correctChoice,
-      );
       final attempts = (checkpointWrongAttempts[index] ?? 0) + 1;
       checkpointWrongAttempts[index] = attempts;
       final retryHelp = _manualHelpLevel;
@@ -612,8 +606,43 @@ class _TrainingScreenState extends State<TrainingScreen>
           activeMethodKey ??= _guide.methodKey;
         }
       });
+      final checkpointUsedHelp = usedHelp || showHelp || helpLevel > 0;
+      final existingCheckpointReview = firstCheckpointAttempt;
+      if (existingCheckpointReview == null) {
+        firstCheckpointAttempt = CheckpointAttemptReview.tryFromChoices(
+          question: step.question,
+          choices: step.choices,
+          firstChoice: choice,
+          correctChoice: step.correctChoice,
+          checkpointIndex: index,
+          wrongAttempts: attempts,
+          usedHelp: checkpointUsedHelp,
+        );
+      } else if (existingCheckpointReview.isForCheckpoint(
+        index: index,
+        question: step.question,
+      )) {
+        firstCheckpointAttempt = existingCheckpointReview.copyWith(
+          wrongAttempts: attempts,
+          usedHelp:
+              existingCheckpointReview.usedHelp == true || checkpointUsedHelp,
+        );
+      }
       await _persistSession();
       return;
+    }
+
+    final existingCheckpointReview = firstCheckpointAttempt;
+    if (existingCheckpointReview != null &&
+        existingCheckpointReview.isForCheckpoint(
+          index: index,
+          question: step.question,
+        )) {
+      firstCheckpointAttempt = existingCheckpointReview.copyWith(
+        wrongAttempts:
+            checkpointWrongAttempts[index] ?? existingCheckpointReview.wrongAttempts,
+        usedHelp: existingCheckpointReview.usedHelp == true || usedHelp || showHelp || helpLevel > 0,
+      );
     }
 
     setState(() {
