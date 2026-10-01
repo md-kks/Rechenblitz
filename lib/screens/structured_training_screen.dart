@@ -436,12 +436,6 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
 
     if (!correct) {
       hadCheckpointError = true;
-      firstCheckpointAttempt ??= CheckpointAttemptReview.tryFromChoices(
-        question: checkpoint.question,
-        choices: checkpoint.choices,
-        firstChoice: choice,
-        correctChoice: checkpoint.correctChoice,
-      );
       final attempts = (checkpointWrongAttempts[index] ?? 0) + 1;
       checkpointWrongAttempts[index] = attempts;
       final retryHelp = _manualHelpLevel;
@@ -457,8 +451,43 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
           }
         }
       });
+      final checkpointUsedHelp = showHint || helpLevel > 0;
+      final existingCheckpointReview = firstCheckpointAttempt;
+      if (existingCheckpointReview == null) {
+        firstCheckpointAttempt = CheckpointAttemptReview.tryFromChoices(
+          question: checkpoint.question,
+          choices: checkpoint.choices,
+          firstChoice: choice,
+          correctChoice: checkpoint.correctChoice,
+          checkpointIndex: index,
+          wrongAttempts: attempts,
+          usedHelp: checkpointUsedHelp,
+        );
+      } else if (existingCheckpointReview.isForCheckpoint(
+        index: index,
+        question: checkpoint.question,
+      )) {
+        firstCheckpointAttempt = existingCheckpointReview.copyWith(
+          wrongAttempts: attempts,
+          usedHelp:
+              existingCheckpointReview.usedHelp == true || checkpointUsedHelp,
+        );
+      }
       await _persistSession();
       return;
+    }
+
+    final existingCheckpointReview = firstCheckpointAttempt;
+    if (existingCheckpointReview != null &&
+        existingCheckpointReview.isForCheckpoint(
+          index: index,
+          question: checkpoint.question,
+        )) {
+      firstCheckpointAttempt = existingCheckpointReview.copyWith(
+        wrongAttempts:
+            checkpointWrongAttempts[index] ?? existingCheckpointReview.wrongAttempts,
+        usedHelp: existingCheckpointReview.usedHelp == true || showHint || helpLevel > 0,
+      );
     }
 
     setState(() {

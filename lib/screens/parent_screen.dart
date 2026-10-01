@@ -1395,6 +1395,19 @@ class _RoundReviewEntry extends StatelessWidget {
                 Text(
                   'Erster Versuch im Schritt: ${review.checkpointFirstAnswer}',
                 ),
+                if (review.checkpointWrongAttempts case final count?
+                    when count > 0)
+                  Text(
+                    count == 1
+                        ? '1 Fehlversuch in diesem Schritt'
+                        : '$count Fehlversuche in diesem Schritt',
+                  ),
+                if (review.checkpointUsedHelp case final helped?)
+                  Text(
+                    helped
+                        ? 'Schritt mit Hilfe gelöst'
+                        : 'Schritt ohne Hilfe gelöst',
+                  ),
                 Text(
                   'Richtig im Schritt: ${review.checkpointCorrectAnswer}',
                 ),

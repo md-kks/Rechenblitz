@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
+import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/structured_exercise.dart';
@@ -11,6 +12,8 @@ import 'package:rechenblitz/screens/structured_training_screen.dart';
 import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:rechenblitz/widgets/number_answer_pad.dart';
+import 'package:rechenblitz/widgets/independent_step_card.dart';
+import 'package:rechenblitz/widgets/touch_answer_interaction.dart';
 import 'package:rechenblitz/widgets/round_completion_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -38,6 +41,9 @@ void main() {
         question: 'Wie viel fehlt bis 10?',
         firstAnswer: '3',
         correctAnswer: '2',
+        checkpointIndex: 0,
+        wrongAttempts: 2,
+        usedHelp: true,
       ),
       attemptReviews: const <RoundAttemptReview>[
         RoundAttemptReview(
@@ -53,6 +59,9 @@ void main() {
             question: 'Wie viel fehlt bis 10?',
             firstAnswer: '3',
             correctAnswer: '2',
+            checkpointIndex: 0,
+            wrongAttempts: 2,
+            usedHelp: true,
           ),
         ),
       ],
@@ -68,6 +77,9 @@ void main() {
     expect(restored.attemptReviews.single.wrongAnswerAttempts, 2);
     expect(restored.attemptReviews.single.usedHelp, isTrue);
     expect(restored.attemptReviews.single.checkpointAttempt?.firstAnswer, '3');
+    expect(restored.attemptReviews.single.checkpointAttempt?.checkpointIndex, 0);
+    expect(restored.attemptReviews.single.checkpointAttempt?.wrongAttempts, 2);
+    expect(restored.attemptReviews.single.checkpointAttempt?.usedHelp, isTrue);
     expect(
       restored.attemptReviews.single.checkpointAttempt?.correctAnswer,
       '2',
@@ -76,6 +88,8 @@ void main() {
     expect(restored.firstWrongAnswerLabel, 'Gruppen: 1, 0, 0 Punkte');
     expect(restored.firstCheckpointAttempt?.question, 'Wie viel fehlt bis 10?');
     expect(restored.firstCheckpointAttempt?.firstAnswer, '3');
+    expect(restored.firstCheckpointAttempt?.wrongAttempts, 2);
+    expect(restored.firstCheckpointAttempt?.usedHelp, isTrue);
     expect(restored.firstCheckpointAttempt?.correctAnswer, '2');
     expect(restored.hasSaneState(now: now), isTrue);
 
@@ -424,6 +438,120 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Zwischenschritt-Fehlerzahl und Hilfe überleben Neustart',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      await controller.setGradeLevel(GradeLevel.second);
+      await controller.setNumberRange(NumberRangeLevel.twenty);
+      final fact = MathFact(a: 8, b: 7, operation: MathOperation.plus);
+      controller.facts = <MathFact>[fact];
+      final steps = GuidedMethodFactory.independentArithmeticStepsForTask(
+        mode: TrainingMode.practice,
+        fact: fact,
+        preferences: controller.effectiveMethodPreferences,
+        targetCompetency: MicroCompetencyId.additionTenBridge,
+      );
+      expect(steps, isNotEmpty);
+      final first = steps.first;
+      final wrongChoice = first.correctChoice == 0 ? 1 : 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainingScreen(
+            controller: controller,
+            mode: TrainingMode.practice,
+            targetTasks: 1,
+            targetCompetency: MicroCompetencyId.additionTenBridge,
+            announceCompletion: false,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      for (var attempt = 0; attempt < 2; attempt++) {
+        await tester.tap(
+          find.widgetWithText(FilledButton, first.choices[wrongChoice]),
+        );
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 80));
+
+      final beforeRestart =
+          controller.coreTrainingSessionProgress?.firstCheckpointAttempt;
+      expect(beforeRestart?.checkpointIndex, 0);
+      expect(beforeRestart?.wrongAttempts, 2);
+      expect(beforeRestart?.usedHelp, isTrue);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+
+      final restarted = AppController();
+      await restarted.load();
+      restarted.facts = <MathFact>[fact];
+      final restored =
+          restarted.coreTrainingSessionProgress?.firstCheckpointAttempt;
+      expect(restored?.checkpointIndex, 0);
+      expect(restored?.wrongAttempts, 2);
+      expect(restored?.usedHelp, isTrue);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainingScreen(
+            controller: restarted,
+            mode: TrainingMode.practice,
+            targetTasks: 1,
+            targetCompetency: MicroCompetencyId.additionTenBridge,
+            announceCompletion: false,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(
+        find.widgetWithText(
+          FilledButton,
+          first.choices[first.correctChoice!],
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      while (find.byType(IndependentStepCard).evaluate().isNotEmpty) {
+        final card = tester.widget<IndependentStepCard>(
+          find.byType(IndependentStepCard),
+        );
+        final step = steps[card.index];
+        await tester.tap(
+          find.widgetWithText(
+            FilledButton,
+            step.choices[step.correctChoice!],
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 400));
+      }
+
+      final touch = find.byType(TouchAnswerInteraction);
+      if (touch.evaluate().isNotEmpty) {
+        tester.widget<TouchAnswerInteraction>(touch).onAnswer(15);
+      } else {
+        tester.widget<NumberAnswerPad>(find.byType(NumberAnswerPad)).onAnswer(15);
+      }
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 Fehlversuche in diesem Schritt'), findsOneWidget);
+      expect(find.text('Schritt mit Hilfe gelöst'), findsOneWidget);
+
+      final stored = restarted.history.single.attemptReviews;
+      expect(stored, isNotNull);
+      expect(stored, hasLength(1));
+      expect(stored!.single.checkpointWrongAttempts, 2);
+      expect(stored.single.checkpointUsedHelp, isTrue);
+    },
+  );
+
   testWidgets('strukturierte Aufgabe erscheint in der Rundenrückschau', (
     tester,
   ) async {
@@ -635,6 +763,13 @@ void main() {
         findsOneWidget,
       );
 
+      await tester.tap(find.widgetWithText(FilledButton, '3 + 3'));
+      await tester.pump();
+      expect(
+        find.text('Schau dir die Hilfe an und probier den Schritt noch einmal.'),
+        findsOneWidget,
+      );
+
       await tester.tap(find.widgetWithText(FilledButton, '5 + 3'));
       await tester.pump(const Duration(milliseconds: 400));
 
@@ -653,7 +788,15 @@ void main() {
         find.text('Dein erster Versuch im Schritt: 5 + 2'),
         findsOneWidget,
       );
+      expect(find.text('2 Fehlversuche in diesem Schritt'), findsOneWidget);
+      expect(find.text('Schritt mit Hilfe gelöst'), findsOneWidget);
       expect(find.text('Richtig im Schritt: 5 + 3'), findsOneWidget);
+
+      final stored = controller.history.single.attemptReviews;
+      expect(stored, isNotNull);
+      expect(stored, hasLength(1));
+      expect(stored!.single.checkpointWrongAttempts, 2);
+      expect(stored.single.checkpointUsedHelp, isTrue);
     },
   );
 

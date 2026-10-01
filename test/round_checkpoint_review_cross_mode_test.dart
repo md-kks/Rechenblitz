@@ -56,10 +56,16 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('2 Fehlversuche in diesem Schritt'), findsOneWidget);
+    expect(find.text('Schritt mit Hilfe gelöst'), findsOneWidget);
     expect(
       find.text('Richtig im Schritt: ${first.choices[first.correctChoice!]}'),
       findsOneWidget,
     );
+    final stored = controller.history.single.attemptReviews;
+    expect(stored, isNotNull);
+    expect(stored!.single.checkpointWrongAttempts, 2);
+    expect(stored.single.checkpointUsedHelp, isTrue);
   });
 
   testWidgets('Lehrplanmodus zeigt konkrete erste falsche Zwischenantwort', (
@@ -115,10 +121,16 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('2 Fehlversuche in diesem Schritt'), findsOneWidget);
+    expect(find.text('Schritt mit Hilfe gelöst'), findsOneWidget);
     expect(
       find.text('Richtig im Schritt: ${first.choices[first.correctChoice!]}'),
       findsOneWidget,
     );
+    final stored = controller.history.single.attemptReviews;
+    expect(stored, isNotNull);
+    expect(stored!.single.checkpointWrongAttempts, 2);
+    expect(stored.single.checkpointUsedHelp, isTrue);
   });
 }
 
@@ -134,6 +146,14 @@ Future<void> _failFirstCheckpointThenFinish(
     find.widgetWithText(FilledButton, first.choices[wrongChoice]),
   );
   await tester.pump();
+  await tester.tap(
+    find.widgetWithText(FilledButton, first.choices[wrongChoice]),
+  );
+  await tester.pump();
+  expect(
+    find.text('Schau dir die Hilfe an und probier den Schritt noch einmal.'),
+    findsOneWidget,
+  );
   await tester.tap(
     find.widgetWithText(FilledButton, first.choices[first.correctChoice!]),
   );
