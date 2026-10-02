@@ -113,8 +113,7 @@ void main() {
               chartLabels: task.bars?.map((b) => b.label).toList(),
               targetCompetency: definition.id,
             );
-            if (plan?.expectedAnswer != null &&
-                plan!.expectedAnswer != task.answer) {
+            if (plan != null && plan.expectedAnswer != task.answer) {
               failures.add(
                 '$owner: touch expected=${plan.expectedAnswer} task=${task.answer} ${task.key}',
               );
@@ -202,8 +201,7 @@ void main() {
               answerSuffix: task.answerSuffix,
               targetCompetency: definition.id,
             );
-            if (plan?.expectedAnswer != null &&
-                plan!.expectedAnswer != task.answer) {
+            if (plan != null && plan.expectedAnswer != task.answer) {
               failures.add(
                 '$owner: touch expected=${plan.expectedAnswer} task=${task.answer} ${task.key}',
               );

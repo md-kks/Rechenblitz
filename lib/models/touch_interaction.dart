@@ -941,6 +941,7 @@ class TouchInteractionPlan {
         instruction: 'Baue die Zahl aus Zehnern und Einern zusammen.',
         minValue: 0,
         maxValue: min(100, max(1, maxValue)),
+        expectedAnswer: answer,
       );
     }
 
@@ -976,6 +977,7 @@ class TouchInteractionPlan {
         maxValue: upper,
         denominations: denominations.isEmpty ? <int>[1] : denominations,
         unitLabel: centTask ? 'ct' : '€',
+        expectedAnswer: answer,
       );
     }
 
@@ -992,6 +994,7 @@ class TouchInteractionPlan {
         answerChoices: choices,
         clockHour: clockHour,
         clockMinute: clockMinute,
+        expectedAnswer: answer,
       );
     }
 
@@ -1991,6 +1994,7 @@ class TouchInteractionPlan {
         minValue: max(0, number - 3),
         maxValue: number + 3,
         startValue: number,
+        expectedAnswer: answer,
       );
     }
 
@@ -2146,6 +2150,7 @@ class TouchInteractionPlan {
         targetLabel: 'Fehlender Stein',
         wallValues: wallValues,
         hiddenWallIndex: hiddenWallIndex,
+        expectedAnswer: answer,
       );
     }
 
@@ -2159,6 +2164,7 @@ class TouchInteractionPlan {
         minValue: 0,
         maxValue: max(1, maxValue),
         startValue: start.clamp(0, max(1, maxValue)),
+        expectedAnswer: answer,
       );
     }
 
@@ -2176,6 +2182,7 @@ class TouchInteractionPlan {
         minValue: max(0, number - 3),
         maxValue: min(maxValue, number + 3),
         startValue: number,
+        expectedAnswer: answer,
       );
     }
 
@@ -2196,6 +2203,7 @@ class TouchInteractionPlan {
         minValue: 0,
         maxValue: max(1, maxValue),
         startValue: lastShown.clamp(0, max(1, maxValue)),
+        expectedAnswer: answer,
       );
     }
 
