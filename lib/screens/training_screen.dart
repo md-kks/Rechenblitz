@@ -151,6 +151,7 @@ class _TrainingScreenState extends State<TrainingScreen>
   PendingFactAttempt? pendingFactAttempt;
   bool resumedFromDraft = false;
   bool resumeResolvedTask = false;
+  bool currentTaskResolved = false;
   int helpLevel = 0;
   String? activeMethodKey;
   String feedback = '';
@@ -290,6 +291,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       responseTimer = ActiveResponseTimer(startedAt: now);
       resumedFromDraft = true;
       resumeResolvedTask = saved.taskResolved;
+      currentTaskResolved = saved.taskResolved;
       locked = resumeResolvedTask || pendingFactAttempt != null;
     } else {
       startedAt = now;
@@ -407,7 +409,7 @@ class _TrainingScreenState extends State<TrainingScreen>
         multiplyCorrect: multiplyCorrect,
         divideTotal: divideTotal,
         divideCorrect: divideCorrect,
-        taskResolved: taskResolvedOverride ?? false,
+        taskResolved: taskResolvedOverride ?? currentTaskResolved,
       );
 
   Future<void> _persistSession({
@@ -431,6 +433,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       return;
     }
     resumeResolvedTask = false;
+    currentTaskResolved = false;
     _showNextTask();
   }
 
@@ -757,6 +760,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       _countCompletedFact(firstTryCorrect: false);
       locked = true;
       setState(() => feedback = 'Weiter geht’s.');
+      currentTaskResolved = true;
       await _persistSession(
         taskResolvedOverride: true,
         clearPendingFactAttempt: true,
@@ -839,6 +843,7 @@ class _TrainingScreenState extends State<TrainingScreen>
     setState(() => feedback =
         ['Richtig!', 'Genau!', 'Stimmt!', 'Gut gerechnet!'][completed % 4]);
     final adaptiveDecision = _adaptiveSegmentDecision();
+    currentTaskResolved = true;
     await _persistSession(
       taskResolvedOverride: true,
       clearPendingFactAttempt: true,
@@ -964,6 +969,7 @@ class _TrainingScreenState extends State<TrainingScreen>
 
   void _showNextTask() {
     if (!mounted || finishing) return;
+    currentTaskResolved = false;
     setState(() {
       current = _next();
       responseTimer.reset();

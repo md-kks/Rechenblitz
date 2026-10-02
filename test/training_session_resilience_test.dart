@@ -7,6 +7,7 @@ import 'package:rechenblitz/models/training_session_progress.dart';
 import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/services/app_controller.dart';
 import 'package:rechenblitz/services/storage_service.dart';
+import 'package:rechenblitz/widgets/number_answer_pad.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _CaptureController extends AppController {
@@ -197,4 +198,46 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
+  testWidgets(
+    'Lifecycle-Persistenz behält gelöste Aufgabe bis zum Aufgabenwechsel',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.second;
+      controller.numberRange = NumberRangeLevel.ten;
+      controller.facts = <MathFact>[
+        MathFact(a: 2, b: 3, operation: MathOperation.plus),
+        MathFact(a: 4, b: 1, operation: MathOperation.plus),
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrainingScreen(
+            controller: controller,
+            mode: TrainingMode.practice,
+            targetTasks: 2,
+          ),
+        ),
+      );
+      await tester.pump();
+      final keypadSwitch = find.byKey(const ValueKey('touch-switch-keypad'));
+      if (keypadSwitch.evaluate().isNotEmpty) {
+        await tester.tap(keypadSwitch);
+        await tester.pump();
+      }
+      tester.widget<NumberAnswerPad>(find.byType(NumberAnswerPad)).onAnswer(5);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(controller.coreTrainingSessionProgress?.taskResolved, isTrue);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(controller.coreTrainingSessionProgress?.taskResolved, isTrue);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
+
+
 }
