@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/core/grade_level.dart';
 import 'package:rechenblitz/subjects/german/german_competency.dart';
+import 'package:rechenblitz/subjects/german/german_feedback_tip_catalog.dart';
 import 'package:rechenblitz/subjects/german/german_round_feedback.dart';
 import 'package:rechenblitz/subjects/german/german_session.dart';
 
@@ -119,6 +120,32 @@ void main() {
 
     expect(feedback.detail, contains('Texte gezielt überarbeiten'));
     expect(feedback.detail, isNot(contains('besonders gut')));
+  });
+
+  test('every German competency has a concise child-friendly feedback tip', () {
+    for (final competency in GermanCompetencyId.values) {
+      final tip = GermanFeedbackTipCatalog.forCompetency(competency);
+      expect(tip.trim(), isNotEmpty, reason: competency.name);
+      expect(tip.length, lessThanOrEqualTo(120), reason: competency.name);
+    }
+  });
+
+  test('next-step feedback includes a concrete strategy tip', () {
+    final result = _session(<GermanTaskResult>[
+      _task('read-a', GermanCompetencyId.wordRecognition, correct: true),
+      _task(
+        'write-a',
+        GermanCompetencyId.sentenceWriting,
+        correct: false,
+        incorrectAttempts: 2,
+      ),
+    ]);
+
+    final feedback = GermanRoundFeedback.forSession(result);
+
+    expect(feedback.detail, contains('Tipp:'));
+    expect(feedback.detail, contains('Wer tut was?'));
+    expect(feedback.spokenText, contains('Wer tut was?'));
   });
 
   test('same competency is not praised and targeted at the same time', () {

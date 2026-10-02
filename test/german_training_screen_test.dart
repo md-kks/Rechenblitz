@@ -606,6 +606,32 @@ void main() {
     expect(spoken, hasLength(2));
   });
 
+  testWidgets('completion feedback shows and speaks a concrete learning tip', (
+    tester,
+  ) async {
+    final task = GermanStarterTaskCatalog.tasks.firstWhere(
+      (task) => task.id == 'g2-noun-article-tree',
+    );
+    final spoken = <String>[];
+    await tester.pumpWidget(
+      _app(
+        task: task,
+        speak: (text) async => spoken.add(text),
+        speakCompletion: true,
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, 'die'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'der'));
+    await tester.pump();
+
+    expect(find.textContaining('Tipp:'), findsOneWidget);
+    expect(find.textContaining('der, die oder das'), findsOneWidget);
+    expect(spoken, hasLength(1));
+    expect(spoken.single, contains('der, die oder das'));
+  });
+
   testWidgets('completed German round returns its session result to caller', (
     tester,
   ) async {

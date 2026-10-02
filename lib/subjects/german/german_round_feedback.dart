@@ -1,5 +1,6 @@
 import 'german_competency.dart';
 import 'german_competency_catalog.dart';
+import 'german_feedback_tip_catalog.dart';
 import 'german_session.dart';
 
 class GermanRoundFeedback {
@@ -36,12 +37,15 @@ class GermanRoundFeedback {
     final nextStep = nextStepId == null
         ? null
         : GermanCompetencyCatalog.definition(nextStepId).label;
+    final nextStepTip = nextStepId == null
+        ? null
+        : GermanFeedbackTipCatalog.forCompetency(nextStepId);
     final strengthSentence = strength == null
         ? ''
         : ' In dieser Runde lief „$strength“ besonders gut.';
     final nextStepSentence = nextStep == null
         ? ''
-        : ' Als Nächstes üben wir „$nextStep“ weiter.';
+        : ' Als Nächstes üben wir „$nextStep“ weiter. Tipp: $nextStepTip';
 
     if (assisted > 0) {
       if (independentTotal == 0) {
