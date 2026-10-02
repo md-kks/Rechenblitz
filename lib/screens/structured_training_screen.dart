@@ -99,6 +99,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
   PendingFirstAttemptEvidence? pendingFirstAttemptEvidence;
   bool resumedFromDraft = false;
   bool resumeResolvedTask = false;
+  bool currentTaskResolved = false;
   bool showHint = false;
   bool useTouchInput = true;
   int helpLevel = 0;
@@ -191,6 +192,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
       responseTimer = ActiveResponseTimer(startedAt: now);
       resumedFromDraft = true;
       resumeResolvedTask = saved.taskResolved;
+      currentTaskResolved = saved.taskResolved;
       locked = resumeResolvedTask || pendingFirstAttemptEvidence != null;
     } else {
       startedAt = now;
@@ -272,7 +274,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
             clearPendingFirstAttempt ? null : pendingFirstAttemptEvidence,
         responseTimes: List<int>.from(responseTimes),
         attemptReviews: List<RoundAttemptReview>.from(attemptReviews),
-        taskResolved: taskResolvedOverride ?? false,
+        taskResolved: taskResolvedOverride ?? currentTaskResolved,
       );
 
   Future<void> _persistSession({
@@ -298,6 +300,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
       return;
     }
     resumeResolvedTask = false;
+    currentTaskResolved = false;
     setState(() {
       current = _next();
       responseTimer.reset();
@@ -714,6 +717,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
     final adaptiveDecision = _adaptiveSegmentDecision();
     pendingFirstAttemptEvidence = null;
     submitting = false;
+    currentTaskResolved = true;
     await _persistSession(
       taskResolvedOverride: true,
       clearPendingFirstAttempt: true,
@@ -730,6 +734,7 @@ class _StructuredTrainingScreenState extends State<StructuredTrainingScreen>
       await _finish();
       return;
     }
+    currentTaskResolved = false;
     setState(() {
       current = _next();
       responseTimer.reset();
