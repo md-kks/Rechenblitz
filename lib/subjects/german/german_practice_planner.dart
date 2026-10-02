@@ -4,6 +4,7 @@ import 'german_competency_catalog.dart';
 import 'german_grade_bridge.dart';
 import 'german_history_scope.dart';
 import 'german_learning_domain.dart';
+import 'german_mistake_focus.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
 import 'german_task_catalog.dart';
@@ -416,12 +417,17 @@ class _GermanRankingContext {
         }
       }
     }
+    mistakeFocus = GermanMistakeFocusAnalyzer.analyze(
+      history: this.history,
+      now: now,
+    );
   }
 
   final List<GermanSessionResult> history;
   final GradeLevel gradeLevel;
   final DateTime? now;
   final bool prioritizeIndependentReading;
+  late final GermanMistakeFocus mistakeFocus;
 
   final Map<GermanCompetencyId, GermanCompetencyProgress>
   _progressByCompetency = <GermanCompetencyId, GermanCompetencyProgress>{};
@@ -479,6 +485,7 @@ class _GermanRankingContext {
       return 1;
     }
 
+    if (mistakeFocus.priorityFor(task) > 0) return 2;
     if (attention == GermanPracticeAttention.reviewDue) return 2;
     return switch (competencyProgress.state) {
       GermanCompetencyState.newSkill => 3,
@@ -519,6 +526,12 @@ class _GermanRankingContext {
         return aCompetencyDistance.compareTo(bCompetencyDistance);
       }
       if (aBucket != bBucket) return aBucket.compareTo(bBucket);
+    }
+
+    final aMistakeFocus = mistakeFocus.priorityFor(a);
+    final bMistakeFocus = mistakeFocus.priorityFor(b);
+    if (aMistakeFocus != bMistakeFocus) {
+      return bMistakeFocus.compareTo(aMistakeFocus);
     }
 
     if (aProgress.state == GermanCompetencyState.learning &&
