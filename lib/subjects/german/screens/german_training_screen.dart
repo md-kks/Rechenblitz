@@ -10,6 +10,7 @@ import '../german_choice_presentation.dart';
 import '../german_competency.dart';
 import '../german_competency_catalog.dart';
 import '../german_learning_domain.dart';
+import '../german_mistake_kind.dart';
 import '../german_round_draft.dart';
 import '../german_round_feedback.dart';
 import '../german_session.dart';
@@ -66,6 +67,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
   late final ActiveResponseTimer _responseTimer;
   int _index = 0;
   int _incorrectAttempts = 0;
+  GermanMistakeKind? _firstMistakeKind;
   bool _completed = false;
   bool _usedReadAloudForCurrentTask = false;
   GermanSessionResult? _completedResult;
@@ -116,6 +118,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
       _startedAt = draft.startedAt;
       _index = draft.currentIndex;
       _incorrectAttempts = draft.incorrectAttempts;
+      _firstMistakeKind = draft.currentFirstMistakeKind;
       _usedReadAloudForCurrentTask = draft.currentReadAloudUsed;
       _results.addAll(draft.completedResults);
       final currentTask = widget.tasks[_index];
@@ -177,6 +180,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
         updatedAt: now ?? widget.now(),
         completedResults: List<GermanTaskResult>.unmodifiable(_results),
         incorrectAttempts: _incorrectAttempts,
+        currentFirstMistakeKind: _firstMistakeKind,
         currentAnswer: _task.interaction == GermanTaskInteraction.typedText
             ? _answerController.text
             : '',
@@ -256,8 +260,10 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     if (_completed) return;
     _draftDebounce?.cancel();
     if (!correct) {
+      final mistakeKind = GermanAnswerFeedback.kindForIncorrect(_task, answer);
       setState(() {
         _incorrectAttempts += 1;
+        _firstMistakeKind ??= mistakeKind;
         _feedback = widget.supportEnabled
             ? GermanAnswerFeedback.forIncorrect(_task, answer)
             : GermanAnswerFeedback.retry;
@@ -275,6 +281,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
         incorrectAttempts: _incorrectAttempts,
         responseMs: _responseTimer.elapsed(at: now).inMilliseconds,
         usedReadAloud: _usedReadAloudForCurrentTask,
+        firstMistakeKind: _firstMistakeKind,
       ),
     );
 
@@ -303,6 +310,7 @@ class _GermanTrainingScreenState extends State<GermanTrainingScreen>
     setState(() {
       _index += 1;
       _incorrectAttempts = 0;
+      _firstMistakeKind = null;
       _usedReadAloudForCurrentTask = false;
       _feedback = null;
       _answerController.clear();

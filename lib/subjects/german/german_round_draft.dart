@@ -1,4 +1,5 @@
 import '../../core/grade_level.dart';
+import 'german_mistake_kind.dart';
 import 'german_session.dart';
 import 'german_task.dart';
 import 'german_task_catalog.dart';
@@ -12,6 +13,7 @@ class GermanRoundDraft {
     required this.updatedAt,
     required this.completedResults,
     this.incorrectAttempts = 0,
+    this.currentFirstMistakeKind,
     this.currentAnswer = '',
     this.currentOrderedWords = const <String>[],
     this.currentReadAloudUsed = false,
@@ -28,6 +30,7 @@ class GermanRoundDraft {
   final DateTime updatedAt;
   final List<GermanTaskResult> completedResults;
   final int incorrectAttempts;
+  final GermanMistakeKind? currentFirstMistakeKind;
   final String currentAnswer;
   final List<String> currentOrderedWords;
   final bool currentReadAloudUsed;
@@ -70,6 +73,8 @@ class GermanRoundDraft {
         .map((value) => value.toJson())
         .toList(),
     'incorrectAttempts': incorrectAttempts,
+    if (currentFirstMistakeKind != null)
+      'currentFirstMistakeKind': currentFirstMistakeKind!.name,
     'currentAnswer': currentAnswer,
     'currentOrderedWords': currentOrderedWords,
     'currentReadAloudUsed': currentReadAloudUsed,
@@ -97,6 +102,9 @@ class GermanRoundDraft {
           )
           .toList(growable: false),
       incorrectAttempts: (json['incorrectAttempts'] as num?)?.toInt() ?? 0,
+      currentFirstMistakeKind: _parseMistakeKind(
+        json['currentFirstMistakeKind'],
+      ),
       currentAnswer: json['currentAnswer'] as String? ?? '',
       currentOrderedWords: rawOrderedWords is List<dynamic>
           ? rawOrderedWords.whereType<String>().toList(growable: false)
@@ -105,6 +113,15 @@ class GermanRoundDraft {
       assignmentPayload: json['assignmentPayload'] as String?,
       sessionKind: _parseSessionKind(json['sessionKind']),
     );
+  }
+
+  static GermanMistakeKind? _parseMistakeKind(Object? raw) {
+    if (raw is String) {
+      for (final value in GermanMistakeKind.values) {
+        if (value.name == raw) return value;
+      }
+    }
+    return null;
   }
 
   static GermanSessionKind _parseSessionKind(Object? raw) {

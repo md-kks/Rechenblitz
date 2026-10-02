@@ -4,6 +4,7 @@ import '../../core/learning_subject.dart';
 import 'german_competency.dart';
 import 'german_competency_catalog.dart';
 import 'german_learning_domain.dart';
+import 'german_mistake_kind.dart';
 import 'german_session.dart';
 import 'german_teacher_assignment.dart';
 
@@ -66,6 +67,7 @@ class GermanTeacherAssignmentResult {
     int? independentCorrectFirstTry,
     this.readAloudAssistedTasks = 0,
     this.targetCompetency,
+    this.commonMistakeKind,
     this.competencyBreakdown = const <GermanAssignmentCompetencyResult>[],
   }) : independentCorrectFirstTry =
            independentCorrectFirstTry ?? correctFirstTry;
@@ -85,6 +87,29 @@ class GermanTeacherAssignmentResult {
     GermanLearningDomain.vocabulary,
     GermanLearningDomain.listening,
     GermanLearningDomain.writing,
+  ];
+  static const _mistakeCodes = <GermanMistakeKind>[
+    GermanMistakeKind.selectionMissing,
+    GermanMistakeKind.selectionExtra,
+    GermanMistakeKind.selectionSwap,
+    GermanMistakeKind.selectionMixed,
+    GermanMistakeKind.capitalization,
+    GermanMistakeKind.endingPunctuation,
+    GermanMistakeKind.punctuation,
+    GermanMistakeKind.capitalizationAndPunctuation,
+    GermanMistakeKind.wordOrder,
+    GermanMistakeKind.spelling,
+    GermanMistakeKind.missingWord,
+    GermanMistakeKind.extraWord,
+    GermanMistakeKind.wordRecognition,
+    GermanMistakeKind.letterSound,
+    GermanMistakeKind.listening,
+    GermanMistakeKind.alphabeticalOrder,
+    GermanMistakeKind.textSequence,
+    GermanMistakeKind.wordBuilding,
+    GermanMistakeKind.directSpeechPunctuation,
+    GermanMistakeKind.sentenceConnection,
+    GermanMistakeKind.textRevision,
   ];
   static const _competencyCodes = <GermanCompetencyId>[
     GermanCompetencyId.letterSoundMatch,
@@ -136,6 +161,7 @@ class GermanTeacherAssignmentResult {
   final int incorrectAttempts;
   final double averageResponseMs;
   final GermanCompetencyId? targetCompetency;
+  final GermanMistakeKind? commonMistakeKind;
   final List<GermanAssignmentCompetencyResult> competencyBreakdown;
 
   int get independentTasks => completedTasks - readAloudAssistedTasks;
@@ -146,6 +172,9 @@ class GermanTeacherAssignmentResult {
   String get targetLabel => targetCompetency == null
       ? domain.label
       : GermanCompetencyCatalog.definition(targetCompetency!).label;
+
+  String? get commonMistakeLabel => commonMistakeKind?.label;
+  String? get commonMistakeTip => commonMistakeKind?.tip;
 
   String get summary {
     final evidence = independentTasks == 0
@@ -173,6 +202,7 @@ class GermanTeacherAssignmentResult {
       'incorrectAttempts': incorrectAttempts,
       'averageResponseMs': averageResponseMs.round(),
       'target': targetCompetency?.name,
+      if (commonMistakeKind != null) 'commonMistake': commonMistakeKind!.name,
       if (competencyBreakdown.isNotEmpty)
         'breakdown': competencyBreakdown
             .map((entry) => entry.toJson())
@@ -196,6 +226,8 @@ class GermanTeacherAssignmentResult {
       'm': averageResponseMs.round(),
       if (targetCompetency != null)
         't': _codeFor(_competencyCodes, targetCompetency!),
+      if (commonMistakeKind != null)
+        'e': _codeFor(_mistakeCodes, commonMistakeKind!),
       if (competencyBreakdown.isNotEmpty)
         'b': competencyBreakdown
             .map(
@@ -251,6 +283,21 @@ class GermanTeacherAssignmentResult {
             (a, b) => a.competencyId.index.compareTo(b.competencyId.index),
           );
 
+    final mistakeCounts = <GermanMistakeKind, int>{};
+    for (final taskResult in session.taskResults) {
+      final kind = taskResult.firstMistakeKind;
+      if (kind == null) continue;
+      mistakeCounts[kind] = (mistakeCounts[kind] ?? 0) + 1;
+    }
+    GermanMistakeKind? commonMistakeKind;
+    var commonMistakeCount = 0;
+    for (final entry in mistakeCounts.entries) {
+      if (entry.value > commonMistakeCount) {
+        commonMistakeKind = entry.key;
+        commonMistakeCount = entry.value;
+      }
+    }
+
     return GermanTeacherAssignmentResult(
       assignmentId: assignment.assignmentId,
       gradeLevel: assignment.gradeLevel,
@@ -263,6 +310,7 @@ class GermanTeacherAssignmentResult {
       incorrectAttempts: session.incorrectAttempts,
       averageResponseMs: session.averageResponseMs,
       targetCompetency: assignment.targetCompetency,
+      commonMistakeKind: commonMistakeKind,
       competencyBreakdown: breakdown,
     );
   }
@@ -363,6 +411,13 @@ class GermanTeacherAssignmentResult {
             : data['target'] == null
             ? null
             : GermanCompetencyId.values.byName(data['target'] as String),
+        commonMistakeKind: compact
+            ? data['e'] == null
+                  ? null
+                  : _enumAt(_mistakeCodes, data['e'])
+            : data['commonMistake'] == null
+            ? null
+            : GermanMistakeKind.values.byName(data['commonMistake'] as String),
         competencyBreakdown:
             List<GermanAssignmentCompetencyResult>.unmodifiable(breakdown),
       );

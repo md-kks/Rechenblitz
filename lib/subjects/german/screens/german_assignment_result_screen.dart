@@ -94,6 +94,13 @@ class GermanAssignmentResultScreen extends StatelessWidget {
                       _Metric(label: 'Ø Antwort', value: seconds),
                     ],
                   ),
+                  if (result.commonMistakeKind != null) ...<Widget>[
+                    const SizedBox(height: 14),
+                    Text(
+                      'Häufigste Stolperstelle: ${result.commonMistakeLabel}. ${result.commonMistakeTip}',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   if (result.readAloudAssistedTasks > 0 &&
                       result.independentTasks == 0) ...<Widget>[
                     const SizedBox(height: 12),

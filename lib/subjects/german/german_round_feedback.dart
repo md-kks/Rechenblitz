@@ -1,6 +1,7 @@
 import 'german_competency.dart';
 import 'german_competency_catalog.dart';
 import 'german_feedback_tip_catalog.dart';
+import 'german_mistake_kind.dart';
 import 'german_session.dart';
 
 class GermanRoundFeedback {
@@ -39,7 +40,7 @@ class GermanRoundFeedback {
         : GermanCompetencyCatalog.definition(nextStepId).label;
     final nextStepTip = nextStepId == null
         ? null
-        : GermanFeedbackTipCatalog.forCompetency(nextStepId);
+        : _nextStepTip(result, nextStepId);
     final strengthSentence = strength == null
         ? ''
         : ' In dieser Runde lief „$strength“ besonders gut.';
@@ -127,6 +128,28 @@ class GermanRoundFeedback {
       spokenText:
           'Gut drangeblieben. Heute waren einige Aufgaben noch knifflig.$strengthSentence$nextStepSentence',
     );
+  }
+
+  static String _nextStepTip(
+    GermanSessionResult result,
+    GermanCompetencyId competencyId,
+  ) {
+    final counts = <GermanMistakeKind, int>{};
+    for (final task in result.taskResults) {
+      if (task.competencyId != competencyId) continue;
+      final kind = task.firstMistakeKind;
+      if (kind == null) continue;
+      counts[kind] = (counts[kind] ?? 0) + 1;
+    }
+    GermanMistakeKind? common;
+    var bestCount = 0;
+    for (final entry in counts.entries) {
+      if (entry.value > bestCount) {
+        common = entry.key;
+        bestCount = entry.value;
+      }
+    }
+    return common?.tip ?? GermanFeedbackTipCatalog.forCompetency(competencyId);
   }
 
   static GermanCompetencyId? _nextStepId(GermanSessionResult result) {

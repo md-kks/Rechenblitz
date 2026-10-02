@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../core/grade_level.dart';
 import 'german_competency.dart';
+import 'german_mistake_kind.dart';
 
 enum GermanSessionKind { practice, assessment, teacherAssignment }
 
@@ -13,6 +14,7 @@ class GermanTaskResult {
     required this.incorrectAttempts,
     required this.responseMs,
     this.usedReadAloud = false,
+    this.firstMistakeKind,
   });
 
   final String taskId;
@@ -21,6 +23,7 @@ class GermanTaskResult {
   final int incorrectAttempts;
   final int responseMs;
   final bool usedReadAloud;
+  final GermanMistakeKind? firstMistakeKind;
 
   bool get independentCorrectFirstTry => correctFirstTry && !usedReadAloud;
 
@@ -31,6 +34,7 @@ class GermanTaskResult {
     'incorrectAttempts': incorrectAttempts,
     'responseMs': responseMs,
     'usedReadAloud': usedReadAloud,
+    if (firstMistakeKind != null) 'firstMistakeKind': firstMistakeKind!.name,
   };
 
   factory GermanTaskResult.fromJson(Map<String, dynamic> json) =>
@@ -43,7 +47,17 @@ class GermanTaskResult {
         incorrectAttempts: (json['incorrectAttempts'] as num).toInt(),
         responseMs: (json['responseMs'] as num).toInt(),
         usedReadAloud: json['usedReadAloud'] as bool? ?? false,
+        firstMistakeKind: _parseMistakeKind(json['firstMistakeKind']),
       );
+
+  static GermanMistakeKind? _parseMistakeKind(Object? raw) {
+    if (raw is String) {
+      for (final value in GermanMistakeKind.values) {
+        if (value.name == raw) return value;
+      }
+    }
+    return null;
+  }
 }
 
 class GermanSessionResult {

@@ -1,4 +1,5 @@
 import 'german_competency.dart';
+import 'german_mistake_kind.dart';
 import 'german_task.dart';
 
 class GermanAnswerFeedback {
@@ -106,6 +107,102 @@ class GermanAnswerFeedback {
         'vollständig und richtig verwendet hast.';
   }
 
+  static GermanMistakeKind? kindForIncorrect(GermanTask task, String answer) {
+    if (task.acceptedAnswers.isEmpty) return null;
+    switch (task.interaction) {
+      case GermanTaskInteraction.singleChoice:
+        return task.competencyId == GermanCompetencyId.wordRecognition
+            ? GermanMistakeKind.wordRecognition
+            : null;
+      case GermanTaskInteraction.listeningChoice:
+        return task.competencyId == GermanCompetencyId.letterSoundMatch
+            ? GermanMistakeKind.letterSound
+            : GermanMistakeKind.listening;
+      case GermanTaskInteraction.tokenSelection:
+        final selected = answer
+            .split('·')
+            .map(_spaces)
+            .where((value) => value.isNotEmpty)
+            .map((value) => value.toLowerCase())
+            .toSet();
+        final expected = task.acceptedAnswers
+            .map(_spaces)
+            .map((value) => value.toLowerCase())
+            .toSet();
+        if (selected.isEmpty || selected == expected) return null;
+        final missing = expected.difference(selected).length;
+        final extra = selected.difference(expected).length;
+        if (missing > 0 && extra == 0) {
+          return GermanMistakeKind.selectionMissing;
+        }
+        if (missing == 0 && extra > 0) {
+          return GermanMistakeKind.selectionExtra;
+        }
+        if (missing == 1 && extra == 1) {
+          return GermanMistakeKind.selectionSwap;
+        }
+        return GermanMistakeKind.selectionMixed;
+      case GermanTaskInteraction.wordOrder:
+        if (task.requiresSpeech) return GermanMistakeKind.textSequence;
+        if (task.competencyId == GermanCompetencyId.alphabeticalOrder ||
+            task.competencyId == GermanCompetencyId.dictionarySkills) {
+          return GermanMistakeKind.alphabeticalOrder;
+        }
+        if (task.competencyId == GermanCompetencyId.textSequence) {
+          return GermanMistakeKind.textSequence;
+        }
+        return GermanMistakeKind.wordOrder;
+      case GermanTaskInteraction.wordBuilder:
+        return task.competencyId == GermanCompetencyId.directSpeechPunctuation
+            ? GermanMistakeKind.directSpeechPunctuation
+            : GermanMistakeKind.wordBuilding;
+      case GermanTaskInteraction.typedText:
+        break;
+    }
+
+    final given = _spaces(answer);
+    final expected = task.acceptedAnswers.map(_spaces).toList(growable: false);
+    if (expected.any((value) => given.toLowerCase() == value.toLowerCase())) {
+      return GermanMistakeKind.capitalization;
+    }
+    if (expected.any(
+      (value) =>
+          _withoutEnding(given).toLowerCase() ==
+          _withoutEnding(value).toLowerCase(),
+    )) {
+      return GermanMistakeKind.endingPunctuation;
+    }
+    final punctuationMatch = expected.where(
+      (value) =>
+          _withoutPunctuation(given).toLowerCase() ==
+          _withoutPunctuation(value).toLowerCase(),
+    );
+    if (punctuationMatch.isNotEmpty) {
+      final sameCase = punctuationMatch.any(
+        (value) => _withoutPunctuation(given) == _withoutPunctuation(value),
+      );
+      return sameCase
+          ? GermanMistakeKind.punctuation
+          : GermanMistakeKind.capitalizationAndPunctuation;
+    }
+
+    final givenWords = _words(given);
+    if (expected.any((value) => _sameWordBag(givenWords, _words(value)))) {
+      return GermanMistakeKind.wordOrder;
+    }
+    if (task.competencyId == GermanCompetencyId.sentenceWriting) {
+      final kind = _sentenceWritingMistakeKind(given, expected);
+      if (kind != null) return kind;
+    }
+    if (task.competencyId == GermanCompetencyId.sentenceConnections) {
+      return GermanMistakeKind.sentenceConnection;
+    }
+    if (task.competencyId == GermanCompetencyId.textRevision) {
+      return GermanMistakeKind.textRevision;
+    }
+    return null;
+  }
+
   static String? _tokenSelectionDiagnostic(GermanTask task, String answer) {
     final selected = answer
         .split('·')
@@ -171,6 +268,37 @@ class GermanAnswerFeedback {
     }
     return 'Prüfe jedes markierte Wort und überlege, ob noch etwas dazugehört '
         'oder eine Markierung zu viel ist.';
+  }
+
+  static GermanMistakeKind? _sentenceWritingMistakeKind(
+    String given,
+    List<String> expected,
+  ) {
+    final givenWords = _plainWords(given);
+    for (final value in expected) {
+      final expectedWords = _plainWords(value);
+      if (givenWords.length == expectedWords.length) {
+        final differences = <int>[];
+        for (var index = 0; index < givenWords.length; index++) {
+          if (givenWords[index] != expectedWords[index]) differences.add(index);
+        }
+        if (differences.length == 1) {
+          final index = differences.single;
+          if (_editDistance(givenWords[index], expectedWords[index]) <= 2) {
+            return GermanMistakeKind.spelling;
+          }
+        }
+      }
+      if (expectedWords.length == givenWords.length + 1 &&
+          _isSubsequence(givenWords, expectedWords)) {
+        return GermanMistakeKind.missingWord;
+      }
+      if (givenWords.length == expectedWords.length + 1 &&
+          _isSubsequence(expectedWords, givenWords)) {
+        return GermanMistakeKind.extraWord;
+      }
+    }
+    return null;
   }
 
   static String? _sentenceWritingDiagnostic(

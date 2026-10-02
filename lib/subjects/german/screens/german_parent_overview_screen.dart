@@ -142,6 +142,14 @@ class _GermanParentOverviewScreenState
                 : 'Aktuell zeigt sich keine geübte Kompetenz mit besonderem Übungsbedarf.',
           ),
         ),
+        if (overview.mistakePatterns.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 12),
+          _InsightSection(
+            title: 'Typische Stolperstellen',
+            icon: Icons.manage_search_rounded,
+            children: _mistakeLines(overview.mistakePatterns),
+          ),
+        ],
         if (overview.gradeBridges.isNotEmpty) ...<Widget>[
           const SizedBox(height: 12),
           _InsightSection(
@@ -242,6 +250,29 @@ class _GermanParentOverviewScreenState
     if (assisted > 0) parts.add('$assisted mit Vorlesen geübt');
     return parts.join(' · ');
   }
+
+  List<Widget> _mistakeLines(List<GermanMistakeSummary> entries) => entries
+      .map(
+        (entry) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsets.only(top: 3),
+                child: Icon(Icons.circle, size: 8),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${entry.label} · ${entry.count} ${entry.count == 1 ? 'Aufgabe' : 'Aufgaben'} · ${entry.tip}',
+                ),
+              ),
+            ],
+          ),
+        ),
+      )
+      .toList(growable: false);
 
   List<Widget> _gradeBridgeLines(
     List<GermanGradeBridgeStatus> entries,

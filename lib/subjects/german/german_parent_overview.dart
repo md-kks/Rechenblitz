@@ -4,6 +4,7 @@ import 'german_competency_catalog.dart';
 import 'german_grade_bridge.dart';
 import 'german_history_scope.dart';
 import 'german_learning_domain.dart';
+import 'german_mistake_kind.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
 
@@ -34,6 +35,16 @@ class GermanDomainProgressSummary {
       independentAttempts == 0 ? 0 : correctFirstTry / independentAttempts;
 }
 
+class GermanMistakeSummary {
+  const GermanMistakeSummary({required this.kind, required this.count});
+
+  final GermanMistakeKind kind;
+  final int count;
+
+  String get label => kind.label;
+  String get tip => kind.tip;
+}
+
 class GermanParentOverview {
   const GermanParentOverview({
     required this.gradeLevel,
@@ -45,6 +56,7 @@ class GermanParentOverview {
     required this.progress,
     required this.domains,
     required this.gradeBridges,
+    this.mistakePatterns = const <GermanMistakeSummary>[],
     this.assessmentCount = 0,
     this.latestAssessment,
     this.referenceNow,
@@ -59,6 +71,7 @@ class GermanParentOverview {
   final List<GermanCompetencyProgress> progress;
   final List<GermanDomainProgressSummary> domains;
   final List<GermanGradeBridgeStatus> gradeBridges;
+  final List<GermanMistakeSummary> mistakePatterns;
   final int assessmentCount;
   final GermanSessionResult? latestAssessment;
   final DateTime? referenceNow;
@@ -157,6 +170,25 @@ class GermanParentOverview {
         .where((session) => session.kind == GermanSessionKind.assessment)
         .toList(growable: false);
     assessments.sort((a, b) => b.finishedAt.compareTo(a.finishedAt));
+
+    final mistakeCounts = <GermanMistakeKind, int>{};
+    for (final session in currentGradeSessions) {
+      for (final task in session.taskResults) {
+        final kind = task.firstMistakeKind;
+        if (kind == null) continue;
+        mistakeCounts[kind] = (mistakeCounts[kind] ?? 0) + 1;
+      }
+    }
+    final mistakePatterns = mistakeCounts.entries
+        .map(
+          (entry) => GermanMistakeSummary(kind: entry.key, count: entry.value),
+        )
+        .toList();
+    mistakePatterns.sort((a, b) {
+      final count = b.count.compareTo(a.count);
+      if (count != 0) return count;
+      return a.kind.index.compareTo(b.kind.index);
+    });
 
     final definitions = GermanCompetencyCatalog.recommendedFor(gradeLevel);
     final progress = definitions
@@ -260,6 +292,7 @@ class GermanParentOverview {
       progress: progress,
       domains: domains,
       gradeBridges: gradeBridges,
+      mistakePatterns: mistakePatterns.take(3).toList(growable: false),
       assessmentCount: assessments.length,
       latestAssessment: assessments.isEmpty ? null : assessments.first,
       referenceNow: now,
