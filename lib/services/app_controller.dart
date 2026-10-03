@@ -1311,7 +1311,9 @@ class AppController extends ChangeNotifier {
     final now = DateTime.now();
 
     final status = reviewOnly && passed
-        ? RemediationStatus.stable
+        ? existing?.status == RemediationStatus.stable
+            ? RemediationStatus.stable
+            : RemediationStatus.improved
         : passed
             ? RemediationStatus.improved
             : RemediationStatus.recurring;
@@ -1328,8 +1330,11 @@ class AppController extends ChangeNotifier {
           : null,
       checkCorrect: checkCorrect,
       checkTotal: checkTotal,
-      stabilityCorrect:
-          status == RemediationStatus.stable ? 3 : 0,
+      stabilityCorrect: reviewOnly && passed
+          ? existing?.stabilityCorrect ?? 0
+          : status == RemediationStatus.stable
+              ? 3
+              : 0,
       targetCompetency: targetCompetency ?? existing?.targetCompetency,
     );
     _replaceRemediation(next);
