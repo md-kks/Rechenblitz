@@ -11,6 +11,7 @@ import '../german_assessment.dart';
 import '../german_competency_catalog.dart';
 import '../german_grade_bridge.dart';
 import '../german_learning_domain.dart';
+import '../german_learning_insight.dart';
 import '../german_parent_overview.dart';
 import '../german_progress.dart';
 import '../german_storage_service.dart';
@@ -79,6 +80,13 @@ class _GermanParentOverviewScreenState
     final percent = (overview.accuracy * 100).round();
     final accuracyText = overview.independentTasks == 0 ? '–' : '$percent %';
     final assistedTasks = overview.totalTasks - overview.independentTasks;
+    final activeInsights = overview.learningInsights
+        .where(
+          (entry) =>
+              entry.state != GermanLearningInsightState.independentlyConfirmed,
+        )
+        .take(5)
+        .toList(growable: false);
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 10, 18, 36),
       children: <Widget>[
@@ -119,6 +127,14 @@ class _GermanParentOverviewScreenState
             summary: GermanAssessmentSummary.fromSession(
               overview.latestAssessment!,
             ),
+          ),
+        ],
+        if (activeInsights.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 16),
+          _InsightSection(
+            title: 'Lernentwicklung',
+            icon: Icons.route_rounded,
+            children: _learningInsightLines(activeInsights),
           ),
         ],
         const SizedBox(height: 16),
@@ -250,6 +266,26 @@ class _GermanParentOverviewScreenState
     if (assisted > 0) parts.add('$assisted mit Vorlesen geübt');
     return parts.join(' · ');
   }
+
+  List<Widget> _learningInsightLines(Iterable<GermanLearningInsight> entries) =>
+      entries
+          .map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Padding(
+                    padding: EdgeInsets.only(top: 3),
+                    child: Icon(Icons.circle, size: 8),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('${entry.title}\n${entry.explanation}')),
+                ],
+              ),
+            ),
+          )
+          .toList(growable: false);
 
   List<Widget> _mistakeLines(List<GermanMistakeSummary> entries) => entries
       .map(

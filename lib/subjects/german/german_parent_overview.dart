@@ -4,6 +4,7 @@ import 'german_competency_catalog.dart';
 import 'german_grade_bridge.dart';
 import 'german_history_scope.dart';
 import 'german_learning_domain.dart';
+import 'german_learning_insight.dart';
 import 'german_mistake_kind.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
@@ -56,6 +57,7 @@ class GermanParentOverview {
     required this.progress,
     required this.domains,
     required this.gradeBridges,
+    this.learningInsights = const <GermanLearningInsight>[],
     this.mistakePatterns = const <GermanMistakeSummary>[],
     this.assessmentCount = 0,
     this.latestAssessment,
@@ -71,6 +73,7 @@ class GermanParentOverview {
   final List<GermanCompetencyProgress> progress;
   final List<GermanDomainProgressSummary> domains;
   final List<GermanGradeBridgeStatus> gradeBridges;
+  final List<GermanLearningInsight> learningInsights;
   final List<GermanMistakeSummary> mistakePatterns;
   final int assessmentCount;
   final GermanSessionResult? latestAssessment;
@@ -292,6 +295,11 @@ class GermanParentOverview {
       progress: progress,
       domains: domains,
       gradeBridges: gradeBridges,
+      learningInsights: GermanLearningInsightAnalyzer.analyze(
+        history: eligibleSessions,
+        progress: progress,
+        now: now,
+      ),
       mistakePatterns: mistakePatterns.take(3).toList(growable: false),
       assessmentCount: assessments.length,
       latestAssessment: assessments.isEmpty ? null : assessments.first,
