@@ -3904,6 +3904,8 @@ void main() {
       ErrorPattern.combinatorics: TrainingMode.combinatorics,
       ErrorPattern.proportionalReasoning: TrainingMode.proportionality,
       ErrorPattern.perimeterArea: TrainingMode.perimeterArea,
+      ErrorPattern.perimeterEdges: TrainingMode.perimeterArea,
+      ErrorPattern.areaStructure: TrainingMode.perimeterArea,
       ErrorPattern.spatialReasoning: TrainingMode.geometryBodies,
       ErrorPattern.symmetry: TrainingMode.symmetry,
       ErrorPattern.planScale: TrainingMode.plansAndOrientation,

@@ -4478,6 +4478,22 @@ class RemediationGenerator {
             range: range,
           ),
         ErrorPattern.perimeterArea => _perimeterArea(stage),
+        ErrorPattern.perimeterEdges => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.perimeterArea,
+            competency: MicroCompetencyId.perimeter,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.areaStructure => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.perimeterArea,
+            competency: MicroCompetencyId.area,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.spatialReasoning => _spatialRemediation(
             stage: stage,
             pattern: pattern,
@@ -4586,6 +4602,12 @@ class RemediationGenerator {
     },
     ErrorPattern.perimeterArea: {
       MicroCompetencyId.perimeter,
+      MicroCompetencyId.area,
+    },
+    ErrorPattern.perimeterEdges: {
+      MicroCompetencyId.perimeter,
+    },
+    ErrorPattern.areaStructure: {
       MicroCompetencyId.area,
     },
     ErrorPattern.spatialReasoning: {

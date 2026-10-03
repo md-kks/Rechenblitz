@@ -1112,6 +1112,12 @@ class MicroCompetencyCatalog {
                   : MicroCompetencyId.perimeter,
             ),
           ],
+        'perimeterEdges' => const [
+            MicroCompetencyTag(MicroCompetencyId.perimeter),
+          ],
+        'areaStructure' => const [
+            MicroCompetencyTag(MicroCompetencyId.area),
+          ],
         'numberRelations' => const [
             MicroCompetencyTag(MicroCompetencyId.numberRelations),
           ],
