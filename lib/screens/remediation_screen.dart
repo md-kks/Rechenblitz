@@ -216,7 +216,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
           usedHelp: _currentHelpLevel > 0,
           helpLevel: _currentHelpLevel,
           methodKey: _guide.methodKey,
-          source: MicroEvidenceSource.remediation,
+          source: answeredTask.stage.evidenceSource,
         );
       }
     } catch (_) {
