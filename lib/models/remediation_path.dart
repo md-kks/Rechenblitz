@@ -4388,6 +4388,14 @@ class RemediationGenerator {
             range: range,
           ),
         ErrorPattern.unitConversion => _unitConversion(stage, grade),
+        ErrorPattern.measurementCalculation => _targetedStructuredRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.measures,
+            competency: MicroCompetencyId.measurementCalculation,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.roundingPlace => _rounding(stage, range),
         ErrorPattern.mentalStrategy => _targetedCurriculumRemediation(
             stage: stage,
@@ -4509,8 +4517,10 @@ class RemediationGenerator {
       MicroCompetencyId.largeNumberOrder,
       MicroCompetencyId.numberWordReading,
     },
-    ErrorPattern.unitConversion: {
+    ErrorPattern.measurementCalculation: {
       MicroCompetencyId.measurementCalculation,
+    },
+    ErrorPattern.unitConversion: {
       MicroCompetencyId.unitConversion,
       MicroCompetencyId.secondsConversion,
     },

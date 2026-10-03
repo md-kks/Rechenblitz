@@ -25,6 +25,7 @@ enum ErrorPattern {
   moneyCalculation,
   clockReading,
   unitConversion,
+  measurementCalculation,
   geometryProperty,
   roundingPlace,
   mentalStrategy,
@@ -78,6 +79,7 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.moneyCalculation => 'Geld rechnen',
         ErrorPattern.clockReading => 'Uhrzeit lesen',
         ErrorPattern.unitConversion => 'Größen und Einheiten umwandeln',
+        ErrorPattern.measurementCalculation => 'Mit Größen rechnen',
         ErrorPattern.geometryProperty => 'Eigenschaften von Formen',
         ErrorPattern.roundingPlace => 'Rundungsstelle',
         ErrorPattern.mentalStrategy => 'Halbschriftlicher Rechenweg',
@@ -147,6 +149,8 @@ extension ErrorPatternX on ErrorPattern {
           'Stunden- und Minutenzeiger getrennt lesen und mit vollen/halben Stunden beginnen.',
         ErrorPattern.unitConversion =>
           'Einheitenleiter oder Größentabelle verwenden und die Umwandlungsbeziehung sichtbar notieren.',
+        ErrorPattern.measurementCalculation =>
+          'Zuerst prüfen, ob die Größen zusammengelegt oder voneinander abgezogen werden, und dann mit derselben Einheit rechnen.',
         ErrorPattern.geometryProperty =>
           'Formen anfassen/zeichnen und Seiten, Ecken oder Flächen direkt markieren.',
         ErrorPattern.roundingPlace =>
@@ -228,6 +232,8 @@ extension ErrorPatternX on ErrorPattern {
           'Lies zuerst nur den langen Minutenzeiger. Danach kommt die Stunde.',
         ErrorPattern.unitConversion =>
           'Welche Einheit ist gegeben und in welche Einheit soll umgewandelt werden?',
+        ErrorPattern.measurementCalculation =>
+          'Bleibt die Einheit gleich? Entscheide dann zuerst, welche Rechnung zur Situation passt.',
         ErrorPattern.geometryProperty =>
           'Markiere zuerst direkt an der Figur die Eigenschaft, nach der gefragt wird.',
         ErrorPattern.roundingPlace =>
@@ -431,7 +437,9 @@ class ErrorClassifier {
     if (taskKey.startsWith('story:')) return ErrorPattern.wordProblem;
     if (taskKey.startsWith('money:')) return ErrorPattern.moneyCalculation;
     if (taskKey.startsWith('clock:')) return ErrorPattern.clockReading;
-    if (taskKey.startsWith('measure:')) return ErrorPattern.unitConversion;
+    if (taskKey.startsWith('measure:')) {
+      return _measurePattern(taskKey, expected: expected, actual: actual);
+    }
     if (taskKey.startsWith('geometry:')) return ErrorPattern.geometryProperty;
 
     return switch (mode) {
@@ -730,6 +738,40 @@ class ErrorClassifier {
       return ErrorPattern.placeValue;
     }
     return ErrorPattern.writtenProcedure;
+  }
+
+  static ErrorPattern _measurePattern(
+    String key, {
+    required int expected,
+    required int actual,
+  }) {
+    final parts = key.split(':');
+    if (parts.length >= 5 && parts[1] == 'add') {
+      final a = int.tryParse(parts[parts.length - 2]);
+      final b = int.tryParse(parts.last);
+      if (a != null &&
+          b != null &&
+          actual != expected &&
+          a >= b &&
+          actual == a - b) {
+        return ErrorPattern.operationChoice;
+      }
+    }
+    if (parts.length >= 5 && parts[1] == 'subtract') {
+      final a = int.tryParse(parts[parts.length - 2]);
+      final b = int.tryParse(parts.last);
+      if (a != null &&
+          b != null &&
+          actual != expected &&
+          actual == a + b) {
+        return ErrorPattern.operationChoice;
+      }
+    }
+    if (parts.length >= 5 &&
+        (parts[1] == 'add' || parts[1] == 'subtract')) {
+      return ErrorPattern.measurementCalculation;
+    }
+    return ErrorPattern.unitConversion;
   }
 
   static ErrorPattern _writtenMultiplyPattern(

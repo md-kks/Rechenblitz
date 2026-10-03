@@ -1077,6 +1077,9 @@ class MicroCompetencyCatalog {
         'unitConversion' => const [
             MicroCompetencyTag(MicroCompetencyId.unitConversion),
           ],
+        'measurementCalculation' => const [
+            MicroCompetencyTag(MicroCompetencyId.measurementCalculation),
+          ],
         'roundingPlace' => const [
             MicroCompetencyTag(MicroCompetencyId.roundingPlace),
           ],
