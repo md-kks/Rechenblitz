@@ -4436,7 +4436,10 @@ class RemediationGenerator {
             grade: grade,
             range: range,
           ),
-        ErrorPattern.fractionPart => _fraction(stage),
+        ErrorPattern.fractionPart ||
+        ErrorPattern.fractionSinglePart ||
+        ErrorPattern.fractionPartCount =>
+          _fraction(stage, pattern),
         ErrorPattern.timeDuration => _timeDuration(stage),
         ErrorPattern.calendarDate => _targetedCurriculumRemediation(
             stage: stage,
@@ -4556,6 +4559,15 @@ class RemediationGenerator {
     ErrorPattern.arithmeticLaw: {
       MicroCompetencyId.arithmeticLaw,
       MicroCompetencyId.reasoningJustification,
+    },
+    ErrorPattern.fractionPart: {
+      MicroCompetencyId.fractionEqualParts,
+    },
+    ErrorPattern.fractionSinglePart: {
+      MicroCompetencyId.fractionEqualParts,
+    },
+    ErrorPattern.fractionPartCount: {
+      MicroCompetencyId.fractionEqualParts,
     },
     ErrorPattern.timeDuration: {
       MicroCompetencyId.timeDuration,
@@ -5097,7 +5109,7 @@ class RemediationGenerator {
     );
   }
 
-  RemediationTask _fraction(RemediationStage stage) {
+  RemediationTask _fraction(RemediationStage stage, ErrorPattern pattern) {
     final denominator = _random.nextBool() ? 2 : 4;
     final part = _between(2, 20);
     final whole = part * denominator;

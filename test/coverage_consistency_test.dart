@@ -153,6 +153,8 @@ void main() {
       ErrorPattern.arithmeticLaw: TrainingMode.arithmeticLaws,
       ErrorPattern.romanNumeral: TrainingMode.romanNumerals,
       ErrorPattern.fractionPart: TrainingMode.fractions,
+      ErrorPattern.fractionSinglePart: TrainingMode.fractions,
+      ErrorPattern.fractionPartCount: TrainingMode.fractions,
       ErrorPattern.timeDuration: TrainingMode.timeDurations,
       ErrorPattern.calendarDate: TrainingMode.timeDurations,
       ErrorPattern.dataReading: TrainingMode.dataCharts,
