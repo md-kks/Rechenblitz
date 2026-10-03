@@ -93,6 +93,7 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.unitConversion ||
       ErrorPattern.fractionPart ||
       ErrorPattern.timeDuration ||
+      ErrorPattern.calendarDate ||
       ErrorPattern.perimeterArea ||
       ErrorPattern.operationChoice ||
       ErrorPattern.divisionAsSubtraction ||

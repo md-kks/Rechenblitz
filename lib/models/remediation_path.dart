@@ -4438,6 +4438,14 @@ class RemediationGenerator {
           ),
         ErrorPattern.fractionPart => _fraction(stage),
         ErrorPattern.timeDuration => _timeDuration(stage),
+        ErrorPattern.calendarDate => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.timeDurations,
+            competency: MicroCompetencyId.calendarDate,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.dataReading => _dataRemediation(
             stage: stage,
             pattern: pattern,
@@ -4551,6 +4559,8 @@ class RemediationGenerator {
     },
     ErrorPattern.timeDuration: {
       MicroCompetencyId.timeDuration,
+    },
+    ErrorPattern.calendarDate: {
       MicroCompetencyId.calendarDate,
     },
     ErrorPattern.dataReading: {

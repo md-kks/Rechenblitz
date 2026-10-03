@@ -36,6 +36,7 @@ enum ErrorPattern {
   romanNumeral,
   fractionPart,
   timeDuration,
+  calendarDate,
   dataReading,
   probabilityReasoning,
   combinatorics,
@@ -90,6 +91,7 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.romanNumeral => 'Römische Zahl',
         ErrorPattern.fractionPart => 'Bruchteil einer Größe',
         ErrorPattern.timeDuration => 'Zeitspanne',
+        ErrorPattern.calendarDate => 'Datum und Kalender',
         ErrorPattern.dataReading => 'Daten und Diagramme lesen',
         ErrorPattern.probabilityReasoning => 'Wahrscheinlichkeit einschätzen',
         ErrorPattern.combinatorics => 'Möglichkeiten systematisch finden',
@@ -171,6 +173,8 @@ extension ErrorPatternX on ErrorPattern {
           'Die ganze Menge zuerst in gleich große Teile zerlegen und den gesuchten Anteil markieren.',
         ErrorPattern.timeDuration =>
           'Start- und Endzeit auf einer Zeitlinie markieren und die Dauer in Etappen berechnen.',
+        ErrorPattern.calendarDate =>
+          'Im Kalender vom Startdatum aus die Tage schrittweise weiterzählen und Monatsgrenzen beachten.',
         ErrorPattern.dataReading =>
           'Achsen, Legende und Einheit zuerst lesen; danach genau die benötigten Werte markieren.',
         ErrorPattern.probabilityReasoning =>
@@ -435,7 +439,9 @@ class ErrorClassifier {
       );
     }
     if (taskKey.startsWith('story:')) return ErrorPattern.wordProblem;
-    if (taskKey.startsWith('money:')) return ErrorPattern.moneyCalculation;
+    if (taskKey.startsWith('money:')) {
+      return _moneyPattern(taskKey, expected: expected, actual: actual);
+    }
     if (taskKey.startsWith('clock:')) return ErrorPattern.clockReading;
     if (taskKey.startsWith('measure:')) {
       return _measurePattern(taskKey, expected: expected, actual: actual);
@@ -472,7 +478,7 @@ class ErrorClassifier {
       TrainingMode.romanNumerals => ErrorPattern.romanNumeral,
       TrainingMode.fractions => ErrorPattern.fractionPart,
       TrainingMode.advancedMeasures => ErrorPattern.unitConversion,
-      TrainingMode.timeDurations => ErrorPattern.timeDuration,
+      TrainingMode.timeDurations => _timePattern(taskKey),
       TrainingMode.dataCharts => ErrorPattern.dataReading,
       TrainingMode.probability => ErrorPattern.probabilityReasoning,
       TrainingMode.combinatorics => ErrorPattern.combinatorics,
@@ -738,6 +744,54 @@ class ErrorClassifier {
       return ErrorPattern.placeValue;
     }
     return ErrorPattern.writtenProcedure;
+  }
+
+  static ErrorPattern _moneyPattern(
+    String key, {
+    required int expected,
+    required int actual,
+  }) {
+    final parts = key.split(':');
+    if (parts.length >= 4 &&
+        parts[1] == 'convert' &&
+        parts[2] == 'euro-cent') {
+      return ErrorPattern.unitConversion;
+    }
+    if (parts.length >= 5 &&
+        (parts[1] == 'add' || parts[1] == 'change')) {
+      final first = int.tryParse(parts[parts.length - 2]);
+      final second = int.tryParse(parts.last);
+      if (first != null && second != null && actual != expected) {
+        if (parts[1] == 'add' && first >= second && actual == first - second) {
+          return ErrorPattern.operationChoice;
+        }
+        if (parts[1] == 'change' && actual == first + second) {
+          return ErrorPattern.operationChoice;
+        }
+      }
+    }
+    if (parts.length >= 5 && parts[1] == 'missing') {
+      final total = int.tryParse(parts[parts.length - 2]);
+      final known = int.tryParse(parts.last);
+      if (total != null &&
+          known != null &&
+          actual != expected &&
+          actual == total + known) {
+        return ErrorPattern.operationChoice;
+      }
+    }
+    return ErrorPattern.moneyCalculation;
+  }
+
+  static ErrorPattern _timePattern(String key) {
+    if (key.startsWith('duration:weeks:') ||
+        key.startsWith('duration:days:')) {
+      return ErrorPattern.unitConversion;
+    }
+    if (key.startsWith('calendar:add:')) {
+      return ErrorPattern.calendarDate;
+    }
+    return ErrorPattern.timeDuration;
   }
 
   static ErrorPattern _measurePattern(
