@@ -1,6 +1,7 @@
 import 'german_competency.dart';
 import 'german_competency_catalog.dart';
 import 'german_mistake_focus.dart';
+import 'german_mistake_kind.dart';
 import 'german_progress.dart';
 import 'german_session.dart';
 
@@ -18,12 +19,16 @@ class GermanLearningInsight {
     required this.state,
     required this.title,
     required this.explanation,
+    required this.nextStep,
+    required this.adultSupport,
   });
 
   final GermanCompetencyId competencyId;
   final GermanLearningInsightState state;
   final String title;
   final String explanation;
+  final String nextStep;
+  final String adultSupport;
 }
 
 class GermanLearningInsightAnalyzer {
@@ -59,6 +64,9 @@ class GermanLearningInsightAnalyzer {
               title: 'Braucht noch Übung · $label',
               explanation:
                   'Bei mehreren unterschiedlichen Aufgaben zeigte sich dieselbe Stolperstelle. Wortblitz übt diesen Lernschritt deshalb gezielt und mit frischen Aufgaben.',
+              nextStep:
+                  'Als Nächstes: eine passende, stärker geführte Übung und danach eine neue selbstständige Aufgabe.',
+              adultSupport: 'Unterstützung: ${pattern.kind.tip}',
             ),
           );
         } else {
@@ -69,6 +77,10 @@ class GermanLearningInsightAnalyzer {
               title: 'Transfer wird geprüft · $label',
               explanation:
                   'Eine passende Übung gelang bereits selbstständig. Jetzt prüft Wortblitz, ob der Lernschritt auch in einer neuen Aufgabe sicher angewendet wird.',
+              nextStep:
+                  'Als Nächstes: eine neue Aufgabe, in der das Gelernte ohne direkte Vorgabe angewendet wird.',
+              adultSupport:
+                  'Unterstützung: Erst selbst versuchen lassen; nur bei Bedarf einen kurzen Denkhinweis geben.',
             ),
           );
         }
@@ -82,6 +94,10 @@ class GermanLearningInsightAnalyzer {
             title: 'Selbstständig bestätigt · $label',
             explanation:
                 'Mehrere unterschiedliche Aufgaben wurden über verschiedene Runden hinweg überwiegend selbstständig direkt richtig gelöst.',
+            nextStep:
+                'Als Nächstes: im normalen Übungsrhythmus wiederholen, damit das Gelernte erhalten bleibt.',
+            adultSupport:
+                'Unterstützung: Keine zusätzliche Hilfe nötig; selbstständiges Anwenden reicht.',
           ),
         );
       } else if (entry.attention(now: now) ==
@@ -93,6 +109,10 @@ class GermanLearningInsightAnalyzer {
             title: 'Braucht noch Übung · $label',
             explanation:
                 'Bei mindestens zwei unterschiedlichen Aufgaben gab es zuletzt selbstständige Fehlversuche. Wortblitz berücksichtigt das bei den nächsten Runden.',
+            nextStep:
+                'Als Nächstes: gezielte Wiederholung mit einer anderen Aufgabe desselben Lernschritts.',
+            adultSupport:
+                'Unterstützung: Nach dem Lösungsweg fragen und Zeit zum eigenen Verbessern geben.',
           ),
         );
       } else if (entry.needsMoreIndependentEvidence) {
@@ -103,6 +123,10 @@ class GermanLearningInsightAnalyzer {
             title: 'Wird gerade gefestigt · $label',
             explanation:
                 'Der Lernschritt wurde bereits geübt, teilweise mit Unterstützung. Für eine sichere Einschätzung sammelt Wortblitz weitere selbstständige Belege.',
+            nextStep:
+                'Als Nächstes: ähnliche Aufgaben erneut ohne Vorlesen oder andere Hilfe bearbeiten.',
+            adultSupport:
+                'Unterstützung: Hilfe erst anbieten, nachdem das Kind einen eigenen Versuch gemacht hat.',
           ),
         );
       } else {
@@ -113,6 +137,10 @@ class GermanLearningInsightAnalyzer {
             title: 'Einzelne Unsicherheit · $label',
             explanation:
                 'Es gibt noch nicht genug wiederholte Hinweise für einen besonderen Förderbedarf. Wortblitz beobachtet den Lernschritt in weiteren Aufgaben.',
+            nextStep:
+                'Als Nächstes: normal weiterüben und erst bei wiederholten Schwierigkeiten gezielt fördern.',
+            adultSupport:
+                'Unterstützung: Nicht vorsagen; ruhig einen weiteren eigenen Versuch ermöglichen.',
           ),
         );
       }

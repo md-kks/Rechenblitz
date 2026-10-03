@@ -23,6 +23,8 @@ void main() {
     );
     expect(insight.state, GermanLearningInsightState.tentative);
     expect(insight.title, startsWith('Einzelne Unsicherheit'));
+    expect(insight.nextStep, contains('normal weiterüben'));
+    expect(insight.adultSupport, contains('Nicht vorsagen'));
   });
 
   test('repeated distinct mistakes become a practice insight', () {
@@ -47,6 +49,8 @@ void main() {
       insight.explanation,
       contains('mehreren unterschiedlichen Aufgaben'),
     );
+    expect(insight.nextStep, contains('geführte Übung'));
+    expect(insight.adultSupport, startsWith('Unterstützung:'));
   });
 
   test('assisted evidence is described as consolidation', () {

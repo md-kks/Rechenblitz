@@ -267,25 +267,30 @@ class _GermanParentOverviewScreenState
     return parts.join(' · ');
   }
 
-  List<Widget> _learningInsightLines(Iterable<GermanLearningInsight> entries) =>
-      entries
-          .map(
-            (entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const Padding(
-                    padding: EdgeInsets.only(top: 3),
-                    child: Icon(Icons.circle, size: 8),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text('${entry.title}\n${entry.explanation}')),
-                ],
+  List<Widget> _learningInsightLines(
+    Iterable<GermanLearningInsight> entries,
+  ) => entries
+      .map(
+        (entry) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsets.only(top: 3),
+                child: Icon(Icons.circle, size: 8),
               ),
-            ),
-          )
-          .toList(growable: false);
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${entry.title}\n${entry.explanation}\n${entry.nextStep}\n${entry.adultSupport}',
+                ),
+              ),
+            ],
+          ),
+        ),
+      )
+      .toList(growable: false);
 
   List<Widget> _mistakeLines(List<GermanMistakeSummary> entries) => entries
       .map(
