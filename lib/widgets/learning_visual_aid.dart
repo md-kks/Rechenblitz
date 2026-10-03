@@ -92,6 +92,8 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.writtenProcedure ||
       ErrorPattern.unitConversion ||
       ErrorPattern.fractionPart ||
+      ErrorPattern.fractionSinglePart ||
+      ErrorPattern.fractionPartCount ||
       ErrorPattern.timeDuration ||
       ErrorPattern.calendarDate ||
       ErrorPattern.perimeterArea ||

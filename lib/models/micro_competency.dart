@@ -1093,6 +1093,12 @@ class MicroCompetencyCatalog {
         'fractionPart' => const [
             MicroCompetencyTag(MicroCompetencyId.fractionEqualParts),
           ],
+        'fractionSinglePart' => const [
+            MicroCompetencyTag(MicroCompetencyId.fractionEqualParts),
+          ],
+        'fractionPartCount' => const [
+            MicroCompetencyTag(MicroCompetencyId.fractionEqualParts),
+          ],
         'timeDuration' => const [
             MicroCompetencyTag(MicroCompetencyId.timeDuration),
           ],

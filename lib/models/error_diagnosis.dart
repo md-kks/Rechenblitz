@@ -35,6 +35,8 @@ enum ErrorPattern {
   arithmeticLaw,
   romanNumeral,
   fractionPart,
+  fractionSinglePart,
+  fractionPartCount,
   timeDuration,
   calendarDate,
   dataReading,
@@ -90,6 +92,8 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.arithmeticLaw => 'Rechenvorteil / Rechengesetz',
         ErrorPattern.romanNumeral => 'Römische Zahl',
         ErrorPattern.fractionPart => 'Bruchteil einer Größe',
+        ErrorPattern.fractionSinglePart => 'Größe eines Bruchteils',
+        ErrorPattern.fractionPartCount => 'Anzahl der Bruchteile',
         ErrorPattern.timeDuration => 'Zeitspanne',
         ErrorPattern.calendarDate => 'Datum und Kalender',
         ErrorPattern.dataReading => 'Daten und Diagramme lesen',
@@ -171,6 +175,10 @@ extension ErrorPatternX on ErrorPattern {
           'Römische Zeichen zunächst einzeln zuordnen und dann von links nach rechts zusammensetzen.',
         ErrorPattern.fractionPart =>
           'Die ganze Menge zuerst in gleich große Teile zerlegen und den gesuchten Anteil markieren.',
+        ErrorPattern.fractionSinglePart =>
+          'Zuerst nur einen gleich großen Teil bestimmen: Ganzes durch den Nenner teilen. Danach erst mehrere Teile zusammensetzen.',
+        ErrorPattern.fractionPartCount =>
+          'Zähler und Nenner getrennt lesen: Der Nenner bestimmt die gleich großen Teile, der Zähler sagt, wie viele davon genommen werden.',
         ErrorPattern.timeDuration =>
           'Start- und Endzeit auf einer Zeitlinie markieren und die Dauer in Etappen berechnen.',
         ErrorPattern.calendarDate =>
@@ -256,6 +264,10 @@ extension ErrorPatternX on ErrorPattern {
           'Lies die römische Zahl in Blöcken. Prüfe besonders IV, IX, XL und XC.',
         ErrorPattern.fractionPart =>
           'Wie viele gleich große Teile hat das Ganze? Bestimme zuerst die Größe eines Teils.',
+        ErrorPattern.fractionSinglePart =>
+          'Bestimme zuerst genau einen Teil: Teile das Ganze durch den Nenner.',
+        ErrorPattern.fractionPartCount =>
+          'Wie viele gleich große Teile werden gefragt? Schau dafür auf den Zähler.',
         ErrorPattern.timeDuration =>
           'Markiere Start und Ende und gehe zuerst bis zu einer gut erreichbaren Uhrzeit.',
         ErrorPattern.dataReading =>
@@ -476,7 +488,11 @@ class ErrorClassifier {
       TrainingMode.estimation => ErrorPattern.estimation,
       TrainingMode.arithmeticLaws => ErrorPattern.arithmeticLaw,
       TrainingMode.romanNumerals => ErrorPattern.romanNumeral,
-      TrainingMode.fractions => ErrorPattern.fractionPart,
+      TrainingMode.fractions => _fractionPattern(
+          taskKey,
+          expected: expected,
+          actual: actual,
+        ),
       TrainingMode.advancedMeasures => ErrorPattern.unitConversion,
       TrainingMode.timeDurations => _timePattern(taskKey),
       TrainingMode.dataCharts => ErrorPattern.dataReading,
@@ -781,6 +797,52 @@ class ErrorClassifier {
       }
     }
     return ErrorPattern.moneyCalculation;
+  }
+
+  static ErrorPattern _fractionPattern(
+    String key, {
+    required int expected,
+    required int actual,
+  }) {
+    final parts = key.split(':');
+    if (parts.length == 3 &&
+        (parts[1] == 'half' || parts[1] == 'quarter')) {
+      final whole = int.tryParse(parts[2]);
+      final denominator = parts[1] == 'half' ? 2 : 4;
+      if (whole != null && whole > 0 && actual != expected) {
+        if (actual == whole * denominator) {
+          return ErrorPattern.operationChoice;
+        }
+        if (actual == denominator) {
+          return ErrorPattern.fractionPartCount;
+        }
+      }
+      return ErrorPattern.fractionSinglePart;
+    }
+    if (parts.length == 5 && parts[1] == 'parts') {
+      final numerator = int.tryParse(parts[2]);
+      final denominator = int.tryParse(parts[3]);
+      final whole = int.tryParse(parts[4]);
+      if (numerator != null &&
+          denominator != null &&
+          whole != null &&
+          denominator > 0 &&
+          whole % denominator == 0 &&
+          actual != expected) {
+        final onePart = whole ~/ denominator;
+        if (numerator > 1 && actual == onePart) {
+          return ErrorPattern.fractionPartCount;
+        }
+        if (actual == whole * denominator || actual == whole * numerator) {
+          return ErrorPattern.operationChoice;
+        }
+        if (actual == denominator || actual == numerator) {
+          return ErrorPattern.fractionPartCount;
+        }
+      }
+      return ErrorPattern.fractionPart;
+    }
+    return ErrorPattern.fractionPart;
   }
 
   static ErrorPattern _timePattern(String key) {
