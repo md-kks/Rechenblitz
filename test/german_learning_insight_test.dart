@@ -70,6 +70,44 @@ void main() {
     expect(insight.state, GermanLearningInsightState.consolidating);
     expect(insight.explanation, contains('Unterstützung'));
   });
+
+  test('trend distinguishes improvement from renewed attention', () {
+    final improvingHistory = <GermanSessionResult>[];
+    for (var day = 0; day < 6; day++) {
+      improvingHistory.add(
+        _session(DateTime(2026, 9, 1 + day), <GermanTaskResult>[
+          _result('improve-$day', correct: day >= 3),
+        ]),
+      );
+    }
+    final improving =
+        GermanParentOverview.analyze(
+          gradeLevel: GradeLevel.third,
+          history: improvingHistory,
+          now: DateTime(2026, 9, 8),
+        ).learningInsights.firstWhere(
+          (entry) => entry.competencyId == GermanCompetencyId.sentenceWriting,
+        );
+    expect(improving.trend, GermanLearningTrend.improving);
+
+    final relapseHistory = <GermanSessionResult>[];
+    for (var day = 0; day < 6; day++) {
+      relapseHistory.add(
+        _session(DateTime(2026, 9, 1 + day), <GermanTaskResult>[
+          _result('relapse-$day', correct: day < 3),
+        ]),
+      );
+    }
+    final relapse =
+        GermanParentOverview.analyze(
+          gradeLevel: GradeLevel.third,
+          history: relapseHistory,
+          now: DateTime(2026, 9, 8),
+        ).learningInsights.firstWhere(
+          (entry) => entry.competencyId == GermanCompetencyId.sentenceWriting,
+        );
+    expect(relapse.trend, GermanLearningTrend.renewedAttention);
+  });
 }
 
 GermanSessionResult _session(DateTime at, List<GermanTaskResult> results) =>

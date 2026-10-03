@@ -283,7 +283,7 @@ class _GermanParentOverviewScreenState
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '${entry.title}\n${entry.explanation}\n${entry.nextStep}\n${entry.adultSupport}',
+                  '${entry.title}\n${entry.explanation}\n${entry.trendText}\n${entry.nextStep}\n${entry.adultSupport}',
                 ),
               ),
             ],
