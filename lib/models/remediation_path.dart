@@ -54,6 +54,7 @@ class RemediationProgress {
     this.checkTotal = 0,
     this.stabilityCorrect = 0,
     this.lastEvidenceId,
+    this.targetCompetency,
   });
 
   final ErrorPattern pattern;
@@ -67,6 +68,7 @@ class RemediationProgress {
   final int checkTotal;
   final int stabilityCorrect;
   final String? lastEvidenceId;
+  final MicroCompetencyId? targetCompetency;
 
   double get checkAccuracy =>
       checkTotal == 0 ? 0 : checkCorrect / checkTotal;
@@ -79,6 +81,7 @@ class RemediationProgress {
     int? checkTotal,
     int? stabilityCorrect,
     String? lastEvidenceId,
+    MicroCompetencyId? targetCompetency,
   }) =>
       RemediationProgress(
         pattern: pattern,
@@ -92,6 +95,7 @@ class RemediationProgress {
         checkTotal: checkTotal ?? this.checkTotal,
         stabilityCorrect: stabilityCorrect ?? this.stabilityCorrect,
         lastEvidenceId: lastEvidenceId ?? this.lastEvidenceId,
+        targetCompetency: targetCompetency ?? this.targetCompetency,
       );
 
   Map<String, dynamic> toJson() => {
@@ -106,6 +110,7 @@ class RemediationProgress {
         'checkTotal': checkTotal,
         'stabilityCorrect': stabilityCorrect,
         'lastEvidenceId': lastEvidenceId,
+        'targetCompetency': targetCompetency?.name,
       };
 
   factory RemediationProgress.fromJson(Map<String, dynamic> json) =>
@@ -124,6 +129,11 @@ class RemediationProgress {
         checkTotal: json['checkTotal'] as int? ?? 0,
         stabilityCorrect: json['stabilityCorrect'] as int? ?? 0,
         lastEvidenceId: json['lastEvidenceId'] as String?,
+        targetCompetency: json['targetCompetency'] == null
+            ? null
+            : MicroCompetencyId.values.byName(
+                json['targetCompetency'] as String,
+              ),
       );
 }
 
