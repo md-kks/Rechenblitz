@@ -12,6 +12,7 @@ class GermanMistakeFocusPattern {
     required this.latestAt,
     required this.evidenceTaskIds,
     required this.cleanEvidenceCount,
+    required this.guidedEvidenceCount,
   });
 
   final GermanMistakeKind kind;
@@ -20,9 +21,11 @@ class GermanMistakeFocusPattern {
   final DateTime latestAt;
   final Set<String> evidenceTaskIds;
   final int cleanEvidenceCount;
+  final int guidedEvidenceCount;
 
-  bool get needsGuidedPractice => cleanEvidenceCount == 0;
-  bool get needsIndependentConfirmation => cleanEvidenceCount > 0;
+  bool get needsGuidedPractice =>
+      cleanEvidenceCount == 0 && guidedEvidenceCount == 0;
+  bool get needsIndependentConfirmation => !needsGuidedPractice;
 }
 
 class GermanMistakeFocus {
@@ -62,7 +65,12 @@ class GermanMistakeFocus {
         if (_guidedInteraction(pattern.kind, task)) score += 120;
         if (task.competencyId != pattern.competencyId) score += 25;
       } else {
-        if (_independentInteraction(pattern.kind, task)) score += 45;
+        if (_independentInteraction(pattern.kind, task)) {
+          score += 45;
+          // Once structured practice has succeeded, prefer transfer into a
+          // related productive task over another copy of the original format.
+          if (task.competencyId != pattern.competencyId) score += 130;
+        }
         if (task.competencyId == pattern.competencyId) score += 25;
       }
       if (_preferredInteraction(pattern.kind, task)) score += 10;
@@ -91,7 +99,10 @@ class GermanMistakeFocus {
           task.interaction == GermanTaskInteraction.wordOrder,
         GermanMistakeKind.wordBuilding =>
           task.interaction == GermanTaskInteraction.wordBuilder,
-        GermanMistakeKind.listening => task.requiresSpeech,
+        GermanMistakeKind.listening =>
+          task.requiresSpeech &&
+              (task.interaction == GermanTaskInteraction.listeningChoice ||
+                  task.interaction == GermanTaskInteraction.tokenSelection),
         _ => _preferredInteraction(kind, task),
       };
 
@@ -104,6 +115,7 @@ class GermanMistakeFocus {
     GermanMistakeKind.punctuation ||
     GermanMistakeKind.capitalizationAndPunctuation ||
     GermanMistakeKind.endingPunctuation ||
+    GermanMistakeKind.directSpeechPunctuation ||
     GermanMistakeKind.missingWord ||
     GermanMistakeKind.extraWord ||
     GermanMistakeKind.sentenceConnection ||
@@ -115,7 +127,10 @@ class GermanMistakeFocus {
     GermanMistakeKind.wordBuilding =>
       task.interaction == GermanTaskInteraction.wordBuilder ||
           task.interaction == GermanTaskInteraction.typedText,
-    GermanMistakeKind.listening => task.requiresSpeech,
+    GermanMistakeKind.listening =>
+      task.requiresSpeech &&
+          (task.interaction == GermanTaskInteraction.wordOrder ||
+              task.interaction == GermanTaskInteraction.tokenSelection),
     _ => _preferredInteraction(kind, task),
   };
 
@@ -203,12 +218,18 @@ class GermanMistakeFocus {
           GermanCompetencyId.compoundWords,
           GermanCompetencyId.verbInflection,
           GermanCompetencyId.verbTenses,
+          GermanCompetencyId.sentenceWriting,
+          GermanCompetencyId.textRevision,
         },
         GermanMistakeKind.directSpeechPunctuation => <GermanCompetencyId>{
           GermanCompetencyId.directSpeechPunctuation,
+          GermanCompetencyId.sentenceWriting,
+          GermanCompetencyId.textRevision,
         },
         GermanMistakeKind.sentenceConnection => <GermanCompetencyId>{
           GermanCompetencyId.sentenceConnections,
+          GermanCompetencyId.sentenceWriting,
+          GermanCompetencyId.textRevision,
         },
         GermanMistakeKind.textRevision => <GermanCompetencyId>{
           GermanCompetencyId.textRevision,
@@ -285,14 +306,20 @@ class GermanMistakeFocusAnalyzer {
       // so memorising one answer cannot clear the focus by itself.
       final confirmationCutoff = latestAt.add(minimumConfirmationDelay);
       final cleanTaskIds = <String>{};
+      final guidedTaskIds = <String>{};
+      final related = GermanMistakeFocus._relatedCompetencies(entry.key.kind);
       for (final session in recent) {
         if (session.finishedAt.isBefore(confirmationCutoff)) continue;
         for (final result in session.taskResults) {
-          if (result.competencyId != entry.key.competency) continue;
-          if (result.independentCorrectFirstTry &&
+          final clean =
+              result.independentCorrectFirstTry &&
               result.incorrectAttempts == 0 &&
-              result.firstMistakeKind == null) {
+              result.firstMistakeKind == null;
+          if (!clean) continue;
+          if (result.competencyId == entry.key.competency) {
             cleanTaskIds.add(result.taskId);
+          } else if (related.contains(result.competencyId)) {
+            guidedTaskIds.add(result.taskId);
           }
         }
       }
@@ -306,6 +333,7 @@ class GermanMistakeFocusAnalyzer {
           latestAt: latestAt,
           evidenceTaskIds: Set<String>.unmodifiable(stat.taskIds),
           cleanEvidenceCount: cleanTaskIds.length,
+          guidedEvidenceCount: guidedTaskIds.length,
         ),
       );
     }

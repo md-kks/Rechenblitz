@@ -238,8 +238,8 @@ void main() {
       ...mistakes,
       _session(DateTime(2026, 10, 1, 10), <GermanTaskResult>[
         _result(
-          id: 'clean-writing-one',
-          competency: GermanCompetencyId.sentenceWriting,
+          id: 'clean-guided-nouns',
+          competency: GermanCompetencyId.nounArticle,
           correct: true,
         ),
       ]),
@@ -248,7 +248,8 @@ void main() {
       history: afterGuidedSuccess,
       now: DateTime(2026, 10, 2),
     );
-    expect(confirmation.patterns.single.cleanEvidenceCount, 1);
+    expect(confirmation.patterns.single.cleanEvidenceCount, 0);
+    expect(confirmation.patterns.single.guidedEvidenceCount, 1);
     expect(confirmation.patterns.single.needsIndependentConfirmation, isTrue);
     expect(
       confirmation.priorityFor(_sentenceWritingTask),
@@ -263,6 +264,208 @@ void main() {
       confirmationRound.first.competencyId,
       GermanCompetencyId.sentenceWriting,
     );
+  });
+
+  test('punctuation remediation progresses from marking to typed transfer', () {
+    final history = <GermanSessionResult>[
+      _session(DateTime(2026, 9, 29), <GermanTaskResult>[
+        _result(
+          id: 'p-a',
+          competency: GermanCompetencyId.sentencePunctuation,
+          mistake: GermanMistakeKind.punctuation,
+        ),
+      ]),
+      _session(DateTime(2026, 9, 30), <GermanTaskResult>[
+        _result(
+          id: 'p-b',
+          competency: GermanCompetencyId.sentencePunctuation,
+          mistake: GermanMistakeKind.punctuation,
+        ),
+      ]),
+    ];
+    const guided = GermanTask(
+      id: 'p-guided',
+      competencyId: GermanCompetencyId.sentencePunctuation,
+      recommendedFromGrade: GradeLevel.second,
+      instruction: 'Markiere.',
+      prompt: 'Satz',
+      interaction: GermanTaskInteraction.tokenSelection,
+      acceptedAnswers: <String>['.'],
+      choices: <String>['.', '?'],
+    );
+    const transfer = GermanTask(
+      id: 'p-transfer',
+      competencyId: GermanCompetencyId.sentenceWriting,
+      recommendedFromGrade: GradeLevel.third,
+      instruction: 'Schreibe.',
+      prompt: 'Satz',
+      interaction: GermanTaskInteraction.typedText,
+      acceptedAnswers: <String>['Ein Satz.'],
+    );
+    final first = GermanMistakeFocusAnalyzer.analyze(
+      history: history,
+      now: DateTime(2026, 10, 1),
+    );
+    expect(first.priorityFor(guided), greaterThan(first.priorityFor(transfer)));
+    final afterGuided = <GermanSessionResult>[
+      ...history,
+      _session(DateTime(2026, 10, 1), <GermanTaskResult>[
+        _result(
+          id: 'p-guided-clean',
+          competency: GermanCompetencyId.directSpeechPunctuation,
+          correct: true,
+        ),
+      ]),
+    ];
+    final second = GermanMistakeFocusAnalyzer.analyze(
+      history: afterGuided,
+      now: DateTime(2026, 10, 2),
+    );
+    expect(
+      second.priorityFor(transfer),
+      greaterThan(second.priorityFor(guided)),
+    );
+  });
+
+  test('word-order and word-building remediation transfer into production', () {
+    for (final scenario
+        in <
+          ({
+            GermanMistakeKind kind,
+            GermanCompetencyId source,
+            GermanCompetencyId guided,
+          })
+        >[
+          (
+            kind: GermanMistakeKind.wordOrder,
+            source: GermanCompetencyId.sentenceWordOrder,
+            guided: GermanCompetencyId.sentenceConnections,
+          ),
+          (
+            kind: GermanMistakeKind.wordBuilding,
+            source: GermanCompetencyId.wordBuilding,
+            guided: GermanCompetencyId.spellingStrategies,
+          ),
+        ]) {
+      final history = <GermanSessionResult>[
+        _session(DateTime(2026, 9, 29), <GermanTaskResult>[
+          _result(
+            id: 'a-${scenario.kind.name}',
+            competency: scenario.source,
+            mistake: scenario.kind,
+          ),
+        ]),
+        _session(DateTime(2026, 9, 30), <GermanTaskResult>[
+          _result(
+            id: 'b-${scenario.kind.name}',
+            competency: scenario.source,
+            mistake: scenario.kind,
+          ),
+        ]),
+        _session(DateTime(2026, 10, 1), <GermanTaskResult>[
+          _result(
+            id: 'guided-${scenario.kind.name}',
+            competency: scenario.guided,
+            correct: true,
+          ),
+        ]),
+      ];
+      const transfer = GermanTask(
+        id: 'productive-transfer',
+        competencyId: GermanCompetencyId.sentenceWriting,
+        recommendedFromGrade: GradeLevel.third,
+        instruction: 'Schreibe.',
+        prompt: 'Satz',
+        interaction: GermanTaskInteraction.typedText,
+        acceptedAnswers: <String>['Ein Satz.'],
+      );
+      final focus = GermanMistakeFocusAnalyzer.analyze(
+        history: history,
+        now: DateTime(2026, 10, 2),
+      );
+      expect(focus.patterns.single.needsIndependentConfirmation, isTrue);
+      expect(focus.priorityFor(transfer), greaterThan(0));
+    }
+  });
+
+  test('listening remediation never leaves auditory tasks', () {
+    final history = <GermanSessionResult>[
+      _session(DateTime(2026, 9, 29), <GermanTaskResult>[
+        _result(
+          id: 'listen-a',
+          competency: GermanCompetencyId.listeningComprehension,
+          mistake: GermanMistakeKind.listening,
+        ),
+      ]),
+      _session(DateTime(2026, 9, 30), <GermanTaskResult>[
+        _result(
+          id: 'listen-b',
+          competency: GermanCompetencyId.listeningComprehension,
+          mistake: GermanMistakeKind.listening,
+        ),
+      ]),
+    ];
+    const auditory = GermanTask(
+      id: 'listen-guided',
+      competencyId: GermanCompetencyId.listeningComprehension,
+      recommendedFromGrade: GradeLevel.first,
+      instruction: 'Höre.',
+      prompt: 'Audio',
+      interaction: GermanTaskInteraction.listeningChoice,
+      acceptedAnswers: <String>['A'],
+      choices: <String>['A', 'B'],
+      spokenText: 'Ein Hörtext.',
+    );
+    const visual = GermanTask(
+      id: 'listen-visual',
+      competencyId: GermanCompetencyId.listeningComprehension,
+      recommendedFromGrade: GradeLevel.first,
+      instruction: 'Lies.',
+      prompt: 'Text',
+      interaction: GermanTaskInteraction.singleChoice,
+      acceptedAnswers: <String>['A'],
+      choices: <String>['A', 'B'],
+    );
+    final focus = GermanMistakeFocusAnalyzer.analyze(
+      history: history,
+      now: DateTime(2026, 10, 1),
+    );
+    expect(focus.priorityFor(auditory), greaterThan(focus.priorityFor(visual)));
+    expect(focus.isGuidedPriority(auditory), isTrue);
+    expect(focus.isGuidedPriority(visual), isFalse);
+  });
+
+  test('assisted related success does not advance remediation stage', () {
+    final history = <GermanSessionResult>[
+      _session(DateTime(2026, 9, 29), <GermanTaskResult>[
+        _result(
+          id: 'assist-a',
+          competency: GermanCompetencyId.sentenceWriting,
+          mistake: GermanMistakeKind.capitalization,
+        ),
+      ]),
+      _session(DateTime(2026, 9, 30), <GermanTaskResult>[
+        _result(
+          id: 'assist-b',
+          competency: GermanCompetencyId.sentenceWriting,
+          mistake: GermanMistakeKind.capitalization,
+        ),
+      ]),
+      _session(DateTime(2026, 10, 1), <GermanTaskResult>[
+        _result(
+          id: 'assist-guided',
+          competency: GermanCompetencyId.nounArticle,
+          correct: true,
+          usedReadAloud: true,
+        ),
+      ]),
+    ];
+    final focus = GermanMistakeFocusAnalyzer.analyze(
+      history: history,
+      now: DateTime(2026, 10, 2),
+    );
+    expect(focus.patterns.single.guidedEvidenceCount, 0);
+    expect(focus.patterns.single.needsGuidedPractice, isTrue);
   });
 
   test('two clean follow-up results resolve an active mistake focus', () {

@@ -192,6 +192,61 @@ void main() {
     },
   );
 
+  test(
+    'persistent difficulty stays targeted without taking over thirty rounds',
+    () {
+      final writing =
+          GermanTaskCatalog.forCompetency(GermanCompetencyId.sentenceWriting)
+              .where((task) => task.recommendedFromGrade == GradeLevel.third)
+              .take(2)
+              .toList();
+      expect(writing.length, 2);
+      final history = <GermanSessionResult>[
+        _session(DateTime(2026, 9, 1), writing.map(_failed).toList()),
+      ];
+      final practicedCompetencies = <GermanCompetencyId>{};
+
+      for (var day = 0; day < 30; day++) {
+        final now = DateTime(2026, 9, 2).add(Duration(days: day));
+        final round = GermanPracticePlanner.buildDailyRound(
+          gradeLevel: GradeLevel.third,
+          history: history,
+          now: now,
+        );
+        expect(round, hasLength(12));
+        practicedCompetencies.addAll(round.map((task) => task.competencyId));
+        final results = <GermanTaskResult>[];
+        var failedWriting = false;
+        for (final task in round) {
+          if (!failedWriting &&
+              task.competencyId == GermanCompetencyId.sentenceWriting) {
+            results.add(_failed(task));
+            failedWriting = true;
+          } else {
+            results.add(_clean(task));
+          }
+        }
+        history.add(_session(now, results));
+        expect(
+          round
+              .where(
+                (task) =>
+                    task.competencyId == GermanCompetencyId.sentenceWriting,
+              )
+              .length,
+          lessThanOrEqualTo(3),
+        );
+      }
+
+      expect(practicedCompetencies.length, greaterThanOrEqualTo(8));
+      final focus = GermanMistakeFocusAnalyzer.analyze(
+        history: history,
+        now: DateTime(2026, 10, 2),
+      );
+      expect(focus.isEmpty, isFalse);
+    },
+  );
+
   test('assisted reading learner is asked for independent evidence', () {
     final readingTasks = GermanTaskCatalog.forCompetency(
       GermanCompetencyId.wordRecognition,
