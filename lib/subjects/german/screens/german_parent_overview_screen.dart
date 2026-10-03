@@ -267,30 +267,15 @@ class _GermanParentOverviewScreenState
     return parts.join(' · ');
   }
 
-  List<Widget> _learningInsightLines(
-    Iterable<GermanLearningInsight> entries,
-  ) => entries
-      .map(
-        (entry) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const Padding(
-                padding: EdgeInsets.only(top: 3),
-                child: Icon(Icons.circle, size: 8),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${entry.title}\n${entry.explanation}\n${entry.trendText}\n${entry.nextStep}\n${entry.adultSupport}',
-                ),
-              ),
-            ],
-          ),
-        ),
-      )
-      .toList(growable: false);
+  List<Widget> _learningInsightLines(Iterable<GermanLearningInsight> entries) =>
+      entries
+          .map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _LearningInsightCard(entry: entry),
+            ),
+          )
+          .toList(growable: false);
 
   List<Widget> _mistakeLines(List<GermanMistakeSummary> entries) => entries
       .map(
@@ -428,6 +413,104 @@ class _InsightSection extends StatelessWidget {
         ],
       ),
     ),
+  );
+}
+
+class _LearningInsightCard extends StatelessWidget {
+  const _LearningInsightCard({required this.entry});
+
+  final GermanLearningInsight entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      container: true,
+      label: entry.title,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Icon(_stateIcon(entry.state), size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      entry.title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(entry.explanation),
+              const SizedBox(height: 10),
+              _InsightDetail(
+                icon: _trendIcon(entry.trend),
+                text: entry.trendText,
+              ),
+              const SizedBox(height: 8),
+              _InsightDetail(
+                icon: Icons.arrow_forward_rounded,
+                text: entry.nextStep,
+              ),
+              const SizedBox(height: 8),
+              _InsightDetail(
+                icon: Icons.support_rounded,
+                text: entry.adultSupport,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static IconData _stateIcon(GermanLearningInsightState state) =>
+      switch (state) {
+        GermanLearningInsightState.tentative => Icons.visibility_outlined,
+        GermanLearningInsightState.needsPractice => Icons.school_outlined,
+        GermanLearningInsightState.consolidating => Icons.construction_outlined,
+        GermanLearningInsightState.transferCheck => Icons.sync_alt_rounded,
+        GermanLearningInsightState.independentlyConfirmed =>
+          Icons.check_circle_outline_rounded,
+      };
+
+  static IconData _trendIcon(GermanLearningTrend trend) => switch (trend) {
+    GermanLearningTrend.improving => Icons.trending_up_rounded,
+    GermanLearningTrend.steady => Icons.trending_flat_rounded,
+    GermanLearningTrend.renewedAttention => Icons.replay_rounded,
+    GermanLearningTrend.insufficientEvidence => Icons.more_horiz_rounded,
+  };
+}
+
+class _InsightDetail extends StatelessWidget {
+  const _InsightDetail({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Icon(icon, size: 18),
+      ),
+      const SizedBox(width: 8),
+      Expanded(child: Text(text)),
+    ],
   );
 }
 
