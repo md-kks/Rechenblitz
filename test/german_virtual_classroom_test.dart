@@ -37,12 +37,21 @@ void main() {
       (learner) => learner.profile == _Profile.recovering,
     );
     expect(recovering.every((learner) => learner.focusWasActive), isTrue);
+    expect(recovering.every((learner) => learner.firstFocusDay! < 12), isTrue);
+    expect(
+      recovering.every((learner) => learner.firstResolvedAfterFocusDay != null),
+      isTrue,
+    );
     expect(recovering.every((learner) => learner.finalFocusCount == 0), isTrue);
 
     final relapsing = learners.where(
       (learner) => learner.profile == _Profile.relapse,
     );
     expect(relapsing.every((learner) => learner.focusActivations >= 2), isTrue);
+    expect(
+      relapsing.every((learner) => learner.secondFocusDay != null),
+      isTrue,
+    );
   });
 }
 
@@ -68,6 +77,11 @@ class _VirtualLearner {
   final competencyCounts = <GermanCompetencyId, int>{};
   int roundsWithTwelveTasks = 0;
   int focusActivations = 0;
+  int? firstFocusDay;
+  int? firstResolvedAfterFocusDay;
+  int? secondFocusDay;
+  int maxConsecutiveFocusDays = 0;
+  int _currentFocusDays = 0;
   bool focusWasActive = false;
   bool _previousFocus = false;
 
@@ -109,8 +123,22 @@ class _VirtualLearner {
         history: history,
         now: now,
       ).isEmpty;
-      if (active && !_previousFocus) focusActivations++;
-      if (active) focusWasActive = true;
+      if (active && !_previousFocus) {
+        focusActivations++;
+        firstFocusDay ??= day;
+        if (focusActivations == 2) secondFocusDay = day;
+      }
+      if (active) {
+        focusWasActive = true;
+        _currentFocusDays++;
+        maxConsecutiveFocusDays = max(
+          maxConsecutiveFocusDays,
+          _currentFocusDays,
+        );
+      } else {
+        if (_previousFocus) firstResolvedAfterFocusDay ??= day;
+        _currentFocusDays = 0;
+      }
       _previousFocus = active;
     }
   }
