@@ -3885,6 +3885,7 @@ void main() {
       ErrorPattern.moneyCalculation: TrainingMode.money,
       ErrorPattern.clockReading: TrainingMode.clock,
       ErrorPattern.unitConversion: TrainingMode.measures,
+      ErrorPattern.measurementCalculation: TrainingMode.measures,
       ErrorPattern.geometryProperty: TrainingMode.geometryRelations,
       ErrorPattern.roundingPlace: TrainingMode.rounding,
       ErrorPattern.mentalStrategy: TrainingMode.mentalStrategies,
