@@ -88,6 +88,74 @@ void main() {
     expect(focus.priorityFor(_sentenceWritingTask), 0);
   });
 
+  test(
+    'same failed task twice is not enough to generalise a mistake pattern',
+    () {
+      final history = <GermanSessionResult>[
+        _session(DateTime(2026, 9, 30, 10), <GermanTaskResult>[
+          _result(
+            id: 'same-task',
+            competency: GermanCompetencyId.sentenceWriting,
+            mistake: GermanMistakeKind.capitalization,
+          ),
+        ]),
+        _session(DateTime(2026, 10, 1, 10), <GermanTaskResult>[
+          _result(
+            id: 'same-task',
+            competency: GermanCompetencyId.sentenceWriting,
+            mistake: GermanMistakeKind.capitalization,
+          ),
+        ]),
+      ];
+
+      final focus = GermanMistakeFocusAnalyzer.analyze(
+        history: history,
+        now: DateTime(2026, 10, 2),
+      );
+
+      expect(focus.isEmpty, isTrue);
+    },
+  );
+
+  test('fresh task outranks memorised evidence task for active focus', () {
+    final history = <GermanSessionResult>[
+      _session(DateTime(2026, 9, 30, 10), <GermanTaskResult>[
+        _result(
+          id: 'focus-writing',
+          competency: GermanCompetencyId.sentenceWriting,
+          mistake: GermanMistakeKind.capitalization,
+        ),
+      ]),
+      _session(DateTime(2026, 10, 1, 10), <GermanTaskResult>[
+        _result(
+          id: 'other-writing-error',
+          competency: GermanCompetencyId.sentenceWriting,
+          mistake: GermanMistakeKind.capitalization,
+        ),
+      ]),
+    ];
+    const freshTask = GermanTask(
+      id: 'fresh-writing',
+      competencyId: GermanCompetencyId.sentenceWriting,
+      recommendedFromGrade: GradeLevel.third,
+      instruction: 'Schreibe.',
+      prompt: 'Neuer Satz',
+      interaction: GermanTaskInteraction.typedText,
+      acceptedAnswers: <String>['Ein neuer Satz.'],
+    );
+
+    final focus = GermanMistakeFocusAnalyzer.analyze(
+      history: history,
+      now: DateTime(2026, 10, 2),
+    );
+
+    expect(focus.patterns.single.evidenceTaskIds, contains('focus-writing'));
+    expect(
+      focus.priorityFor(freshTask),
+      greaterThan(focus.priorityFor(_sentenceWritingTask)),
+    );
+  });
+
   test('repeated same mistake activates exact and related practice', () {
     final history = <GermanSessionResult>[
       _session(DateTime(2026, 9, 30, 10), <GermanTaskResult>[

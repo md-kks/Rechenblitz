@@ -10,12 +10,14 @@ class GermanMistakeFocusPattern {
     required this.competencyId,
     required this.count,
     required this.latestAt,
+    required this.evidenceTaskIds,
   });
 
   final GermanMistakeKind kind;
   final GermanCompetencyId competencyId;
   final int count;
   final DateTime latestAt;
+  final Set<String> evidenceTaskIds;
 }
 
 class GermanMistakeFocus {
@@ -40,6 +42,9 @@ class GermanMistakeFocus {
 
       var score = match * 100 + (pattern.count > 9 ? 9 : pattern.count);
       if (_preferredInteraction(pattern.kind, task)) score += 20;
+      // A recurring pattern should be checked with fresh evidence rather than
+      // by serving the exact task whose answer may now be memorised.
+      if (pattern.evidenceTaskIds.contains(task.id)) score -= 80;
       if (score > best) best = score;
     }
     return best;
@@ -153,6 +158,7 @@ class GermanMistakeFocusAnalyzer {
     DateTime? now,
     Duration window = const Duration(days: 21),
     int minimumOccurrences = 2,
+    int minimumDistinctEvidenceTasks = 2,
     int cleanEvidenceToResolve = 2,
     Duration minimumConfirmationDelay = const Duration(hours: 12),
   }) {
@@ -186,6 +192,7 @@ class GermanMistakeFocusAnalyzer {
         final key = (kind: kind, competency: result.competencyId);
         final stat = stats.putIfAbsent(key, _MistakeStats.new);
         stat.count += 1;
+        stat.taskIds.add(result.taskId);
         if (stat.latestAt == null ||
             session.finishedAt.isAfter(stat.latestAt!)) {
           stat.latestAt = session.finishedAt;
@@ -197,7 +204,11 @@ class GermanMistakeFocusAnalyzer {
     for (final entry in stats.entries) {
       final stat = entry.value;
       final latestAt = stat.latestAt;
-      if (stat.count < minimumOccurrences || latestAt == null) continue;
+      if (stat.count < minimumOccurrences ||
+          stat.taskIds.length < minimumDistinctEvidenceTasks ||
+          latestAt == null) {
+        continue;
+      }
 
       // A recurring error is not considered resolved by immediate retry
       // success. Require later, independent evidence and count distinct tasks
@@ -223,6 +234,7 @@ class GermanMistakeFocusAnalyzer {
           competencyId: entry.key.competency,
           count: stat.count,
           latestAt: latestAt,
+          evidenceTaskIds: Set<String>.unmodifiable(stat.taskIds),
         ),
       );
     }
@@ -245,4 +257,5 @@ class GermanMistakeFocusAnalyzer {
 class _MistakeStats {
   int count = 0;
   DateTime? latestAt;
+  final Set<String> taskIds = <String>{};
 }
