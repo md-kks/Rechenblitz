@@ -1364,6 +1364,14 @@ class AppController extends ChangeNotifier {
 
     if (progress.status == RemediationStatus.stable) return false;
 
+    final reviewDueAt = progress.nextReviewAt;
+    if (reviewDueAt != null && DateTime.now().isBefore(reviewDueAt)) {
+      if (evidenceId != null) {
+        _replaceRemediation(progress.copyWith(lastEvidenceId: evidenceId));
+      }
+      return false;
+    }
+
     final stableCorrect = progress.stabilityCorrect + 1;
     final becameStable = stableCorrect >= 3;
     _replaceRemediation(

@@ -16,7 +16,7 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
 
   test(
-    'Diagnose-Evidence-ID bleibt über Neustart exakt einmal wirksam',
+    'Diagnose-Evidence-ID bleibt vor Kontrolltermin ohne Stabilitätswirkung',
     () async {
       final controller = AppController();
       await controller.load();
@@ -51,7 +51,7 @@ void main() {
         controller
             .remediationProgressFor(ErrorPattern.tenBridge)!
             .stabilityCorrect,
-        1,
+        0,
       );
 
       await record(controller);
@@ -65,7 +65,7 @@ void main() {
         controller
             .remediationProgressFor(ErrorPattern.tenBridge)!
             .stabilityCorrect,
-        1,
+        0,
       );
 
       final reloaded = AppController();
@@ -85,7 +85,7 @@ void main() {
         reloaded
             .remediationProgressFor(ErrorPattern.tenBridge)!
             .stabilityCorrect,
-        1,
+        0,
       );
     },
   );
