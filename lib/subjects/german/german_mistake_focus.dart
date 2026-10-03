@@ -154,6 +154,7 @@ class GermanMistakeFocusAnalyzer {
     Duration window = const Duration(days: 21),
     int minimumOccurrences = 2,
     int cleanEvidenceToResolve = 2,
+    Duration minimumConfirmationDelay = const Duration(hours: 12),
   }) {
     final sessions = GermanHistoryScope.unique(history).toList(growable: false);
     if (sessions.isEmpty) {
@@ -198,19 +199,23 @@ class GermanMistakeFocusAnalyzer {
       final latestAt = stat.latestAt;
       if (stat.count < minimumOccurrences || latestAt == null) continue;
 
-      var cleanAfter = 0;
+      // A recurring error is not considered resolved by immediate retry
+      // success. Require later, independent evidence and count distinct tasks
+      // so memorising one answer cannot clear the focus by itself.
+      final confirmationCutoff = latestAt.add(minimumConfirmationDelay);
+      final cleanTaskIds = <String>{};
       for (final session in recent) {
-        if (!session.finishedAt.isAfter(latestAt)) continue;
+        if (session.finishedAt.isBefore(confirmationCutoff)) continue;
         for (final result in session.taskResults) {
           if (result.competencyId != entry.key.competency) continue;
           if (result.independentCorrectFirstTry &&
               result.incorrectAttempts == 0 &&
               result.firstMistakeKind == null) {
-            cleanAfter += 1;
+            cleanTaskIds.add(result.taskId);
           }
         }
       }
-      if (cleanAfter >= cleanEvidenceToResolve) continue;
+      if (cleanTaskIds.length >= cleanEvidenceToResolve) continue;
 
       patterns.add(
         GermanMistakeFocusPattern(

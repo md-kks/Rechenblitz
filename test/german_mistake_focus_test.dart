@@ -160,6 +160,80 @@ void main() {
     expect(focus.isEmpty, isTrue);
   });
 
+  test('immediate clean retries do not prematurely resolve a pattern', () {
+    final history = <GermanSessionResult>[
+      _session(DateTime(2026, 10, 1, 10), <GermanTaskResult>[
+        _result(
+          id: 'mistake-a',
+          competency: GermanCompetencyId.sentenceWriting,
+          mistake: GermanMistakeKind.spelling,
+        ),
+        _result(
+          id: 'mistake-b',
+          competency: GermanCompetencyId.sentenceWriting,
+          mistake: GermanMistakeKind.spelling,
+        ),
+      ]),
+      _session(DateTime(2026, 10, 1, 10, 5), <GermanTaskResult>[
+        _result(
+          id: 'clean-a',
+          competency: GermanCompetencyId.sentenceWriting,
+          correct: true,
+        ),
+        _result(
+          id: 'clean-b',
+          competency: GermanCompetencyId.sentenceWriting,
+          correct: true,
+        ),
+      ]),
+    ];
+
+    final focus = GermanMistakeFocusAnalyzer.analyze(
+      history: history,
+      now: DateTime(2026, 10, 2),
+    );
+    expect(focus.patterns, hasLength(1));
+  });
+
+  test('repeating one memorised task is not enough to resolve a pattern', () {
+    final history = <GermanSessionResult>[
+      _session(DateTime(2026, 9, 29, 10), <GermanTaskResult>[
+        _result(
+          id: 'mistake-a',
+          competency: GermanCompetencyId.sentenceWriting,
+          mistake: GermanMistakeKind.spelling,
+        ),
+      ]),
+      _session(DateTime(2026, 9, 30, 10), <GermanTaskResult>[
+        _result(
+          id: 'mistake-b',
+          competency: GermanCompetencyId.sentenceWriting,
+          mistake: GermanMistakeKind.spelling,
+        ),
+      ]),
+      _session(DateTime(2026, 10, 1, 10), <GermanTaskResult>[
+        _result(
+          id: 'same-clean-task',
+          competency: GermanCompetencyId.sentenceWriting,
+          correct: true,
+        ),
+      ]),
+      _session(DateTime(2026, 10, 2, 10), <GermanTaskResult>[
+        _result(
+          id: 'same-clean-task',
+          competency: GermanCompetencyId.sentenceWriting,
+          correct: true,
+        ),
+      ]),
+    ];
+
+    final focus = GermanMistakeFocusAnalyzer.analyze(
+      history: history,
+      now: DateTime(2026, 10, 3),
+    );
+    expect(focus.patterns, hasLength(1));
+  });
+
   test('mistakes outside the recent window no longer steer practice', () {
     final history = <GermanSessionResult>[
       _session(DateTime(2026, 8, 1, 10), <GermanTaskResult>[
