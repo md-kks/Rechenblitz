@@ -804,6 +804,7 @@ class AppController extends ChangeNotifier {
         pattern,
         correct: actual == expected,
         evidenceId: evidenceId,
+        targetCompetency: targetCompetency,
       );
       if (becameStable &&
           _unlockBadge('weak_spot', _pendingBadgeIds)) {
@@ -1273,6 +1274,7 @@ class AppController extends ChangeNotifier {
   Future<void> startRemediation(
     ErrorPattern pattern, {
     bool reviewOnly = false,
+    MicroCompetencyId? targetCompetency,
   }) async {
     final existing = remediationProgressFor(pattern);
     if (reviewOnly && existing != null) {
@@ -1289,6 +1291,7 @@ class AppController extends ChangeNotifier {
       checkCorrect: 0,
       checkTotal: 0,
       stabilityCorrect: reviewOnly ? existing?.stabilityCorrect ?? 0 : 0,
+      targetCompetency: targetCompetency ?? existing?.targetCompetency,
     );
     _replaceRemediation(next);
     notifyListeners();
@@ -1300,6 +1303,7 @@ class AppController extends ChangeNotifier {
     required int checkCorrect,
     required int checkTotal,
     bool reviewOnly = false,
+    MicroCompetencyId? targetCompetency,
   }) async {
     final existing = remediationProgressFor(pattern);
     final accuracy = checkTotal == 0 ? 0.0 : checkCorrect / checkTotal;
@@ -1326,6 +1330,7 @@ class AppController extends ChangeNotifier {
       checkTotal: checkTotal,
       stabilityCorrect:
           status == RemediationStatus.stable ? 3 : 0,
+      targetCompetency: targetCompetency ?? existing?.targetCompetency,
     );
     _replaceRemediation(next);
     if (status == RemediationStatus.stable) {
@@ -1342,6 +1347,7 @@ class AppController extends ChangeNotifier {
     ErrorPattern pattern, {
     required bool correct,
     String? evidenceId,
+    MicroCompetencyId? targetCompetency,
   }) {
     final progress = remediationProgressFor(pattern);
     if (evidenceId != null && progress?.lastEvidenceId == evidenceId) {
@@ -1350,6 +1356,10 @@ class AppController extends ChangeNotifier {
     if (progress == null ||
         (progress.status != RemediationStatus.improved &&
             progress.status != RemediationStatus.stable)) {
+      return false;
+    }
+    final expectedTarget = progress.targetCompetency;
+    if (expectedTarget != null && targetCompetency != expectedTarget) {
       return false;
     }
 

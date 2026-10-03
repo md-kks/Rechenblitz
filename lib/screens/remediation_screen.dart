@@ -122,6 +122,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
         widget.controller.startRemediation(
           widget.pattern,
           reviewOnly: reviewOnly,
+          targetCompetency: plan.tasks.first.effectiveTargetCompetency,
         ),
       );
     }
@@ -293,6 +294,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
       checkCorrect: checkCorrect,
       checkTotal: checkTotal,
       reviewOnly: reviewOnly,
+      targetCompetency: plan.tasks.first.effectiveTargetCompetency,
     );
     await widget.controller.clearRemediationSession();
 
