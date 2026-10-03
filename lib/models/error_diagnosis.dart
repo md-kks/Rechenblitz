@@ -439,8 +439,16 @@ class ErrorClassifier {
           ? ErrorPattern.countingStep
           : ErrorPattern.placeValue,
       TrainingMode.rounding => ErrorPattern.roundingPlace,
-      TrainingMode.mentalStrategies => _mentalPattern(taskKey),
-      TrainingMode.writtenAddSub => _writtenAddSubPattern(taskKey),
+      TrainingMode.mentalStrategies => _mentalPattern(
+          taskKey,
+          expected: expected,
+          actual: actual,
+        ),
+      TrainingMode.writtenAddSub => _writtenAddSubPattern(
+          taskKey,
+          expected: expected,
+          actual: actual,
+        ),
       TrainingMode.writtenMultiply ||
       TrainingMode.writtenDivide => ErrorPattern.writtenProcedure,
       TrainingMode.estimation => ErrorPattern.estimation,
@@ -559,12 +567,18 @@ class ErrorClassifier {
     MathFact fact,
     int actual,
   ) {
-    if (fact.a < 10 || fact.a > 99 || fact.b < 10 || fact.b > 99) {
-      return false;
+    if (fact.a < 10 || fact.b < 0 || actual < 0) return false;
+    var left = fact.a;
+    var right = fact.b;
+    var place = 1;
+    var digitwise = 0;
+    while (left > 0 || right > 0) {
+      digitwise += ((left % 10) - (right % 10)).abs() * place;
+      left ~/= 10;
+      right ~/= 10;
+      place *= 10;
     }
-    final tens = (fact.a ~/ 10) - (fact.b ~/ 10);
-    final ones = ((fact.a % 10) - (fact.b % 10)).abs();
-    return tens >= 0 && actual == tens * 10 + ones;
+    return actual == digitwise;
   }
 
   static ErrorPattern _transferStoryPattern(
@@ -619,35 +633,95 @@ class ErrorClassifier {
     );
   }
 
-  static ErrorPattern _mentalPattern(String key) {
+  static ErrorPattern _mentalPattern(
+    String key, {
+    required int expected,
+    required int actual,
+  }) {
     final parts = key.split(':');
     if (parts.length < 4) return ErrorPattern.mentalStrategy;
     final a = int.tryParse(parts[2]);
     final b = int.tryParse(parts[3]);
     if (a == null || b == null) return ErrorPattern.mentalStrategy;
 
-    if (parts[1] == '+' && needsAdditionTenBridge(a, b)) {
-      return ErrorPattern.tenBridge;
+    final operation = switch (parts[1]) {
+      '+' => MathOperation.plus,
+      '-' => MathOperation.minus,
+      _ => null,
+    };
+    if (operation == null) return ErrorPattern.mentalStrategy;
+
+    final fact = MathFact(a: a, b: b, operation: operation);
+    if (operation == MathOperation.plus && a >= b && actual == a - b) {
+      return ErrorPattern.operationChoice;
     }
-    if (parts[1] == '-' && needsSubtractionTenBridge(a, b)) {
-      return ErrorPattern.tenBridge;
+    if (operation == MathOperation.minus && actual == a + b) {
+      return ErrorPattern.operationChoice;
+    }
+    if (_usedOnlyPartOfSecondOperand(fact, actual)) {
+      return ErrorPattern.partialOperand;
+    }
+    if (operation == MathOperation.plus &&
+        needsAdditionTenBridge(a, b) &&
+        actual == expected - 10) {
+      return ErrorPattern.carryOmitted;
+    }
+    if (operation == MathOperation.minus &&
+        needsSubtractionTenBridge(a, b) &&
+        _looksLikeDigitwiseSubtraction(fact, actual)) {
+      return ErrorPattern.borrowAvoided;
+    }
+    if ((actual - expected).abs() == 1) return ErrorPattern.countingStep;
+    if ((actual - expected).abs() >= 10 &&
+        (actual - expected).abs() % 10 == 0) {
+      return ErrorPattern.placeValue;
     }
     return ErrorPattern.mentalStrategy;
   }
 
-  static ErrorPattern _writtenAddSubPattern(String key) {
+  static ErrorPattern _writtenAddSubPattern(
+    String key, {
+    required int expected,
+    required int actual,
+  }) {
     final parts = key.split(':');
     if (parts.length < 4) return ErrorPattern.writtenProcedure;
     final a = int.tryParse(parts[2]);
     final b = int.tryParse(parts[3]);
     if (a == null || b == null) return ErrorPattern.writtenProcedure;
 
-    final needsRegrouping = parts[1] == '+'
-        ? _additionNeedsCarry(a, b)
-        : _subtractionNeedsBorrow(a, b);
-    return needsRegrouping
-        ? ErrorPattern.writtenRegrouping
-        : ErrorPattern.writtenProcedure;
+    final operation = switch (parts[1]) {
+      '+' => MathOperation.plus,
+      '-' => MathOperation.minus,
+      _ => null,
+    };
+    if (operation == null) return ErrorPattern.writtenProcedure;
+
+    final fact = MathFact(a: a, b: b, operation: operation);
+    if (operation == MathOperation.plus && a >= b && actual == a - b) {
+      return ErrorPattern.operationChoice;
+    }
+    if (operation == MathOperation.minus && actual == a + b) {
+      return ErrorPattern.operationChoice;
+    }
+    if (_usedOnlyPartOfSecondOperand(fact, actual)) {
+      return ErrorPattern.partialOperand;
+    }
+    if (operation == MathOperation.plus &&
+        _additionNeedsCarry(a, b) &&
+        actual == expected - 10) {
+      return ErrorPattern.carryOmitted;
+    }
+    if (operation == MathOperation.minus &&
+        _subtractionNeedsBorrow(a, b) &&
+        _looksLikeDigitwiseSubtraction(fact, actual)) {
+      return ErrorPattern.borrowAvoided;
+    }
+    if ((actual - expected).abs() >= 10 &&
+        (actual - expected).abs() % 10 == 0) {
+      return ErrorPattern.placeValue;
+    }
+    return ErrorPattern.writtenProcedure;
   }
 
   static bool _additionNeedsCarry(int a, int b) {

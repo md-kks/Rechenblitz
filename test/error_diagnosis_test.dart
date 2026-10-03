@@ -100,7 +100,7 @@ void main() {
     );
   });
 
-  test('schriftliche Subtraktion mit Entbündeln wird gesondert erkannt', () {
+  test('schriftliche Subtraktion wird ohne belegbare Fehlzahl nicht überdiagnostiziert', () {
     expect(
       ErrorClassifier.classify(
         mode: TrainingMode.writtenAddSub,
@@ -108,7 +108,7 @@ void main() {
         expected: 215,
         actual: 225,
       ),
-      ErrorPattern.writtenRegrouping,
+      ErrorPattern.placeValue,
     );
   });
 
@@ -475,6 +475,93 @@ void main() {
         reason: key,
       );
     }
+  });
+
+  test('halbschriftliche Diagnose folgt der Fehlantwort statt nur der Aufgabe', () {
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.mentalStrategies,
+        taskKey: 'mental:+:47:38',
+        expected: 85,
+        actual: 75,
+      ),
+      ErrorPattern.carryOmitted,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.mentalStrategies,
+        taskKey: 'mental:+:47:38',
+        expected: 85,
+        actual: 74,
+      ),
+      ErrorPattern.mentalStrategy,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.mentalStrategies,
+        taskKey: 'mental:-:63:28',
+        expected: 35,
+        actual: 45,
+      ),
+      ErrorPattern.borrowAvoided,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.mentalStrategies,
+        taskKey: 'mental:-:63:28',
+        expected: 35,
+        actual: 91,
+      ),
+      ErrorPattern.operationChoice,
+    );
+  });
+
+  test('schriftliche Diagnose behauptet Umgruppierung nur mit passender Fehlzahl', () {
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.writtenAddSub,
+        taskKey: 'written:+:47:38',
+        expected: 85,
+        actual: 75,
+      ),
+      ErrorPattern.carryOmitted,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.writtenAddSub,
+        taskKey: 'written:+:47:38',
+        expected: 85,
+        actual: 74,
+      ),
+      ErrorPattern.writtenProcedure,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.writtenAddSub,
+        taskKey: 'written:-:63:28',
+        expected: 35,
+        actual: 45,
+      ),
+      ErrorPattern.borrowAvoided,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.writtenAddSub,
+        taskKey: 'written:-:63:28',
+        expected: 35,
+        actual: 55,
+      ),
+      ErrorPattern.partialOperand,
+    );
+    expect(
+      ErrorClassifier.classify(
+        mode: TrainingMode.writtenAddSub,
+        taskKey: 'written:-:402:187',
+        expected: 215,
+        actual: 385,
+      ),
+      ErrorPattern.borrowAvoided,
+    );
   });
 
 }
