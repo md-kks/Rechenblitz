@@ -249,6 +249,7 @@ void main() {
       _session(
         grade: GradeLevel.third,
         taskIds: <String>[currentTasks.first],
+        minute: 4,
         incorrectIndexes: const <int>{0},
       ),
     );

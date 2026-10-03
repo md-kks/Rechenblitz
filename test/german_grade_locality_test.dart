@@ -35,11 +35,18 @@ GermanSessionResult _failedLowerGradeWordReading() => GermanSessionResult(
   kind: GermanSessionKind.practice,
   taskResults: const <GermanTaskResult>[
     GermanTaskResult(
-      taskId: 'known-lower-reading-gap',
+      taskId: 'known-lower-reading-gap-a',
       competencyId: GermanCompetencyId.wordRecognition,
       correctFirstTry: false,
-      incorrectAttempts: 2,
+      incorrectAttempts: 1,
       responseMs: 2500,
+    ),
+    GermanTaskResult(
+      taskId: 'known-lower-reading-gap-b',
+      competencyId: GermanCompetencyId.wordRecognition,
+      correctFirstTry: false,
+      incorrectAttempts: 1,
+      responseMs: 2400,
     ),
   ],
 );

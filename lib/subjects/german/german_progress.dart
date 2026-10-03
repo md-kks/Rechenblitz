@@ -68,8 +68,12 @@ class GermanCompetencyProgress {
   }
 
   GermanPracticeAttention attention({DateTime? now}) {
+    // One independent miss is evidence that the skill is still developing,
+    // but not enough to label it a proven weakness. Escalate only after
+    // repeated independent evidence shows a real pattern.
     if (state == GermanCompetencyState.learning &&
-        independentAttempts > 0 &&
+        independentAttempts >= 2 &&
+        recentAttempts - recentCorrectFirstTry >= 2 &&
         recentAccuracy < 0.8) {
       return GermanPracticeAttention.needsPractice;
     }
@@ -140,7 +144,9 @@ class GermanProgressAnalyzer {
         sessionCount += 1;
       }
     }
-    final incorrect = matching.fold<int>(
+    // Keep assisted attempts in the history, but do not turn mistakes made
+    // with reading support into independent evidence of a weak competency.
+    final incorrect = independent.fold<int>(
       0,
       (sum, entry) => sum + entry.result.incorrectAttempts,
     );

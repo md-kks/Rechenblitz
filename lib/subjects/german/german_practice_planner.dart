@@ -467,6 +467,16 @@ class _GermanRankingContext {
         bridge.isPending &&
         bridge.bridgeTaskGrade != null &&
         task.recommendedFromGrade == bridge.bridgeTaskGrade;
+    final latest = _latestCompetencyResult[task.competencyId];
+    final failedCurrentBridge =
+        isBridgeTask &&
+        latest != null &&
+        (!latest.correctFirstTry || latest.incorrectAttempts > 0);
+
+    // A failed current-grade bridge is direct evidence that the newer level
+    // still needs work. Keep that bridge active without treating one ordinary
+    // miss elsewhere as a proven competency weakness.
+    if (failedCurrentBridge) return 0;
 
     if (attention == GermanPracticeAttention.needsPractice) {
       if (bridge.isPending) return isBridgeTask ? 0 : 4;

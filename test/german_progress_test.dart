@@ -400,12 +400,131 @@ void main() {
     );
   });
 
+  test('one independent miss stays tentative instead of proven weakness', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        taskId: 'single-miss',
+        finishedAt: DateTime(2026, 9, 17, 12),
+      ),
+    ];
+
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      history,
+    );
+
+    expect(progress.state, GermanCompetencyState.learning);
+    expect(progress.recentAccuracy, 0);
+    expect(
+      progress.attention(now: DateTime(2026, 9, 18)),
+      GermanPracticeAttention.none,
+    );
+  });
+
+  test('one miss plus one success is not a repeated weakness', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        taskId: 'mixed-miss',
+        finishedAt: DateTime(2026, 9, 16, 12),
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'mixed-success',
+        finishedAt: DateTime(2026, 9, 17, 12),
+      ),
+    ];
+
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      history,
+    );
+
+    expect(progress.recentAccuracy, 0.5);
+    expect(
+      progress.attention(now: DateTime(2026, 9, 18)),
+      GermanPracticeAttention.none,
+    );
+  });
+
+  test('two independent misses establish practice attention', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        taskId: 'miss-a',
+        finishedAt: DateTime(2026, 9, 16, 12),
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        taskId: 'miss-b',
+        finishedAt: DateTime(2026, 9, 17, 12),
+      ),
+    ];
+
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      history,
+    );
+
+    expect(
+      progress.attention(now: DateTime(2026, 9, 18)),
+      GermanPracticeAttention.needsPractice,
+    );
+  });
+
+  test('assisted mistakes are not counted as independent error evidence', () {
+    final history = <GermanSessionResult>[
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        taskId: 'assisted-miss',
+        usedReadAloud: true,
+        finishedAt: DateTime(2026, 9, 16, 12),
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: true,
+        taskId: 'independent-success',
+        finishedAt: DateTime(2026, 9, 17, 12),
+      ),
+    ];
+
+    final progress = GermanProgressAnalyzer.forCompetency(
+      GermanCompetencyId.wordRecognition,
+      history,
+    );
+
+    expect(progress.attempts, 2);
+    expect(progress.assistedAttempts, 1);
+    expect(progress.independentAttempts, 1);
+    expect(progress.incorrectAttempts, 0);
+    expect(progress.recentAccuracy, 1);
+    expect(
+      progress.attention(now: DateTime(2026, 9, 18)),
+      GermanPracticeAttention.none,
+    );
+  });
+
   test('daily round puts a proven weak skill ahead of new skills', () {
     final history = <GermanSessionResult>[
       _session(
         GermanCompetencyId.wordRecognition,
         correct: false,
+        taskId: 'weak-word-a',
         gradeLevel: GradeLevel.first,
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        taskId: 'weak-word-b',
+        gradeLevel: GradeLevel.first,
+        finishedAt: DateTime(2026, 9, 18, 12),
       ),
     ];
 
@@ -513,7 +632,14 @@ void main() {
         GermanCompetencyId.nounArticle,
         correct: false,
         incorrectAttempts: 1,
-        taskId: 'weak-noun',
+        taskId: 'weak-noun-a',
+      ),
+      _session(
+        GermanCompetencyId.nounArticle,
+        correct: false,
+        incorrectAttempts: 1,
+        taskId: 'weak-noun-b',
+        finishedAt: DateTime(2026, 9, 18, 12),
       ),
     ];
 
@@ -565,6 +691,14 @@ void main() {
         GermanCompetencyId.wordRecognition,
         correct: false,
         incorrectAttempts: 1,
+        taskId: 'weak-word-a',
+        finishedAt: DateTime(2026, 9, 17, 9),
+      ),
+      _session(
+        GermanCompetencyId.wordRecognition,
+        correct: false,
+        incorrectAttempts: 1,
+        taskId: 'weak-word-b',
         finishedAt: DateTime(2026, 9, 18, 9),
       ),
     ];
@@ -815,7 +949,17 @@ void main() {
     'known lower-grade weakness still outranks new fourth-grade content',
     () {
       final history = <GermanSessionResult>[
-        _session(GermanCompetencyId.wordRecognition, correct: false),
+        _session(
+          GermanCompetencyId.wordRecognition,
+          correct: false,
+          taskId: 'weak-word-a',
+        ),
+        _session(
+          GermanCompetencyId.wordRecognition,
+          correct: false,
+          taskId: 'weak-word-b',
+          finishedAt: DateTime(2026, 9, 18, 12),
+        ),
       ];
       final round = GermanPracticePlanner.buildDailyRound(
         gradeLevel: GradeLevel.fourth,
