@@ -4498,7 +4498,7 @@ class RemediationGenerator {
   }
 
   static const Map<ErrorPattern, Set<MicroCompetencyId>>
-      _focusableCompetencies = {
+      focusableCompetencies = {
     ErrorPattern.numberBond: {
       MicroCompetencyId.doublesHalves,
     },
@@ -4573,7 +4573,7 @@ class RemediationGenerator {
     required GradeLevel grade,
     required NumberRangeLevel range,
   }) {
-    final focusable = _focusableCompetencies[pattern];
+    final focusable = focusableCompetencies[pattern];
     if (targetCompetency == null ||
         focusable == null ||
         !focusable.contains(targetCompetency)) {
