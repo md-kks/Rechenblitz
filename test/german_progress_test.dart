@@ -451,6 +451,37 @@ void main() {
     );
   });
 
+  test(
+    'repeated miss on one task stays targeted instead of broad weakness',
+    () {
+      final history = <GermanSessionResult>[
+        _session(
+          GermanCompetencyId.wordRecognition,
+          correct: false,
+          taskId: 'same-miss',
+          finishedAt: DateTime(2026, 9, 16, 12),
+        ),
+        _session(
+          GermanCompetencyId.wordRecognition,
+          correct: false,
+          taskId: 'same-miss',
+          finishedAt: DateTime(2026, 9, 17, 12),
+        ),
+      ];
+
+      final progress = GermanProgressAnalyzer.forCompetency(
+        GermanCompetencyId.wordRecognition,
+        history,
+      );
+
+      expect(progress.recentDistinctFailedTaskCount, 1);
+      expect(
+        progress.attention(now: DateTime(2026, 9, 18)),
+        GermanPracticeAttention.none,
+      );
+    },
+  );
+
   test('two independent misses establish practice attention', () {
     final history = <GermanSessionResult>[
       _session(

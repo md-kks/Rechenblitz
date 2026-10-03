@@ -18,6 +18,7 @@ class GermanCompetencyProgress {
     required this.sessionCount,
     required this.recentAttempts,
     required this.recentCorrectFirstTry,
+    required this.recentDistinctFailedTaskCount,
     this.lastPracticedAt,
   });
 
@@ -31,6 +32,7 @@ class GermanCompetencyProgress {
   final int sessionCount;
   final int recentAttempts;
   final int recentCorrectFirstTry;
+  final int recentDistinctFailedTaskCount;
   final DateTime? lastPracticedAt;
 
   double get accuracy =>
@@ -74,6 +76,7 @@ class GermanCompetencyProgress {
     if (state == GermanCompetencyState.learning &&
         independentAttempts >= 2 &&
         recentAttempts - recentCorrectFirstTry >= 2 &&
+        recentDistinctFailedTaskCount >= 2 &&
         recentAccuracy < 0.8) {
       return GermanPracticeAttention.needsPractice;
     }
@@ -117,6 +120,7 @@ class GermanProgressAnalyzer {
         sessionCount: 0,
         recentAttempts: 0,
         recentCorrectFirstTry: 0,
+        recentDistinctFailedTaskCount: 0,
       );
     }
 
@@ -130,6 +134,15 @@ class GermanProgressAnalyzer {
         .length;
     final recentCorrect = recent
         .where((entry) => entry.result.correctFirstTry)
+        .length;
+    final recentDistinctFailedTaskCount = recent
+        .where(
+          (entry) =>
+              !entry.result.correctFirstTry ||
+              entry.result.incorrectAttempts > 0,
+        )
+        .map((entry) => entry.result.taskId)
+        .toSet()
         .length;
     final distinctTaskCount = independent
         .map((entry) => entry.result.taskId)
@@ -170,6 +183,7 @@ class GermanProgressAnalyzer {
       sessionCount: sessionCount,
       recentAttempts: recent.length,
       recentCorrectFirstTry: recentCorrect,
+      recentDistinctFailedTaskCount: recentDistinctFailedTaskCount,
       lastPracticedAt: lastPracticedAt,
     );
   }
