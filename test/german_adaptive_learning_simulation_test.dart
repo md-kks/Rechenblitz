@@ -46,7 +46,7 @@ void main() {
       );
       expect(
         firstRemediation.first.competencyId,
-        GermanCompetencyId.sentenceWriting,
+        GermanCompetencyId.nounArticle,
       );
       expect(failedIds, isNot(contains(firstRemediation.first.id)));
       expect(freshWriting, isNotEmpty);

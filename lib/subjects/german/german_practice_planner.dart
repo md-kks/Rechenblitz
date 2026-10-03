@@ -463,6 +463,7 @@ class _GermanRankingContext {
     final competencyProgress = progress ?? progressFor(task.competencyId);
     final attention = competencyProgress.attention(now: now);
     final bridge = bridgeFor(task.competencyId);
+    if (mistakeFocus.isGuidedPriority(task)) return 0;
     final isBridgeTask =
         bridge.isPending &&
         bridge.bridgeTaskGrade != null &&

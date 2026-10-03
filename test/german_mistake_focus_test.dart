@@ -56,6 +56,17 @@ const _textRevisionTask = GermanTask(
   acceptedAnswers: <String>['Ein Text.'],
 );
 
+const _nounMarkingTask = GermanTask(
+  id: 'focus-nouns',
+  competencyId: GermanCompetencyId.nounArticle,
+  recommendedFromGrade: GradeLevel.second,
+  instruction: 'Markiere.',
+  prompt: 'Der Hund jagt die Katze.',
+  interaction: GermanTaskInteraction.tokenSelection,
+  acceptedAnswers: <String>['Der Hund', 'die Katze'],
+  choices: <String>['Der Hund', 'jagt', 'die Katze'],
+);
+
 const _listeningTask = GermanTask(
   id: 'focus-listening',
   competencyId: GermanCompetencyId.listeningComprehension,
@@ -187,6 +198,71 @@ void main() {
     );
     expect(focus.priorityFor(_textRevisionTask), greaterThan(0));
     expect(focus.priorityFor(_listeningTask), 0);
+  });
+
+  test('capitalization remediation moves from guided marking to writing', () {
+    final mistakes = <GermanSessionResult>[
+      _session(DateTime(2026, 9, 29, 10), <GermanTaskResult>[
+        _result(
+          id: 'capital-a',
+          competency: GermanCompetencyId.sentenceWriting,
+          mistake: GermanMistakeKind.capitalization,
+        ),
+      ]),
+      _session(DateTime(2026, 9, 30, 10), <GermanTaskResult>[
+        _result(
+          id: 'capital-b',
+          competency: GermanCompetencyId.sentenceWriting,
+          mistake: GermanMistakeKind.capitalization,
+        ),
+      ]),
+    ];
+
+    final guided = GermanMistakeFocusAnalyzer.analyze(
+      history: mistakes,
+      now: DateTime(2026, 10, 1),
+    );
+    expect(guided.patterns.single.needsGuidedPractice, isTrue);
+    expect(
+      guided.priorityFor(_nounMarkingTask),
+      greaterThan(guided.priorityFor(_sentenceWritingTask)),
+    );
+    final guidedRound = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.third,
+      history: mistakes,
+      now: DateTime(2026, 10, 1),
+    );
+    expect(guidedRound.first.competencyId, GermanCompetencyId.nounArticle);
+
+    final afterGuidedSuccess = <GermanSessionResult>[
+      ...mistakes,
+      _session(DateTime(2026, 10, 1, 10), <GermanTaskResult>[
+        _result(
+          id: 'clean-writing-one',
+          competency: GermanCompetencyId.sentenceWriting,
+          correct: true,
+        ),
+      ]),
+    ];
+    final confirmation = GermanMistakeFocusAnalyzer.analyze(
+      history: afterGuidedSuccess,
+      now: DateTime(2026, 10, 2),
+    );
+    expect(confirmation.patterns.single.cleanEvidenceCount, 1);
+    expect(confirmation.patterns.single.needsIndependentConfirmation, isTrue);
+    expect(
+      confirmation.priorityFor(_sentenceWritingTask),
+      greaterThan(confirmation.priorityFor(_nounMarkingTask)),
+    );
+    final confirmationRound = GermanPracticePlanner.buildDailyRound(
+      gradeLevel: GradeLevel.third,
+      history: afterGuidedSuccess,
+      now: DateTime(2026, 10, 2),
+    );
+    expect(
+      confirmationRound.first.competencyId,
+      GermanCompetencyId.sentenceWriting,
+    );
   });
 
   test('two clean follow-up results resolve an active mistake focus', () {

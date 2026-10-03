@@ -11,6 +11,7 @@ class GermanMistakeFocusPattern {
     required this.count,
     required this.latestAt,
     required this.evidenceTaskIds,
+    required this.cleanEvidenceCount,
   });
 
   final GermanMistakeKind kind;
@@ -18,6 +19,10 @@ class GermanMistakeFocusPattern {
   final int count;
   final DateTime latestAt;
   final Set<String> evidenceTaskIds;
+  final int cleanEvidenceCount;
+
+  bool get needsGuidedPractice => cleanEvidenceCount == 0;
+  bool get needsIndependentConfirmation => cleanEvidenceCount > 0;
 }
 
 class GermanMistakeFocus {
@@ -26,6 +31,18 @@ class GermanMistakeFocus {
   final List<GermanMistakeFocusPattern> patterns;
 
   bool get isEmpty => patterns.isEmpty;
+
+  bool isGuidedPriority(GermanTask task) {
+    for (final pattern in patterns) {
+      if (!pattern.needsGuidedPractice) continue;
+      if (pattern.evidenceTaskIds.contains(task.id)) continue;
+      final matches =
+          task.competencyId == pattern.competencyId ||
+          _relatedCompetencies(pattern.kind).contains(task.competencyId);
+      if (matches && _guidedInteraction(pattern.kind, task)) return true;
+    }
+    return false;
+  }
 
   int priorityFor(GermanTask task) {
     var best = 0;
@@ -41,7 +58,14 @@ class GermanMistakeFocus {
       if (match == 0) continue;
 
       var score = match * 100 + (pattern.count > 9 ? 9 : pattern.count);
-      if (_preferredInteraction(pattern.kind, task)) score += 20;
+      if (pattern.needsGuidedPractice) {
+        if (_guidedInteraction(pattern.kind, task)) score += 120;
+        if (task.competencyId != pattern.competencyId) score += 25;
+      } else {
+        if (_independentInteraction(pattern.kind, task)) score += 45;
+        if (task.competencyId == pattern.competencyId) score += 25;
+      }
+      if (_preferredInteraction(pattern.kind, task)) score += 10;
       // A recurring pattern should be checked with fresh evidence rather than
       // by serving the exact task whose answer may now be memorised.
       if (pattern.evidenceTaskIds.contains(task.id)) score -= 80;
@@ -49,6 +73,51 @@ class GermanMistakeFocus {
     }
     return best;
   }
+
+  static bool _guidedInteraction(GermanMistakeKind kind, GermanTask task) =>
+      switch (kind) {
+        GermanMistakeKind.capitalization ||
+        GermanMistakeKind.spelling ||
+        GermanMistakeKind.punctuation ||
+        GermanMistakeKind.capitalizationAndPunctuation ||
+        GermanMistakeKind.endingPunctuation ||
+        GermanMistakeKind.directSpeechPunctuation ||
+        GermanMistakeKind.textRevision =>
+          task.interaction == GermanTaskInteraction.tokenSelection ||
+              task.interaction == GermanTaskInteraction.wordBuilder,
+        GermanMistakeKind.wordOrder ||
+        GermanMistakeKind.textSequence ||
+        GermanMistakeKind.sentenceConnection =>
+          task.interaction == GermanTaskInteraction.wordOrder,
+        GermanMistakeKind.wordBuilding =>
+          task.interaction == GermanTaskInteraction.wordBuilder,
+        GermanMistakeKind.listening => task.requiresSpeech,
+        _ => _preferredInteraction(kind, task),
+      };
+
+  static bool _independentInteraction(
+    GermanMistakeKind kind,
+    GermanTask task,
+  ) => switch (kind) {
+    GermanMistakeKind.capitalization ||
+    GermanMistakeKind.spelling ||
+    GermanMistakeKind.punctuation ||
+    GermanMistakeKind.capitalizationAndPunctuation ||
+    GermanMistakeKind.endingPunctuation ||
+    GermanMistakeKind.missingWord ||
+    GermanMistakeKind.extraWord ||
+    GermanMistakeKind.sentenceConnection ||
+    GermanMistakeKind.textRevision =>
+      task.interaction == GermanTaskInteraction.typedText,
+    GermanMistakeKind.wordOrder || GermanMistakeKind.textSequence =>
+      task.interaction == GermanTaskInteraction.wordOrder ||
+          task.interaction == GermanTaskInteraction.typedText,
+    GermanMistakeKind.wordBuilding =>
+      task.interaction == GermanTaskInteraction.wordBuilder ||
+          task.interaction == GermanTaskInteraction.typedText,
+    GermanMistakeKind.listening => task.requiresSpeech,
+    _ => _preferredInteraction(kind, task),
+  };
 
   static bool _preferredInteraction(GermanMistakeKind kind, GermanTask task) =>
       switch (kind) {
@@ -70,6 +139,7 @@ class GermanMistakeFocus {
   static Set<GermanCompetencyId> _relatedCompetencies(GermanMistakeKind kind) =>
       switch (kind) {
         GermanMistakeKind.capitalization => <GermanCompetencyId>{
+          GermanCompetencyId.nounArticle,
           GermanCompetencyId.sentenceWriting,
           GermanCompetencyId.textRevision,
         },
@@ -235,6 +305,7 @@ class GermanMistakeFocusAnalyzer {
           count: stat.count,
           latestAt: latestAt,
           evidenceTaskIds: Set<String>.unmodifiable(stat.taskIds),
+          cleanEvidenceCount: cleanTaskIds.length,
         ),
       );
     }
