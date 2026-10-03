@@ -97,6 +97,8 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.timeDuration ||
       ErrorPattern.calendarDate ||
       ErrorPattern.perimeterArea ||
+      ErrorPattern.perimeterEdges ||
+      ErrorPattern.areaStructure ||
       ErrorPattern.operationChoice ||
       ErrorPattern.divisionAsSubtraction ||
       ErrorPattern.wordProblem ||
@@ -229,7 +231,9 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.unitConversion => _UnitLadderAid(taskKey: taskKey),
       ErrorPattern.fractionPart => _fractionAid(context),
       ErrorPattern.timeDuration => _TimelineAid(taskKey: taskKey),
-      ErrorPattern.perimeterArea => _RectangleAid(taskKey: taskKey),
+      ErrorPattern.perimeterArea ||
+      ErrorPattern.perimeterEdges ||
+      ErrorPattern.areaStructure => _RectangleAid(taskKey: taskKey),
       ErrorPattern.operationChoice ||
       ErrorPattern.divisionAsSubtraction ||
       ErrorPattern.wordProblem ||

@@ -44,6 +44,8 @@ enum ErrorPattern {
   combinatorics,
   proportionalReasoning,
   perimeterArea,
+  perimeterEdges,
+  areaStructure,
   spatialReasoning,
   symmetry,
   planScale,
@@ -101,6 +103,8 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.combinatorics => 'Möglichkeiten systematisch finden',
         ErrorPattern.proportionalReasoning => 'Proportionale Zuordnung',
         ErrorPattern.perimeterArea => 'Umfang und Fläche unterscheiden',
+        ErrorPattern.perimeterEdges => 'Alle Randstrecken erfassen',
+        ErrorPattern.areaStructure => 'Fläche als Zeilen × Spalten',
         ErrorPattern.spatialReasoning => 'Körper und räumliche Vorstellung',
         ErrorPattern.symmetry => 'Symmetrie',
         ErrorPattern.planScale => 'Plan, Weg oder Maßstab',
@@ -193,6 +197,10 @@ extension ErrorPatternX on ErrorPattern {
           'Zuerst den Wert für eine Einheit bestimmen und von dort weiterrechnen.',
         ErrorPattern.perimeterArea =>
           'Umfang als Rand und Fläche als Inneres sichtbar markieren und die passende Rechenregel dazu schreiben.',
+        ErrorPattern.perimeterEdges =>
+          'Beim Umfang jede der vier Randstrecken genau einmal erfassen: zwei Längen und zwei Breiten.',
+        ErrorPattern.areaStructure =>
+          'Die Fläche als Reihen und Spalten von Einheitsquadraten denken: Länge × Breite.',
         ErrorPattern.spatialReasoning =>
           'Körper drehen, Netz/Flächen markieren und Ecken, Kanten und Flächen getrennt zählen.',
         ErrorPattern.symmetry =>
@@ -280,6 +288,10 @@ extension ErrorPatternX on ErrorPattern {
           'Bestimme zuerst den Wert für genau eine Einheit.',
         ErrorPattern.perimeterArea =>
           'Geht es um den Rand oder um das Innere der Figur?',
+        ErrorPattern.perimeterEdges =>
+          'Welche vier Seiten bilden den Rand? Nimm zwei Längen und zwei Breiten.',
+        ErrorPattern.areaStructure =>
+          'Wie viele Reihen und Spalten aus 1-cm²-Quadraten hat das Rechteck?',
         ErrorPattern.spatialReasoning =>
           'Betrachte den Körper aus einer zweiten Richtung und prüfe nur eine Eigenschaft zugleich.',
         ErrorPattern.symmetry =>
@@ -499,7 +511,11 @@ class ErrorClassifier {
       TrainingMode.probability => ErrorPattern.probabilityReasoning,
       TrainingMode.combinatorics => ErrorPattern.combinatorics,
       TrainingMode.proportionality => ErrorPattern.proportionalReasoning,
-      TrainingMode.perimeterArea => ErrorPattern.perimeterArea,
+      TrainingMode.perimeterArea => _perimeterAreaPattern(
+          taskKey,
+          expected: expected,
+          actual: actual,
+        ),
       TrainingMode.geometryRelations => ErrorPattern.geometryProperty,
       TrainingMode.geometryBodies => ErrorPattern.spatialReasoning,
       TrainingMode.symmetry => ErrorPattern.symmetry,
@@ -797,6 +813,47 @@ class ErrorClassifier {
       }
     }
     return ErrorPattern.moneyCalculation;
+  }
+
+  static ErrorPattern _perimeterAreaPattern(
+    String key, {
+    required int expected,
+    required int actual,
+  }) {
+    final parts = key.split(':');
+    if (parts.length < 5 || parts[0] != 'rect') {
+      return ErrorPattern.perimeterArea;
+    }
+    final width = int.tryParse(parts[3]);
+    final height = int.tryParse(parts[4]);
+    if (width == null || height == null || width <= 0 || height <= 0) {
+      return ErrorPattern.perimeterArea;
+    }
+    final area = width * height;
+    final perimeter = 2 * (width + height);
+    if (parts[1] == 'area') {
+      if (actual == perimeter && actual != expected) {
+        return ErrorPattern.perimeterArea;
+      }
+      if (actual == width + height && actual != expected) {
+        return ErrorPattern.areaStructure;
+      }
+      return ErrorPattern.areaStructure;
+    }
+    if (parts[1] == 'perimeter') {
+      if (actual == area && actual != expected) {
+        return ErrorPattern.perimeterArea;
+      }
+      if (actual == width + height && actual != expected) {
+        return ErrorPattern.perimeterEdges;
+      }
+      if ((actual == 2 * width + height || actual == width + 2 * height) &&
+          actual != expected) {
+        return ErrorPattern.perimeterEdges;
+      }
+      return ErrorPattern.perimeterEdges;
+    }
+    return ErrorPattern.perimeterArea;
   }
 
   static ErrorPattern _fractionPattern(
