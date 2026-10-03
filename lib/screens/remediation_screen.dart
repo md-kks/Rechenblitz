@@ -211,6 +211,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
           taskKey: answeredTask.taskKey,
           expected: answeredTask.answer,
           actual: answer,
+          targetCompetency: answeredTask.effectiveTargetCompetency,
           usedHelp: _currentHelpLevel > 0,
           helpLevel: _currentHelpLevel,
           methodKey: _guide.methodKey,

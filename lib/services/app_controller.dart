@@ -748,6 +748,7 @@ class AppController extends ChangeNotifier {
     required int expected,
     required int actual,
     MathFact? fact,
+    MicroCompetencyId? targetCompetency,
     bool usedHelp = false,
     int helpLevel = 0,
     String? methodKey,
@@ -770,6 +771,7 @@ class AppController extends ChangeNotifier {
       correct: actual == expected,
       fact: fact,
       usedHelp: usedHelp || helpLevel > 0,
+      onlyCompetency: targetCompetency,
       helpLevel: helpLevel,
       methodKey: methodKey,
       source: source,
@@ -1749,7 +1751,12 @@ class AppController extends ChangeNotifier {
     );
     final selectedTags = onlyCompetency == null
         ? tags
-        : tags.where((tag) => tag.id == onlyCompetency).toList(growable: false);
+        : [
+            tags.firstWhere(
+              (tag) => tag.id == onlyCompetency,
+              orElse: () => MicroCompetencyTag(onlyCompetency),
+            ),
+          ];
     final observations = selectedTags
         .map(
           (tag) => MicroCompetencyObservation(
