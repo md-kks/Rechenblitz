@@ -446,7 +446,10 @@ class _GermanRankingContext {
   GermanCompetencyProgress progressFor(GermanCompetencyId competencyId) =>
       _progressByCompetency.putIfAbsent(
         competencyId,
-        () => GermanProgressAnalyzer.forCompetency(competencyId, history),
+        () => GermanProgressAnalyzer.forCompetencyInUniqueHistory(
+          competencyId,
+          history,
+        ),
       );
 
   GermanGradeBridgeStatus bridgeFor(GermanCompetencyId competencyId) =>

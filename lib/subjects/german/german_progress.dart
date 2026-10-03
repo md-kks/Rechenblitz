@@ -97,8 +97,15 @@ class GermanProgressAnalyzer {
   static GermanCompetencyProgress forCompetency(
     GermanCompetencyId competencyId,
     Iterable<GermanSessionResult> history,
+  ) => forCompetencyInUniqueHistory(
+    competencyId,
+    GermanHistoryScope.unique(history),
+  );
+
+  static GermanCompetencyProgress forCompetencyInUniqueHistory(
+    GermanCompetencyId competencyId,
+    List<GermanSessionResult> sessions,
   ) {
-    final sessions = GermanHistoryScope.unique(history);
     final matching = <({GermanTaskResult result, DateTime finishedAt})>[];
     for (final session in sessions) {
       for (final result in session.taskResults) {
