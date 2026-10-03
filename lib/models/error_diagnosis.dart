@@ -449,8 +449,16 @@ class ErrorClassifier {
           expected: expected,
           actual: actual,
         ),
-      TrainingMode.writtenMultiply ||
-      TrainingMode.writtenDivide => ErrorPattern.writtenProcedure,
+      TrainingMode.writtenMultiply => _writtenMultiplyPattern(
+          taskKey,
+          expected: expected,
+          actual: actual,
+        ),
+      TrainingMode.writtenDivide => _writtenDividePattern(
+          taskKey,
+          expected: expected,
+          actual: actual,
+        ),
       TrainingMode.estimation => ErrorPattern.estimation,
       TrainingMode.arithmeticLaws => ErrorPattern.arithmeticLaw,
       TrainingMode.romanNumerals => ErrorPattern.romanNumeral,
@@ -720,6 +728,54 @@ class ErrorClassifier {
     if ((actual - expected).abs() >= 10 &&
         (actual - expected).abs() % 10 == 0) {
       return ErrorPattern.placeValue;
+    }
+    return ErrorPattern.writtenProcedure;
+  }
+
+  static ErrorPattern _writtenMultiplyPattern(
+    String key, {
+    required int expected,
+    required int actual,
+  }) {
+    final parts = key.split(':');
+    if (parts.length < 4 || parts[1] != 'x') {
+      return ErrorPattern.writtenProcedure;
+    }
+    final a = int.tryParse(parts[2]);
+    final b = int.tryParse(parts[3]);
+    if (a == null || b == null) return ErrorPattern.writtenProcedure;
+
+    if (actual != expected && actual == a + b) {
+      return ErrorPattern.multiplicationAsAddition;
+    }
+    if (a >= b && actual == a - b) return ErrorPattern.operationChoice;
+    if (b != 0 && a % b == 0 && actual == a ~/ b) {
+      return ErrorPattern.operationChoice;
+    }
+    return ErrorPattern.writtenProcedure;
+  }
+
+  static ErrorPattern _writtenDividePattern(
+    String key, {
+    required int expected,
+    required int actual,
+  }) {
+    final parts = key.split(':');
+    if (parts.length < 4 ||
+        (parts[1] != 'divide' && parts[1] != 'divide-rest')) {
+      return ErrorPattern.writtenProcedure;
+    }
+    final dividend = int.tryParse(parts[2]);
+    final divisor = int.tryParse(parts[3]);
+    if (dividend == null || divisor == null || divisor == 0) {
+      return ErrorPattern.writtenProcedure;
+    }
+
+    if (actual != expected && actual == dividend - divisor) {
+      return ErrorPattern.divisionAsSubtraction;
+    }
+    if (actual == dividend * divisor || actual == dividend + divisor) {
+      return ErrorPattern.operationChoice;
     }
     return ErrorPattern.writtenProcedure;
   }
