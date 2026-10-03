@@ -154,6 +154,7 @@ void main() {
       ErrorPattern.romanNumeral: TrainingMode.romanNumerals,
       ErrorPattern.fractionPart: TrainingMode.fractions,
       ErrorPattern.timeDuration: TrainingMode.timeDurations,
+      ErrorPattern.calendarDate: TrainingMode.timeDurations,
       ErrorPattern.dataReading: TrainingMode.dataCharts,
       ErrorPattern.probabilityReasoning: TrainingMode.probability,
       ErrorPattern.combinatorics: TrainingMode.combinatorics,

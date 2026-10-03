@@ -1096,6 +1096,9 @@ class MicroCompetencyCatalog {
         'timeDuration' => const [
             MicroCompetencyTag(MicroCompetencyId.timeDuration),
           ],
+        'calendarDate' => const [
+            MicroCompetencyTag(MicroCompetencyId.calendarDate),
+          ],
         'perimeterArea' => [
             MicroCompetencyTag(
               taskKey.contains(':area:')
