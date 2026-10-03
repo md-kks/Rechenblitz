@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
+import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/remediation_path.dart';
 import 'package:rechenblitz/models/training.dart';
@@ -266,7 +267,8 @@ void main() {
     expect(controller.stars, 0);
   });
 
-  test('drei sichere Folgebeobachtungen machen Verbesserung stabil', () async {
+  test('direkte richtige Folgeaufgaben gelten noch nicht als Stabilitätsbeleg',
+      () async {
     final controller = AppController();
     await controller.load();
     controller.gradeLevel = GradeLevel.second;
@@ -282,9 +284,114 @@ void main() {
     for (var i = 0; i < 3; i++) {
       await controller.recordDiagnosticAttempt(
         mode: TrainingMode.minus,
-        taskKey: 'remediation:tenBridge:-:13:5',
+        taskKey: 'minus:${13 + i}:${5 + i}',
         expected: 8,
         actual: 8,
+        fact: MathFact(
+          a: 13 + i,
+          b: 5 + i,
+          operation: MathOperation.minus,
+        ),
+        evidenceId: 'immediate-$i',
+      );
+    }
+
+    final progress =
+        controller.remediationProgressFor(ErrorPattern.tenBridge)!;
+    expect(progress.status, RemediationStatus.improved);
+    expect(progress.stabilityCorrect, 0);
+    expect(controller.unlockedBadges, isNot(contains('weak_spot')));
+  });
+
+  test('alte richtige Evidenz kann nach Kontrolltermin nicht erneut zählen',
+      () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.remediationProgress = [
+      RemediationProgress(
+        pattern: ErrorPattern.tenBridge,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        status: RemediationStatus.improved,
+        startedAt: DateTime.now(),
+        completedAt: DateTime.now(),
+        nextReviewAt: DateTime.now().add(const Duration(days: 3)),
+      ),
+    ];
+
+    final fact = MathFact(a: 13, b: 5, operation: MathOperation.minus);
+    await controller.recordDiagnosticAttempt(
+      mode: TrainingMode.minus,
+      taskKey: 'minus:13:5',
+      expected: 8,
+      actual: 8,
+      fact: fact,
+      evidenceId: 'same-evidence',
+    );
+    expect(
+      controller.remediationProgressFor(ErrorPattern.tenBridge)!.stabilityCorrect,
+      0,
+    );
+
+    final current =
+        controller.remediationProgressFor(ErrorPattern.tenBridge)!;
+    controller.remediationProgress = [
+      current.copyWith(nextReviewAt: DateTime(2026, 9, 1)),
+    ];
+
+    await controller.recordDiagnosticAttempt(
+      mode: TrainingMode.minus,
+      taskKey: 'minus:13:5',
+      expected: 8,
+      actual: 8,
+      fact: fact,
+      evidenceId: 'same-evidence',
+    );
+
+    expect(
+      controller.remediationProgressFor(ErrorPattern.tenBridge)!.stabilityCorrect,
+      0,
+    );
+    expect(
+      controller.diagnostics
+          .where((entry) => entry.evidenceId == 'same-evidence')
+          .length,
+      1,
+    );
+  });
+
+  test('drei spätere sichere Folgebeobachtungen machen Verbesserung stabil',
+      () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.remediationProgress = [
+      RemediationProgress(
+        pattern: ErrorPattern.tenBridge,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        status: RemediationStatus.improved,
+        startedAt: DateTime(2026, 9, 1),
+        completedAt: DateTime(2026, 9, 1),
+        nextReviewAt: DateTime(2026, 9, 2),
+      ),
+    ];
+
+    for (var i = 0; i < 3; i++) {
+      await controller.recordDiagnosticAttempt(
+        mode: TrainingMode.minus,
+        taskKey: 'minus:${13 + i}:${5 + i}',
+        expected: 8,
+        actual: 8,
+        fact: MathFact(
+          a: 13 + i,
+          b: 5 + i,
+          operation: MathOperation.minus,
+        ),
+        evidenceId: 'delayed-$i',
       );
     }
 
@@ -293,6 +400,43 @@ void main() {
     expect(progress.status, RemediationStatus.stable);
     expect(progress.stabilityCorrect, 3);
     expect(controller.unlockedBadges, contains('weak_spot'));
+  });
+
+  test('erneuter gleicher Fehler widerlegt Verbesserung auch vor Kontrolltermin',
+      () async {
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.second;
+    controller.numberRange = NumberRangeLevel.hundred;
+    controller.remediationProgress = [
+      RemediationProgress(
+        pattern: ErrorPattern.tenBridge,
+        gradeLevel: GradeLevel.second,
+        numberRange: NumberRangeLevel.hundred,
+        status: RemediationStatus.improved,
+        startedAt: DateTime.now(),
+        completedAt: DateTime.now(),
+        nextReviewAt: DateTime.now().add(const Duration(days: 3)),
+      ),
+    ];
+
+    await controller.recordDiagnosticAttempt(
+      mode: TrainingMode.minus,
+      taskKey: 'minus:13:5',
+      expected: 8,
+      actual: 9,
+      fact: MathFact(
+        a: 13,
+        b: 5,
+        operation: MathOperation.minus,
+      ),
+      evidenceId: 'early-relapse',
+    );
+
+    final progress =
+        controller.remediationProgressFor(ErrorPattern.tenBridge)!;
+    expect(progress.status, RemediationStatus.recurring);
+    expect(progress.stabilityCorrect, 0);
   });
 
   test('erneuter gleicher Fehler nach Stabilität setzt Muster zurück', () async {
