@@ -4030,4 +4030,46 @@ void main() {
     expect(find.textContaining('Anwenden:'), findsOneWidget);
   });
 
+  // Regression: mehrere beobachtete schriftliche Teilschritt-Lücken bleiben einzeln
+  // diagnostizierbar; die Prioritäts-API liefert weiterhin die neueste zuerst.
+  test('schriftliche Verfahren behalten mehrere konkrete Teilschritt-Lücken', () {
+    final controller = AppController();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    final now = DateTime(2026, 10, 3, 20);
+    const cases = <(String, TrainingMode, MicroCompetencyId)>[
+      ('firstPartialProduct', TrainingMode.writtenMultiply, MicroCompetencyId.writtenMultiplyProcedure),
+      ('multiplicationCarry', TrainingMode.writtenMultiply, MicroCompetencyId.writtenMultiplyProcedure),
+      ('nextMultiplierDigit', TrainingMode.writtenMultiply, MicroCompetencyId.writtenMultiplyProcedure),
+      ('firstQuotientDigit', TrainingMode.writtenDivide, MicroCompetencyId.writtenDivideProcedure),
+      ('firstDivisionRemainder', TrainingMode.writtenDivide, MicroCompetencyId.writtenDivideProcedure),
+    ];
+    controller.microObservations = [
+      for (var i = 0; i < cases.length; i++)
+        MicroCompetencyObservation(
+          id: cases[i].$3,
+          occurredAt: now.subtract(Duration(minutes: i + 1)),
+          correct: false,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: cases[i].$2,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey: 'independent:${cases[i].$1}:written:test:$i',
+        ),
+    ];
+
+    final focuses = controller.independentStepRecoveryFocuses(now: now);
+    expect(focuses.map((focus) => focus.stepKey).toSet(), {
+      'firstPartialProduct',
+      'multiplicationCarry',
+      'nextMultiplierDigit',
+      'firstQuotientDigit',
+      'firstDivisionRemainder',
+    });
+    expect(focuses, hasLength(5));
+    expect(controller.independentStepRecoveryFocus(now: now)?.stepKey,
+        'firstPartialProduct');
+  });
 }

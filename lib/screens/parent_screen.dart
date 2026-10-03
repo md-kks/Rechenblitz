@@ -115,6 +115,15 @@ class _ParentScreenState extends State<ParentScreen> {
     final methodInsight = priority == null || priority.observations == 0
         ? null
         : c.methodSupportInsight(priority.definition.id);
+    final writtenStepGaps = c
+        .independentStepRecoveryFocuses()
+        .where(
+          (focus) =>
+              focus.mode == TrainingMode.writtenMultiply ||
+              focus.mode == TrainingMode.writtenDivide,
+        )
+        .take(5)
+        .toList(growable: false);
     final diagnosticPatterns = c
         .diagnosticSummaries(recurringOnly: true)
         .where(
@@ -575,12 +584,43 @@ class _ParentScreenState extends State<ParentScreen> {
           const SizedBox(height: 14),
           _Section(
             title: 'Förderbedarf & Fehlermuster',
-            child: diagnosticPatterns.isEmpty
-                ? const Text(
-                    'Noch kein wiederkehrendes Fehlermuster. Rechenblitz zeigt hier erst etwas an, wenn ein ähnlicher Fehler mindestens zweimal aufgefallen ist.',
-                  )
-                : Column(
-                    children: diagnosticPatterns
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (writtenStepGaps.isNotEmpty) ...[
+                  const Text(
+                    'Konkrete Rechenschritt-Lücken',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 6),
+                  ...writtenStepGaps.map(
+                    (focus) => Padding(
+                      key: ValueKey('parent-written-step-gap-${focus.stepKey}'),
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.account_tree_outlined, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${focus.mode.title}: ${focus.label}. '
+                              'Dieser Teilschritt wird in „Meine Runde“ gezielt nachgeübt.',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (diagnosticPatterns.isNotEmpty)
+                    const Divider(height: 24),
+                ],
+                if (diagnosticPatterns.isEmpty && writtenStepGaps.isEmpty)
+                  const Text(
+                    'Noch kein wiederkehrendes Fehlermuster. Rechenblitz zeigt hier erst etwas an, wenn ein ähnlicher Fehler mindestens zweimal aufgefallen ist. Konkrete Fehler in überprüften Rechenschritten werden sofort angezeigt.',
+                  ),
+                if (diagnosticPatterns.isNotEmpty)
+                  ...diagnosticPatterns
                         .map(
                           (summary) {
                             final status =
@@ -678,9 +718,9 @@ class _ParentScreenState extends State<ParentScreen> {
                               ),
                             );
                           },
-                        )
-                        .toList(),
-                  ),
+                        ),
+              ],
+            ),
           ),
           const SizedBox(height: 14),
           _Section(

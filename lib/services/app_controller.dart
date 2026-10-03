@@ -2280,7 +2280,7 @@ class AppController extends ChangeNotifier {
         latest.every((entry) => entry.correct);
   }
 
-  IndependentStepRecoveryFocus? independentStepRecoveryFocus({
+  List<IndependentStepRecoveryFocus> independentStepRecoveryFocuses({
     DateTime? now,
   }) {
     final reference = now ?? DateTime.now();
@@ -2298,11 +2298,15 @@ class AppController extends ChangeNotifier {
         .toList()
       ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
 
+    final focuses = <IndependentStepRecoveryFocus>[];
+    final seen = <String>{};
     for (final observation in candidates) {
       final stepKey = GuidedStepCatalog.keyFromTaskKey(observation.taskKey);
       if (stepKey == null || !StepRecoveryGenerator.supports(stepKey)) {
         continue;
       }
+      final identity = '${observation.id.name}:$stepKey';
+      if (!seen.add(identity)) continue;
       if (_independentStepRecovered(
         observation.id,
         stepKey,
@@ -2310,16 +2314,25 @@ class AppController extends ChangeNotifier {
       )) {
         continue;
       }
-      return IndependentStepRecoveryFocus(
-        competencyId: observation.id,
-        stepKey: stepKey,
-        label: GuidedStepCatalog.labelFor(stepKey),
-        mode: observation.mode,
-        lastSeen: observation.occurredAt,
-        sourceTaskKey: observation.taskKey,
+      focuses.add(
+        IndependentStepRecoveryFocus(
+          competencyId: observation.id,
+          stepKey: stepKey,
+          label: GuidedStepCatalog.labelFor(stepKey),
+          mode: observation.mode,
+          lastSeen: observation.occurredAt,
+          sourceTaskKey: observation.taskKey,
+        ),
       );
     }
-    return null;
+    return focuses;
+  }
+
+  IndependentStepRecoveryFocus? independentStepRecoveryFocus({
+    DateTime? now,
+  }) {
+    final focuses = independentStepRecoveryFocuses(now: now);
+    return focuses.isEmpty ? null : focuses.first;
   }
 
   bool _guidedStepRecoveredIndependently(
