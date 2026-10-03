@@ -10,6 +10,15 @@ import 'training.dart';
 
 enum RemediationStage { guided, supported, transfer, check }
 
+extension RemediationStageEvidence on RemediationStage {
+  MicroEvidenceSource get evidenceSource => switch (this) {
+        RemediationStage.transfer => MicroEvidenceSource.transfer,
+        RemediationStage.check => MicroEvidenceSource.review,
+        RemediationStage.guided || RemediationStage.supported =>
+          MicroEvidenceSource.remediation,
+      };
+}
+
 extension RemediationStageX on RemediationStage {
   String get label => switch (this) {
         RemediationStage.guided => 'Mit Hilfe',
