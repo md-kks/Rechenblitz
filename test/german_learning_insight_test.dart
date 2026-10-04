@@ -71,6 +71,33 @@ void main() {
     expect(insight.explanation, contains('Unterstützung'));
   });
 
+  test('resolved focus is not immediately relabeled as practice need', () {
+    final history = <GermanSessionResult>[
+      _session(DateTime(2026, 9, 1, 9), <GermanTaskResult>[
+        _result('miss-a', correct: false),
+      ]),
+      _session(DateTime(2026, 9, 2, 9), <GermanTaskResult>[
+        _result('miss-b', correct: false),
+      ]),
+      _session(DateTime(2026, 9, 3, 9), <GermanTaskResult>[
+        _result('clean-a', correct: true),
+      ]),
+      _session(DateTime(2026, 9, 4, 9), <GermanTaskResult>[
+        _result('clean-b', correct: true),
+      ]),
+    ];
+    final insight =
+        GermanParentOverview.analyze(
+          gradeLevel: GradeLevel.third,
+          history: history,
+          now: DateTime(2026, 9, 5),
+        ).learningInsights.firstWhere(
+          (entry) => entry.competencyId == GermanCompetencyId.sentenceWriting,
+        );
+    expect(insight.state, isNot(GermanLearningInsightState.needsPractice));
+    expect(insight.state, isNot(GermanLearningInsightState.transferCheck));
+  });
+
   test('trend distinguishes improvement from renewed attention', () {
     final improvingHistory = <GermanSessionResult>[];
     for (var day = 0; day < 6; day++) {

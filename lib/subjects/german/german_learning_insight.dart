@@ -120,7 +120,8 @@ class GermanLearningInsightAnalyzer {
           ),
         );
       } else if (entry.attention(now: now) ==
-          GermanPracticeAttention.needsPractice) {
+              GermanPracticeAttention.needsPractice &&
+          !_hasResolvedRecentMistakeFocus(entry.competencyId, sessions)) {
         insights.add(
           GermanLearningInsight(
             competencyId: entry.competencyId,
@@ -172,6 +173,48 @@ class GermanLearningInsightAnalyzer {
     }
     insights.sort((a, b) => _priority(a.state).compareTo(_priority(b.state)));
     return List<GermanLearningInsight>.unmodifiable(insights);
+  }
+
+  static bool _hasResolvedRecentMistakeFocus(
+    GermanCompetencyId competencyId,
+    List<GermanSessionResult> sessions,
+  ) {
+    final relevant = <({GermanTaskResult result, DateTime at})>[];
+    for (final session in sessions) {
+      for (final result in session.taskResults) {
+        if (result.competencyId == competencyId && !result.usedReadAloud) {
+          relevant.add((result: result, at: session.finishedAt));
+        }
+      }
+    }
+    final mistakes = relevant
+        .where((entry) => entry.result.firstMistakeKind != null)
+        .toList(growable: false);
+    if (mistakes.length < 2) return false;
+    mistakes.sort((a, b) => b.at.compareTo(a.at));
+    final latestKind = mistakes.first.result.firstMistakeKind;
+    final sameKind = mistakes
+        .where((entry) => entry.result.firstMistakeKind == latestKind)
+        .toList(growable: false);
+    if (sameKind.length < 2 ||
+        sameKind.map((entry) => entry.result.taskId).toSet().length < 2) {
+      return false;
+    }
+    final latestMistakeAt = sameKind
+        .map((entry) => entry.at)
+        .reduce((a, b) => a.isAfter(b) ? a : b);
+    final confirmationCutoff = latestMistakeAt.add(const Duration(hours: 12));
+    final cleanIds = relevant
+        .where(
+          (entry) =>
+              !entry.at.isBefore(confirmationCutoff) &&
+              entry.result.independentCorrectFirstTry &&
+              entry.result.incorrectAttempts == 0 &&
+              entry.result.firstMistakeKind == null,
+        )
+        .map((entry) => entry.result.taskId)
+        .toSet();
+    return cleanIds.length >= 2;
   }
 
   static GermanLearningTrend _trend(
