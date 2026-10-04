@@ -113,6 +113,10 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.estimation ||
       ErrorPattern.romanNumeral ||
       ErrorPattern.dataReading ||
+      ErrorPattern.dataAggregation ||
+      ErrorPattern.dataComparison ||
+      ErrorPattern.tallyReading ||
+      ErrorPattern.dataRepresentationChoice ||
       ErrorPattern.probabilityReasoning ||
       ErrorPattern.combinatorics ||
       ErrorPattern.divisionFact ||

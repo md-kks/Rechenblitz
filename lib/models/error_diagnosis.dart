@@ -40,6 +40,10 @@ enum ErrorPattern {
   timeDuration,
   calendarDate,
   dataReading,
+  dataAggregation,
+  dataComparison,
+  tallyReading,
+  dataRepresentationChoice,
   probabilityReasoning,
   combinatorics,
   proportionalReasoning,
@@ -98,7 +102,11 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.fractionPartCount => 'Anzahl der Bruchteile',
         ErrorPattern.timeDuration => 'Zeitspanne',
         ErrorPattern.calendarDate => 'Datum und Kalender',
-        ErrorPattern.dataReading => 'Daten und Diagramme lesen',
+        ErrorPattern.dataReading => 'Diagrammwerte ablesen',
+        ErrorPattern.dataAggregation => 'Diagrammwerte zusammenzählen',
+        ErrorPattern.dataComparison => 'Diagrammwerte vergleichen',
+        ErrorPattern.tallyReading => 'Strichliste lesen',
+        ErrorPattern.dataRepresentationChoice => 'Passende Datendarstellung wählen',
         ErrorPattern.probabilityReasoning => 'Wahrscheinlichkeit einschätzen',
         ErrorPattern.combinatorics => 'Möglichkeiten systematisch finden',
         ErrorPattern.proportionalReasoning => 'Proportionale Zuordnung',
@@ -189,6 +197,14 @@ extension ErrorPatternX on ErrorPattern {
           'Im Kalender vom Startdatum aus die Tage schrittweise weiterzählen und Monatsgrenzen beachten.',
         ErrorPattern.dataReading =>
           'Achsen, Legende und Einheit zuerst lesen; danach genau die benötigten Werte markieren.',
+        ErrorPattern.dataAggregation =>
+          'Zuerst alle benötigten Balkenwerte sicher ablesen und erst danach zur Gesamtmenge addieren.',
+        ErrorPattern.dataComparison =>
+          'Die zwei gefragten Balkenwerte sicher ablesen und anschließend ihre Differenz bilden.',
+        ErrorPattern.tallyReading =>
+          'Vollständige Fünferblöcke zuerst erfassen und danach die einzelnen Reststriche ergänzen.',
+        ErrorPattern.dataRepresentationChoice =>
+          'Zuerst den Zweck klären: laufend zählen, Werte nachschlagen oder Größen schnell vergleichen.',
         ErrorPattern.probabilityReasoning =>
           'Alle möglichen Ergebnisse sichtbar sammeln und erst danach vergleichen, was wahrscheinlicher ist.',
         ErrorPattern.combinatorics =>
@@ -280,6 +296,14 @@ extension ErrorPatternX on ErrorPattern {
           'Markiere Start und Ende und gehe zuerst bis zu einer gut erreichbaren Uhrzeit.',
         ErrorPattern.dataReading =>
           'Lies zuerst Beschriftung und Einheit. Welche Werte brauchst du wirklich?',
+        ErrorPattern.dataAggregation =>
+          'Welche Balkenwerte gehören alle zur gesuchten Gesamtmenge?',
+        ErrorPattern.dataComparison =>
+          'Welche zwei Balken musst du vergleichen, und wie groß ist ihr Abstand?',
+        ErrorPattern.tallyReading =>
+          'Wie viele vollständige Fünferblöcke siehst du, und wie viele Reststriche bleiben?',
+        ErrorPattern.dataRepresentationChoice =>
+          'Sollst du laufend mitzählen, exakte Werte nachschlagen oder Größen schnell vergleichen?',
         ErrorPattern.probabilityReasoning =>
           'Welche Ergebnisse sind überhaupt möglich? Zähle sie, bevor du die Chance vergleichst.',
         ErrorPattern.combinatorics =>
@@ -507,7 +531,7 @@ class ErrorClassifier {
         ),
       TrainingMode.advancedMeasures => ErrorPattern.unitConversion,
       TrainingMode.timeDurations => _timePattern(taskKey),
-      TrainingMode.dataCharts => ErrorPattern.dataReading,
+      TrainingMode.dataCharts => _dataPattern(taskKey),
       TrainingMode.probability => ErrorPattern.probabilityReasoning,
       TrainingMode.combinatorics => ErrorPattern.combinatorics,
       TrainingMode.proportionality => ErrorPattern.proportionalReasoning,
@@ -813,6 +837,22 @@ class ErrorClassifier {
       }
     }
     return ErrorPattern.moneyCalculation;
+  }
+
+  static ErrorPattern _dataPattern(String key) {
+    if (key.startsWith('data:tally:')) {
+      return ErrorPattern.tallyReading;
+    }
+    if (key.startsWith('data:representation:')) {
+      return ErrorPattern.dataRepresentationChoice;
+    }
+    if (key.startsWith('data:sum:')) {
+      return ErrorPattern.dataAggregation;
+    }
+    if (key.startsWith('data:diff:')) {
+      return ErrorPattern.dataComparison;
+    }
+    return ErrorPattern.dataReading;
   }
 
   static ErrorPattern _perimeterAreaPattern(
