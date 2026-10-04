@@ -1178,6 +1178,18 @@ class MicroCompetencyCatalog {
                       : MicroCompetencyId.dataReading,
             ),
           ],
+        'dataAggregation' => const [
+            MicroCompetencyTag(MicroCompetencyId.dataReading),
+          ],
+        'dataComparison' => const [
+            MicroCompetencyTag(MicroCompetencyId.dataReading),
+          ],
+        'tallyReading' => const [
+            MicroCompetencyTag(MicroCompetencyId.tallyTableReading),
+          ],
+        'dataRepresentationChoice' => const [
+            MicroCompetencyTag(MicroCompetencyId.dataRepresentationChoice),
+          ],
         'probabilityReasoning' => taskKey.contains('prob:experiment:')
             ? const [
                 MicroCompetencyTag(MicroCompetencyId.probabilityExperiment),

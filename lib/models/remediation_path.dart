@@ -4455,6 +4455,31 @@ class RemediationGenerator {
             grade: grade,
             range: range,
           ),
+        ErrorPattern.dataAggregation ||
+        ErrorPattern.dataComparison => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.dataCharts,
+            competency: MicroCompetencyId.dataReading,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.tallyReading => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.dataCharts,
+            competency: MicroCompetencyId.tallyTableReading,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.dataRepresentationChoice => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.dataCharts,
+            competency: MicroCompetencyId.dataRepresentationChoice,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.probabilityReasoning => _probabilityRemediation(
             stage: stage,
             pattern: pattern,
@@ -4594,6 +4619,18 @@ class RemediationGenerator {
     ErrorPattern.dataReading: {
       MicroCompetencyId.dataReading,
       MicroCompetencyId.tallyTableReading,
+      MicroCompetencyId.dataRepresentationChoice,
+    },
+    ErrorPattern.dataAggregation: {
+      MicroCompetencyId.dataReading,
+    },
+    ErrorPattern.dataComparison: {
+      MicroCompetencyId.dataReading,
+    },
+    ErrorPattern.tallyReading: {
+      MicroCompetencyId.tallyTableReading,
+    },
+    ErrorPattern.dataRepresentationChoice: {
       MicroCompetencyId.dataRepresentationChoice,
     },
     ErrorPattern.probabilityReasoning: {
