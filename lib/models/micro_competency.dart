@@ -1201,6 +1201,26 @@ class MicroCompetencyCatalog {
             : const [
                 MicroCompetencyTag(MicroCompetencyId.probabilityReasoning),
               ],
+        'probabilityEventClass' => const [
+            MicroCompetencyTag(MicroCompetencyId.probabilityReasoning),
+          ],
+        'probabilityChanceComparison' => const [
+            MicroCompetencyTag(MicroCompetencyId.probabilityReasoning),
+          ],
+        'probabilityExperimentComparison' => const [
+            MicroCompetencyTag(MicroCompetencyId.probabilityExperiment),
+            MicroCompetencyTag(
+              MicroCompetencyId.probabilityReasoning,
+              weight: 0.35,
+            ),
+          ],
+        'probabilityRelativeFrequency' => const [
+            MicroCompetencyTag(MicroCompetencyId.probabilityExperiment),
+            MicroCompetencyTag(
+              MicroCompetencyId.probabilityReasoning,
+              weight: 0.35,
+            ),
+          ],
         'combinatorics' => const [
             MicroCompetencyTag(MicroCompetencyId.combinatoricsSystematic),
           ],
