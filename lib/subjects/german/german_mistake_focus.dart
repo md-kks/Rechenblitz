@@ -89,9 +89,12 @@ class GermanMistakeFocus {
         GermanMistakeKind.punctuation ||
         GermanMistakeKind.capitalizationAndPunctuation ||
         GermanMistakeKind.endingPunctuation ||
-        GermanMistakeKind.directSpeechPunctuation ||
-        GermanMistakeKind.textRevision =>
+        GermanMistakeKind.directSpeechPunctuation =>
           task.interaction == GermanTaskInteraction.tokenSelection ||
+              task.interaction == GermanTaskInteraction.wordBuilder,
+        GermanMistakeKind.textRevision =>
+          task.interaction == GermanTaskInteraction.singleChoice ||
+              task.interaction == GermanTaskInteraction.tokenSelection ||
               task.interaction == GermanTaskInteraction.wordBuilder,
         GermanMistakeKind.wordOrder ||
         GermanMistakeKind.textSequence ||
