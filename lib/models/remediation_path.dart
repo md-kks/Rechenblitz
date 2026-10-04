@@ -4486,6 +4486,24 @@ class RemediationGenerator {
             grade: grade,
             range: range,
           ),
+        ErrorPattern.probabilityEventClass ||
+        ErrorPattern.probabilityChanceComparison => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.probability,
+            competency: MicroCompetencyId.probabilityReasoning,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.probabilityExperimentComparison ||
+        ErrorPattern.probabilityRelativeFrequency => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.probability,
+            competency: MicroCompetencyId.probabilityExperiment,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.combinatorics => _targetedCurriculumRemediation(
             stage: stage,
             pattern: pattern,
@@ -4635,6 +4653,18 @@ class RemediationGenerator {
     },
     ErrorPattern.probabilityReasoning: {
       MicroCompetencyId.probabilityReasoning,
+      MicroCompetencyId.probabilityExperiment,
+    },
+    ErrorPattern.probabilityEventClass: {
+      MicroCompetencyId.probabilityReasoning,
+    },
+    ErrorPattern.probabilityChanceComparison: {
+      MicroCompetencyId.probabilityReasoning,
+    },
+    ErrorPattern.probabilityExperimentComparison: {
+      MicroCompetencyId.probabilityExperiment,
+    },
+    ErrorPattern.probabilityRelativeFrequency: {
       MicroCompetencyId.probabilityExperiment,
     },
     ErrorPattern.perimeterArea: {

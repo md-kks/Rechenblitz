@@ -45,6 +45,10 @@ enum ErrorPattern {
   tallyReading,
   dataRepresentationChoice,
   probabilityReasoning,
+  probabilityEventClass,
+  probabilityChanceComparison,
+  probabilityExperimentComparison,
+  probabilityRelativeFrequency,
   combinatorics,
   proportionalReasoning,
   perimeterArea,
@@ -108,6 +112,10 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.tallyReading => 'Strichliste lesen',
         ErrorPattern.dataRepresentationChoice => 'Passende Datendarstellung wählen',
         ErrorPattern.probabilityReasoning => 'Wahrscheinlichkeit einschätzen',
+        ErrorPattern.probabilityEventClass => 'Sicher, möglich oder unmöglich',
+        ErrorPattern.probabilityChanceComparison => 'Chancen vergleichen',
+        ErrorPattern.probabilityExperimentComparison => 'Versuchshäufigkeiten vergleichen',
+        ErrorPattern.probabilityRelativeFrequency => 'Relative Häufigkeit bestimmen',
         ErrorPattern.combinatorics => 'Möglichkeiten systematisch finden',
         ErrorPattern.proportionalReasoning => 'Proportionale Zuordnung',
         ErrorPattern.perimeterArea => 'Umfang und Fläche unterscheiden',
@@ -207,6 +215,14 @@ extension ErrorPatternX on ErrorPattern {
           'Zuerst den Zweck klären: laufend zählen, Werte nachschlagen oder Größen schnell vergleichen.',
         ErrorPattern.probabilityReasoning =>
           'Alle möglichen Ergebnisse sichtbar sammeln und erst danach vergleichen, was wahrscheinlicher ist.',
+        ErrorPattern.probabilityEventClass =>
+          'Zuerst die Ergebnismenge vollständig prüfen: Trifft das Ereignis immer, manchmal oder nie zu?',
+        ErrorPattern.probabilityChanceComparison =>
+          'Zuerst die Anzahlen gleichartiger Möglichkeiten vergleichen und erst danach die größere, kleinere oder gleiche Chance benennen.',
+        ErrorPattern.probabilityExperimentComparison =>
+          'Beobachtete Häufigkeiten als Versuchsergebnis vergleichen, ohne daraus eine sichere Vorhersage zu machen.',
+        ErrorPattern.probabilityRelativeFrequency =>
+          'Trefferzahl und Gesamtzahl der Versuche als Anteil lesen und diesen Anteil anschließend auf 100 beziehen.',
         ErrorPattern.combinatorics =>
           'Möglichkeiten systematisch mit Tabelle, Baum oder geordneter Liste sammeln.',
         ErrorPattern.proportionalReasoning =>
@@ -306,6 +322,14 @@ extension ErrorPatternX on ErrorPattern {
           'Sollst du laufend mitzählen, exakte Werte nachschlagen oder Größen schnell vergleichen?',
         ErrorPattern.probabilityReasoning =>
           'Welche Ergebnisse sind überhaupt möglich? Zähle sie, bevor du die Chance vergleichst.',
+        ErrorPattern.probabilityEventClass =>
+          'Welche Ergebnisse sind möglich, und bei wie vielen davon stimmt das Ereignis?',
+        ErrorPattern.probabilityChanceComparison =>
+          'Welche Farbe hat mehr gleichartige Möglichkeiten – oder sind es gleich viele?',
+        ErrorPattern.probabilityExperimentComparison =>
+          'Was wurde in genau dieser Versuchsreihe häufiger beobachtet?',
+        ErrorPattern.probabilityRelativeFrequency =>
+          'Wie viele Treffer gab es von allen Versuchen? Übertrage diesen Anteil auf 100.',
         ErrorPattern.combinatorics =>
           'Halte eine Möglichkeit fest und variiere danach nur einen Bestandteil systematisch.',
         ErrorPattern.proportionalReasoning =>
@@ -532,7 +556,7 @@ class ErrorClassifier {
       TrainingMode.advancedMeasures => ErrorPattern.unitConversion,
       TrainingMode.timeDurations => _timePattern(taskKey),
       TrainingMode.dataCharts => _dataPattern(taskKey),
-      TrainingMode.probability => ErrorPattern.probabilityReasoning,
+      TrainingMode.probability => _probabilityPattern(taskKey),
       TrainingMode.combinatorics => ErrorPattern.combinatorics,
       TrainingMode.proportionality => ErrorPattern.proportionalReasoning,
       TrainingMode.perimeterArea => _perimeterAreaPattern(
@@ -837,6 +861,24 @@ class ErrorClassifier {
       }
     }
     return ErrorPattern.moneyCalculation;
+  }
+
+  static ErrorPattern _probabilityPattern(String key) {
+    if (key.startsWith('prob:sure:') ||
+        key.startsWith('prob:possible:') ||
+        key.startsWith('prob:impossible:')) {
+      return ErrorPattern.probabilityEventClass;
+    }
+    if (key.startsWith('prob:bag:')) {
+      return ErrorPattern.probabilityChanceComparison;
+    }
+    if (key.startsWith('prob:experiment:compare:')) {
+      return ErrorPattern.probabilityExperimentComparison;
+    }
+    if (key.startsWith('prob:experiment:relative:')) {
+      return ErrorPattern.probabilityRelativeFrequency;
+    }
+    return ErrorPattern.probabilityReasoning;
   }
 
   static ErrorPattern _dataPattern(String key) {

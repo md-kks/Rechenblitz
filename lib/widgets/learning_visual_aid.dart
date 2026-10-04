@@ -118,6 +118,10 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.tallyReading ||
       ErrorPattern.dataRepresentationChoice ||
       ErrorPattern.probabilityReasoning ||
+      ErrorPattern.probabilityEventClass ||
+      ErrorPattern.probabilityChanceComparison ||
+      ErrorPattern.probabilityExperimentComparison ||
+      ErrorPattern.probabilityRelativeFrequency ||
       ErrorPattern.combinatorics ||
       ErrorPattern.divisionFact ||
       ErrorPattern.numberRelations ||
