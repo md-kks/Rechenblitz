@@ -463,21 +463,36 @@ class DiagnosticSummary {
     required this.errors,
     required this.lastSeen,
     required this.modes,
+    this.independentTaskVariety = 1,
+    this.confirmedAfterSuccess = false,
   });
 
   final ErrorPattern pattern;
   final int errors;
   final DateTime lastSeen;
   final Set<TrainingMode> modes;
+  final int independentTaskVariety;
+  final bool confirmedAfterSuccess;
 
-  bool get isRecurring => errors >= 2;
+  bool get isRecurring => independentTaskVariety >= 2;
 
-  String get confidenceLabel => switch (errors) {
-        >= 4 => 'wiederholt auffällig',
-        3 => 'mehrfach auffällig',
-        2 => 'zweimal aufgefallen',
-        _ => 'einmal aufgefallen',
-      };
+  String get confidenceLabel {
+    if (independentTaskVariety >= 4) {
+      return 'bei mehreren unterschiedlichen Aufgaben beobachtet';
+    }
+    if (independentTaskVariety >= 3) {
+      return 'bei drei unterschiedlichen Aufgaben beobachtet';
+    }
+    if (independentTaskVariety >= 2) {
+      return confirmedAfterSuccess
+          ? 'nach einer richtigen Lösung erneut bei unterschiedlichen Aufgaben beobachtet'
+          : 'bei unterschiedlichen Aufgaben wiederholt beobachtet';
+    }
+    if (errors >= 2) {
+      return 'mehrfach bei derselben Aufgabe beobachtet';
+    }
+    return 'einmal aufgefallen';
+  }
 }
 
 class ErrorClassifier {

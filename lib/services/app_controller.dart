@@ -1441,6 +1441,52 @@ class AppController extends ChangeNotifier {
           ).map((definition) => definition.preferredMode),
       };
 
+  String _diagnosticTaskSignature(DiagnosticAttempt attempt) {
+    var key = attempt.taskKey;
+    if (key.startsWith('remediation:')) {
+      final parts = key.split(':');
+      if (parts.length > 2) key = parts.sublist(2).join(':');
+    }
+    final parts = key.split(':');
+    if (parts.length == 8 &&
+        parts[0] == 'story' &&
+        parts[1] == 'transfer' &&
+        parts[2] == 'skill' &&
+        const <String>{'+', '-', 'x', 'divide'}.contains(parts[4])) {
+      key = <String>[...parts.take(5), ...parts.skip(6)].join(':');
+    }
+    return key;
+  }
+
+  DiagnosticSummary _diagnosticSummary(
+    ErrorPattern pattern,
+    List<DiagnosticAttempt> failures,
+    Iterable<DiagnosticAttempt> scopedAttempts,
+  ) {
+    final signatures = failures.map(_diagnosticTaskSignature).toSet();
+    final taskVariety = signatures.length;
+    final oldestFailure = failures
+        .map((entry) => entry.occurredAt)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    final latestFailure = failures
+        .map((entry) => entry.occurredAt)
+        .reduce((a, b) => a.isAfter(b) ? a : b);
+    final confirmedAfterSuccess = scopedAttempts.any(
+      (entry) =>
+          entry.correct &&
+          entry.occurredAt.isAfter(oldestFailure) &&
+          entry.occurredAt.isBefore(latestFailure),
+    );
+    return DiagnosticSummary(
+      pattern: pattern,
+      errors: failures.length,
+      lastSeen: latestFailure,
+      modes: failures.map((entry) => entry.mode).toSet(),
+      independentTaskVariety: taskVariety,
+      confirmedAfterSuccess: confirmedAfterSuccess,
+    );
+  }
+
   List<DiagnosticSummary> diagnosticSummaries({
     int maxAttempts = 120,
     bool recurringOnly = false,
@@ -1466,28 +1512,22 @@ class AppController extends ChangeNotifier {
               curricularModes: curricularModes,
             ))
         .take(maxAttempts)
-        .where(
-          (entry) => !entry.correct && entry.pattern != null,
-        );
+        .toList();
     final grouped = <ErrorPattern, List<DiagnosticAttempt>>{};
-    for (final entry in recent) {
+    for (final entry in recent.where(
+      (entry) => !entry.correct && entry.pattern != null,
+    )) {
       grouped.putIfAbsent(entry.pattern!, () => []).add(entry);
     }
 
     final summaries = grouped.entries
-        .map(
-          (entry) => DiagnosticSummary(
-            pattern: entry.key,
-            errors: entry.value.length,
-            lastSeen: entry.value
-                .map((value) => value.occurredAt)
-                .reduce((a, b) => a.isAfter(b) ? a : b),
-            modes: entry.value.map((value) => value.mode).toSet(),
-          ),
-        )
+        .map((entry) => _diagnosticSummary(entry.key, entry.value, recent))
         .where((summary) => !recurringOnly || summary.isRecurring)
         .toList()
       ..sort((a, b) {
+        final byVariety =
+            b.independentTaskVariety.compareTo(a.independentTaskVariety);
+        if (byVariety != 0) return byVariety;
         final byErrors = b.errors.compareTo(a.errors);
         if (byErrors != 0) return byErrors;
         return b.lastSeen.compareTo(a.lastSeen);
@@ -1549,8 +1589,7 @@ class AppController extends ChangeNotifier {
     final activeModes =
         activeDefinitions.map((definition) => definition.preferredMode).toSet();
     final curricularModes = _curricularModesAcrossStates();
-    final grouped = <ErrorPattern, List<DiagnosticAttempt>>{};
-    for (final entry in diagnostics
+    final scoped = diagnostics
         .where((entry) =>
             entry.gradeLevel == gradeLevel &&
             entry.numberRange == numberRange &&
@@ -1560,26 +1599,27 @@ class AppController extends ChangeNotifier {
               activeModes: activeModes,
               curricularModes: curricularModes,
             ) &&
-            entry.mode == mode &&
-            !entry.correct &&
-            entry.pattern != null)
-        .take(80)) {
+            entry.mode == mode)
+        .take(80)
+        .toList();
+    final grouped = <ErrorPattern, List<DiagnosticAttempt>>{};
+    for (final entry in scoped.where(
+      (entry) => !entry.correct && entry.pattern != null,
+    )) {
       grouped.putIfAbsent(entry.pattern!, () => []).add(entry);
     }
     if (grouped.isEmpty) return null;
 
     final summaries = grouped.entries
-        .map(
-          (entry) => DiagnosticSummary(
-            pattern: entry.key,
-            errors: entry.value.length,
-            lastSeen: entry.value.first.occurredAt,
-            modes: {mode},
-          ),
-        )
+        .map((entry) => _diagnosticSummary(entry.key, entry.value, scoped))
         .where((summary) => summary.isRecurring)
         .toList()
-      ..sort((a, b) => b.errors.compareTo(a.errors));
+      ..sort((a, b) {
+        final byVariety =
+            b.independentTaskVariety.compareTo(a.independentTaskVariety);
+        if (byVariety != 0) return byVariety;
+        return b.errors.compareTo(a.errors);
+      });
     return summaries.isEmpty ? null : summaries.first;
   }
 

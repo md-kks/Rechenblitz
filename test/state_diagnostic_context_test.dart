@@ -181,7 +181,7 @@ Future<void> _recordTwice(
   for (var index = 0; index < 2; index++) {
     await controller.recordDiagnosticAttempt(
       mode: mode,
-      taskKey: taskKey,
+      taskKey: '$taskKey:observation-$index',
       expected: expected,
       actual: actual,
       fact: fact,
