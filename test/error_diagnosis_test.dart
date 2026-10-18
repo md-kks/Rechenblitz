@@ -457,22 +457,23 @@ void main() {
     );
   });
 
-  test('Geraden Winkel und Kreisaufgaben werden nicht mehr als unbekannt diagnostiziert', () {
-    for (final key in [
-      'geomrel:lines:parallel:fourth',
-      'geomrel:angle:right:paper:fourth',
-      'geomrel:figure:quadrilateral:fourth',
-      'geomrel:circle:radius:fourth',
-    ]) {
+  test('Geraden Winkel Figuren und Kreisaufgaben werden konkret diagnostiziert', () {
+    const cases = <(String, ErrorPattern)>[
+      ('geomrel:lines:parallel:fourth', ErrorPattern.lineRelation),
+      ('geomrel:angle:right:paper:fourth', ErrorPattern.angleClassification),
+      ('geomrel:figure:quadrilateral:fourth', ErrorPattern.figureClassification),
+      ('geomrel:circle:radius:fourth', ErrorPattern.circleParts),
+    ];
+    for (final entry in cases) {
       expect(
         ErrorClassifier.classify(
           mode: TrainingMode.geometryRelations,
-          taskKey: key,
+          taskKey: entry.$1,
           expected: 0,
           actual: 1,
         ),
-        ErrorPattern.geometryProperty,
-        reason: key,
+        entry.$2,
+        reason: entry.$1,
       );
     }
   });

@@ -4543,6 +4543,12 @@ class RemediationGenerator {
             grade: grade,
             range: range,
           ),
+        ErrorPattern.bodyProperties => _targetedCurriculumRemediation(
+            stage: stage, pattern: pattern, mode: TrainingMode.geometryBodies,
+            competency: MicroCompetencyId.geometryBodies, grade: grade, range: range),
+        ErrorPattern.cubeNetFoldability => _targetedCurriculumRemediation(
+            stage: stage, pattern: pattern, mode: TrainingMode.geometryBodies,
+            competency: MicroCompetencyId.cubeNetFoldability, grade: grade, range: range),
         ErrorPattern.symmetry => _targetedCurriculumRemediation(
             stage: stage,
             pattern: pattern,
@@ -4601,6 +4607,10 @@ class RemediationGenerator {
       MicroCompetencyId.figureClassification,
       MicroCompetencyId.circleParts,
     },
+    ErrorPattern.lineRelation: {MicroCompetencyId.lineRelations},
+    ErrorPattern.angleClassification: {MicroCompetencyId.rightAngle},
+    ErrorPattern.figureClassification: {MicroCompetencyId.figureClassification},
+    ErrorPattern.circleParts: {MicroCompetencyId.circleParts},
     ErrorPattern.mentalStrategy: {
       MicroCompetencyId.mentalStrategy,
       MicroCompetencyId.strategyChoice,
@@ -4681,6 +4691,8 @@ class RemediationGenerator {
       MicroCompetencyId.geometryBodies,
       MicroCompetencyId.cubeNetFoldability,
     },
+    ErrorPattern.bodyProperties: {MicroCompetencyId.geometryBodies},
+    ErrorPattern.cubeNetFoldability: {MicroCompetencyId.cubeNetFoldability},
     ErrorPattern.planScale: {
       MicroCompetencyId.planDirections,
       MicroCompetencyId.scale,
