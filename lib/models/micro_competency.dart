@@ -1143,6 +1143,18 @@ class MicroCompetencyCatalog {
                               : MicroCompetencyId.shapeProperties,
             ),
           ],
+        'lineRelation' => const [
+            MicroCompetencyTag(MicroCompetencyId.lineRelations),
+          ],
+        'angleClassification' => const [
+            MicroCompetencyTag(MicroCompetencyId.rightAngle),
+          ],
+        'figureClassification' => const [
+            MicroCompetencyTag(MicroCompetencyId.figureClassification),
+          ],
+        'circleParts' => const [
+            MicroCompetencyTag(MicroCompetencyId.circleParts),
+          ],
         'mentalStrategy' => const [
             MicroCompetencyTag(MicroCompetencyId.mentalStrategy),
           ],
@@ -1238,6 +1250,16 @@ class MicroCompetencyCatalog {
             : const [
                 MicroCompetencyTag(MicroCompetencyId.geometryBodies),
               ],
+        'bodyProperties' => const [
+            MicroCompetencyTag(MicroCompetencyId.geometryBodies),
+          ],
+        'cubeNetFoldability' => const [
+            MicroCompetencyTag(MicroCompetencyId.cubeNetFoldability),
+            MicroCompetencyTag(
+              MicroCompetencyId.geometryBodies,
+              weight: 0.35,
+            ),
+          ],
         'symmetry' => const [
             MicroCompetencyTag(MicroCompetencyId.symmetryAxes),
           ],

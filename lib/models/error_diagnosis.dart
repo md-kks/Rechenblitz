@@ -27,6 +27,10 @@ enum ErrorPattern {
   unitConversion,
   measurementCalculation,
   geometryProperty,
+  lineRelation,
+  angleClassification,
+  figureClassification,
+  circleParts,
   roundingPlace,
   mentalStrategy,
   writtenRegrouping,
@@ -55,6 +59,8 @@ enum ErrorPattern {
   perimeterEdges,
   areaStructure,
   spatialReasoning,
+  bodyProperties,
+  cubeNetFoldability,
   symmetry,
   planScale,
   volume,
@@ -94,6 +100,10 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.unitConversion => 'Größen und Einheiten umwandeln',
         ErrorPattern.measurementCalculation => 'Mit Größen rechnen',
         ErrorPattern.geometryProperty => 'Eigenschaften von Formen',
+        ErrorPattern.lineRelation => 'Lage von Geraden',
+        ErrorPattern.angleClassification => 'Winkel einordnen',
+        ErrorPattern.figureClassification => 'Figuren über Eigenschaften einordnen',
+        ErrorPattern.circleParts => 'Kreisbegriffe unterscheiden',
         ErrorPattern.roundingPlace => 'Rundungsstelle',
         ErrorPattern.mentalStrategy => 'Halbschriftlicher Rechenweg',
         ErrorPattern.writtenRegrouping => 'Übertrag / Entbündeln',
@@ -122,6 +132,8 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.perimeterEdges => 'Alle Randstrecken erfassen',
         ErrorPattern.areaStructure => 'Fläche als Zeilen × Spalten',
         ErrorPattern.spatialReasoning => 'Körper und räumliche Vorstellung',
+        ErrorPattern.bodyProperties => 'Eigenschaften von Körpern',
+        ErrorPattern.cubeNetFoldability => 'Würfelnetze gedanklich falten',
         ErrorPattern.symmetry => 'Symmetrie',
         ErrorPattern.planScale => 'Plan, Weg oder Maßstab',
         ErrorPattern.volume => 'Rauminhalt',
@@ -179,6 +191,14 @@ extension ErrorPatternX on ErrorPattern {
           'Zuerst prüfen, ob die Größen zusammengelegt oder voneinander abgezogen werden, und dann mit derselben Einheit rechnen.',
         ErrorPattern.geometryProperty =>
           'Formen anfassen/zeichnen und Seiten, Ecken oder Flächen direkt markieren.',
+        ErrorPattern.lineRelation =>
+          'Geraden verlängert denken und prüfen: gleicher Abstand ohne Schnitt oder Schnitt im rechten Winkel.',
+        ErrorPattern.angleClassification =>
+          'Jeden Winkel mit einer Rechteck-Ecke vergleichen: kleiner = spitz, gleich = recht, größer = stumpf.',
+        ErrorPattern.figureClassification =>
+          'Seitenlängen und Winkel getrennt prüfen und die Figur erst danach benennen.',
+        ErrorPattern.circleParts =>
+          'Mittelpunkt, Radius und Durchmesser an einer Kreiszeichnung markieren und ihre Wege vergleichen.',
         ErrorPattern.roundingPlace =>
           'Die Rundungsstelle markieren und nur die direkt folgende Ziffer als Entscheidungshilfe betrachten.',
         ErrorPattern.mentalStrategy =>
@@ -235,6 +255,10 @@ extension ErrorPatternX on ErrorPattern {
           'Die Fläche als Reihen und Spalten von Einheitsquadraten denken: Länge × Breite.',
         ErrorPattern.spatialReasoning =>
           'Körper drehen, Netz/Flächen markieren und Ecken, Kanten und Flächen getrennt zählen.',
+        ErrorPattern.bodyProperties =>
+          'Am Körper Ecken, Kanten und Flächen getrennt markieren und systematisch zählen.',
+        ErrorPattern.cubeNetFoldability =>
+          'Ein Würfelnetz schrittweise gedanklich falten und prüfen, welche Quadrate gegenüberliegen oder sich überdecken würden.',
         ErrorPattern.symmetry =>
           'Eine mögliche Achse einzeichnen und prüfen, ob beide Hälften beim Falten deckungsgleich wären.',
         ErrorPattern.planScale =>
@@ -564,8 +588,8 @@ class ErrorClassifier {
           expected: expected,
           actual: actual,
         ),
-      TrainingMode.geometryRelations => ErrorPattern.geometryProperty,
-      TrainingMode.geometryBodies => ErrorPattern.spatialReasoning,
+      TrainingMode.geometryRelations => _geometryRelationsPattern(taskKey),
+      TrainingMode.geometryBodies => _geometryBodiesPattern(taskKey),
       TrainingMode.symmetry => ErrorPattern.symmetry,
       TrainingMode.plansAndOrientation => ErrorPattern.planScale,
       TrainingMode.volumeCubes => ErrorPattern.volume,
@@ -861,6 +885,23 @@ class ErrorClassifier {
       }
     }
     return ErrorPattern.moneyCalculation;
+  }
+
+  static ErrorPattern _geometryRelationsPattern(String key) {
+    if (key.startsWith('geomrel:lines:')) return ErrorPattern.lineRelation;
+    if (key.startsWith('geomrel:angle:')) return ErrorPattern.angleClassification;
+    if (key.startsWith('geomrel:figure:')) return ErrorPattern.figureClassification;
+    if (key.startsWith('geomrel:circle:')) return ErrorPattern.circleParts;
+    return ErrorPattern.geometryProperty;
+  }
+
+  static ErrorPattern _geometryBodiesPattern(String key) {
+    if (key.startsWith('body:cube-net:fold:')) {
+      return ErrorPattern.cubeNetFoldability;
+    }
+    if (key.startsWith('body:cube-net:')) return ErrorPattern.cubeNetFoldability;
+    if (key.startsWith('body:')) return ErrorPattern.bodyProperties;
+    return ErrorPattern.spatialReasoning;
   }
 
   static ErrorPattern _probabilityPattern(String key) {

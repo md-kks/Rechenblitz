@@ -109,6 +109,10 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.moneyCalculation ||
       ErrorPattern.clockReading ||
       ErrorPattern.geometryProperty ||
+      ErrorPattern.lineRelation ||
+      ErrorPattern.angleClassification ||
+      ErrorPattern.figureClassification ||
+      ErrorPattern.circleParts ||
       ErrorPattern.roundingPlace ||
       ErrorPattern.estimation ||
       ErrorPattern.romanNumeral ||
