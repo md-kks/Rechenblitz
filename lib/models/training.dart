@@ -95,7 +95,7 @@ extension TrainingModeX on TrainingMode {
   String get title => switch (this) {
         TrainingMode.practice => 'Plus & Minus',
         TrainingMode.minus => 'Minus üben',
-        TrainingMode.speed => 'Schnell rechnen',
+        TrainingMode.speed => 'Rechnen auf Zeit',
         TrainingMode.tempo => 'Rechencheck',
         TrainingMode.blitz => '5 Blitzaufgaben',
         TrainingMode.numberFriends => 'Zahlenfreunde',

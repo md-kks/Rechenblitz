@@ -273,6 +273,7 @@ class AppController extends ChangeNotifier {
     required bool scaffoldFading,
     required bool adaptiveLength,
     required Duration? timeLimit,
+    NumberRangeLevel? numberRangeOverride,
     DateTime? now,
   }) {
     final progress = coreTrainingSessionProgress;
@@ -288,7 +289,7 @@ class AppController extends ChangeNotifier {
       scaffoldFading: scaffoldFading,
       adaptiveLength: adaptiveLength,
       gradeLevel: effectiveGradeLevel,
-      numberRange: effectiveNumberRange,
+      numberRange: numberRangeOverride ?? effectiveNumberRange,
       teacherAssignmentActive: hasTeacherAssignment,
       timeLimit: timeLimit,
       now: now,
@@ -496,6 +497,7 @@ class AppController extends ChangeNotifier {
     String? methodKey,
     MicroEvidenceSource source = MicroEvidenceSource.practice,
     Duration? responseTime,
+    NumberRangeLevel? numberRangeOverride,
   }) async {
     final pattern = ErrorClassifier.classify(
       mode: mode,
@@ -514,6 +516,7 @@ class AppController extends ChangeNotifier {
       methodKey: methodKey,
       source: source,
       responseMs: _fairFluencyResponseMs(responseTime),
+      numberRangeOverride: numberRangeOverride,
     );
     diagnostics.insert(
       0,
@@ -525,7 +528,7 @@ class AppController extends ChangeNotifier {
         actual: actual,
         correct: actual == expected,
         gradeLevel: effectiveGradeLevel,
-        numberRange: effectiveNumberRange,
+        numberRange: numberRangeOverride ?? effectiveNumberRange,
         pattern: pattern,
       ),
     );
@@ -556,6 +559,7 @@ class AppController extends ChangeNotifier {
     required int helpLevel,
     required String? methodKey,
     MicroEvidenceSource source = MicroEvidenceSource.practice,
+    NumberRangeLevel? numberRangeOverride,
   }) async {
     if (helpLevel <= 0) return;
     _recordMicroCompetencies(
@@ -568,6 +572,7 @@ class AppController extends ChangeNotifier {
       methodKey: methodKey,
       source: source,
       responseMs: null,
+      numberRangeOverride: numberRangeOverride,
     );
     notifyListeners();
     await storage.saveMicroCompetencyObservations(microObservations);
@@ -583,6 +588,7 @@ class AppController extends ChangeNotifier {
     required int helpLevel,
     String? methodKey,
     double evidenceWeight = 0.35,
+    NumberRangeLevel? numberRangeOverride,
   }) async {
     if (evidenceWeight <= 0) return;
     final helpWeight = !correct
@@ -607,7 +613,7 @@ class AppController extends ChangeNotifier {
         methodKey: methodKey,
         mode: mode,
         gradeLevel: gradeLevel,
-        numberRange: numberRange,
+        numberRange: numberRangeOverride ?? numberRange,
         taskKey: 'independent:$stepKey:$taskKey',
       ),
     );
@@ -624,6 +630,7 @@ class AppController extends ChangeNotifier {
     required MicroCompetencyId competencyId,
     required bool correct,
     double evidenceWeight = 0.35,
+    NumberRangeLevel? numberRangeOverride,
   }) async {
     if (evidenceWeight <= 0) return;
     microObservations.insert(
@@ -639,7 +646,7 @@ class AppController extends ChangeNotifier {
         methodKey: methodKey,
         mode: mode,
         gradeLevel: gradeLevel,
-        numberRange: numberRange,
+        numberRange: numberRangeOverride ?? numberRange,
         taskKey: 'guided:$methodKey:$stepKey:$taskKey',
       ),
     );
@@ -1288,6 +1295,7 @@ class AppController extends ChangeNotifier {
     MathFact? fact,
     int? responseMs,
     MicroCompetencyId? onlyCompetency,
+    NumberRangeLevel? numberRangeOverride,
   }) {
     final sourceWeight = switch (source) {
       MicroEvidenceSource.assessment => 0.75,
@@ -1329,7 +1337,7 @@ class AppController extends ChangeNotifier {
             methodKey: methodKey,
             mode: mode,
             gradeLevel: gradeLevel,
-            numberRange: numberRange,
+            numberRange: numberRangeOverride ?? numberRange,
             taskKey: taskKey,
             responseMs: responseMs,
           ),
@@ -3871,7 +3879,7 @@ class AppController extends ChangeNotifier {
       TrainingMode.practice => 'Starte mit einer kurzen Übungsrunde.',
       TrainingMode.minus => 'Als Nächstes üben wir Minus noch ein bisschen.',
       TrainingMode.speed =>
-        'Die Aufgaben sitzen schon gut. „Schnell rechnen“ passt jetzt.',
+        'Die Aufgaben sitzen schon gut. „Rechnen auf Zeit“ passt jetzt.',
       TrainingMode.tempo => 'Ein kurzer „Rechencheck“ passt jetzt gut.',
       _ => 'Als Nächstes passt „${mode.title}“.',
     };
@@ -3930,7 +3938,10 @@ class AppController extends ChangeNotifier {
     );
     if (history.length >= 2 && untried.isNotEmpty) return untried.first;
 
-    if (coreText.contains('Schnell rechnen')) return TrainingMode.speed;
+    if (coreText.contains('Rechnen auf Zeit') ||
+        coreText.contains('Schnell rechnen')) {
+      return TrainingMode.speed;
+    }
     if (coreText.contains('Rechencheck')) return TrainingMode.tempo;
     return TrainingMode.practice;
   }

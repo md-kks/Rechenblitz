@@ -27,6 +27,7 @@ class TrainingScreen extends StatefulWidget {
     required this.mode,
     required this.targetTasks,
     this.timeLimit,
+    this.numberRangeOverride,
     this.targetCompetency,
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
@@ -40,6 +41,7 @@ class TrainingScreen extends StatefulWidget {
   final TrainingMode mode;
   final int targetTasks;
   final Duration? timeLimit;
+  final NumberRangeLevel? numberRangeOverride;
   final MicroCompetencyId? targetCompetency;
   final bool reviewEmphasis;
   final bool transferEmphasis;
@@ -69,8 +71,11 @@ class _TrainingScreenState extends State<TrainingScreen>
           current.isDivide);
 
 
+  NumberRangeLevel get _sessionNumberRange =>
+      widget.numberRangeOverride ?? widget.controller.effectiveNumberRange;
+
   int get _selectionMaxValue {
-    final currentMax = widget.controller.effectiveMaxValue;
+    final currentMax = _sessionNumberRange.maxValue;
     if (!widget.fluencyEmphasis) return currentMax;
     final cap = switch (widget.targetCompetency) {
       MicroCompetencyId.additionNoBridge ||
@@ -202,6 +207,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       scaffoldFading: widget.scaffoldFading,
       adaptiveLength: widget.adaptiveLength,
       timeLimit: widget.timeLimit,
+      numberRangeOverride: widget.numberRangeOverride,
     );
     final now = DateTime.now();
     activeClockStartedAt = now;
@@ -326,7 +332,7 @@ class _TrainingScreenState extends State<TrainingScreen>
         scaffoldFading: widget.scaffoldFading,
         adaptiveLength: widget.adaptiveLength,
         gradeLevel: widget.controller.effectiveGradeLevel,
-        numberRange: widget.controller.effectiveNumberRange,
+        numberRange: _sessionNumberRange,
         teacherAssignmentActive: widget.controller.hasTeacherAssignment,
         timeLimitMs: widget.timeLimit?.inMilliseconds,
         startedAt: startedAt,
@@ -537,6 +543,7 @@ class _TrainingScreenState extends State<TrainingScreen>
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
         evidenceWeight: step.evidenceWeight,
+        numberRangeOverride: widget.numberRangeOverride,
       );
     }
 
@@ -697,6 +704,7 @@ class _TrainingScreenState extends State<TrainingScreen>
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
         source: _evidenceSource,
+        numberRangeOverride: widget.numberRangeOverride,
       );
       if (!mounted || finishing) {
         submitting = false;
@@ -774,6 +782,7 @@ class _TrainingScreenState extends State<TrainingScreen>
           methodKey: activeMethodKey,
           source: _evidenceSource,
           responseTime: _independentArithmeticSteps.isEmpty ? response : null,
+          numberRangeOverride: widget.numberRangeOverride,
         );
       }
 
@@ -862,7 +871,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       divideCorrect: divideCorrect,
       divideTotal: divideTotal,
       averageResponseMs: avg,
-      numberRange: widget.controller.effectiveNumberRange,
+      numberRange: _sessionNumberRange,
       gradeLevel: widget.controller.effectiveGradeLevel,
       starsEarned: 0,
       plannedTotal: widget.targetTasks,
@@ -937,8 +946,8 @@ class _TrainingScreenState extends State<TrainingScreen>
     final answerGap = compactHeight ? 10.0 : 24.0;
     final taskFontSize = compactHeight ? 42.0 : 52.0;
     final numberFriendFontSize = compactHeight ? 40.0 : 48.0;
-    final visibleTimer =
-        widget.mode == TrainingMode.tempo && widget.timeLimit != null;
+    final visibleTimer = widget.timeLimit != null &&
+        (widget.mode == TrainingMode.tempo || widget.mode == TrainingMode.speed);
     final remainingSeconds = widget.timeLimit == null
         ? null
         : (widget.timeLimit!.inSeconds - elapsed.inSeconds)
@@ -950,6 +959,7 @@ class _TrainingScreenState extends State<TrainingScreen>
         actions: [
           if (visibleTimer)
             Padding(
+              key: const ValueKey('training-countdown'),
               padding: const EdgeInsets.only(right: 18),
               child: Center(
                 child: Text(
@@ -987,6 +997,16 @@ class _TrainingScreenState extends State<TrainingScreen>
                     'Aufgabe ${completed < widget.targetTasks ? completed + 1 : widget.targetTasks} von ${widget.targetTasks}${resumedFromDraft ? ' · fortgesetzt' : ''}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
+                  if (widget.numberRangeOverride != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Zahlenraum: ${_sessionNumberRange.label}',
+                      key: const ValueKey('training-number-range'),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                   if (widget.fluencyEmphasis) ...[
                     const SizedBox(height: 8),
                     Card(
@@ -1093,6 +1113,7 @@ class _TrainingScreenState extends State<TrainingScreen>
                             competencyId: step.evidenceCompetency!,
                             correct: correct,
                             evidenceWeight: step.evidenceWeight,
+                            numberRangeOverride: widget.numberRangeOverride,
                           ),
                       onHelpLevelChanged: (level) {
                         if (!mounted) return;

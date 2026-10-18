@@ -347,7 +347,7 @@ class AdaptiveEngine {
                 .fold<double>(0, (a, b) => a + b) /
             fluencyFacts.length;
     if (fluencyFacts.length >= 4 && mastery(tried) > 0.76 && avg > 4500) {
-      return 'Die Grundlagen sind schon recht sicher. Eine kurze Runde „Schnell rechnen“ kann die Automatisierung der Grundaufgaben stärken.';
+      return 'Die Grundlagen sind schon recht sicher. Eine kurze Runde „Rechnen auf Zeit“ kann die Automatisierung der Grundaufgaben stärken.';
     }
     if (fluencyFacts.length >= 4 && mastery(tried) > 0.78 && avg <= 4500) {
       return 'Sicherheit und Tempo der Grundaufgaben passen gut zusammen. Ein kurzer Rechencheck ist jetzt sinnvoll.';

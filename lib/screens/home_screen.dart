@@ -200,6 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
       timeLimit: draft.timeLimitMs == null
           ? null
           : Duration(milliseconds: draft.timeLimitMs!),
+      numberRangeOverride: draft.numberRange,
     );
   }
 
@@ -350,6 +351,7 @@ class _HomeScreenState extends State<HomeScreen> {
           timeLimit: draft.timeLimitMs == null
               ? null
               : Duration(milliseconds: draft.timeLimitMs!),
+          numberRangeOverride: draft.numberRange,
         ),
       ),
       CoreTrainingKind.structured => MaterialPageRoute<void>(
@@ -382,6 +384,17 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.of(context).push(route);
   }
 
+  bool _usesArithmeticConfigurator(TrainingMode mode) => switch (mode) {
+        TrainingMode.practice ||
+        TrainingMode.minus ||
+        TrainingMode.multiply ||
+        TrainingMode.divide ||
+        TrainingMode.mixed ||
+        TrainingMode.speed ||
+        TrainingMode.tempo => true,
+        _ => false,
+      };
+
   Future<void> _openMode(TrainingMode mode) async {
     if (mode.isUpperPrimary) {
       await Navigator.of(context).push(
@@ -407,11 +420,15 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    if (mode == TrainingMode.tempo) {
-      final config = await showModalBottomSheet<TempoConfig>(
+    if (_usesArithmeticConfigurator(mode)) {
+      final config = await showModalBottomSheet<ArithmeticPracticeConfig>(
         context: context,
         showDragHandle: true,
-        builder: (_) => const _TempoConfigurator(),
+        isScrollControlled: true,
+        builder: (_) => _ArithmeticPracticeConfigurator(
+          controller: widget.controller,
+          mode: mode,
+        ),
       );
       if (!mounted || config == null) return;
       await Navigator.of(context).push(
@@ -421,6 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mode: mode,
             targetTasks: config.tasks,
             timeLimit: config.duration,
+            numberRangeOverride: config.numberRange,
           ),
         ),
       );
@@ -758,8 +776,8 @@ class _PracticeCatalog extends StatelessWidget {
                 ),
                 _LearningTile(
                   icon: Icons.speed_rounded,
-                  title: 'Schnell rechnen',
-                  subtitle: 'Tempo trainieren',
+                  title: 'Rechnen auf Zeit',
+                  subtitle: 'mit sichtbarem Countdown',
                   onTap: () => onOpenMode(TrainingMode.speed),
                 ),
                 _LearningTile(
@@ -1153,71 +1171,201 @@ class _LearningTile extends StatelessWidget {
   );
 }
 
-class TempoConfig {
-  const TempoConfig(this.tasks, this.duration);
+class ArithmeticPracticeConfig {
+  const ArithmeticPracticeConfig({
+    required this.tasks,
+    required this.duration,
+    required this.numberRange,
+  });
+
   final int tasks;
   final Duration? duration;
+  final NumberRangeLevel numberRange;
 }
 
-class _TempoConfigurator extends StatefulWidget {
-  const _TempoConfigurator();
+class _ArithmeticPracticeConfigurator extends StatefulWidget {
+  const _ArithmeticPracticeConfigurator({
+    required this.controller,
+    required this.mode,
+  });
+
+  final AppController controller;
+  final TrainingMode mode;
 
   @override
-  State<_TempoConfigurator> createState() => _TempoConfiguratorState();
+  State<_ArithmeticPracticeConfigurator> createState() =>
+      _ArithmeticPracticeConfiguratorState();
 }
 
-class _TempoConfiguratorState extends State<_TempoConfigurator> {
-  int tasks = 20;
-  int minutes = 2;
+class _ArithmeticPracticeConfiguratorState
+    extends State<_ArithmeticPracticeConfigurator> {
+  late int tasks;
+  late int minutes;
+  String rangeSelection = 'auto';
+
+  bool get _isTimed => widget.mode == TrainingMode.speed;
+  bool get _isCheck => widget.mode == TrainingMode.tempo;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Rechencheck einstellen',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+  void initState() {
+    super.initState();
+    tasks = _isTimed
+        ? 30
+        : _isCheck
+        ? 20
+        : 10;
+    minutes = _isTimed
+        ? 1
+        : _isCheck
+        ? 2
+        : 0;
+  }
+
+  List<NumberRangeLevel> get _basicArithmeticRanges => widget
+      .controller
+      .availableRanges
+      .where((range) => range.maxValue <= NumberRangeLevel.hundred.maxValue)
+      .toList(growable: false);
+
+  NumberRangeLevel get _automaticRange {
+    final effective = widget.controller.effectiveNumberRange;
+    if (effective.maxValue <= NumberRangeLevel.hundred.maxValue) {
+      return effective;
+    }
+    return NumberRangeLevel.hundred;
+  }
+
+  NumberRangeLevel get _selectedRange {
+    if (rangeSelection == 'auto') return _automaticRange;
+    return NumberRangeLevel.values.byName(rangeSelection);
+  }
+
+  String get _title => switch (widget.mode) {
+    TrainingMode.speed => 'Rechnen auf Zeit einstellen',
+    TrainingMode.tempo => 'Rechencheck einstellen',
+    _ => '${widget.mode.title} einstellen',
+  };
+
+  String get _startLabel => switch (widget.mode) {
+    TrainingMode.speed => 'Zeit-Runde starten',
+    TrainingMode.tempo => 'Rechencheck starten',
+    _ => 'Übung starten',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final ranges = _basicArithmeticRanges;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          6,
+          20,
+          28 + MediaQuery.viewInsetsOf(context).bottom,
         ),
-        const SizedBox(height: 18),
-        const Text('Aufgaben'),
-        SegmentedButton<int>(
-          segments: const [
-            ButtonSegment(value: 10, label: Text('10')),
-            ButtonSegment(value: 20, label: Text('20')),
-            ButtonSegment(value: 30, label: Text('30')),
-          ],
-          selected: {tasks},
-          onSelectionChanged: (values) => setState(() => tasks = values.first),
-        ),
-        const SizedBox(height: 18),
-        const Text('Zeit'),
-        DropdownButtonFormField<int>(
-          initialValue: minutes,
-          items: const [
-            DropdownMenuItem(value: 1, child: Text('1 Minute')),
-            DropdownMenuItem(value: 2, child: Text('2 Minuten')),
-            DropdownMenuItem(value: 3, child: Text('3 Minuten')),
-            DropdownMenuItem(value: 0, child: Text('Ohne festes Limit')),
-          ],
-          onChanged: (value) => setState(() => minutes = value ?? 2),
-        ),
-        const SizedBox(height: 20),
-        FilledButton(
-          onPressed: () => Navigator.pop(
-            context,
-            TempoConfig(
-              tasks,
-              minutes == 0 ? null : Duration(minutes: minutes),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              _title,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
-          ),
-          child: const Text('Rechencheck starten'),
+            const SizedBox(height: 18),
+            const Text('Zahlenraum'),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              key: const ValueKey('arithmetic-range-selector'),
+              initialValue: rangeSelection,
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+              items: [
+                DropdownMenuItem(
+                  value: 'auto',
+                  child: Text('Automatisch (${_automaticRange.label})'),
+                ),
+                for (final range in ranges)
+                  DropdownMenuItem(value: range.name, child: Text(range.label)),
+              ],
+              onChanged: (value) =>
+                  setState(() => rangeSelection = value ?? 'auto'),
+            ),
+            if (widget.controller.availableRanges.any(
+              (range) => range.maxValue > NumberRangeLevel.hundred.maxValue,
+            )) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Die direkten Grundrechenarten trainieren sichere Kopfrechen-Grundaufgaben bis 100. Größere Zahlenräume werden in den Bereichen für Klasse 3/4 mit passenden Rechenwegen geübt.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            if (_isTimed || _isCheck) ...[
+              const SizedBox(height: 18),
+              const Text('Aufgaben'),
+              const SizedBox(height: 6),
+              SegmentedButton<int>(
+                segments: _isTimed
+                    ? const [
+                        ButtonSegment(value: 20, label: Text('20')),
+                        ButtonSegment(value: 30, label: Text('30')),
+                        ButtonSegment(value: 50, label: Text('50')),
+                      ]
+                    : const [
+                        ButtonSegment(value: 10, label: Text('10')),
+                        ButtonSegment(value: 20, label: Text('20')),
+                        ButtonSegment(value: 30, label: Text('30')),
+                      ],
+                selected: {tasks},
+                onSelectionChanged: (values) =>
+                    setState(() => tasks = values.first),
+              ),
+              const SizedBox(height: 18),
+              Text(_isTimed ? 'Countdown' : 'Zeit'),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<int>(
+                key: const ValueKey('arithmetic-time-selector'),
+                initialValue: minutes,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                items: [
+                  const DropdownMenuItem(value: 1, child: Text('1 Minute')),
+                  const DropdownMenuItem(value: 2, child: Text('2 Minuten')),
+                  const DropdownMenuItem(value: 3, child: Text('3 Minuten')),
+                  if (_isCheck)
+                    const DropdownMenuItem(
+                      value: 0,
+                      child: Text('Ohne festes Limit'),
+                    ),
+                ],
+                onChanged: (value) =>
+                    setState(() => minutes = value ?? (_isTimed ? 1 : 2)),
+              ),
+              if (_isTimed) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Der Countdown bleibt während der Runde sichtbar. Die Antwortzeit pro Aufgabe wird zusätzlich für die Auswertung gemessen.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
+            const SizedBox(height: 22),
+            FilledButton(
+              key: const ValueKey('arithmetic-start-button'),
+              onPressed: () => Navigator.pop(
+                context,
+                ArithmeticPracticeConfig(
+                  tasks: tasks,
+                  duration: (_isTimed || (_isCheck && minutes > 0))
+                      ? Duration(minutes: minutes)
+                      : null,
+                  numberRange: _selectedRange,
+                ),
+              ),
+              child: Text(_startLabel),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
