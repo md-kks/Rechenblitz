@@ -115,6 +115,7 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.circleParts ||
       ErrorPattern.roundingPlace ||
       ErrorPattern.estimation ||
+      ErrorPattern.plausibilityCheck ||
       ErrorPattern.romanNumeral ||
       ErrorPattern.dataReading ||
       ErrorPattern.dataAggregation ||
@@ -131,9 +132,11 @@ class LearningVisualAid extends StatelessWidget {
       ErrorPattern.numberRelations ||
       ErrorPattern.mentalStrategy ||
       ErrorPattern.arithmeticLaw ||
+      ErrorPattern.reasoningJustification ||
       ErrorPattern.proportionalReasoning ||
       ErrorPattern.symmetry ||
       ErrorPattern.planScale ||
+      ErrorPattern.planDirections ||
       ErrorPattern.volume => true,
       _ => false,
     };
