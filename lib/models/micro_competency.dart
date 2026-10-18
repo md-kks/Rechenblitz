@@ -1171,6 +1171,14 @@ class MicroCompetencyCatalog {
         'estimation' => const [
             MicroCompetencyTag(MicroCompetencyId.estimation),
           ],
+        'plausibilityCheck' => const [
+            MicroCompetencyTag(MicroCompetencyId.plausibilityCheck),
+            MicroCompetencyTag(MicroCompetencyId.estimation, weight: 0.45),
+          ],
+        'reasoningJustification' => const [
+            MicroCompetencyTag(MicroCompetencyId.reasoningJustification),
+            MicroCompetencyTag(MicroCompetencyId.arithmeticLaw, weight: 0.45),
+          ],
         'arithmeticLaw' => [
             MicroCompetencyTag(
               taskKey.contains('process:reasoning:')
@@ -1262,6 +1270,9 @@ class MicroCompetencyCatalog {
           ],
         'symmetry' => const [
             MicroCompetencyTag(MicroCompetencyId.symmetryAxes),
+          ],
+        'planDirections' => const [
+            MicroCompetencyTag(MicroCompetencyId.planDirections),
           ],
         'planScale' => [
             MicroCompetencyTag(

@@ -36,7 +36,9 @@ enum ErrorPattern {
   writtenRegrouping,
   writtenProcedure,
   estimation,
+  plausibilityCheck,
   arithmeticLaw,
+  reasoningJustification,
   romanNumeral,
   fractionPart,
   fractionSinglePart,
@@ -63,6 +65,7 @@ enum ErrorPattern {
   cubeNetFoldability,
   symmetry,
   planScale,
+  planDirections,
   volume,
   unknown,
 }
@@ -109,7 +112,9 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.writtenRegrouping => 'Übertrag / Entbündeln',
         ErrorPattern.writtenProcedure => 'Schriftliches Rechenverfahren',
         ErrorPattern.estimation => 'Überschlag',
+        ErrorPattern.plausibilityCheck => 'Ergebnis auf Plausibilität prüfen',
         ErrorPattern.arithmeticLaw => 'Rechenvorteil / Rechengesetz',
+        ErrorPattern.reasoningJustification => 'Rechenbeziehung begründen',
         ErrorPattern.romanNumeral => 'Römische Zahl',
         ErrorPattern.fractionPart => 'Bruchteil einer Größe',
         ErrorPattern.fractionSinglePart => 'Größe eines Bruchteils',
@@ -135,7 +140,8 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.bodyProperties => 'Eigenschaften von Körpern',
         ErrorPattern.cubeNetFoldability => 'Würfelnetze gedanklich falten',
         ErrorPattern.symmetry => 'Symmetrie',
-        ErrorPattern.planScale => 'Plan, Weg oder Maßstab',
+        ErrorPattern.planScale => 'Maßstab anwenden',
+        ErrorPattern.planDirections => 'Pläne und Wege lesen',
         ErrorPattern.volume => 'Rauminhalt',
         ErrorPattern.unknown => 'noch nicht eindeutig',
       };
@@ -209,8 +215,12 @@ extension ErrorPatternX on ErrorPattern {
           'Stellen sauber untereinander schreiben und das Verfahren Schritt für Schritt mit Probe kontrollieren.',
         ErrorPattern.estimation =>
           'Zuerst beide Zahlen sinnvoll runden und den Überschlag getrennt vom exakten Ergebnis notieren.',
+        ErrorPattern.plausibilityCheck =>
+          'Einen passenden Überschlag als Referenz bilden und damit die Größenordnung des vorgegebenen Ergebnisses prüfen.',
         ErrorPattern.arithmeticLaw =>
           'Die Aufgabe in zwei gleichwertige Rechenwege zerlegen und vergleichen, welcher einfacher ist.',
+        ErrorPattern.reasoningJustification =>
+          'Die mathematische Beziehung benennen, die erklärt, warum beide Rechenausdrücke denselben Wert haben.',
         ErrorPattern.romanNumeral =>
           'Römische Zeichen zunächst einzeln zuordnen und dann von links nach rechts zusammensetzen.',
         ErrorPattern.fractionPart =>
@@ -263,6 +273,8 @@ extension ErrorPatternX on ErrorPattern {
           'Eine mögliche Achse einzeichnen und prüfen, ob beide Hälften beim Falten deckungsgleich wären.',
         ErrorPattern.planScale =>
           'Reale Strecke und Planstrecke getrennt notieren und die Maßstabsbeziehung daneben schreiben.',
+        ErrorPattern.planDirections =>
+          'Jeden Wegabschnitt mit Richtung und Länge einzeln lesen und die Abschnitte danach in Reihenfolge zusammensetzen.',
         ErrorPattern.volume =>
           'Rauminhalt mit Schichten aus Einheitswürfeln aufbauen: Länge × Breite × Höhe.',
         ErrorPattern.unknown =>
@@ -569,8 +581,12 @@ class ErrorClassifier {
           expected: expected,
           actual: actual,
         ),
-      TrainingMode.estimation => ErrorPattern.estimation,
-      TrainingMode.arithmeticLaws => ErrorPattern.arithmeticLaw,
+      TrainingMode.estimation => taskKey.startsWith('process:plausibility:')
+          ? ErrorPattern.plausibilityCheck
+          : ErrorPattern.estimation,
+      TrainingMode.arithmeticLaws => taskKey.startsWith('process:reasoning:')
+          ? ErrorPattern.reasoningJustification
+          : ErrorPattern.arithmeticLaw,
       TrainingMode.romanNumerals => ErrorPattern.romanNumeral,
       TrainingMode.fractions => _fractionPattern(
           taskKey,
@@ -591,7 +607,9 @@ class ErrorClassifier {
       TrainingMode.geometryRelations => _geometryRelationsPattern(taskKey),
       TrainingMode.geometryBodies => _geometryBodiesPattern(taskKey),
       TrainingMode.symmetry => ErrorPattern.symmetry,
-      TrainingMode.plansAndOrientation => ErrorPattern.planScale,
+      TrainingMode.plansAndOrientation => taskKey.startsWith('plan:scale:')
+          ? ErrorPattern.planScale
+          : ErrorPattern.planDirections,
       TrainingMode.volumeCubes => ErrorPattern.volume,
       TrainingMode.wordProblems => ErrorPattern.wordProblem,
       TrainingMode.money => ErrorPattern.moneyCalculation,

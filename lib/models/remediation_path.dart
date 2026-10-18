@@ -4414,11 +4414,27 @@ class RemediationGenerator {
             grade: grade,
             range: range,
           ),
+        ErrorPattern.plausibilityCheck => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.estimation,
+            competency: MicroCompetencyId.plausibilityCheck,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.estimation => _targetedCurriculumRemediation(
             stage: stage,
             pattern: pattern,
             mode: TrainingMode.estimation,
             competency: MicroCompetencyId.estimation,
+            grade: grade,
+            range: range,
+          ),
+        ErrorPattern.reasoningJustification => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.arithmeticLaws,
+            competency: MicroCompetencyId.reasoningJustification,
             grade: grade,
             range: range,
           ),
@@ -4557,6 +4573,14 @@ class RemediationGenerator {
             grade: grade,
             range: range,
           ),
+        ErrorPattern.planDirections => _targetedCurriculumRemediation(
+            stage: stage,
+            pattern: pattern,
+            mode: TrainingMode.plansAndOrientation,
+            competency: MicroCompetencyId.planDirections,
+            grade: grade,
+            range: range,
+          ),
         ErrorPattern.planScale => _planRemediation(
             stage: stage,
             pattern: pattern,
@@ -4625,8 +4649,12 @@ class RemediationGenerator {
       MicroCompetencyId.estimation,
       MicroCompetencyId.plausibilityCheck,
     },
+    ErrorPattern.plausibilityCheck: {MicroCompetencyId.plausibilityCheck},
     ErrorPattern.arithmeticLaw: {
       MicroCompetencyId.arithmeticLaw,
+      MicroCompetencyId.reasoningJustification,
+    },
+    ErrorPattern.reasoningJustification: {
       MicroCompetencyId.reasoningJustification,
     },
     ErrorPattern.fractionPart: {
@@ -4697,6 +4725,7 @@ class RemediationGenerator {
       MicroCompetencyId.planDirections,
       MicroCompetencyId.scale,
     },
+    ErrorPattern.planDirections: {MicroCompetencyId.planDirections},
   };
 
   RemediationTask? _targetedFocusTask({

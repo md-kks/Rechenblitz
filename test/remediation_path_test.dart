@@ -3896,7 +3896,9 @@ void main() {
       ErrorPattern.writtenRegrouping: TrainingMode.writtenAddSub,
       ErrorPattern.writtenProcedure: TrainingMode.writtenMultiply,
       ErrorPattern.estimation: TrainingMode.estimation,
+      ErrorPattern.plausibilityCheck: TrainingMode.estimation,
       ErrorPattern.arithmeticLaw: TrainingMode.arithmeticLaws,
+      ErrorPattern.reasoningJustification: TrainingMode.arithmeticLaws,
       ErrorPattern.romanNumeral: TrainingMode.romanNumerals,
       ErrorPattern.fractionPart: TrainingMode.fractions,
       ErrorPattern.fractionSinglePart: TrainingMode.fractions,
@@ -3923,6 +3925,7 @@ void main() {
       ErrorPattern.cubeNetFoldability: TrainingMode.geometryBodies,
       ErrorPattern.symmetry: TrainingMode.symmetry,
       ErrorPattern.planScale: TrainingMode.plansAndOrientation,
+      ErrorPattern.planDirections: TrainingMode.plansAndOrientation,
       ErrorPattern.volume: TrainingMode.volumeCubes,
     };
 
