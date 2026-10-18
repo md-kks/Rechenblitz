@@ -670,7 +670,7 @@ class _ParentScreenState extends State<ParentScreen> {
                                         ],
                                         const SizedBox(height: 2),
                                         Text(
-                                          '${summary.confidenceLabel} · ${summary.errors} Beobachtungen',
+                                          '${summary.confidenceLabel} · ${summary.errors} Fehlerbeobachtungen · ${summary.independentTaskVariety} unterschiedliche Aufgaben',
                                         ),
                                         const SizedBox(height: 5),
                                         Text(summary.pattern.action),
