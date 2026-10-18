@@ -797,6 +797,9 @@ class AppController extends ChangeNotifier {
   String? timedRoundComparisonText(TrainingSessionResult result) {
     if (result.activeDurationMs <= 0 || result.total <= 0) return null;
     final focus = result.arithmeticMode ?? result.mode;
+    final strategyContext = result.numberRange.maxValue > 100
+        ? 'Mehrstellige Strategieaufgaben werden nicht als Grundaufgaben-Automatisierung gewertet. Das Tempo wird nur mit derselben Rechenart und demselben Zahlenraum verglichen.'
+        : null;
     final previous = history
         .where(
           (entry) =>
@@ -809,7 +812,7 @@ class AppController extends ChangeNotifier {
         )
         .take(3)
         .toList();
-    if (previous.isEmpty) return null;
+    if (previous.isEmpty) return strategyContext;
 
     double rate(TrainingSessionResult entry) =>
         entry.correctFirstTry * 60000 / entry.activeDurationMs;
@@ -820,13 +823,12 @@ class AppController extends ChangeNotifier {
     final current = rate(result);
     final delta = current - baseline;
     final value = delta.abs().toStringAsFixed(1).replaceAll('.', ',');
-    if (delta >= 0.5) {
-      return 'Fortschritt: +$value richtige Aufgaben pro Minute gegenüber den letzten vergleichbaren Runden.';
-    }
-    if (delta <= -0.5) {
-      return 'Heute $value richtige Aufgaben pro Minute weniger als zuletzt; Genauigkeit bleibt wichtiger als Tempo.';
-    }
-    return 'Tempo etwa auf dem Niveau der letzten vergleichbaren Runden.';
+    final comparison = delta >= 0.5
+        ? 'Fortschritt: +$value richtige Aufgaben pro Minute gegenüber den letzten vergleichbaren Runden.'
+        : delta <= -0.5
+            ? 'Heute $value richtige Aufgaben pro Minute weniger als zuletzt; Genauigkeit bleibt wichtiger als Tempo.'
+            : 'Tempo etwa auf dem Niveau der letzten vergleichbaren Runden.';
+    return strategyContext == null ? comparison : '$comparison $strategyContext';
   }
 
   bool _isMeaningfulProgress(TrainingSessionResult result) {

@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'arithmetic_strategy.dart';
 import 'german_number_words.dart';
 import 'learning_methods.dart';
 import 'math_fact.dart';
@@ -217,6 +218,8 @@ class GuidedMethodFactory {
     MicroCompetencyId? targetCompetency,
     MathFact? fact,
   }) {
+    final resolvedFact = fact ?? _directArithmeticFactFromKey(taskKey);
+
     if (taskKey.startsWith('process:strategy:')) {
       return _strategyChoiceGuide(taskKey);
     }
@@ -251,37 +254,46 @@ class GuidedMethodFactory {
     }
 
     if (mode == TrainingMode.numberFriends) {
-      final numberFriendFact = fact ?? _numberFriendFactFromKey(taskKey);
+      final numberFriendFact = resolvedFact ?? _numberFriendFactFromKey(taskKey);
       if (numberFriendFact != null) {
         return _numberFriendsGuide(numberFriendFact);
       }
     }
 
-    if (fact != null && fact.operation == MathOperation.plus) {
-      if (_landsOnNextTen(fact)) return _additionToFullTen(fact);
-      if (_needsAdditionBridge(fact)) return _additionBridge(fact);
-      return _additionWithoutBridge(fact);
+    if (resolvedFact != null && ArithmeticStrategy.usesPlaceValueStrategy(resolvedFact)) {
+      return switch (resolvedFact.operation) {
+        MathOperation.plus => _placeValueAddition(resolvedFact),
+        MathOperation.minus => _placeValueSubtraction(resolvedFact),
+        MathOperation.multiply => _placeValueMultiplication(resolvedFact),
+        MathOperation.divide => _placeValueDivision(resolvedFact),
+      };
     }
 
-    if (fact != null && fact.operation == MathOperation.minus) {
-      final strategy = preferences.effectiveSubtraction(taskKey: fact.key);
-      if (fact.a % 10 == 0 &&
-          fact.b > 0 &&
+    if (resolvedFact != null && resolvedFact.operation == MathOperation.plus) {
+      if (_landsOnNextTen(resolvedFact)) return _additionToFullTen(resolvedFact);
+      if (_needsAdditionBridge(resolvedFact)) return _additionBridge(resolvedFact);
+      return _additionWithoutBridge(resolvedFact);
+    }
+
+    if (resolvedFact != null && resolvedFact.operation == MathOperation.minus) {
+      final strategy = preferences.effectiveSubtraction(taskKey: resolvedFact.key);
+      if (resolvedFact.a % 10 == 0 &&
+          resolvedFact.b > 0 &&
           strategy == SubtractionStrategy.bridgeToTen) {
-        return _subtractionFromFullTen(fact);
+        return _subtractionFromFullTen(resolvedFact);
       }
-      if (_needsSubtractionBridge(fact)) {
-        return _subtractionBridge(fact, preferences);
+      if (_needsSubtractionBridge(resolvedFact)) {
+        return _subtractionBridge(resolvedFact, preferences);
       }
-      return _subtractionWithoutBridge(fact, preferences);
+      return _subtractionWithoutBridge(resolvedFact, preferences);
     }
 
-    if (fact != null && fact.operation == MathOperation.multiply) {
-      return _multiplication(fact, preferences);
+    if (resolvedFact != null && resolvedFact.operation == MathOperation.multiply) {
+      return _multiplication(resolvedFact, preferences);
     }
 
-    if (fact != null && fact.operation == MathOperation.divide) {
-      return _divisionFact(fact);
+    if (resolvedFact != null && resolvedFact.operation == MathOperation.divide) {
+      return _divisionFact(resolvedFact);
     }
 
     if (mode == TrainingMode.writtenAddSub &&
@@ -559,6 +571,7 @@ class GuidedMethodFactory {
     MathFact? fact,
   }) {
     final candidates = <GuidedMethodGuide>[];
+    final resolvedFact = fact ?? _directArithmeticFactFromKey(taskKey);
 
     void add(MethodPreferences variant) {
       final guide = forTask(
@@ -567,14 +580,14 @@ class GuidedMethodFactory {
         expected: expected,
         preferences: variant,
         targetCompetency: targetCompetency,
-        fact: fact,
+        fact: resolvedFact,
       );
       if (!candidates.any((entry) => entry.methodKey == guide.methodKey)) {
         candidates.add(guide);
       }
     }
 
-    if (fact?.operation == MathOperation.minus) {
+    if (resolvedFact?.operation == MathOperation.minus) {
       for (final strategy in SubtractionStrategy.values) {
         add(
           preferences.copyWith(
@@ -583,7 +596,7 @@ class GuidedMethodFactory {
           ),
         );
       }
-    } else if (fact?.operation == MathOperation.multiply) {
+    } else if (resolvedFact?.operation == MathOperation.multiply) {
       for (final strategy in MultiplicationStrategy.values) {
         add(
           preferences.copyWith(
@@ -1477,6 +1490,184 @@ class GuidedMethodFactory {
               : '$groups Gruppen mit je $each Punkten entsprechen $groups × $each.',
         ),
       ],
+    );
+  }
+
+  static GuidedMethodGuide _placeValueAddition(MathFact fact) {
+    final chunks = ArithmeticStrategy.placeValueChunks(fact.b);
+    final decomposition = chunks.join(' + ');
+    final steps = <GuidedMethodStep>[];
+    var current = fact.a;
+    for (var index = 0; index < chunks.length; index++) {
+      final chunk = chunks[index];
+      final next = current + chunk;
+      final choices = _numberChoices(
+        next,
+        maxValue: max(fact.result + 100, next + 10),
+      );
+      steps.add(
+        GuidedMethodStep(
+          title: '${ArithmeticStrategy.placeLabel(chunk)} addieren',
+          instruction: 'Rechne $current + $chunk.',
+          question: 'Wo landest du nach diesem Teil?',
+          choices: choices,
+          correctChoice: choices.indexOf('$next'),
+          evidenceKey: index == 0 ? 'firstPlaceValueAddition' : null,
+          evidenceCompetency:
+              index == 0 ? MicroCompetencyId.mentalStrategy : null,
+          evidenceWeight: index == 0 ? 0.45 : 1,
+        ),
+      );
+      current = next;
+    }
+    return GuidedMethodGuide(
+      methodKey: 'addition:placeValueChunks',
+      methodLabel: 'Stellenweise addieren',
+      nudge:
+          'Zerlege ${fact.b} nach Stellenwerten: $decomposition. Rechne die Teile vom größten zum kleinsten.',
+      steps: steps,
+    );
+  }
+
+  static GuidedMethodGuide _placeValueSubtraction(MathFact fact) {
+    final chunks = ArithmeticStrategy.placeValueChunks(fact.b);
+    final decomposition = chunks.join(' + ');
+    final steps = <GuidedMethodStep>[];
+    var current = fact.a;
+    for (var index = 0; index < chunks.length; index++) {
+      final chunk = chunks[index];
+      final next = current - chunk;
+      final choices = _numberChoices(
+        next,
+        maxValue: max(fact.a, next + 10),
+      );
+      steps.add(
+        GuidedMethodStep(
+          title: '${ArithmeticStrategy.placeLabel(chunk)} abziehen',
+          instruction: 'Rechne $current − $chunk.',
+          question: 'Wo landest du nach diesem Teil?',
+          choices: choices,
+          correctChoice: choices.indexOf('$next'),
+          evidenceKey: index == 0 ? 'firstPlaceValueSubtraction' : null,
+          evidenceCompetency:
+              index == 0 ? MicroCompetencyId.mentalStrategy : null,
+          evidenceWeight: index == 0 ? 0.45 : 1,
+        ),
+      );
+      current = next;
+    }
+    final borrows = ArithmeticStrategy.subtractionBorrowPlaces(fact);
+    final borrowHint = borrows.isEmpty
+        ? ''
+        : ' Achte dabei auf ${borrows.length == 1 ? 'eine Stellenwertgrenze' : 'die Stellenwertgrenzen'}.';
+    return GuidedMethodGuide(
+      methodKey: 'subtraction:placeValueChunks',
+      methodLabel: 'Stellenweise subtrahieren',
+      nudge:
+          'Zerlege ${fact.b} nach Stellenwerten: $decomposition. Ziehe die Teile nacheinander ab.$borrowHint',
+      steps: steps,
+    );
+  }
+
+  static GuidedMethodGuide _placeValueMultiplication(MathFact fact) {
+    final parts = ArithmeticStrategy.multiplicationParts(fact);
+    final chunks = ArithmeticStrategy.multiplicationOperandChunks(fact);
+    final partials = ArithmeticStrategy.multiplicationPartialProducts(fact);
+    final decomposition = chunks.join(' + ');
+    final steps = <GuidedMethodStep>[];
+    for (var index = 0; index < chunks.length; index++) {
+      final chunk = chunks[index];
+      final partial = partials[index];
+      final choices = _numberChoices(
+        partial,
+        maxValue: max(fact.result + 100, partial + 10),
+      );
+      steps.add(
+        GuidedMethodStep(
+          title: '${ArithmeticStrategy.placeLabel(chunk)} malnehmen',
+          instruction: 'Rechne $chunk × ${parts.$2}.',
+          question: 'Wie groß ist dieses Teilprodukt?',
+          choices: choices,
+          correctChoice: choices.indexOf('$partial'),
+          evidenceKey: index == 0 ? 'firstPlaceValueProduct' : null,
+          evidenceCompetency:
+              index == 0 ? MicroCompetencyId.mentalStrategy : null,
+          evidenceWeight: index == 0 ? 0.45 : 1,
+        ),
+      );
+    }
+    if (partials.length > 1) {
+      final choices = _numberChoices(
+        fact.result,
+        maxValue: max(fact.result + 100, 100),
+      );
+      steps.add(
+        GuidedMethodStep(
+          title: 'Teilprodukte zusammenfügen',
+          instruction: '${partials.join(' + ')} = ${fact.result}.',
+          question: 'Wie lautet das Produkt insgesamt?',
+          choices: choices,
+          correctChoice: choices.indexOf('${fact.result}'),
+        ),
+      );
+    }
+    return GuidedMethodGuide(
+      methodKey: 'multiplication:placeValueChunks',
+      methodLabel: 'Mit Teilprodukten rechnen',
+      nudge: chunks.length <= 1
+          ? 'Nutze die bekannte Grundaufgabe und verschiebe den Stellenwert passend.'
+          : 'Zerlege ${parts.$1} nach Stellenwerten: $decomposition. Multipliziere jeden Teil mit ${parts.$2}.',
+      steps: steps,
+    );
+  }
+
+  static GuidedMethodGuide _placeValueDivision(MathFact fact) {
+    final quotientChunks = ArithmeticStrategy.divisionQuotientChunks(fact);
+    final dividendChunks = ArithmeticStrategy.divisionDividendChunks(fact);
+    final steps = <GuidedMethodStep>[];
+    for (var index = 0; index < quotientChunks.length; index++) {
+      final quotientChunk = quotientChunks[index];
+      final dividendChunk = dividendChunks[index];
+      final choices = _numberChoices(
+        quotientChunk,
+        maxValue: max(fact.result + 20, quotientChunk + 10),
+      );
+      steps.add(
+        GuidedMethodStep(
+          title: '${ArithmeticStrategy.placeLabel(quotientChunk)} teilen',
+          instruction: 'Teile zuerst $dividendChunk ÷ ${fact.b}.',
+          question: 'Welcher Teilquotient entsteht?',
+          choices: choices,
+          correctChoice: choices.indexOf('$quotientChunk'),
+          evidenceKey: index == 0 ? 'firstPlaceValueQuotient' : null,
+          evidenceCompetency:
+              index == 0 ? MicroCompetencyId.mentalStrategy : null,
+          evidenceWeight: index == 0 ? 0.45 : 1,
+        ),
+      );
+    }
+    if (quotientChunks.length > 1) {
+      final choices = _numberChoices(
+        fact.result,
+        maxValue: max(fact.result + 20, 20),
+      );
+      steps.add(
+        GuidedMethodStep(
+          title: 'Teilquotienten zusammenfügen',
+          instruction: '${quotientChunks.join(' + ')} = ${fact.result}.',
+          question: 'Wie lautet der Quotient insgesamt?',
+          choices: choices,
+          correctChoice: choices.indexOf('${fact.result}'),
+        ),
+      );
+    }
+    return GuidedMethodGuide(
+      methodKey: 'division:placeValueChunks',
+      methodLabel: 'Mit Teilquotienten rechnen',
+      nudge: dividendChunks.length <= 1
+          ? 'Nutze eine passende Mal-Umkehraufgabe und übertrage den Stellenwert.'
+          : 'Zerlege ${fact.a} in gut teilbare Blöcke: ${dividendChunks.join(' + ')}. Teile jeden Block durch ${fact.b}.',
+      steps: steps,
     );
   }
 
@@ -2418,6 +2609,24 @@ class GuidedMethodFactory {
         ),
       ],
     );
+  }
+
+  static MathFact? _directArithmeticFactFromKey(String taskKey) {
+    final parts = taskKey.split(':');
+    if (parts.length != 3) return null;
+    final a = int.tryParse(parts[1]);
+    final b = int.tryParse(parts[2]);
+    if (a == null || b == null || a < 0 || b < 0) return null;
+    final operation = switch (parts[0]) {
+      'plus' => MathOperation.plus,
+      'minus' => MathOperation.minus,
+      'multiply' => MathOperation.multiply,
+      'divide' => MathOperation.divide,
+      _ => null,
+    };
+    return operation == null
+        ? null
+        : MathFact(a: a, b: b, operation: operation);
   }
 
   static MathFact? _numberFriendFactFromKey(String taskKey) {

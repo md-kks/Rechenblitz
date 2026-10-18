@@ -1,9 +1,11 @@
 import 'dart:math';
 
+import 'arithmetic_strategy.dart';
 import 'curriculum_exercise.dart';
 import 'german_number_words.dart';
 import 'error_diagnosis.dart';
 import 'learning_methods.dart';
+import 'math_fact.dart';
 import 'micro_competency.dart';
 import 'structured_exercise.dart';
 import 'training.dart';
@@ -4536,6 +4538,112 @@ class RemediationGenerator {
     TrainingMode preferredMode,
     NumberRangeLevel range,
   ) {
+    if (range.maxValue > 100) {
+      final limit = range.maxValue;
+      if (preferredMode == TrainingMode.multiply) {
+        final factor = _between(2, 9);
+        final maxOther = max(21, min(limit ~/ factor, 9999));
+        var other = _between(21, maxOther);
+        for (var attempt = 0;
+            attempt < 20 &&
+                ArithmeticStrategy.placeValueChunks(other).length < 2;
+            attempt++) {
+          other = _between(21, maxOther);
+        }
+        if (ArithmeticStrategy.placeValueChunks(other).length < 2) {
+          other = min(maxOther, 21);
+        }
+        final fact = MathFact(
+          a: other,
+          b: factor,
+          operation: MathOperation.multiply,
+        );
+        final chunks = ArithmeticStrategy.multiplicationOperandChunks(fact);
+        final partials = ArithmeticStrategy.multiplicationPartialProducts(fact);
+        return _numeric(
+          stage: stage,
+          mode: TrainingMode.multiply,
+          key: 'remediation:partialOperand:multiply:$other:$factor',
+          prompt: '$other × $factor = ?',
+          answer: fact.result,
+          max: limit,
+          hint:
+              'Zerlege $other in ${chunks.join(' + ')}. Rechne die Teilprodukte ${partials.join(', ')} und füge wirklich alle zusammen.',
+        );
+      }
+
+      if (preferredMode == TrainingMode.divide) {
+        final divisor = _between(2, 9);
+        final maxQuotient = max(21, min(limit ~/ divisor, 9999));
+        var quotient = _between(21, maxQuotient);
+        for (var attempt = 0;
+            attempt < 20 &&
+                ArithmeticStrategy.placeValueChunks(quotient).length < 2;
+            attempt++) {
+          quotient = _between(21, maxQuotient);
+        }
+        if (ArithmeticStrategy.placeValueChunks(quotient).length < 2) {
+          quotient = min(maxQuotient, 21);
+        }
+        final dividend = quotient * divisor;
+        final fact = MathFact(
+          a: dividend,
+          b: divisor,
+          operation: MathOperation.divide,
+        );
+        final chunks = ArithmeticStrategy.divisionDividendChunks(fact);
+        return _numeric(
+          stage: stage,
+          mode: TrainingMode.divide,
+          key: 'remediation:partialOperand:divide:$dividend:$divisor',
+          prompt: '$dividend ÷ $divisor = ?',
+          answer: quotient,
+          max: max(quotient, 20),
+          hint:
+              'Zerlege $dividend in die gut teilbaren Blöcke ${chunks.join(' + ')}. Teile jeden Block durch $divisor und füge alle Teilquotienten zusammen.',
+        );
+      }
+
+      final subtraction = preferredMode == TrainingMode.minus;
+      final minSecond = limit >= 1000 ? 101 : 21;
+      final maxSecond = max(minSecond, min(limit ~/ 2, 99999));
+      var b = _between(minSecond, maxSecond);
+      for (var attempt = 0;
+          attempt < 20 && ArithmeticStrategy.placeValueChunks(b).length < 2;
+          attempt++) {
+        b = _between(minSecond, maxSecond);
+      }
+      if (ArithmeticStrategy.placeValueChunks(b).length < 2) {
+        b = min(maxSecond, minSecond + 1);
+      }
+      final chunks = ArithmeticStrategy.placeValueChunks(b);
+      if (subtraction) {
+        final a = _between(b, limit);
+        return _numeric(
+          stage: stage,
+          mode: TrainingMode.minus,
+          key: 'remediation:partialOperand:minus:$a:$b',
+          prompt: '$a − $b = ?',
+          answer: a - b,
+          max: limit,
+          hint:
+              'Zerlege $b in ${chunks.join(' + ')}. Ziehe jeden Stellenwertblock nacheinander ab und lass keinen Teil aus.',
+        );
+      }
+
+      final a = _between(1, max(1, limit - b));
+      return _numeric(
+        stage: stage,
+        mode: TrainingMode.practice,
+        key: 'remediation:partialOperand:plus:$a:$b',
+        prompt: '$a + $b = ?',
+        answer: a + b,
+        max: limit,
+        hint:
+            'Zerlege $b in ${chunks.join(' + ')}. Addiere jeden Stellenwertblock nacheinander und lass keinen Teil aus.',
+      );
+    }
+
     final limit = min(range.maxValue, 100);
     if (limit < 20) {
       return _numberBond(stage, range);

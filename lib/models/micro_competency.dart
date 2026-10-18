@@ -1,3 +1,4 @@
+import 'arithmetic_strategy.dart';
 import 'math_fact.dart';
 import 'training.dart';
 
@@ -1333,6 +1334,36 @@ class MicroCompetencyCatalog {
       return const [
         MicroCompetencyTag(MicroCompetencyId.numberDecomposition),
       ];
+    }
+
+    if (ArithmeticStrategy.usesPlaceValueStrategy(fact)) {
+      return switch (fact.operation) {
+        MathOperation.plus || MathOperation.minus => const [
+            MicroCompetencyTag(MicroCompetencyId.mentalStrategy),
+            MicroCompetencyTag(
+              MicroCompetencyId.numberDecomposition,
+              weight: 0.65,
+            ),
+          ],
+        MathOperation.multiply => const [
+            MicroCompetencyTag(MicroCompetencyId.mentalStrategy),
+            MicroCompetencyTag(
+              MicroCompetencyId.multiplicationFacts,
+              weight: 0.35,
+            ),
+          ],
+        MathOperation.divide => const [
+            MicroCompetencyTag(MicroCompetencyId.mentalStrategy),
+            MicroCompetencyTag(
+              MicroCompetencyId.divisionFacts,
+              weight: 0.35,
+            ),
+            MicroCompetencyTag(
+              MicroCompetencyId.inverseRelationship,
+              weight: 0.25,
+            ),
+          ],
+      };
     }
 
     switch (fact.operation) {

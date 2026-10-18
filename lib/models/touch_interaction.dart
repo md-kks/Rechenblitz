@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'arithmetic_strategy.dart';
+import 'math_fact.dart';
 import 'micro_competency.dart';
 import 'training.dart';
 
@@ -1469,6 +1471,53 @@ class TouchInteractionPlan {
       }
     }
 
+    final directArithmetic = _directArithmeticFact(mode, taskKey);
+    if (directArithmetic != null &&
+        ArithmeticStrategy.usesPlaceValueStrategy(directArithmetic)) {
+      final fact = directArithmetic;
+      final values = switch (fact.operation) {
+        MathOperation.plus || MathOperation.minus => <int>[
+            fact.a,
+            fact.b,
+            ...ArithmeticStrategy.placeValueChunks(fact.b),
+          ],
+        MathOperation.multiply => <int>[
+            ArithmeticStrategy.multiplicationParts(fact).$1,
+            ArithmeticStrategy.multiplicationParts(fact).$2,
+            ...ArithmeticStrategy.multiplicationOperandChunks(fact),
+          ],
+        MathOperation.divide => <int>[
+            fact.a,
+            fact.b,
+            ...ArithmeticStrategy.divisionDividendChunks(fact),
+          ],
+      };
+      if (values.length >= 3) {
+        final operation = switch (fact.operation) {
+          MathOperation.plus => '+',
+          MathOperation.minus => '-',
+          MathOperation.multiply => 'multiply',
+          MathOperation.divide => 'divide',
+        };
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.mentalChunkPath,
+          instruction: switch (fact.operation) {
+            MathOperation.plus || MathOperation.minus =>
+              'Zerlege die zweite Zahl in Stellenwertblöcke und ordne die Rechenschritte vom größten zum kleinsten.',
+            MathOperation.multiply =>
+              'Zerlege die größere Zahl in Stellenwertblöcke. Multipliziere anschließend jeden Block einzeln.',
+            MathOperation.divide =>
+              'Zerlege den Dividend in gut teilbare Blöcke. Teile anschließend jeden Block einzeln.',
+          },
+          dataValues: values,
+          dataOperation: operation,
+          expectedAnswer: answer,
+          maxValue: max(maxValue, max(fact.a, fact.result)),
+        );
+      }
+    }
+
     if (mode == TrainingMode.mentalStrategies &&
         taskKey.startsWith('process:strategy:')) {
       final parts = taskKey.split(':');
@@ -2064,6 +2113,36 @@ class TouchInteractionPlan {
     }
 
     return null;
+  }
+
+  static MathFact? _directArithmeticFact(
+    TrainingMode mode,
+    String taskKey,
+  ) {
+    if (mode != TrainingMode.practice &&
+        mode != TrainingMode.minus &&
+        mode != TrainingMode.multiply &&
+        mode != TrainingMode.divide &&
+        mode != TrainingMode.mixed &&
+        mode != TrainingMode.speed &&
+        mode != TrainingMode.tempo) {
+      return null;
+    }
+    final parts = taskKey.split(':');
+    if (parts.length != 3) return null;
+    final a = int.tryParse(parts[1]);
+    final b = int.tryParse(parts[2]);
+    if (a == null || b == null) return null;
+    final operation = switch (parts[0]) {
+      'plus' => MathOperation.plus,
+      'minus' => MathOperation.minus,
+      'multiply' => MathOperation.multiply,
+      'divide' => MathOperation.divide,
+      _ => null,
+    };
+    return operation == null
+        ? null
+        : MathFact(a: a, b: b, operation: operation);
   }
 
   static (int, int)? _multiplicationGroupsSpec(

@@ -388,13 +388,31 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
     activeMethodKey = allowedFadingLevel == null ? null : _guide.methodKey;
   }
 
-  CurriculumExercise _next() => generator.generate(
+  int get _directArithmeticStage {
+    if (widget.arithmeticMode == null || widget.targetTasks <= 1) return 1;
+    return (completed * 3 ~/ widget.targetTasks).clamp(0, 2).toInt();
+  }
+
+  CurriculumExercise _next() {
+    final commonRecent = widget.controller.recentTaskKeys(_generationMode);
+    if (widget.exerciseGenerator == null && widget.arithmeticMode != null) {
+      return generator.generateDirectArithmetic(
         mode: _generationMode,
         gradeLevel: widget.controller.effectiveGradeLevel,
         maxValue: _sessionNumberRange.maxValue,
-        recentKeys: widget.controller.recentTaskKeys(_generationMode),
+        recentKeys: commonRecent,
         targetCompetency: widget.targetCompetency,
+        directArithmeticStage: _directArithmeticStage,
       );
+    }
+    return generator.generate(
+      mode: _generationMode,
+      gradeLevel: widget.controller.effectiveGradeLevel,
+      maxValue: _sessionNumberRange.maxValue,
+      recentKeys: commonRecent,
+      targetCompetency: widget.targetCompetency,
+    );
+  }
 
   ErrorPattern get _helpPattern =>
       currentErrorPattern ??
@@ -855,6 +873,15 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
+              ),
+            ],
+            if (widget.arithmeticMode != null && current.method != null) ...[
+              const SizedBox(height: 3),
+              Text(
+                'Rechenidee: ${current.method}',
+                key: const ValueKey('curriculum-training-arithmetic-family'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
             SizedBox(height: topGap),

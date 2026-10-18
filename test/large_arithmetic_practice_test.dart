@@ -238,5 +238,9 @@ void main() {
     expect(controller.timedRoundSummary(current), contains('16 direkt richtig'));
     expect(controller.timedRoundSummary(current), contains('16,0 richtige/min'));
     expect(controller.timedRoundComparisonText(current), contains('+6,0'));
+    expect(
+      controller.timedRoundComparisonText(current),
+      contains('nicht als Grundaufgaben-Automatisierung'),
+    );
   });
 }

@@ -1,3 +1,4 @@
+import 'arithmetic_strategy.dart';
 import 'math_fact.dart';
 import 'training.dart';
 
@@ -53,7 +54,7 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.tenBridge => 'Zehnerübergang',
         ErrorPattern.carryOmitted => 'Übertrag beim Plus vergessen',
         ErrorPattern.borrowAvoided => 'Entbündeln beim Minus vermieden',
-        ErrorPattern.partialOperand => 'Nur einen Zahlenteil verrechnet',
+        ErrorPattern.partialOperand => 'Teilrechnung unvollständig',
         ErrorPattern.numberBond => 'Zahlzerlegung / Grundaufgabe',
         ErrorPattern.operationChoice => 'Rechenart verwechselt',
         ErrorPattern.placeValue => 'Stellenwert',
@@ -110,7 +111,7 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.borrowAvoided =>
           'Vor dem Subtrahieren einen Zehner entbündeln und Einer sowie Zehner getrennt sichtbar bearbeiten.',
         ErrorPattern.partialOperand =>
-          'Die zweite Zahl in Zehner und Einer zerlegen und beide Teile nacheinander verrechnen.',
+          'Die Rechnung in Stellenwertblöcke zerlegen und prüfen, ob wirklich jeder Teil verrechnet wurde.',
         ErrorPattern.numberBond =>
           'Zahlzerlegungen und passende Grundaufgaben in kleinen Mengen wiederholen.',
         ErrorPattern.operationChoice =>
@@ -195,7 +196,7 @@ extension ErrorPatternX on ErrorPattern {
         ErrorPattern.borrowAvoided =>
           'Bei den Einern reicht die obere Ziffer nicht. Entbündele zuerst einen Zehner.',
         ErrorPattern.partialOperand =>
-          'Prüfe die zweite Zahl: Hast du ihre Zehner und Einer beide verrechnet?',
+          'Prüfe deine Teilrechnungen: Hast du wirklich jeden Stellenwertblock berücksichtigt?',
         ErrorPattern.multiplicationAsAddition =>
           '× bedeutet gleich große Gruppen. Addiere nicht nur die beiden Faktoren.',
         ErrorPattern.divisionAsSubtraction =>
@@ -478,16 +479,35 @@ class ErrorClassifier {
     required int actual,
   }) {
     if (mode == TrainingMode.numberFriends) return ErrorPattern.numberBond;
+    final strategic = ArithmeticStrategy.usesPlaceValueStrategy(fact);
 
     switch (fact.operation) {
       case MathOperation.plus:
         if (fact.a >= fact.b && actual == fact.a - fact.b) {
           return ErrorPattern.operationChoice;
         }
-        if (actual != expected && _usedOnlyPartOfSecondOperand(fact, actual)) {
+        if (actual != expected &&
+            (_usedOnlyPartOfSecondOperand(fact, actual) ||
+                ArithmeticStrategy.looksLikePartialStrategy(fact, actual))) {
           return ErrorPattern.partialOperand;
         }
         final crossesTen = needsAdditionTenBridge(fact.a, fact.b);
+        if (strategic) {
+          final carryPlaces = ArithmeticStrategy.additionCarryPlaces(fact);
+          if (actual != expected &&
+              carryPlaces.contains(expected - actual)) {
+            return ErrorPattern.carryOmitted;
+          }
+          if ((actual - expected).abs() == 1) {
+            return ErrorPattern.countingStep;
+          }
+          if ((actual - expected).abs() >= 10 &&
+              (actual - expected).abs() % 10 == 0 &&
+              !carryPlaces.contains((actual - expected).abs())) {
+            return ErrorPattern.placeValue;
+          }
+          return ErrorPattern.mentalStrategy;
+        }
         if (actual != expected &&
             crossesTen &&
             actual == expected - 10) {
@@ -503,14 +523,33 @@ class ErrorClassifier {
 
       case MathOperation.minus:
         if (actual == fact.a + fact.b) return ErrorPattern.operationChoice;
-        if (actual != expected && _usedOnlyPartOfSecondOperand(fact, actual)) {
+        final needsBorrow = needsSubtractionTenBridge(fact.a, fact.b);
+        final borrowPlaces = ArithmeticStrategy.subtractionBorrowPlaces(fact);
+        if (actual != expected &&
+            borrowPlaces.isNotEmpty &&
+            actual == ArithmeticStrategy.digitwiseAbsoluteSubtraction(fact)) {
+          return ErrorPattern.borrowAvoided;
+        }
+        if (actual != expected &&
+            (_usedOnlyPartOfSecondOperand(fact, actual) ||
+                ArithmeticStrategy.looksLikePartialStrategy(fact, actual))) {
           return ErrorPattern.partialOperand;
         }
-        final needsBorrow = needsSubtractionTenBridge(fact.a, fact.b);
-        if (actual != expected &&
+        if (!strategic &&
+            actual != expected &&
             needsBorrow &&
             _looksLikeDigitwiseSubtraction(fact, actual)) {
           return ErrorPattern.borrowAvoided;
+        }
+        if (strategic) {
+          if ((actual - expected).abs() == 1) {
+            return ErrorPattern.countingStep;
+          }
+          if ((actual - expected).abs() >= 10 &&
+              (actual - expected).abs() % 10 == 0) {
+            return ErrorPattern.placeValue;
+          }
+          return ErrorPattern.mentalStrategy;
         }
         if (needsBorrow) return ErrorPattern.tenBridge;
         if ((actual - expected).abs() == 1) return ErrorPattern.countingStep;
@@ -524,14 +563,24 @@ class ErrorClassifier {
         if (actual != expected && actual == fact.a + fact.b) {
           return ErrorPattern.multiplicationAsAddition;
         }
-        return ErrorPattern.multiplicationFact;
+        if (strategic &&
+            ArithmeticStrategy.looksLikePartialStrategy(fact, actual)) {
+          return ErrorPattern.partialOperand;
+        }
+        return strategic
+            ? ErrorPattern.mentalStrategy
+            : ErrorPattern.multiplicationFact;
 
       case MathOperation.divide:
         if (actual != expected && actual == fact.a - fact.b) {
           return ErrorPattern.divisionAsSubtraction;
         }
         if (actual == fact.a * fact.b) return ErrorPattern.operationChoice;
-        return ErrorPattern.divisionFact;
+        if (strategic &&
+            ArithmeticStrategy.looksLikePartialStrategy(fact, actual)) {
+          return ErrorPattern.partialOperand;
+        }
+        return strategic ? ErrorPattern.mentalStrategy : ErrorPattern.divisionFact;
     }
   }
 
@@ -554,14 +603,8 @@ class ErrorClassifier {
   static bool _looksLikeDigitwiseSubtraction(
     MathFact fact,
     int actual,
-  ) {
-    if (fact.a < 10 || fact.a > 99 || fact.b < 10 || fact.b > 99) {
-      return false;
-    }
-    final tens = (fact.a ~/ 10) - (fact.b ~/ 10);
-    final ones = ((fact.a % 10) - (fact.b % 10)).abs();
-    return tens >= 0 && actual == tens * 10 + ones;
-  }
+  ) =>
+      actual == ArithmeticStrategy.digitwiseAbsoluteSubtraction(fact);
 
   static ErrorPattern _transferStoryPattern(
     String key, {

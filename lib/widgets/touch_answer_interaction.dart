@@ -1467,6 +1467,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final wholeOperand = values[1];
     final chunks = values.sublist(2);
     final rawOperation = widget.plan.dataOperation ?? '+';
+    final multiplication = rawOperation.startsWith('multiply');
+    final division = rawOperation.startsWith('divide');
     final operation = rawOperation.startsWith('-') ? '−' : '+';
     final skipFirst = rawOperation.endsWith(':skip-first');
     final requiredChunks = skipFirst && chunks.isNotEmpty
@@ -1483,6 +1485,22 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final expected = widget.plan.expectedAnswer ?? 0;
     final complete = mentalSelectedChunks.length == requiredChunks.length;
 
+    String structureTitle() {
+      if (multiplication) return 'Zerlegung von $start für × $wholeOperand';
+      if (division) return 'Zerlegung von $start für ÷ $wholeOperand';
+      return '$start';
+    }
+
+    String completionHint() {
+      if (multiplication) {
+        return 'Multipliziere jeden Block mit $wholeOperand, addiere die Teilprodukte und gib das Ergebnis ein.';
+      }
+      if (division) {
+        return 'Teile jeden Block durch $wholeOperand, addiere die Teilquotienten und gib das Ergebnis ein.';
+      }
+      return 'Rechne den aufgebauten Weg jetzt selbst zu Ende.';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1497,16 +1515,16 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                Chip(label: Text('$start')),
+                Chip(label: Text(structureTitle())),
                 if (skipFirst && chunks.isNotEmpty) ...[
-                  Text(operation),
+                  if (!multiplication && !division) Text(operation),
                   Chip(
                     avatar: const Icon(Icons.check_rounded, size: 18),
                     label: Text('${chunks.first}'),
                   ),
                 ],
                 for (final chunk in mentalSelectedChunks) ...[
-                  Text(operation),
+                  Text(multiplication || division ? '+' : operation),
                   Chip(label: Text('$chunk')),
                 ],
               ],
@@ -1517,7 +1535,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         Text(
           skipFirst
               ? 'Der erste Stellenwertblock wurde schon geprüft. Ordne jetzt die restlichen Blöcke.'
-              : 'Tippe die Stellenwertblöcke vom größten zum kleinsten an.',
+              : multiplication || division
+                  ? 'Baue zuerst die Stellenwertzerlegung vom größten Block zum kleinsten auf.'
+                  : 'Tippe die Stellenwertblöcke vom größten zum kleinsten an.',
           textAlign: TextAlign.center,
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
@@ -1556,7 +1576,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         if (complete) ...[
           const SizedBox(height: 8),
           Text(
-            'Rechne den aufgebauten Weg jetzt selbst zu Ende.',
+            completionHint(),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelLarge,
           ),
