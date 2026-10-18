@@ -201,6 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? null
           : Duration(milliseconds: draft.timeLimitMs!),
       numberRangeOverride: draft.numberRange,
+      arithmeticMode: draft.arithmeticMode,
     );
   }
 
@@ -352,6 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ? null
               : Duration(milliseconds: draft.timeLimitMs!),
           numberRangeOverride: draft.numberRange,
+          arithmeticMode: draft.arithmeticMode,
         ),
       ),
       CoreTrainingKind.structured => MaterialPageRoute<void>(
@@ -378,6 +380,11 @@ class _HomeScreenState extends State<HomeScreen> {
           fluencyEmphasis: draft.fluencyEmphasis,
           scaffoldFading: draft.scaffoldFading,
           adaptiveLength: draft.adaptiveLength,
+          timeLimit: draft.timeLimitMs == null
+              ? null
+              : Duration(milliseconds: draft.timeLimitMs!),
+          numberRangeOverride: draft.numberRange,
+          arithmeticMode: draft.arithmeticMode,
         ),
       ),
     };
@@ -431,15 +438,27 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
       if (!mounted || config == null) return;
+      final useGeneratedArithmetic =
+          config.numberRange.maxValue > NumberRangeLevel.hundred.maxValue;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => TrainingScreen(
-            controller: widget.controller,
-            mode: mode,
-            targetTasks: config.tasks,
-            timeLimit: config.duration,
-            numberRangeOverride: config.numberRange,
-          ),
+          builder: (_) => useGeneratedArithmetic
+              ? CurriculumTrainingScreen(
+                  controller: widget.controller,
+                  mode: mode,
+                  targetTasks: config.tasks,
+                  timeLimit: config.duration,
+                  numberRangeOverride: config.numberRange,
+                  arithmeticMode: config.arithmeticMode,
+                )
+              : TrainingScreen(
+                  controller: widget.controller,
+                  mode: mode,
+                  targetTasks: config.tasks,
+                  timeLimit: config.duration,
+                  numberRangeOverride: config.numberRange,
+                  arithmeticMode: config.arithmeticMode,
+                ),
         ),
       );
       return;
@@ -1176,11 +1195,13 @@ class ArithmeticPracticeConfig {
     required this.tasks,
     required this.duration,
     required this.numberRange,
+    required this.arithmeticMode,
   });
 
   final int tasks;
   final Duration? duration;
   final NumberRangeLevel numberRange;
+  final TrainingMode arithmeticMode;
 }
 
 class _ArithmeticPracticeConfigurator extends StatefulWidget {
@@ -1201,6 +1222,7 @@ class _ArithmeticPracticeConfiguratorState
     extends State<_ArithmeticPracticeConfigurator> {
   late int tasks;
   late int minutes;
+  late TrainingMode arithmeticMode;
   String rangeSelection = 'auto';
 
   bool get _isTimed => widget.mode == TrainingMode.speed;
@@ -1209,6 +1231,9 @@ class _ArithmeticPracticeConfiguratorState
   @override
   void initState() {
     super.initState();
+    arithmeticMode = (_isTimed || _isCheck)
+        ? TrainingMode.practice
+        : widget.mode;
     tasks = _isTimed
         ? 30
         : _isCheck
@@ -1221,19 +1246,11 @@ class _ArithmeticPracticeConfiguratorState
         : 0;
   }
 
-  List<NumberRangeLevel> get _basicArithmeticRanges => widget
-      .controller
-      .availableRanges
-      .where((range) => range.maxValue <= NumberRangeLevel.hundred.maxValue)
-      .toList(growable: false);
+  List<NumberRangeLevel> get _basicArithmeticRanges =>
+      widget.controller.availableRanges;
 
-  NumberRangeLevel get _automaticRange {
-    final effective = widget.controller.effectiveNumberRange;
-    if (effective.maxValue <= NumberRangeLevel.hundred.maxValue) {
-      return effective;
-    }
-    return NumberRangeLevel.hundred;
-  }
+  NumberRangeLevel get _automaticRange =>
+      widget.controller.effectiveNumberRange;
 
   NumberRangeLevel get _selectedRange {
     if (rangeSelection == 'auto') return _automaticRange;
@@ -1273,6 +1290,41 @@ class _ArithmeticPracticeConfiguratorState
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
+            if (_isTimed || _isCheck) ...[
+              const SizedBox(height: 18),
+              const Text('Rechenart'),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<TrainingMode>(
+                key: const ValueKey('arithmetic-operation-selector'),
+                initialValue: arithmeticMode,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(
+                    value: TrainingMode.practice,
+                    child: Text('Plus & Minus'),
+                  ),
+                  DropdownMenuItem(
+                    value: TrainingMode.minus,
+                    child: Text('Nur Minus'),
+                  ),
+                  DropdownMenuItem(
+                    value: TrainingMode.multiply,
+                    child: Text('Malnehmen'),
+                  ),
+                  DropdownMenuItem(
+                    value: TrainingMode.divide,
+                    child: Text('Teilen'),
+                  ),
+                  DropdownMenuItem(
+                    value: TrainingMode.mixed,
+                    child: Text('Alle vier Rechenarten'),
+                  ),
+                ],
+                onChanged: (value) => setState(
+                  () => arithmeticMode = value ?? TrainingMode.practice,
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             const Text('Zahlenraum'),
             const SizedBox(height: 6),
@@ -1291,15 +1343,7 @@ class _ArithmeticPracticeConfiguratorState
               onChanged: (value) =>
                   setState(() => rangeSelection = value ?? 'auto'),
             ),
-            if (widget.controller.availableRanges.any(
-              (range) => range.maxValue > NumberRangeLevel.hundred.maxValue,
-            )) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Die direkten Grundrechenarten trainieren sichere Kopfrechen-Grundaufgaben bis 100. Größere Zahlenräume werden in den Bereichen für Klasse 3/4 mit passenden Rechenwegen geübt.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+
             if (_isTimed || _isCheck) ...[
               const SizedBox(height: 18),
               const Text('Aufgaben'),
@@ -1359,6 +1403,7 @@ class _ArithmeticPracticeConfiguratorState
                       ? Duration(minutes: minutes)
                       : null,
                   numberRange: _selectedRange,
+                  arithmeticMode: arithmeticMode,
                 ),
               ),
               child: Text(_startLabel),

@@ -13,6 +13,9 @@ Future<void> showRoundCompletionDialog(
   String? rewardReason,
   List<RewardBadge> newBadges = const <RewardBadge>[],
   double? averageSeconds,
+  String? timedSummary,
+  String? timedComparison,
+  String? operationInsight,
   String? adaptiveNote,
   LearningCompletionInsight? learningInsight,
   String? spokenFeedback,
@@ -52,6 +55,46 @@ Future<void> showRoundCompletionDialog(
               'Im Schnitt ${averageSeconds.toStringAsFixed(1)} Sekunden',
               textAlign: TextAlign.center,
               style: Theme.of(dialogContext).textTheme.bodySmall,
+            ),
+          ],
+          if (timedSummary != null && timedSummary.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              key: const ValueKey('round-timed-summary'),
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.timer_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Zeit-Auswertung',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(timedSummary),
+                    if (operationInsight != null &&
+                        operationInsight.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(operationInsight),
+                    ],
+                    if (timedComparison != null &&
+                        timedComparison.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        timedComparison,
+                        style: Theme.of(dialogContext).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ],
           if (learningInsight != null) ...[

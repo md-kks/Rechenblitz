@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'cube_net.dart';
 import 'german_number_words.dart';
+import 'math_fact.dart';
 import 'micro_competency.dart';
 import 'training.dart';
 import 'task_diversity.dart';
@@ -53,6 +54,17 @@ class CurriculumExerciseGenerator {
 
   final Random _random;
 
+  bool _isDirectArithmeticMode(TrainingMode mode) => switch (mode) {
+        TrainingMode.practice ||
+        TrainingMode.minus ||
+        TrainingMode.multiply ||
+        TrainingMode.divide ||
+        TrainingMode.mixed ||
+        TrainingMode.speed ||
+        TrainingMode.tempo => true,
+        _ => false,
+      };
+
   CurriculumExercise generate({
     required TrainingMode mode,
     required GradeLevel gradeLevel,
@@ -60,8 +72,8 @@ class CurriculumExerciseGenerator {
     Iterable<String> recentKeys = const <String>[],
     MicroCompetencyId? targetCompetency,
   }) {
-    if (!mode.isUpperPrimary) {
-      throw ArgumentError('$mode ist kein Lernbereich für Klasse 3/4.');
+    if (!mode.isUpperPrimary && !_isDirectArithmeticMode(mode)) {
+      throw ArgumentError('$mode ist kein unterstützter Lernbereich.');
     }
 
     final recent = recentKeys.toList();
@@ -118,6 +130,13 @@ class CurriculumExerciseGenerator {
     MicroCompetencyId? targetCompetency,
   }) =>
       switch (mode) {
+        TrainingMode.practice ||
+        TrainingMode.minus ||
+        TrainingMode.multiply ||
+        TrainingMode.divide ||
+        TrainingMode.mixed ||
+        TrainingMode.speed ||
+        TrainingMode.tempo => _directArithmetic(mode, gradeLevel, maxValue),
         TrainingMode.largeNumbers =>
           targetCompetency == MicroCompetencyId.largeNumberCompare
               ? _largeNumberCompareDiagnostic(gradeLevel, maxValue)
@@ -245,6 +264,206 @@ class CurriculumExerciseGenerator {
 
   int _between(int low, int high) =>
       high <= low ? low : low + _random.nextInt(high - low + 1);
+
+  CurriculumExercise _directArithmetic(
+    TrainingMode mode,
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final operation = switch (mode) {
+      TrainingMode.minus => MathOperation.minus,
+      TrainingMode.multiply => MathOperation.multiply,
+      TrainingMode.divide => MathOperation.divide,
+      TrainingMode.mixed => MathOperation.values[_random.nextInt(4)],
+      _ => _random.nextBool() ? MathOperation.plus : MathOperation.minus,
+    };
+    return switch (operation) {
+      MathOperation.plus => _directAdd(mode, grade, maxValue),
+      MathOperation.minus => _directSubtract(mode, grade, maxValue),
+      MathOperation.multiply => _directMultiply(mode, grade, maxValue),
+      MathOperation.divide => _directDivide(mode, grade, maxValue),
+    };
+  }
+
+  int _mentalPlace(int limit) {
+    if (limit >= 100000) return 10000;
+    if (limit >= 10000) return 1000;
+    if (limit >= 1000) return 100;
+    return 10;
+  }
+
+  int _meaningfulLowerBound(int limit) {
+    if (limit <= 100) return 0;
+    if (limit <= 1000) return 100;
+    if (limit <= 10000) return 1000;
+    return max(10000, limit ~/ 10);
+  }
+
+  CurriculumExercise _directAdd(
+    TrainingMode mode,
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = max(10, maxValue);
+    final place = _mentalPlace(limit);
+    final low = _meaningfulLowerBound(limit);
+    late int a;
+    late int b;
+    switch (_random.nextInt(4)) {
+      case 0:
+        b = place * _between(1, min(9, max(1, limit ~/ place ~/ 3)));
+        a = _between(max(1, low), max(max(1, low), limit - b));
+        break;
+      case 1:
+        final base = place * _between(1, min(9, max(1, limit ~/ place ~/ 3)));
+        final delta = max(1, place ~/ 10) * _between(1, 9);
+        b = min(limit - 1, base + delta);
+        a = _between(max(1, low), max(max(1, low), limit - b));
+        break;
+      case 2:
+        a = _between(max(1, low), max(max(1, low), limit * 3 ~/ 4));
+        b = _between(1, max(1, limit - a));
+        break;
+      default:
+        final bridgePlace = max(10, place ~/ 10);
+        final upperA = max(max(1, low), limit - bridgePlace - 1);
+        a = _between(max(1, low), upperA);
+        final toBoundary = bridgePlace - (a % bridgePlace);
+        final minB = max(1, toBoundary + 1);
+        b = _between(minB, max(minB, min(limit - a, bridgePlace * 2)));
+        break;
+    }
+    a = a.clamp(1, max(1, limit - 1)).toInt();
+    b = b.clamp(1, max(1, limit - a)).toInt();
+    return CurriculumExercise(
+      mode: mode,
+      prompt: '${_fmt(a)} + ${_fmt(b)} = ?',
+      answer: a + b,
+      hint: limit <= 100
+          ? 'Zerlege geschickt und rechne schrittweise.'
+          : 'Zerlege den zweiten Summanden nach Stellenwerten und rechne vom größten Teil zum kleinsten.',
+      key: '${MathOperation.plus.name}:$a:$b',
+      maxAnswerValue: limit,
+      method: 'Stellenweise addieren',
+    );
+  }
+
+  CurriculumExercise _directSubtract(
+    TrainingMode mode,
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = max(10, maxValue);
+    final place = _mentalPlace(limit);
+    final low = max(2, _meaningfulLowerBound(limit));
+    final a = _between(low, limit);
+    late int b;
+    switch (_random.nextInt(4)) {
+      case 0:
+        final maxUnits = max(1, a ~/ place);
+        b = place * _between(1, min(9, maxUnits));
+        b = min(b, a);
+        break;
+      case 1:
+        final base = place * _between(1, max(1, min(9, a ~/ place)));
+        final delta = max(1, place ~/ 10) * _between(1, 9);
+        b = min(a, max(1, base - min(base - 1, delta)));
+        break;
+      case 2:
+        b = _between(1, a);
+        break;
+      default:
+        final bridgePlace = max(10, place ~/ 10);
+        final ones = a % bridgePlace;
+        final needed = ones == 0 ? 1 : ones + 1;
+        b = _between(needed, max(needed, min(a, bridgePlace * 2)));
+        break;
+    }
+    b = b.clamp(1, a).toInt();
+    return CurriculumExercise(
+      mode: mode,
+      prompt: '${_fmt(a)} − ${_fmt(b)} = ?',
+      answer: a - b,
+      hint: limit <= 100
+          ? 'Ziehe schrittweise ab oder ergänze geschickt.'
+          : 'Zerlege den Subtrahenden nach Stellenwerten. Wenn nötig, überschreite die nächste Stellenwertgrenze in einem eigenen Schritt.',
+      key: '${MathOperation.minus.name}:$a:$b',
+      maxAnswerValue: limit,
+      method: 'Stellenweise subtrahieren',
+    );
+  }
+
+  CurriculumExercise _directMultiply(
+    TrainingMode mode,
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = max(20, maxValue);
+    final factor = _between(2, 9);
+    final maxOther = max(2, limit ~/ factor);
+    late int other;
+    if (_random.nextBool() && maxOther >= 10) {
+      final place = maxOther >= 1000
+          ? 100
+          : maxOther >= 100
+              ? 10
+              : 10;
+      final units = max(1, maxOther ~/ place);
+      other = place * _between(1, min(units, 40));
+    } else {
+      other = _between(2, min(maxOther, limit >= 10000 ? 9999 : 999));
+    }
+    other = max(2, min(other, maxOther));
+    return CurriculumExercise(
+      mode: mode,
+      prompt: '${_fmt(other)} × $factor = ?',
+      answer: other * factor,
+      hint: other <= 10
+          ? 'Nutze eine bekannte Einmaleins-Aufgabe.'
+          : other % 10 == 0
+              ? 'Rechne zuerst ohne die Null(en) und hänge die Stellenwerte anschließend wieder an.'
+              : 'Zerlege die größere Zahl in Stellenwerte, multipliziere die Teile und addiere die Teilprodukte.',
+      key: '${MathOperation.multiply.name}:$other:$factor',
+      maxAnswerValue: limit,
+      method: other <= 10 ? 'Einmaleins' : 'Halbschriftlich multiplizieren',
+    );
+  }
+
+  CurriculumExercise _directDivide(
+    TrainingMode mode,
+    GradeLevel grade,
+    int maxValue,
+  ) {
+    final limit = max(20, maxValue);
+    final divisor = _between(2, 9);
+    final maxQuotient = max(2, limit ~/ divisor);
+    late int quotient;
+    if (_random.nextBool() && maxQuotient >= 10) {
+      final place = maxQuotient >= 1000
+          ? 100
+          : maxQuotient >= 100
+              ? 10
+              : 10;
+      quotient = place * _between(1, max(1, min(40, maxQuotient ~/ place)));
+    } else {
+      quotient = _between(2, min(maxQuotient, limit >= 10000 ? 9999 : 999));
+    }
+    quotient = max(2, min(quotient, maxQuotient));
+    final dividend = quotient * divisor;
+    return CurriculumExercise(
+      mode: mode,
+      prompt: '${_fmt(dividend)} ÷ $divisor = ?',
+      answer: quotient,
+      hint: quotient <= 10
+          ? 'Denke an die passende Malaufgabe.'
+          : dividend % 10 == 0
+              ? 'Zerlege den Dividend in gut teilbare Stellenwertblöcke und nutze die Umkehraufgabe.'
+              : 'Zerlege den Dividend in passende Teilbeträge, teile sie einzeln und addiere die Teilquotienten.',
+      key: '${MathOperation.divide.name}:$dividend:$divisor',
+      maxAnswerValue: maxQuotient,
+      method: quotient <= 10 ? 'Umkehraufgabe' : 'Halbschriftlich dividieren',
+    );
+  }
 
   CurriculumExercise _largeNumbers(GradeLevel grade, int maxValue) {
     final limit = _safeMax(maxValue, grade);

@@ -10,6 +10,7 @@ import '../models/adaptive_segment.dart';
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
 import '../models/help_preferences.dart';
+import '../models/math_fact.dart';
 import '../models/micro_competency.dart';
 import '../models/training.dart';
 import '../models/training_session_progress.dart';
@@ -35,6 +36,9 @@ class CurriculumTrainingScreen extends StatefulWidget {
     this.scaffoldFading = false,
     this.adaptiveLength = false,
     this.announceCompletion = true,
+    this.timeLimit,
+    this.numberRangeOverride,
+    this.arithmeticMode,
     this.exerciseGenerator,
   });
 
@@ -48,6 +52,9 @@ class CurriculumTrainingScreen extends StatefulWidget {
   final bool scaffoldFading;
   final bool adaptiveLength;
   final bool announceCompletion;
+  final Duration? timeLimit;
+  final NumberRangeLevel? numberRangeOverride;
+  final TrainingMode? arithmeticMode;
   final CurriculumExerciseGenerator? exerciseGenerator;
 
   @override
@@ -60,11 +67,18 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
   HelpPreferences get _helpPreferences => widget.controller.helpPreferences;
   HelpLevel? get _manualHelpLevel => _helpPreferences.manualStartLevel;
   bool get _helpAvailable => _helpPreferences.enabled;
+  bool get _manualHelpAvailable =>
+      _helpAvailable &&
+      widget.mode != TrainingMode.speed &&
+      widget.mode != TrainingMode.tempo;
+  NumberRangeLevel get _sessionNumberRange =>
+      widget.numberRangeOverride ?? widget.controller.effectiveNumberRange;
+  TrainingMode get _generationMode => widget.arithmeticMode ?? widget.mode;
   TouchInteractionPlan? get _touchInteraction => TouchInteractionPlan.forTask(
-        mode: widget.mode,
+        mode: _generationMode,
         taskKey: current.key,
         answer: current.answer,
-        maxValue: current.maxAnswerValue ?? widget.controller.effectiveMaxValue,
+        maxValue: current.maxAnswerValue ?? _sessionNumberRange.maxValue,
         choices: current.choices,
         answerSuffix: current.answerSuffix,
         targetCompetency: widget.targetCompetency,
@@ -105,6 +119,19 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
   bool hadCheckpointError = false;
   Future<void>? taskRememberFuture;
   String checkpointFeedback = '';
+  Timer? timer;
+  Duration elapsed = Duration.zero;
+  Duration activeElapsedBase = Duration.zero;
+  late DateTime activeClockStartedAt;
+  bool activeClockRunning = true;
+  int plusTotal = 0;
+  int plusCorrect = 0;
+  int minusTotal = 0;
+  int minusCorrect = 0;
+  int multiplyTotal = 0;
+  int multiplyCorrect = 0;
+  int divideTotal = 0;
+  int divideCorrect = 0;
 
   bool get _adaptiveTargetStable {
     final id = widget.targetCompetency;
@@ -147,12 +174,17 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
       fluencyEmphasis: widget.fluencyEmphasis,
       scaffoldFading: widget.scaffoldFading,
       adaptiveLength: widget.adaptiveLength,
-            timeLimit: null,
+            timeLimit: widget.timeLimit,
+            numberRangeOverride: widget.numberRangeOverride,
+            arithmeticMode: widget.arithmeticMode,
           )
         : null;
     final now = DateTime.now();
+    activeClockStartedAt = now;
     if (saved != null) {
       startedAt = saved.startedAt;
+      activeElapsedBase = Duration(milliseconds: saved.elapsedActiveMs);
+      elapsed = activeElapsedBase;
       current = decodeCurriculumExercise(saved.currentTask);
       completed = saved.completed;
       correctFirstTry = saved.correctFirstTry;
@@ -170,6 +202,14 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
       hadCheckpointError = saved.hadCheckpointError;
       taskFirstAttemptRecorded = saved.taskFirstAttemptRecorded;
       responseTimes.addAll(saved.responseTimes);
+      plusTotal = saved.plusTotal;
+      plusCorrect = saved.plusCorrect;
+      minusTotal = saved.minusTotal;
+      minusCorrect = saved.minusCorrect;
+      multiplyTotal = saved.multiplyTotal;
+      multiplyCorrect = saved.multiplyCorrect;
+      divideTotal = saved.divideTotal;
+      divideCorrect = saved.divideCorrect;
       responseTimer = ActiveResponseTimer(startedAt: now);
       resumedFromDraft = true;
       resumeResolvedTask = saved.taskResolved;
@@ -189,23 +229,48 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         unawaited(widget.controller.speak(current.prompt));
       }
     });
+    if (widget.timeLimit != null) {
+      timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted || !activeClockRunning) return;
+        setState(() => elapsed = _activeElapsed());
+        if (elapsed >= widget.timeLimit!) {
+          unawaited(_finish());
+        }
+      });
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      responseTimer.resume();
+      final now = DateTime.now();
+      responseTimer.resume(at: now);
+      if (!activeClockRunning) {
+        activeClockStartedAt = now;
+        activeClockRunning = true;
+      }
       return;
     }
     responseTimer.pause();
+    if (activeClockRunning) {
+      activeElapsedBase = _activeElapsed();
+      elapsed = activeElapsedBase;
+      activeClockRunning = false;
+    }
     unawaited(_persistSession());
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    timer?.cancel();
     super.dispose();
   }
+
+  Duration _activeElapsed() => activeElapsedBase +
+      (activeClockRunning
+          ? DateTime.now().difference(activeClockStartedAt)
+          : Duration.zero);
 
   CoreTrainingSessionProgress _sessionSnapshot({
     bool? taskResolvedOverride,
@@ -221,11 +286,14 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         scaffoldFading: widget.scaffoldFading,
         adaptiveLength: widget.adaptiveLength,
         gradeLevel: widget.controller.effectiveGradeLevel,
-        numberRange: widget.controller.effectiveNumberRange,
+        numberRange: _sessionNumberRange,
         teacherAssignmentActive: widget.controller.hasTeacherAssignment,
+        arithmeticMode: widget.arithmeticMode,
+        timeLimitMs: widget.timeLimit?.inMilliseconds,
         startedAt: startedAt,
         updatedAt: DateTime.now(),
         currentTask: encodeCurriculumExercise(current),
+        elapsedActiveMs: _activeElapsed().inMilliseconds,
         completed: completed,
         incorrectAttempts: incorrectAttempts,
         correctFirstTry: correctFirstTry,
@@ -243,6 +311,14 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         hadCheckpointError: hadCheckpointError,
         taskFirstAttemptRecorded: taskFirstAttemptRecorded,
         responseTimes: List<int>.from(responseTimes),
+        plusTotal: plusTotal,
+        plusCorrect: plusCorrect,
+        minusTotal: minusTotal,
+        minusCorrect: minusCorrect,
+        multiplyTotal: multiplyTotal,
+        multiplyCorrect: multiplyCorrect,
+        divideTotal: divideTotal,
+        divideCorrect: divideCorrect,
         taskResolved: taskResolvedOverride ?? false,
       );
 
@@ -313,29 +389,31 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
   }
 
   CurriculumExercise _next() => generator.generate(
-        mode: widget.mode,
+        mode: _generationMode,
         gradeLevel: widget.controller.effectiveGradeLevel,
-        maxValue: widget.controller.effectiveMaxValue,
-        recentKeys: widget.controller.recentTaskKeys(widget.mode),
+        maxValue: _sessionNumberRange.maxValue,
+        recentKeys: widget.controller.recentTaskKeys(_generationMode),
         targetCompetency: widget.targetCompetency,
       );
 
   ErrorPattern get _helpPattern =>
       currentErrorPattern ??
       ErrorClassifier.classify(
-        mode: widget.mode,
+        mode: _generationMode,
         taskKey: current.key,
         expected: current.answer,
         actual: current.answer,
+        fact: _currentArithmeticFact(),
       ) ??
       ErrorPattern.unknown;
 
   GuidedMethodGuide get _guide => GuidedMethodFactory.forTask(
-        mode: widget.mode,
+        mode: _generationMode,
         taskKey: current.key,
         expected: current.answer,
         preferences: widget.controller.effectiveMethodPreferences,
         targetCompetency: widget.targetCompetency,
+        fact: _currentArithmeticFact(),
       );
 
   List<GuidedMethodGuide> get _guideAlternatives {
@@ -343,11 +421,12 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
       return const <GuidedMethodGuide>[];
     }
     return GuidedMethodFactory.alternativesForTask(
-      mode: widget.mode,
+      mode: _generationMode,
       taskKey: current.key,
       expected: current.answer,
       preferences: widget.controller.effectiveMethodPreferences,
       targetCompetency: widget.targetCompetency,
+      fact: _currentArithmeticFact(),
     );
   }
 
@@ -361,7 +440,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
       return const <GuidedMethodStep>[];
     }
     return GuidedMethodFactory.independentWrittenStepsForTask(
-      mode: widget.mode,
+      mode: _generationMode,
       taskKey: current.key,
       expected: current.answer,
       preferences: widget.controller.effectiveMethodPreferences,
@@ -376,11 +455,50 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
     final existing = taskRememberFuture;
     if (existing != null) return existing;
     final future = widget.controller.rememberPresentedTask(
-      widget.mode,
+      _generationMode,
       current.key,
     );
     taskRememberFuture = future;
     return future;
+  }
+
+  MathFact? _currentArithmeticFact() {
+    final parts = current.key.split(':');
+    if (parts.length != 3) return null;
+    final a = int.tryParse(parts[1]);
+    final b = int.tryParse(parts[2]);
+    if (a == null || b == null) return null;
+    final operation = switch (parts[0]) {
+      'plus' => MathOperation.plus,
+      'minus' => MathOperation.minus,
+      'multiply' => MathOperation.multiply,
+      'divide' => MathOperation.divide,
+      _ => null,
+    };
+    return operation == null ? null : MathFact(a: a, b: b, operation: operation);
+  }
+
+  void _recordOperationOutcome(bool firstTryCorrect) {
+    final fact = _currentArithmeticFact();
+    if (fact == null) return;
+    switch (fact.operation) {
+      case MathOperation.plus:
+        plusTotal += 1;
+        if (firstTryCorrect) plusCorrect += 1;
+        break;
+      case MathOperation.minus:
+        minusTotal += 1;
+        if (firstTryCorrect) minusCorrect += 1;
+        break;
+      case MathOperation.multiply:
+        multiplyTotal += 1;
+        if (firstTryCorrect) multiplyCorrect += 1;
+        break;
+      case MathOperation.divide:
+        divideTotal += 1;
+        if (firstTryCorrect) divideCorrect += 1;
+        break;
+    }
   }
 
   Future<void> _answerCheckpoint(int choice) async {
@@ -401,7 +519,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
       await _persistSession();
       await _rememberCurrentTaskOnce();
       await widget.controller.recordIndependentStepAttempt(
-        mode: widget.mode,
+        mode: _generationMode,
         taskKey: current.key,
         stepKey: step.evidenceKey!,
         competencyId: step.evidenceCompetency!,
@@ -410,6 +528,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
         evidenceWeight: step.evidenceWeight,
+        numberRangeOverride: widget.numberRangeOverride,
       );
     }
 
@@ -459,25 +578,28 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
     final diagnosedPattern = answer == current.answer
         ? null
         : ErrorClassifier.classify(
-            mode: widget.mode,
+            mode: _generationMode,
             taskKey: current.key,
             expected: current.answer,
             actual: answer,
+            fact: _currentArithmeticFact(),
           );
     if (!taskFirstAttemptRecorded) {
       taskFirstAttemptRecorded = true;
       await _persistSession();
       await _rememberCurrentTaskOnce();
       await widget.controller.recordDiagnosticAttempt(
-        mode: widget.mode,
+        mode: _generationMode,
         taskKey: current.key,
         expected: current.answer,
         actual: answer,
+        fact: _currentArithmeticFact(),
         usedHelp: showHint,
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
         source: _evidenceSource,
         responseTime: response,
+        numberRangeOverride: widget.numberRangeOverride,
       );
     }
     if (answer != current.answer) {
@@ -505,11 +627,13 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
 
     if (wrongOnCurrent > 0 && helpLevel > 0) {
       await widget.controller.recordMicroSupportResolution(
-        mode: widget.mode,
+        mode: _generationMode,
         taskKey: current.key,
+        fact: _currentArithmeticFact(),
         helpLevel: helpLevel,
         methodKey: activeMethodKey,
         source: _evidenceSource,
+        numberRangeOverride: widget.numberRangeOverride,
       );
       if (!mounted || finishing) return;
     }
@@ -520,6 +644,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
     responseTimes.add(response.inMilliseconds.clamp(0, 30000).toInt());
     final firstTry = wrongOnCurrent == 0 && !hadCheckpointError;
     if (firstTry) correctFirstTry += 1;
+    _recordOperationOutcome(firstTry);
     if (widget.controller.hapticEnabled) HapticFeedback.lightImpact();
     if (widget.controller.soundEnabled) {
       SystemSound.play(SystemSoundType.click);
@@ -562,6 +687,11 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
   Future<void> _finish({String? adaptiveStopReason}) async {
     if (finishing) return;
     finishing = true;
+    activeElapsedBase = _activeElapsed();
+    elapsed = activeElapsedBase;
+    activeClockRunning = false;
+    timer?.cancel();
+    locked = true;
     final avg = responseTimes.isEmpty
         ? 0.0
         : responseTimes.reduce((a, b) => a + b) / responseTimes.length;
@@ -572,16 +702,22 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
       total: completed,
       correctFirstTry: correctFirstTry,
       incorrectAttempts: incorrectAttempts,
-      plusCorrect: 0,
-      plusTotal: 0,
-      minusCorrect: 0,
-      minusTotal: 0,
+      plusCorrect: plusCorrect,
+      plusTotal: plusTotal,
+      minusCorrect: minusCorrect,
+      minusTotal: minusTotal,
+      multiplyCorrect: multiplyCorrect,
+      multiplyTotal: multiplyTotal,
+      divideCorrect: divideCorrect,
+      divideTotal: divideTotal,
       averageResponseMs: avg,
-      numberRange: widget.controller.effectiveNumberRange,
+      numberRange: _sessionNumberRange,
       gradeLevel: widget.controller.effectiveGradeLevel,
       starsEarned: 0,
       plannedTotal: widget.targetTasks,
       adaptiveStopReason: adaptiveStopReason,
+      activeDurationMs: activeElapsedBase.inMilliseconds,
+      arithmeticMode: widget.arithmeticMode ?? widget.mode,
     );
     final reason = widget.controller.rewardReasonForSession(result);
     result = result.copyWith(
@@ -618,6 +754,8 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
     final spokenFeedbackEnabled = spokenFeedback != null &&
         widget.controller.accessibilityPreferences.spokenRoundFeedback;
     if (!mounted) return;
+    final timedRound =
+        widget.mode == TrainingMode.speed || widget.mode == TrainingMode.tempo;
     await showRoundCompletionDialog(
       context,
       completed: completed,
@@ -632,6 +770,13 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
           ? () => widget.controller.speakRoundFeedback(spokenFeedback)
           : null,
       newBadges: newBadges,
+      averageSeconds: timedRound ? avg / 1000 : null,
+      timedSummary:
+          timedRound ? widget.controller.timedRoundSummary(result) : null,
+      timedComparison:
+          timedRound ? widget.controller.timedRoundComparisonText(result) : null,
+      operationInsight:
+          timedRound ? widget.controller.timedOperationInsight(result) : null,
     );
     if (mounted) Navigator.of(context).pop();
   }
@@ -648,12 +793,31 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
     final visualGap = compactHeight ? 12.0 : 22.0;
     final sectionGap = compactHeight ? 10.0 : 18.0;
     final promptFontSize = compactHeight ? 27.0 : 31.0;
+    final remainingSeconds = widget.timeLimit == null
+        ? null
+        : (widget.timeLimit!.inSeconds - elapsed.inSeconds)
+            .clamp(0, widget.timeLimit!.inSeconds)
+            .toInt();
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.mode.title),
         actions: [
-          if (compactHeight && _helpAvailable && !showHint)
+          if (widget.timeLimit != null)
+            Padding(
+              key: const ValueKey('curriculum-training-countdown'),
+              padding: const EdgeInsets.only(right: 18),
+              child: Center(
+                child: Text(
+                  '${remainingSeconds! ~/ 60}:${(remainingSeconds % 60).toString().padLeft(2, '0')}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          if (compactHeight && _manualHelpAvailable && !showHint)
             IconButton(
               key: const ValueKey('curriculum-compact-help'),
               tooltip: 'Ich brauche Hilfe',
@@ -682,6 +846,17 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (widget.numberRangeOverride != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Zahlenraum: ${_sessionNumberRange.label}',
+                key: const ValueKey('curriculum-training-number-range'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
             SizedBox(height: topGap),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -768,13 +943,14 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
                 expected: current.answer,
                 onStepAttempt: (step, correct) {
                   return widget.controller.recordGuidedStepAttempt(
-                    mode: widget.mode,
+                    mode: _generationMode,
                     taskKey: current.key,
                     methodKey: activeMethodKey ?? _guide.methodKey,
                     stepKey: step.evidenceKey!,
                     competencyId: step.evidenceCompetency!,
                     correct: correct,
                     evidenceWeight: step.evidenceWeight,
+                    numberRangeOverride: widget.numberRangeOverride,
                   );
                 },
                 onHelpLevelChanged: (level) {
@@ -794,7 +970,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
                 },
                 onSpeak: widget.controller.speakOnDemand,
               ),
-            ] else if (_helpAvailable && !compactHeight) ...[
+            ] else if (_manualHelpAvailable && !compactHeight) ...[
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: _showManualHelp,

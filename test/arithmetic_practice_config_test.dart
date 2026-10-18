@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/training.dart';
+import 'package:rechenblitz/screens/curriculum_training_screen.dart';
 import 'package:rechenblitz/screens/home_screen.dart';
 import 'package:rechenblitz/screens/training_screen.dart';
 import 'package:rechenblitz/services/adaptive_engine.dart';
@@ -18,6 +19,15 @@ void main() {
     value.loaded = true;
     value.gradeLevel = GradeLevel.second;
     value.numberRange = NumberRangeLevel.hundred;
+    value.facts = AdaptiveEngine.buildFactPool(maxValue: 100);
+    return value;
+  }
+
+  AppController largeController() {
+    final value = AppController();
+    value.loaded = true;
+    value.gradeLevel = GradeLevel.third;
+    value.numberRange = NumberRangeLevel.thousand;
     value.facts = AdaptiveEngine.buildFactPool(maxValue: 100);
     return value;
   }
@@ -117,4 +127,71 @@ void main() {
       );
     },
   );
+
+  testWidgets('Klasse 3 startet Plus und Minus bis 1000 ohne riesigen Faktenpool', (
+    tester,
+  ) async {
+    final value = largeController();
+    await openPracticeCatalog(tester, value);
+
+    await tester.ensureVisible(find.text('Plus & Minus'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Plus & Minus'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Automatisch (bis 1.000)'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('arithmetic-range-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('bis 1.000').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('arithmetic-start-button')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final screen = tester.widget<CurriculumTrainingScreen>(
+      find.byType(CurriculumTrainingScreen),
+    );
+    expect(screen.mode, TrainingMode.practice);
+    expect(screen.arithmeticMode, TrainingMode.practice);
+    expect(screen.numberRangeOverride, NumberRangeLevel.thousand);
+    expect(find.text('Zahlenraum: bis 1.000'), findsOneWidget);
+  });
+
+  testWidgets('Zeitmodus kombiniert Rechenart und großen Zahlenraum', (
+    tester,
+  ) async {
+    final value = largeController();
+    await openPracticeCatalog(tester, value);
+
+    await tester.ensureVisible(find.text('Rechnen auf Zeit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rechnen auf Zeit'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rechenart'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('arithmetic-operation-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Malnehmen').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('arithmetic-range-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('bis 1.000').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('arithmetic-start-button')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final screen = tester.widget<CurriculumTrainingScreen>(
+      find.byType(CurriculumTrainingScreen),
+    );
+    expect(screen.mode, TrainingMode.speed);
+    expect(screen.arithmeticMode, TrainingMode.multiply);
+    expect(screen.timeLimit, const Duration(minutes: 1));
+    expect(screen.numberRangeOverride, NumberRangeLevel.thousand);
+    expect(
+      find.byKey(const ValueKey('curriculum-training-countdown')),
+      findsOneWidget,
+    );
+  });
+
 }

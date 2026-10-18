@@ -67,6 +67,7 @@ class CoreTrainingSessionProgress {
     this.scaffoldFading = false,
     this.adaptiveLength = false,
     this.teacherAssignmentActive = false,
+    this.arithmeticMode,
     this.timeLimitMs,
     this.elapsedActiveMs = 0,
     this.completed = 0,
@@ -114,6 +115,7 @@ class CoreTrainingSessionProgress {
   final GradeLevel gradeLevel;
   final NumberRangeLevel numberRange;
   final bool teacherAssignmentActive;
+  final TrainingMode? arithmeticMode;
   final int? timeLimitMs;
   final DateTime startedAt;
   final DateTime updatedAt;
@@ -201,7 +203,10 @@ class CoreTrainingSessionProgress {
         case CoreTrainingKind.structured:
           if (decodeStructuredExercise(currentTask).mode != mode) return false;
         case CoreTrainingKind.curriculum:
-          if (decodeCurriculumExercise(currentTask).mode != mode) return false;
+          if (decodeCurriculumExercise(currentTask).mode !=
+              (arithmeticMode ?? mode)) {
+            return false;
+          }
       }
     } catch (_) {
       return false;
@@ -223,6 +228,7 @@ class CoreTrainingSessionProgress {
     required NumberRangeLevel numberRange,
     required bool teacherAssignmentActive,
     required Duration? timeLimit,
+    TrainingMode? arithmeticMode,
     DateTime? now,
   }) {
     final reference = now ?? DateTime.now();
@@ -239,6 +245,7 @@ class CoreTrainingSessionProgress {
         this.gradeLevel == gradeLevel &&
         this.numberRange == numberRange &&
         this.teacherAssignmentActive == teacherAssignmentActive &&
+        this.arithmeticMode == arithmeticMode &&
         timeLimitMs == timeLimit?.inMilliseconds &&
         completed <= targetTasks &&
         !updatedAt.isAfter(reference) &&
@@ -258,6 +265,7 @@ class CoreTrainingSessionProgress {
     'gradeLevel': gradeLevel.name,
     'numberRange': numberRange.name,
     'teacherAssignmentActive': teacherAssignmentActive,
+    'arithmeticMode': arithmeticMode?.name,
     'timeLimitMs': timeLimitMs,
     'startedAt': startedAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
@@ -324,6 +332,9 @@ class CoreTrainingSessionProgress {
       ),
       teacherAssignmentActive:
           json['teacherAssignmentActive'] as bool? ?? false,
+      arithmeticMode: json['arithmeticMode'] == null
+          ? null
+          : TrainingMode.values.byName(json['arithmeticMode'] as String),
       timeLimitMs: json['timeLimitMs'] as int?,
       startedAt: DateTime.parse(json['startedAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),

@@ -211,6 +211,8 @@ class TrainingSessionResult {
     this.isAssessment = false,
     this.plannedTotal,
     this.adaptiveStopReason,
+    this.activeDurationMs = 0,
+    this.arithmeticMode,
   });
 
   final TrainingMode mode;
@@ -234,6 +236,8 @@ class TrainingSessionResult {
   final bool isAssessment;
   final int? plannedTotal;
   final String? adaptiveStopReason;
+  final int activeDurationMs;
+  final TrainingMode? arithmeticMode;
 
   double get accuracy => total == 0 ? 0 : correctFirstTry / total;
   bool get endedAdaptively =>
@@ -243,6 +247,8 @@ class TrainingSessionResult {
     int? starsEarned,
     int? plannedTotal,
     String? adaptiveStopReason,
+    int? activeDurationMs,
+    TrainingMode? arithmeticMode,
   }) => TrainingSessionResult(
         mode: mode,
         startedAt: startedAt,
@@ -265,6 +271,8 @@ class TrainingSessionResult {
         isAssessment: isAssessment,
         plannedTotal: plannedTotal ?? this.plannedTotal,
         adaptiveStopReason: adaptiveStopReason ?? this.adaptiveStopReason,
+        activeDurationMs: activeDurationMs ?? this.activeDurationMs,
+        arithmeticMode: arithmeticMode ?? this.arithmeticMode,
       );
 
   Map<String, dynamic> toJson() => {
@@ -289,6 +297,8 @@ class TrainingSessionResult {
         'isAssessment': isAssessment,
         'plannedTotal': plannedTotal,
         'adaptiveStopReason': adaptiveStopReason,
+        'activeDurationMs': activeDurationMs,
+        'arithmeticMode': arithmeticMode?.name,
       };
 
   factory TrainingSessionResult.fromJson(Map<String, dynamic> json) =>
@@ -319,5 +329,9 @@ class TrainingSessionResult {
         isAssessment: json['isAssessment'] as bool? ?? false,
         plannedTotal: json['plannedTotal'] as int?,
         adaptiveStopReason: json['adaptiveStopReason'] as String?,
+        activeDurationMs: json['activeDurationMs'] as int? ?? 0,
+        arithmeticMode: json['arithmeticMode'] == null
+            ? null
+            : TrainingMode.values.byName(json['arithmeticMode'] as String),
       );
 }

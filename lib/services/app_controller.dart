@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/accessibility_preferences.dart';
@@ -274,6 +276,7 @@ class AppController extends ChangeNotifier {
     required bool adaptiveLength,
     required Duration? timeLimit,
     NumberRangeLevel? numberRangeOverride,
+    TrainingMode? arithmeticMode,
     DateTime? now,
   }) {
     final progress = coreTrainingSessionProgress;
@@ -292,6 +295,7 @@ class AppController extends ChangeNotifier {
       numberRange: numberRangeOverride ?? effectiveNumberRange,
       teacherAssignmentActive: hasTeacherAssignment,
       timeLimit: timeLimit,
+      arithmeticMode: arithmeticMode,
       now: now,
     )
         ? progress
@@ -757,6 +761,72 @@ class AppController extends ChangeNotifier {
     if (_isCourageRound(result)) reasons.add('trotz Knacknüssen drangeblieben');
     if (reasons.isEmpty) return 'Runde konzentriert abgeschlossen.';
     return '${reasons.join(' · ')}.';
+  }
+
+  String? timedRoundSummary(TrainingSessionResult result) {
+    if (result.activeDurationMs <= 0 || result.total <= 0) return null;
+    final seconds = max(1.0, result.activeDurationMs / 1000);
+    final perMinute = result.correctFirstTry * 60 / seconds;
+    final accuracyPercent = (result.accuracy * 100).round();
+    final rate = perMinute.toStringAsFixed(1).replaceAll('.', ',');
+    return '${result.correctFirstTry} direkt richtig in ${seconds.round()} Sekunden · '
+        '$accuracyPercent % Trefferquote · $rate richtige/min';
+  }
+
+  String? timedOperationInsight(TrainingSessionResult result) {
+    final rows = <(String, int, int)>[
+      ('Plus', result.plusCorrect, result.plusTotal),
+      ('Minus', result.minusCorrect, result.minusTotal),
+      ('Malnehmen', result.multiplyCorrect, result.multiplyTotal),
+      ('Teilen', result.divideCorrect, result.divideTotal),
+    ].where((entry) => entry.$3 > 0).toList();
+    if (rows.length < 2) return null;
+    rows.sort((a, b) {
+      final aRate = a.$2 / a.$3;
+      final bRate = b.$2 / b.$3;
+      return aRate.compareTo(bRate);
+    });
+    final weakest = rows.first;
+    final rate = weakest.$2 / weakest.$3;
+    if (rate >= 0.90) {
+      return 'Alle geübten Rechenarten lagen bei mindestens 90 % direkt richtig.';
+    }
+    return 'Am auffälligsten: ${weakest.$1} mit ${(rate * 100).round()} % direkt richtig.';
+  }
+
+  String? timedRoundComparisonText(TrainingSessionResult result) {
+    if (result.activeDurationMs <= 0 || result.total <= 0) return null;
+    final focus = result.arithmeticMode ?? result.mode;
+    final previous = history
+        .where(
+          (entry) =>
+              entry.startedAt != result.startedAt &&
+              entry.mode == result.mode &&
+              entry.numberRange == result.numberRange &&
+              (entry.arithmeticMode ?? entry.mode) == focus &&
+              entry.activeDurationMs > 0 &&
+              entry.total > 0,
+        )
+        .take(3)
+        .toList();
+    if (previous.isEmpty) return null;
+
+    double rate(TrainingSessionResult entry) =>
+        entry.correctFirstTry * 60000 / entry.activeDurationMs;
+    final baseline = previous
+            .map(rate)
+            .fold<double>(0, (sum, value) => sum + value) /
+        previous.length;
+    final current = rate(result);
+    final delta = current - baseline;
+    final value = delta.abs().toStringAsFixed(1).replaceAll('.', ',');
+    if (delta >= 0.5) {
+      return 'Fortschritt: +$value richtige Aufgaben pro Minute gegenüber den letzten vergleichbaren Runden.';
+    }
+    if (delta <= -0.5) {
+      return 'Heute $value richtige Aufgaben pro Minute weniger als zuletzt; Genauigkeit bleibt wichtiger als Tempo.';
+    }
+    return 'Tempo etwa auf dem Niveau der letzten vergleichbaren Runden.';
   }
 
   bool _isMeaningfulProgress(TrainingSessionResult result) {

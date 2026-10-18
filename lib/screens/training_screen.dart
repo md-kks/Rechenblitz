@@ -28,6 +28,7 @@ class TrainingScreen extends StatefulWidget {
     required this.targetTasks,
     this.timeLimit,
     this.numberRangeOverride,
+    this.arithmeticMode,
     this.targetCompetency,
     this.reviewEmphasis = false,
     this.transferEmphasis = false,
@@ -42,6 +43,7 @@ class TrainingScreen extends StatefulWidget {
   final int targetTasks;
   final Duration? timeLimit;
   final NumberRangeLevel? numberRangeOverride;
+  final TrainingMode? arithmeticMode;
   final MicroCompetencyId? targetCompetency;
   final bool reviewEmphasis;
   final bool transferEmphasis;
@@ -73,6 +75,7 @@ class _TrainingScreenState extends State<TrainingScreen>
 
   NumberRangeLevel get _sessionNumberRange =>
       widget.numberRangeOverride ?? widget.controller.effectiveNumberRange;
+  TrainingMode get _selectionMode => widget.arithmeticMode ?? widget.mode;
 
   int get _selectionMaxValue {
     final currentMax = _sessionNumberRange.maxValue;
@@ -89,7 +92,7 @@ class _TrainingScreenState extends State<TrainingScreen>
     return currentMax < cap ? currentMax : cap;
   }
   TouchInteractionPlan? get _touchInteraction => TouchInteractionPlan.forTask(
-        mode: widget.mode,
+        mode: _selectionMode,
         taskKey: current.key,
         answer: _expectedAnswer,
         maxValue: _selectionMaxValue,
@@ -208,6 +211,7 @@ class _TrainingScreenState extends State<TrainingScreen>
       adaptiveLength: widget.adaptiveLength,
       timeLimit: widget.timeLimit,
       numberRangeOverride: widget.numberRangeOverride,
+      arithmeticMode: widget.arithmeticMode,
     );
     final now = DateTime.now();
     activeClockStartedAt = now;
@@ -249,7 +253,7 @@ class _TrainingScreenState extends State<TrainingScreen>
           ? matches.first
           : widget.controller.engine.selectNext(
               facts: widget.controller.facts,
-              mode: widget.mode,
+              mode: _selectionMode,
               maxValue: _selectionMaxValue,
               previousKey: null,
               recentKeys: widget.controller.recentTaskKeys(widget.mode),
@@ -334,6 +338,7 @@ class _TrainingScreenState extends State<TrainingScreen>
         gradeLevel: widget.controller.effectiveGradeLevel,
         numberRange: _sessionNumberRange,
         teacherAssignmentActive: widget.controller.hasTeacherAssignment,
+        arithmeticMode: widget.arithmeticMode,
         timeLimitMs: widget.timeLimit?.inMilliseconds,
         startedAt: startedAt,
         updatedAt: DateTime.now(),
@@ -444,7 +449,7 @@ class _TrainingScreenState extends State<TrainingScreen>
 
   MathFact _next() => widget.controller.engine.selectNext(
         facts: widget.controller.facts,
-        mode: widget.mode,
+        mode: _selectionMode,
         maxValue: _selectionMaxValue,
         previousKey: completed == 0 ? null : current.key,
         recentKeys: widget.controller.recentTaskKeys(widget.mode),
@@ -876,6 +881,8 @@ class _TrainingScreenState extends State<TrainingScreen>
       starsEarned: 0,
       plannedTotal: widget.targetTasks,
       adaptiveStopReason: adaptiveStopReason,
+      activeDurationMs: activeElapsedBase.inMilliseconds,
+      arithmeticMode: widget.arithmeticMode ?? widget.mode,
     );
     final rewardReason = widget.controller.rewardReasonForSession(result);
     result = result.copyWith(
@@ -912,6 +919,8 @@ class _TrainingScreenState extends State<TrainingScreen>
     final spokenFeedbackEnabled = spokenFeedback != null &&
         widget.controller.accessibilityPreferences.spokenRoundFeedback;
     if (!mounted) return;
+    final timedRound =
+        widget.mode == TrainingMode.speed || widget.mode == TrainingMode.tempo;
     await showRoundCompletionDialog(
       context,
       completed: completed,
@@ -926,10 +935,13 @@ class _TrainingScreenState extends State<TrainingScreen>
           ? () => widget.controller.speakRoundFeedback(spokenFeedback)
           : null,
       newBadges: newBadges,
-      averageSeconds: widget.mode == TrainingMode.tempo ||
-              widget.mode == TrainingMode.speed
-          ? avg / 1000
-          : null,
+      averageSeconds: timedRound ? avg / 1000 : null,
+      timedSummary:
+          timedRound ? widget.controller.timedRoundSummary(result) : null,
+      timedComparison:
+          timedRound ? widget.controller.timedRoundComparisonText(result) : null,
+      operationInsight:
+          timedRound ? widget.controller.timedOperationInsight(result) : null,
     );
     if (mounted) Navigator.of(context).pop();
   }
