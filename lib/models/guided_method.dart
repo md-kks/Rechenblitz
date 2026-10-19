@@ -143,6 +143,16 @@ class GuidedStepCatalog {
         'ersten Teilquotienten beim mehrstelligen Teilen berechnen',
     'placeValueChunkOrder':
         'Stellenwertblöcke in sinnvoller Reihenfolge wählen',
+    'additionRegroupAction':
+        '10 gleiche Stellenwerte zu einem höheren Stellenwert bündeln',
+    'subtractionUnbundleAction':
+        'einen höheren Stellenwert in 10 kleinere entbündeln',
+    'subtractionAcrossZeroUnbundle':
+        'über eine leere Stelle hinweg korrekt entbündeln',
+    'partialProductPlacement':
+        'Teilprodukt am passenden Stellenwert ausrichten',
+    'partialQuotientRemainder':
+        'Rest nach einem Teilquotienten bestimmen',
     'nextPlaceValueAddition':
         'weiteren Stellenwertblock beim mehrstelligen Addieren verrechnen',
     'finalPlaceValueAddition':
@@ -768,7 +778,13 @@ class GuidedMethodFactory {
               ).steps
               .where((step) => step.recordsIntermediateEvidence)
               .toList(growable: false);
-      if (evidenceSteps.isEmpty ||
+      final needsConcreteRegroupBoard = switch (fact.operation) {
+        MathOperation.plus => ArithmeticStrategy.additionCarryPlaces(fact).isNotEmpty,
+        MathOperation.minus => ArithmeticStrategy.subtractionBorrowPlaces(fact).isNotEmpty,
+        _ => false,
+      };
+      if (needsConcreteRegroupBoard ||
+          evidenceSteps.isEmpty ||
           evidenceSteps.first.evidenceKey == 'placeValueChunkOrder') {
         return const <GuidedMethodStep>[];
       }

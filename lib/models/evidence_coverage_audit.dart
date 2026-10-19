@@ -187,18 +187,21 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeAdditionOnesRegroup: [
       'firstPlaceValueAddition',
       'placeValueChunkOrder',
+      'additionRegroupAction',
       'nextPlaceValueAddition',
       'finalPlaceValueAddition',
     ],
     MicroCompetencyId.largeAdditionHigherRegroup: [
       'firstPlaceValueAddition',
       'placeValueChunkOrder',
+      'additionRegroupAction',
       'nextPlaceValueAddition',
       'finalPlaceValueAddition',
     ],
     MicroCompetencyId.largeAdditionMultiRegroup: [
       'firstPlaceValueAddition',
       'placeValueChunkOrder',
+      'additionRegroupAction',
       'nextPlaceValueAddition',
       'finalPlaceValueAddition',
     ],
@@ -210,18 +213,22 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeSubtractionOnesBorrow: [
       'firstPlaceValueSubtraction',
       'placeValueChunkOrder',
+      'subtractionUnbundleAction',
       'nextPlaceValueSubtraction',
       'finalPlaceValueSubtraction',
     ],
     MicroCompetencyId.largeSubtractionHigherBorrow: [
       'firstPlaceValueSubtraction',
       'placeValueChunkOrder',
+      'subtractionUnbundleAction',
       'nextPlaceValueSubtraction',
       'finalPlaceValueSubtraction',
     ],
     MicroCompetencyId.largeSubtractionMultiBorrow: [
       'firstPlaceValueSubtraction',
       'placeValueChunkOrder',
+      'subtractionUnbundleAction',
+      'subtractionAcrossZeroUnbundle',
       'nextPlaceValueSubtraction',
       'finalPlaceValueSubtraction',
     ],
@@ -233,6 +240,7 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeMultiplicationPartialProducts: [
       'placeValueChunkOrder',
       'firstPlaceValueProduct',
+      'partialProductPlacement',
       'nextPlaceValueProduct',
       'combinePlaceValueProducts',
     ],
@@ -244,6 +252,7 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeDivisionPartialQuotients: [
       'placeValueChunkOrder',
       'firstPlaceValueQuotient',
+      'partialQuotientRemainder',
       'nextPlaceValueQuotient',
       'combinePlaceValueQuotients',
     ],
@@ -444,18 +453,21 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeAdditionOnesRegroup: [
       'firstPlaceValueAddition',
       'placeValueChunkOrder',
+      'additionRegroupAction',
       'nextPlaceValueAddition',
       'finalPlaceValueAddition',
     ],
     MicroCompetencyId.largeAdditionHigherRegroup: [
       'firstPlaceValueAddition',
       'placeValueChunkOrder',
+      'additionRegroupAction',
       'nextPlaceValueAddition',
       'finalPlaceValueAddition',
     ],
     MicroCompetencyId.largeAdditionMultiRegroup: [
       'firstPlaceValueAddition',
       'placeValueChunkOrder',
+      'additionRegroupAction',
       'nextPlaceValueAddition',
       'finalPlaceValueAddition',
     ],
@@ -467,18 +479,22 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeSubtractionOnesBorrow: [
       'firstPlaceValueSubtraction',
       'placeValueChunkOrder',
+      'subtractionUnbundleAction',
       'nextPlaceValueSubtraction',
       'finalPlaceValueSubtraction',
     ],
     MicroCompetencyId.largeSubtractionHigherBorrow: [
       'firstPlaceValueSubtraction',
       'placeValueChunkOrder',
+      'subtractionUnbundleAction',
       'nextPlaceValueSubtraction',
       'finalPlaceValueSubtraction',
     ],
     MicroCompetencyId.largeSubtractionMultiBorrow: [
       'firstPlaceValueSubtraction',
       'placeValueChunkOrder',
+      'subtractionUnbundleAction',
+      'subtractionAcrossZeroUnbundle',
       'nextPlaceValueSubtraction',
       'finalPlaceValueSubtraction',
     ],
@@ -490,6 +506,7 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeMultiplicationPartialProducts: [
       'placeValueChunkOrder',
       'firstPlaceValueProduct',
+      'partialProductPlacement',
       'nextPlaceValueProduct',
       'combinePlaceValueProducts',
     ],
@@ -501,6 +518,7 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.largeDivisionPartialQuotients: [
       'placeValueChunkOrder',
       'firstPlaceValueQuotient',
+      'partialQuotientRemainder',
       'nextPlaceValueQuotient',
       'combinePlaceValueQuotients',
     ],

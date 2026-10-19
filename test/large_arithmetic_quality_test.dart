@@ -42,6 +42,24 @@ void main() {
       );
     });
 
+    test('Entbündeln über Null findet die tatsächliche Quellstelle', () {
+      final acrossZero = MathFact(
+        a: 503,
+        b: 278,
+        operation: MathOperation.minus,
+      );
+      final directBorrow = MathFact(
+        a: 743,
+        b: 286,
+        operation: MathOperation.minus,
+      );
+
+      expect(ArithmeticStrategy.subtractionBorrowPlaces(acrossZero), isNotEmpty);
+      expect(ArithmeticStrategy.subtractionBorrowSourcePlace(acrossZero, 1), 100);
+      expect(ArithmeticStrategy.hasBorrowAcrossZero(acrossZero), isTrue);
+      expect(ArithmeticStrategy.hasBorrowAcrossZero(directBorrow), isFalse);
+    });
+
     test('Teilen zerlegt in tatsächlich teilbare Blöcke', () {
       final fact = MathFact(a: 248, b: 4, operation: MathOperation.divide);
       expect(ArithmeticStrategy.divisionQuotientChunks(fact), [60, 2]);
@@ -217,16 +235,24 @@ void main() {
   });
 
   group('Touch-Zerlegung großer Aufgaben', () {
-    test('Plus ordnet Stellenwertblöcke aktiv', () {
+    test('Plus mit Überträgen bündelt Stellenwerte aktiv', () {
       final plan = TouchInteractionPlan.forTask(
         mode: TrainingMode.practice,
         taskKey: 'plus:347:286',
         answer: 633,
         maxValue: 1000,
       );
-      expect(plan?.kind, TouchInteractionKind.mentalChunkPath);
-      expect(plan?.dataValues, [347, 286, 200, 80, 6]);
+      expect(plan?.kind, TouchInteractionKind.writtenColumnProcedure);
+      expect(plan?.dataValues, [347, 286]);
       expect(plan?.dataOperation, '+');
+
+      final withoutRegroup = TouchInteractionPlan.forTask(
+        mode: TrainingMode.practice,
+        taskKey: 'plus:312:245',
+        answer: 557,
+        maxValue: 1000,
+      );
+      expect(withoutRegroup?.kind, TouchInteractionKind.mentalChunkPath);
     });
 
     test('Mal und Geteilt erhalten eigene Zerlegungswege', () {
@@ -740,7 +766,7 @@ void main() {
       find.descendant(
         of: find.byKey(const ValueKey('curriculum-training-scroll')),
         matching: find.byType(Scrollable),
-      ),
+      ).first,
     );
     expect(
       scrollable.position.maxScrollExtent,
@@ -818,6 +844,36 @@ void main() {
           MicroCompetencyId.largeAdditionMultiRegroup,
           TrainingMode.practice,
           'plus:347:286',
+        ),
+        (
+          'additionRegroupAction',
+          MicroCompetencyId.largeAdditionMultiRegroup,
+          TrainingMode.practice,
+          'plus:347:286',
+        ),
+        (
+          'subtractionUnbundleAction',
+          MicroCompetencyId.largeSubtractionMultiBorrow,
+          TrainingMode.minus,
+          'minus:743:286',
+        ),
+        (
+          'subtractionAcrossZeroUnbundle',
+          MicroCompetencyId.largeSubtractionMultiBorrow,
+          TrainingMode.minus,
+          'minus:503:278',
+        ),
+        (
+          'partialProductPlacement',
+          MicroCompetencyId.largeMultiplicationPartialProducts,
+          TrainingMode.multiply,
+          'multiply:247:6',
+        ),
+        (
+          'partialQuotientRemainder',
+          MicroCompetencyId.largeDivisionPartialQuotients,
+          TrainingMode.divide,
+          'divide:248:4',
         ),
         (
           'nextPlaceValueAddition',
@@ -920,6 +976,42 @@ void main() {
       }
     });
 
+    test(
+      'Across-zero-Recovery behält die leere Zwischenstelle in allen Stufen',
+      () {
+        final focus = IndependentStepRecoveryFocus(
+          competencyId: MicroCompetencyId.largeSubtractionMultiBorrow,
+          stepKey: 'subtractionAcrossZeroUnbundle',
+          label: GuidedStepCatalog.labelFor('subtractionAcrossZeroUnbundle'),
+          mode: TrainingMode.minus,
+          lastSeen: DateTime(2026, 10, 19, 12),
+          sourceTaskKey:
+              'independent:subtractionAcrossZeroUnbundle:minus:503:278:process:ones',
+        );
+        final plan = StepRecoveryGenerator(random: Random(1907)).generate(
+          focus: focus,
+          range: NumberRangeLevel.thousand,
+        );
+
+        expect(plan.tasks, hasLength(3));
+        for (final task in plan.tasks) {
+          final parts = task.taskKey.split(':');
+          final minus = parts.lastIndexOf('minus');
+          expect(minus, greaterThanOrEqualTo(0), reason: task.taskKey);
+          final fact = MathFact(
+            a: int.parse(parts[minus + 1]),
+            b: int.parse(parts[minus + 2]),
+            operation: MathOperation.minus,
+          );
+          expect(
+            ArithmeticStrategy.hasBorrowAcrossZero(fact),
+            isTrue,
+            reason: task.taskKey,
+          );
+        }
+      },
+    );
+
     testWidgets(
       'Curriculum speichert den exakten falschen Teilprodukt-Schritt',
       (tester) async {
@@ -986,6 +1078,74 @@ void main() {
         );
       },
     );
+
+    test('neue Stellenwert-Handlungsfehler bleiben voneinander isoliert', () {
+      const cases = <(String, MicroCompetencyId, TrainingMode, String)>[
+        (
+          'additionRegroupAction',
+          MicroCompetencyId.largeAdditionMultiRegroup,
+          TrainingMode.practice,
+          'plus:347:286',
+        ),
+        (
+          'subtractionUnbundleAction',
+          MicroCompetencyId.largeSubtractionOnesBorrow,
+          TrainingMode.minus,
+          'minus:432:187',
+        ),
+        (
+          'subtractionAcrossZeroUnbundle',
+          MicroCompetencyId.largeSubtractionMultiBorrow,
+          TrainingMode.minus,
+          'minus:503:278',
+        ),
+        (
+          'partialProductPlacement',
+          MicroCompetencyId.largeMultiplicationPartialProducts,
+          TrainingMode.multiply,
+          'multiply:247:6',
+        ),
+        (
+          'partialQuotientRemainder',
+          MicroCompetencyId.largeDivisionPartialQuotients,
+          TrainingMode.divide,
+          'divide:248:4',
+        ),
+      ];
+
+      for (var index = 0; index < cases.length; index++) {
+        final entry = cases[index];
+        final controller = AppController();
+        controller.gradeLevel = GradeLevel.third;
+        controller.numberRange = NumberRangeLevel.thousand;
+        controller.microObservations = <MicroCompetencyObservation>[
+          MicroCompetencyObservation(
+            id: entry.$2,
+            occurredAt: DateTime(2026, 10, 19, 12, index),
+            correct: false,
+            evidenceWeight: 0.24,
+            source: MicroEvidenceSource.independentStep,
+            usedHelp: false,
+            mode: entry.$3,
+            gradeLevel: GradeLevel.third,
+            numberRange: NumberRangeLevel.thousand,
+            taskKey: 'independent:${entry.$1}:${entry.$4}:process:action',
+          ),
+        ];
+
+        final recovery = controller.independentStepRecoveryFocus(
+          now: DateTime(2026, 10, 19, 13),
+        );
+        expect(recovery, isNotNull, reason: entry.$1);
+        expect(recovery!.stepKey, entry.$1, reason: entry.$1);
+        expect(recovery.competencyId, entry.$2, reason: entry.$1);
+        expect(
+          controller.parentInsight(now: DateTime(2026, 10, 19, 13)).focus,
+          contains(GuidedStepCatalog.labelFor(entry.$1)),
+          reason: entry.$1,
+        );
+      }
+    });
 
     test('Prozessfehler steuert exakt denselben Zwischenschritt in die Recovery', () {
       final controller = AppController();
@@ -1408,8 +1568,25 @@ void main() {
                 maxValue: range.maxValue,
                 targetCompetency: target,
               );
-              expect(touch?.kind, TouchInteractionKind.mentalChunkPath);
-              expect(touch?.dataValues.length, greaterThanOrEqualTo(3));
+              final concreteRegroupFamily = switch (family) {
+                ArithmeticTaskFamily.additionOnesRegroup ||
+                ArithmeticTaskFamily.additionHigherRegroup ||
+                ArithmeticTaskFamily.additionMultiRegroup ||
+                ArithmeticTaskFamily.subtractionOnesBorrow ||
+                ArithmeticTaskFamily.subtractionHigherBorrow ||
+                ArithmeticTaskFamily.subtractionMultiBorrow => true,
+                _ => false,
+              };
+              expect(
+                touch?.kind,
+                concreteRegroupFamily
+                    ? TouchInteractionKind.writtenColumnProcedure
+                    : TouchInteractionKind.mentalChunkPath,
+              );
+              expect(
+                touch?.dataValues.length,
+                concreteRegroupFamily ? 2 : greaterThanOrEqualTo(3),
+              );
             }
           }
         }

@@ -284,6 +284,11 @@ class StepRecoveryGenerator {
     'firstPlaceValueProduct',
     'firstPlaceValueQuotient',
     'placeValueChunkOrder',
+    'additionRegroupAction',
+    'subtractionUnbundleAction',
+    'subtractionAcrossZeroUnbundle',
+    'partialProductPlacement',
+    'partialQuotientRemainder',
     'nextPlaceValueAddition',
     'finalPlaceValueAddition',
     'nextPlaceValueSubtraction',
@@ -468,6 +473,11 @@ class StepRecoveryGenerator {
         'firstPlaceValueProduct' ||
         'firstPlaceValueQuotient' ||
         'placeValueChunkOrder' ||
+        'additionRegroupAction' ||
+        'subtractionUnbundleAction' ||
+        'subtractionAcrossZeroUnbundle' ||
+        'partialProductPlacement' ||
+        'partialQuotientRemainder' ||
         'nextPlaceValueAddition' ||
         'finalPlaceValueAddition' ||
         'nextPlaceValueSubtraction' ||
@@ -3274,15 +3284,44 @@ class StepRecoveryGenerator {
     if (useSource) {
       fact = source;
     } else {
-      final exercise = CurriculumExerciseGenerator(random: _random)
-          .generateDirectArithmetic(
-            mode: focus.mode,
-            gradeLevel: GradeLevel.third,
-            maxValue: max(1000, range.maxValue),
-            directArithmeticStage: 2,
-            targetCompetency: focus.competencyId,
-          );
-      fact = parseFact(exercise.key) ?? source!;
+      MathFact? generated;
+      for (var attempt = 0; attempt < 120; attempt++) {
+        final exercise = CurriculumExerciseGenerator(random: _random)
+            .generateDirectArithmetic(
+              mode: focus.mode,
+              gradeLevel: GradeLevel.third,
+              maxValue: max(1000, range.maxValue),
+              directArithmeticStage: 2,
+              targetCompetency: focus.competencyId,
+            );
+        final candidate = parseFact(exercise.key);
+        if (candidate == null) continue;
+        if (focus.stepKey == 'subtractionAcrossZeroUnbundle' &&
+            !ArithmeticStrategy.hasBorrowAcrossZero(candidate)) {
+          continue;
+        }
+        generated = candidate;
+        break;
+      }
+      fact = generated ?? source!;
+    }
+
+    String placeName(int place) => switch (place) {
+      1 => 'Einer',
+      10 => 'Zehner',
+      100 => 'Hunderter',
+      1000 => 'Tausender',
+      10000 => 'Zehntausender',
+      100000 => 'Hunderttausender',
+      _ => '$place',
+    };
+
+    int sourcePlaceScale(int value) {
+      var place = 1;
+      while (place * 10 <= value.abs()) {
+        place *= 10;
+      }
+      return place;
     }
 
     int withoutTrailingZeros(int value) {
@@ -3299,6 +3338,30 @@ class StepRecoveryGenerator {
     switch (fact.operation) {
       case MathOperation.plus:
         final chunks = ArithmeticStrategy.placeValueChunks(fact.b);
+        if (focus.stepKey == 'additionRegroupAction') {
+          final carryPlaces = ArithmeticStrategy.additionCarryPlaces(fact);
+          final carryPlace = carryPlaces.isEmpty ? 10 : carryPlaces.first;
+          final fromPlace = max(1, carryPlace ~/ 10);
+          final correct =
+              '10 ${placeName(fromPlace)} → 1 ${placeName(carryPlace)}';
+          final choices = <String>{
+            correct,
+            'nicht bündeln',
+            '10 ${placeName(carryPlace)} → 1 ${placeName(carryPlace * 10)}',
+            '1 ${placeName(carryPlace)} → 10 ${placeName(fromPlace)}',
+          }.toList()..shuffle(_random);
+          return _choice(
+            focus: focus,
+            stage: stage,
+            key: 'large-arithmetic:${focus.stepKey}:${family.name}:${fact.key}',
+            prompt:
+                '${fact.a} + ${fact.b}: Welche Bündelung ist am ersten Übergang richtig?',
+            choices: choices,
+            answer: choices.indexOf(correct),
+            hint:
+                '10 gleiche ${placeName(fromPlace)} werden zu 1 ${placeName(carryPlace)}.',
+          );
+        }
         if (focus.stepKey == 'placeValueChunkOrder') {
           expected = chunks.first;
           prompt =
@@ -3324,6 +3387,36 @@ class StepRecoveryGenerator {
         }
       case MathOperation.minus:
         final chunks = ArithmeticStrategy.placeValueChunks(fact.b);
+        if (focus.stepKey == 'subtractionUnbundleAction' ||
+            focus.stepKey == 'subtractionAcrossZeroUnbundle') {
+          final borrows = ArithmeticStrategy.subtractionBorrowPlaces(fact);
+          final borrowPlace = borrows.isEmpty ? 10 : borrows.first;
+          final targetPlace = max(1, borrowPlace ~/ 10);
+          final sourcePlace =
+              ArithmeticStrategy.subtractionBorrowSourcePlace(fact, targetPlace) ??
+              borrowPlace;
+          final correct = sourcePlace > targetPlace * 10
+              ? 'von ${placeName(sourcePlace)} bis ${placeName(targetPlace)} schrittweise entbündeln'
+              : '1 ${placeName(sourcePlace)} → 10 ${placeName(targetPlace)}';
+          final choices = <String>{
+            correct,
+            'nicht entbündeln',
+            '1 ${placeName(targetPlace)} → 10 ${placeName(sourcePlace)}',
+            'nur die kleinere Ziffer von der größeren abziehen',
+          }.toList()..shuffle(_random);
+          return _choice(
+            focus: focus,
+            stage: stage,
+            key: 'large-arithmetic:${focus.stepKey}:${family.name}:${fact.key}',
+            prompt:
+                '${fact.a} − ${fact.b}: Welche Entbündelung ist für den ersten schwierigen Stellenwert richtig?',
+            choices: choices,
+            answer: choices.indexOf(correct),
+            hint: sourcePlace > targetPlace * 10
+                ? 'Zwischen Quelle und Ziel liegt eine leere Stelle. Entbündele deshalb Stufe für Stufe.'
+                : 'Ein höherer Stellenwert wird in 10 Einheiten des direkt kleineren Stellenwerts zerlegt.',
+          );
+        }
         if (focus.stepKey == 'placeValueChunkOrder') {
           expected = chunks.first;
           prompt =
@@ -3356,6 +3449,28 @@ class StepRecoveryGenerator {
           prompt =
               '${parts.$1} × ${parts.$2}: Welchen Stellenwertblock von ${parts.$1} bearbeitest du zuerst?';
           hint = 'Beginne beim größten Stellenwertblock.';
+        } else if (focus.stepKey == 'partialProductPlacement') {
+          final index = min(1, chunks.length - 1);
+          final chunk = chunks[index];
+          final partial = partials[index];
+          final correct = '${placeName(sourcePlaceScale(chunk))}-Stelle';
+          final choices = <String>{
+            correct,
+            '${placeName(max(1, sourcePlaceScale(chunk) ~/ 10))}-Stelle',
+            '${placeName(sourcePlaceScale(chunk) * 10)}-Stelle',
+            'ohne Stellenwert ausrichten',
+          }.toList()..shuffle(_random);
+          return _choice(
+            focus: focus,
+            stage: stage,
+            key: 'large-arithmetic:${focus.stepKey}:${family.name}:${fact.key}',
+            prompt:
+                '$chunk × ${parts.$2} = $partial. An welcher Stelle beginnt dieses Teilprodukt?',
+            choices: choices,
+            answer: choices.indexOf(correct),
+            hint:
+                'Das Teilprodukt bleibt am Stellenwert seines Ausgangsblocks $chunk ausgerichtet.',
+          );
         } else if (focus.stepKey == 'placeValueMultiplicationBaseFact') {
           final base = withoutTrailingZeros(chunks.first);
           expected = base * parts.$2;
@@ -3391,6 +3506,16 @@ class StepRecoveryGenerator {
           prompt =
               '${fact.a} ÷ ${fact.b}: Welchen gut teilbaren Stellenwertblock bearbeitest du zuerst?';
           hint = 'Beginne beim größten gut teilbaren Block.';
+        } else if (focus.stepKey == 'partialQuotientRemainder') {
+          final index = min(1, dividendChunks.length - 1);
+          final consumed = dividendChunks
+              .take(index + 1)
+              .fold<int>(0, (sum, value) => sum + value);
+          expected = max(0, fact.a - consumed);
+          prompt =
+              'Nach ${dividendChunks.take(index + 1).join(' + ')} bearbeiteten Dividend-Blöcken: Wie viel von ${fact.a} ist noch offen?';
+          hint =
+              'Ziehe nur die bereits bearbeiteten Dividend-Blöcke von ${fact.a} ab.';
         } else if (focus.stepKey == 'placeValueDivisionBaseFact') {
           var base = dividendChunks.first;
           while (base >= 10 && base % 10 == 0 && (base ~/ 10) % fact.b == 0) {

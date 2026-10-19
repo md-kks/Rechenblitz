@@ -4459,13 +4459,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
     await tester.pump();
     expect(answer, isNot(85));
-    expect(find.textContaining('Übertrag'), findsWidgets);
+    expect(find.textContaining('Bündel'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('touch-written-regroup-1')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
     await tester.pump();
-    expect(find.textContaining('Z: 4 + 3 + Übertrag 1'), findsOneWidget);
+    expect(find.textContaining('Z: 4 + 3 + Bündel 1'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('touch-written-digit-8')));
     await tester.tap(find.byKey(const ValueKey('touch-written-regroup-0')));
@@ -4526,6 +4526,158 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
     expect(answer, 215);
   });
+
+  testWidgets(
+    'large subtraction exposes across-zero unbundling and keeps each process error separate',
+    (tester) async {
+      final attempts = <TouchProcessStepAttempt>[];
+      final plan = TouchInteractionPlan.forTask(
+        mode: TrainingMode.minus,
+        taskKey: 'minus:503:278',
+        answer: 225,
+        maxValue: 1000,
+        targetCompetency: MicroCompetencyId.largeSubtractionMultiBorrow,
+      )!;
+      expect(plan.kind, TouchInteractionKind.writtenColumnProcedure);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TouchAnswerInteraction(
+                plan: plan,
+                onAnswer: (_) {},
+                onProcessStepAttempt: attempts.add,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.textContaining('1 Hunderter → 10 Zehner · dann 1 Zehner → 10 Einer'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('touch-written-digit-5')));
+      await tester.tap(find.byKey(const ValueKey('touch-written-regroup-0')));
+      await tester.pump();
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('touch-written-column-submit')),
+      );
+      await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
+      await tester.pump();
+      expect(attempts.any(
+        (entry) =>
+            entry.stepKey == 'subtractionAcrossZeroUnbundle' && !entry.correct,
+      ), isTrue);
+      expect(
+        find.textContaining('Prüfe nur das Entbündeln'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('touch-written-regroup-1')));
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const ValueKey('touch-written-column-submit')));
+      await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
+      await tester.pump();
+      expect(find.text('Z: 9 − 7'), findsOneWidget);
+      expect(find.text('4'), findsWidgets);
+      final unbundleAttempts = attempts
+          .where((entry) => entry.stepKey == 'subtractionAcrossZeroUnbundle')
+          .toList(growable: false);
+      expect(unbundleAttempts, hasLength(1));
+      expect(unbundleAttempts.single.correct, isFalse);
+    },
+  );
+
+  testWidgets(
+    'concrete regroup boards never reveal the final arithmetic answer',
+    (tester) async {
+      const cases = <TouchInteractionPlan>[
+        TouchInteractionPlan(
+          taskKey: 'plus:347:286',
+          kind: TouchInteractionKind.writtenColumnProcedure,
+          instruction: 'Bündele Stellenwerte.',
+          dataValues: <int>[347, 286],
+          dataOperation: '+',
+          expectedAnswer: 633,
+          maxValue: 1000,
+        ),
+        TouchInteractionPlan(
+          taskKey: 'minus:503:278',
+          kind: TouchInteractionKind.writtenColumnProcedure,
+          instruction: 'Entbündele Stellenwerte.',
+          dataValues: <int>[503, 278],
+          dataOperation: '-',
+          expectedAnswer: 225,
+          maxValue: 1000,
+        ),
+      ];
+
+      for (final plan in cases) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: TouchAnswerInteraction(plan: plan, onAnswer: _noopAnswer),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(find.text('${plan.expectedAnswer}'), findsNothing);
+      }
+    },
+  );
+
+  testWidgets(
+    'large addition records bundling separately from the result digit',
+    (tester) async {
+      final attempts = <TouchProcessStepAttempt>[];
+      final plan = TouchInteractionPlan.forTask(
+        mode: TrainingMode.practice,
+        taskKey: 'plus:347:286',
+        answer: 633,
+        maxValue: 1000,
+        targetCompetency: MicroCompetencyId.largeAdditionMultiRegroup,
+      )!;
+      expect(plan.kind, TouchInteractionKind.writtenColumnProcedure);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TouchAnswerInteraction(
+                plan: plan,
+                onAnswer: (_) {},
+                onProcessStepAttempt: attempts.add,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.textContaining('13 Einer'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('touch-written-digit-3')));
+      await tester.tap(find.byKey(const ValueKey('touch-written-regroup-0')));
+      await tester.pump();
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('touch-written-column-submit')),
+      );
+      await tester.tap(find.byKey(const ValueKey('touch-written-column-submit')));
+      await tester.pump();
+      expect(
+        attempts.any(
+          (entry) => entry.stepKey == 'additionRegroupAction' && !entry.correct,
+        ),
+        isTrue,
+      );
+      expect(
+        attempts.any(
+          (entry) => entry.stepKey == 'firstPlaceValueAddition' && entry.correct,
+        ),
+        isTrue,
+      );
+    },
+  );
 
   testWidgets('written curriculum defaults to columns and keeps keypad fallback',
       (tester) async {
@@ -5100,10 +5252,22 @@ void main() {
     );
     await tester.pump();
 
-    for (final step in <(int, int)>[(200, 1200), (40, 240), (7, 42)]) {
+    for (final step in <(int, int, int)>[
+      (200, 1200, 100),
+      (40, 240, 10),
+      (7, 42, 1),
+    ]) {
       await tester.tap(find.byKey(ValueKey('touch-mental-chunk-${step.$1}')));
       await tester.pump();
       await tester.tap(find.byKey(ValueKey('touch-mental-step-${step.$2}')));
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('touch-mental-product-placement-question')),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(ValueKey('touch-mental-product-place-${step.$3}')),
+      );
       await tester.pump();
     }
     expect(
@@ -5126,6 +5290,10 @@ void main() {
     expect(
       attempts.where((entry) => entry.stepKey == 'nextPlaceValueProduct'),
       hasLength(2),
+    );
+    expect(
+      attempts.where((entry) => entry.stepKey == 'partialProductPlacement'),
+      hasLength(3),
     );
     expect(attempts.last.stepKey, 'combinePlaceValueProducts');
   });
@@ -5157,10 +5325,16 @@ void main() {
       ),
     );
     await tester.pump();
-    for (final step in <(int, int)>[(240, 60), (8, 2)]) {
+    for (final step in <(int, int, int)>[(240, 60, 8), (8, 2, 0)]) {
       await tester.tap(find.byKey(ValueKey('touch-mental-chunk-${step.$1}')));
       await tester.pump();
       await tester.tap(find.byKey(ValueKey('touch-mental-step-${step.$2}')));
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('touch-mental-quotient-remainder-question')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(ValueKey('touch-mental-remainder-${step.$3}')));
       await tester.pump();
     }
     expect(
@@ -5174,6 +5348,10 @@ void main() {
     expect(
       quotientAttempts.any((e) => e.stepKey == 'nextPlaceValueQuotient'),
       isTrue,
+    );
+    expect(
+      quotientAttempts.where((e) => e.stepKey == 'partialQuotientRemainder'),
+      hasLength(2),
     );
 
     final shiftAttempts = <TouchProcessStepAttempt>[];

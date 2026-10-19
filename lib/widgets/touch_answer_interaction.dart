@@ -67,6 +67,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   final List<int> mentalStepResults = <int>[];
   final Set<String> mentalEmittedAttempts = <String>{};
   int? mentalActiveChunk;
+  int? mentalPendingChunk;
+  int? mentalPendingResult;
   String mentalStepFeedback = '';
   int? selectedStrategyJump;
   final Set<int> selectedLawTerms = <int>{};
@@ -203,6 +205,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     mentalStepResults.clear();
     mentalEmittedAttempts.clear();
     mentalActiveChunk = null;
+    mentalPendingChunk = null;
+    mentalPendingResult = null;
     mentalStepFeedback = '';
     selectedStrategyJump = null;
     selectedLawTerms.clear();
@@ -291,11 +295,15 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-    key: const ValueKey('touch-answer-interaction'),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+  Widget build(BuildContext context) {
+    final compactWritten =
+        widget.plan.kind == TouchInteractionKind.writtenColumnProcedure;
+    return Card(
+      key: const ValueKey('touch-answer-interaction'),
+      margin: compactWritten ? EdgeInsets.zero : null,
+      child: Padding(
+        padding: EdgeInsets.all(compactWritten ? 8 : 16),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
@@ -308,12 +316,16 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               Expanded(
                 child: Text(
                   widget.plan.instruction,
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: compactWritten
+                      ? Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          )
+                      : Theme.of(context).textTheme.titleMedium,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: compactWritten ? 4 : 14),
           switch (widget.plan.kind) {
             TouchInteractionKind.numberLine => _buildNumberLine(context),
             TouchInteractionKind.dragNumberToTarget => _buildDragNumberToTarget(
@@ -429,8 +441,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           },
         ],
       ),
-    ),
-  );
+      ),
+    );
+  }
 
   Widget _buildStoryRelevantFacts(BuildContext context) {
     final expectedSet = widget.plan.correctSelectionIndexes.toSet();
@@ -1513,6 +1526,15 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     return result;
   }
 
+  int _placeScaleForValue(int value) {
+    var place = 1;
+    final absolute = value.abs();
+    while (place * 10 <= absolute) {
+      place *= 10;
+    }
+    return place;
+  }
+
   Widget _buildMentalChunkPath(BuildContext context) {
     final values = widget.plan.dataValues;
     final start = values[0];
@@ -1715,6 +1737,136 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         equation = '$current $operation $chunk';
         scale = math.max(1, chunk ~/ 10);
       }
+
+      if (mentalPendingChunk == chunk && mentalPendingResult == stepExpected) {
+        if (multiplication && !placeShift) {
+          final expectedPlace = _placeScaleForValue(chunk);
+          final placementOptions = <int>{
+            expectedPlace,
+            for (final sourceChunk in allChunks) _placeScaleForValue(sourceChunk),
+            if (expectedPlace > 1) expectedPlace ~/ 10,
+            expectedPlace * 10,
+          }.where((value) => value > 0 && value <= 1000000).toList()
+            ..sort((a, b) => b.compareTo(a));
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 8),
+              Text(
+                '$equation = $stepExpected. Wo beginnt dieses Teilprodukt?',
+                key: const ValueKey('touch-mental-product-placement-question'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                key: const ValueKey('touch-mental-product-placement'),
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final placement in placementOptions)
+                    ChoiceChip(
+                      key: ValueKey('touch-mental-product-place-$placement'),
+                      selected: false,
+                      label: Text('${_largePlaceLabel(placement)}-Stelle'),
+                      onSelected: widget.locked
+                          ? null
+                          : (_) {
+                              final correct = placement == expectedPlace;
+                              _emitMentalProcessAttempt(
+                                'partialProductPlacement',
+                                correct,
+                                detailKey: 'chunk-$chunk-placement',
+                                evidenceWeight: 0.20,
+                              );
+                              if (!correct) {
+                                setState(() {
+                                  mentalStepFeedback =
+                                      'Das Teilprodukt stimmt. Ordne es jetzt dem Stellenwert des Ausgangsblocks $chunk zu.';
+                                });
+                                return;
+                              }
+                              setState(() {
+                                mentalStepResults.add(stepExpected);
+                                mentalActiveChunk = null;
+                                mentalPendingChunk = null;
+                                mentalPendingResult = null;
+                                mentalStepFeedback = '';
+                              });
+                            },
+                    ),
+                ],
+              ),
+            ],
+          );
+        }
+
+        if (division && !placeShift) {
+          final consumed = verifiedChunks.fold<int>(0, (sum, value) => sum + value) +
+              processChunks
+                  .take(processedCount + 1)
+                  .fold<int>(0, (sum, value) => sum + value);
+          final remaining = math.max(0, start - consumed);
+          final remainderCandidates = _mentalProcessCandidates(
+            remaining,
+            scale: math.max(1, chunk ~/ 10),
+          );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 8),
+              Text(
+                '$equation = $stepExpected. Wie viel vom Dividend $start bleibt danach noch übrig?',
+                key: const ValueKey('touch-mental-quotient-remainder-question'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                key: const ValueKey('touch-mental-quotient-remainder'),
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final candidate in remainderCandidates)
+                    ChoiceChip(
+                      key: ValueKey('touch-mental-remainder-$candidate'),
+                      selected: false,
+                      label: Text('$candidate'),
+                      onSelected: widget.locked
+                          ? null
+                          : (_) {
+                              final correct = candidate == remaining;
+                              _emitMentalProcessAttempt(
+                                'partialQuotientRemainder',
+                                correct,
+                                detailKey: 'chunk-$chunk-remainder',
+                                evidenceWeight: 0.22,
+                              );
+                              if (!correct) {
+                                setState(() {
+                                  mentalStepFeedback =
+                                      'Der Teilquotient stimmt. Ziehe nur den bereits verteilten Block $chunk vom noch offenen Dividend ab.';
+                                });
+                                return;
+                              }
+                              setState(() {
+                                mentalStepResults.add(stepExpected);
+                                mentalActiveChunk = null;
+                                mentalPendingChunk = null;
+                                mentalPendingResult = null;
+                                mentalStepFeedback = '';
+                              });
+                            },
+                    ),
+                ],
+              ),
+            ],
+          );
+        }
+      }
+
       final candidates = _mentalProcessCandidates(stepExpected, scale: scale);
       final stepKey = processStepKey(finalStep: false);
       return Column(
@@ -1757,8 +1909,13 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                             return;
                           }
                           setState(() {
-                            mentalStepResults.add(stepExpected);
-                            mentalActiveChunk = null;
+                            if ((multiplication || division) && !placeShift) {
+                              mentalPendingChunk = chunk;
+                              mentalPendingResult = stepExpected;
+                            } else {
+                              mentalStepResults.add(stepExpected);
+                              mentalActiveChunk = null;
+                            }
                             mentalStepFeedback = '';
                           });
                         },
@@ -1959,7 +2116,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             textAlign: TextAlign.center,
           ),
         ],
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         FilledButton(
           key: const ValueKey('touch-strategy-submit'),
           onPressed: widget.locked || selectedStrategyJump == null
@@ -2717,6 +2874,55 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     return steps;
   }
 
+  String _placeValueUnitName(int place, {bool plural = false}) {
+    final base = switch (place) {
+      1 => 'Einer',
+      10 => 'Zehner',
+      100 => 'Hunderter',
+      1000 => 'Tausender',
+      10000 => 'Zehntausender',
+      100000 => 'Hunderttausender',
+      1000000 => 'Million',
+      _ => _largePlaceLabel(place),
+    };
+    if (!plural || place != 1000000) return base;
+    return 'Millionen';
+  }
+
+  int? _writtenBorrowSourceColumn(int column) {
+    var source = column + 1;
+    while (source < writtenWorkingTopDigits.length &&
+        writtenWorkingTopDigits[source] == 0) {
+      source += 1;
+    }
+    return source < writtenWorkingTopDigits.length ? source : null;
+  }
+
+  String _writtenBorrowActionLabel(int column) {
+    final source = _writtenBorrowSourceColumn(column);
+    if (source == null) return 'entbündeln';
+    final parts = <String>[];
+    for (var from = source; from > column; from--) {
+      final fromPlace = _pow10(from);
+      final toPlace = _pow10(from - 1);
+      parts.add(
+        '1 ${_placeValueUnitName(fromPlace)} → 10 ${_placeValueUnitName(toPlace, plural: true)}',
+      );
+    }
+    return parts.join(' · dann ');
+  }
+
+  String _writtenDigitStepKey(bool addition, int column, int count) {
+    if (addition) {
+      if (column == 0) return 'firstPlaceValueAddition';
+      if (column == count - 1) return 'finalPlaceValueAddition';
+      return 'nextPlaceValueAddition';
+    }
+    if (column == 0) return 'firstPlaceValueSubtraction';
+    if (column == count - 1) return 'finalPlaceValueSubtraction';
+    return 'nextPlaceValueSubtraction';
+  }
+
   Widget _buildWrittenColumnProcedure(BuildContext context) {
     final values = widget.plan.dataValues;
     final a = values[0];
@@ -2732,8 +2938,13 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final previewTopDigit = !addition && selectedWrittenRegroup == 1
         ? rawTopDigit + 10
         : rawTopDigit;
-    final regroupLabel = addition ? 'Übertrag' : 'Entbündeln';
     final placeLabel = _largePlaceLabel(place);
+    final materialCount = addition
+        ? rawTopDigit + bottomDigit + writtenIncomingCarry
+        : rawTopDigit;
+    final actionLabel = addition
+        ? '10 ${_placeValueUnitName(place, plural: true)} → 1 ${_placeValueUnitName(place * 10)}'
+        : _writtenBorrowActionLabel(column);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2746,7 +2957,11 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             children: List<Widget>.generate(count, (displayIndex) {
               final actualColumn = count - 1 - displayIndex;
               final displayPlace = _pow10(actualColumn);
-              final top = (a ~/ displayPlace) % 10;
+              final top = addition
+                  ? (a ~/ displayPlace) % 10
+                  : actualColumn < writtenWorkingTopDigits.length
+                      ? writtenWorkingTopDigits[actualColumn]
+                      : 0;
               final bottom = (b ~/ displayPlace) % 10;
               final result = actualColumn < writtenResultDigits.length
                   ? writtenResultDigits[actualColumn]
@@ -2754,9 +2969,9 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
               final active = actualColumn == column;
               return Container(
                 key: ValueKey('touch-written-column-$displayPlace'),
-                width: 62,
+                width: 54,
                 margin: const EdgeInsets.symmetric(horizontal: 2),
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 3),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
@@ -2772,16 +2987,16 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                       _largePlaceLabel(displayPlace),
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
-                    const SizedBox(height: 4),
-                    Text('$top', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 2),
+                    Text('$top', style: Theme.of(context).textTheme.titleMedium),
                     Text(
                       '${addition ? '+' : '−'} $bottom',
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: Theme.of(context).textTheme.bodyLarge,
                     ),
-                    const Divider(height: 8),
+                    const Divider(height: 5),
                     Text(
                       result == null ? '·' : '$result',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w900,
                           ),
                     ),
@@ -2791,55 +3006,75 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             }),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
         Card(
+          key: const ValueKey('touch-written-material'),
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Text(
-              addition
-                  ? '$placeLabel: $rawTopDigit + $bottomDigit${writtenIncomingCarry > 0 ? ' + Übertrag $writtenIncomingCarry' : ''}'
-                  : '$placeLabel: $previewTopDigit − $bottomDigit',
-              key: const ValueKey('touch-written-current-calculation'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w800),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Column(
+              children: [
+                Text(
+                  addition
+                      ? '$placeLabel: $rawTopDigit + $bottomDigit${writtenIncomingCarry > 0 ? ' + Bündel $writtenIncomingCarry' : ''}'
+                      : '$placeLabel: $previewTopDigit − $bottomDigit',
+                  key: const ValueKey('touch-written-current-calculation'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  addition
+                      ? '$materialCount ${_placeValueUnitName(place, plural: true)} bereit'
+                      : '$rawTopDigit ${_placeValueUnitName(place, plural: true)} verfügbar',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 10),
-        Text('Ergebnisziffer', textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 6),
+        Text(
+          'Ergebnisziffer',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelMedium,
+        ),
+        const SizedBox(height: 2),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            key: const ValueKey('touch-written-digits'),
+            children: List<Widget>.generate(10, (digit) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: ChoiceChip(
+                  key: ValueKey('touch-written-digit-$digit'),
+                  selected: selectedWrittenDigit == digit,
+                  label: Text('$digit'),
+                  visualDensity: VisualDensity.compact,
+                  onSelected: widget.locked
+                      ? null
+                      : (_) => setState(() {
+                            selectedWrittenDigit = digit;
+                            writtenStepFeedback = '';
+                          }),
+                ),
+              );
+            }),
+          ),
+        ),
         const SizedBox(height: 6),
         Wrap(
           alignment: WrapAlignment.center,
           spacing: 6,
-          runSpacing: 6,
-          children: List<Widget>.generate(10, (digit) {
-            return ChoiceChip(
-              key: ValueKey('touch-written-digit-$digit'),
-              selected: selectedWrittenDigit == digit,
-              label: Text('$digit'),
-              onSelected: widget.locked
-                  ? null
-                  : (_) => setState(() {
-                        selectedWrittenDigit = digit;
-                        writtenStepFeedback = '';
-                      }),
-            );
-          }),
-        ),
-        const SizedBox(height: 10),
-        Text(regroupLabel, textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 6),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 10,
+          runSpacing: 4,
           children: [
             ChoiceChip(
               key: const ValueKey('touch-written-regroup-0'),
               selected: selectedWrittenRegroup == 0,
-              label: Text(addition ? 'kein Übertrag' : 'nicht entbündeln'),
+              label: Text(addition ? 'nicht bündeln' : 'nicht entbündeln'),
+              visualDensity: VisualDensity.compact,
               onSelected: widget.locked
                   ? null
                   : (_) => setState(() {
@@ -2850,7 +3085,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
             ChoiceChip(
               key: const ValueKey('touch-written-regroup-1'),
               selected: selectedWrittenRegroup == 1,
-              label: Text(addition ? 'Übertrag 1' : 'entbündeln'),
+              label: Text(actionLabel),
+              visualDensity: VisualDensity.compact,
               onSelected: widget.locked
                   ? null
                   : (_) => setState(() {
@@ -2861,7 +3097,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           ],
         ),
         if (writtenStepFeedback.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             writtenStepFeedback,
             key: const ValueKey('touch-written-step-feedback'),
@@ -2877,7 +3113,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
                   selectedWrittenRegroup == null
               ? null
               : _submitWrittenColumn,
-          child: Text(column == count - 1 ? 'Ergebnis prüfen' : 'Spalte prüfen'),
+          child: Text(column == count - 1 ? 'Ergebnis prüfen' : 'Stelle prüfen'),
         ),
       ],
     );
@@ -2890,6 +3126,7 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     final expected = widget.plan.expectedAnswer ?? 0;
     final addition = widget.plan.dataOperation == '+';
     final column = writtenColumnIndex;
+    final count = _writtenColumnCount();
     final place = _pow10(column);
     final bottom = (b ~/ place) % 10;
     final top = addition
@@ -2904,16 +3141,45 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
         ? top + bottom + writtenIncomingCarry
         : effectiveTop - bottom;
     final expectedDigit = addition ? raw % 10 : raw;
-    final stepCorrect = selectedWrittenDigit == expectedDigit &&
-        selectedWrittenRegroup == expectedRegroup;
+    final regroupCorrect = selectedWrittenRegroup == expectedRegroup;
+    final digitCorrect = selectedWrittenDigit == expectedDigit;
+    final borrowSource = !addition && expectedRegroup == 1
+        ? _writtenBorrowSourceColumn(column)
+        : null;
+    final actionStepKey = addition
+        ? 'additionRegroupAction'
+        : borrowSource != null && borrowSource > column + 1
+            ? 'subtractionAcrossZeroUnbundle'
+            : 'subtractionUnbundleAction';
+    final digitStepKey = _writtenDigitStepKey(addition, column, count);
 
-    if (!stepCorrect) {
+    _emitMentalProcessAttempt(
+      actionStepKey,
+      regroupCorrect,
+      detailKey: 'column-$place-action',
+      evidenceWeight: expectedRegroup == 1 ? 0.28 : 0.16,
+    );
+    _emitMentalProcessAttempt(
+      digitStepKey,
+      digitCorrect,
+      detailKey: 'column-$place-digit',
+      evidenceWeight: 0.22,
+    );
+
+    if (!regroupCorrect || !digitCorrect) {
       setState(() {
-        writtenStepFeedback = addition
-            ? 'Prüfe Ergebnisziffer und Übertrag in dieser Spalte.'
-            : 'Prüfe Ergebnisziffer und ob du hier entbündeln musst.';
+        if (!regroupCorrect) {
+          writtenStepFeedback = addition
+              ? 'Prüfe nur die Bündelung: Werden hier 10 gleiche Stellenwerte zu einem höheren Bündel?'
+              : 'Prüfe nur das Entbündeln: Reichen die vorhandenen ${_placeValueUnitName(place, plural: true)} aus?';
+        } else {
+          writtenStepFeedback =
+              'Die Stellenwert-Handlung stimmt. Prüfe jetzt nur die Ergebnisziffer dieser Stelle.';
+        }
       });
-      widget.onAnswer(_wrongAnswer(expected, expected));
+      if (widget.onProcessStepAttempt == null) {
+        widget.onAnswer(_wrongAnswer(expected, expected));
+      }
       return;
     }
 
@@ -2926,7 +3192,6 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     writtenResultDigits[column] = expectedDigit;
     if (addition) writtenIncomingCarry = expectedRegroup;
 
-    final count = _writtenColumnCount();
     if (column == count - 1) {
       var result = 0;
       for (var index = 0; index < writtenResultDigits.length; index++) {
@@ -2945,12 +3210,8 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   }
 
   void _applyWrittenBorrow(int column) {
-    var source = column + 1;
-    while (source < writtenWorkingTopDigits.length &&
-        writtenWorkingTopDigits[source] == 0) {
-      source += 1;
-    }
-    if (source >= writtenWorkingTopDigits.length) return;
+    final source = _writtenBorrowSourceColumn(column);
+    if (source == null) return;
     writtenWorkingTopDigits[source] -= 1;
     for (var index = source - 1; index > column; index--) {
       writtenWorkingTopDigits[index] = 9;

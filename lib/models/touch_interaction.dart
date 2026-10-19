@@ -1490,6 +1490,24 @@ class TouchInteractionPlan {
     if (directArithmetic != null &&
         ArithmeticStrategy.usesPlaceValueStrategy(directArithmetic)) {
       final fact = directArithmetic;
+      final concreteRegroup = switch (fact.operation) {
+        MathOperation.plus => ArithmeticStrategy.additionCarryPlaces(fact).isNotEmpty,
+        MathOperation.minus => ArithmeticStrategy.subtractionBorrowPlaces(fact).isNotEmpty,
+        _ => false,
+      };
+      if (concreteRegroup) {
+        return TouchInteractionPlan(
+          taskKey: taskKey,
+          kind: TouchInteractionKind.writtenColumnProcedure,
+          instruction: fact.operation == MathOperation.plus
+              ? 'Arbeite Stelle für Stelle. Wenn 10 gleiche Stellenwerte zusammenkommen, bündele sie aktiv zum nächsthöheren Stellenwert.'
+              : 'Arbeite Stelle für Stelle. Wenn ein Stellenwert nicht reicht, entbündele einen höheren Stellenwert sichtbar in 10 kleinere.',
+          dataValues: <int>[fact.a, fact.b],
+          dataOperation: fact.operation == MathOperation.plus ? '+' : '-',
+          expectedAnswer: answer,
+          maxValue: max(maxValue, max(fact.a, fact.result)),
+        );
+      }
       final values = switch (fact.operation) {
         MathOperation.plus || MathOperation.minus => <int>[
             fact.a,

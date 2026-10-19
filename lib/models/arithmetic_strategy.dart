@@ -194,6 +194,29 @@ class ArithmeticStrategy {
     return places;
   }
 
+  static int? subtractionBorrowSourcePlace(
+    MathFact fact,
+    int targetPlace,
+  ) {
+    if (fact.operation != MathOperation.minus || targetPlace < 1) return null;
+    var source = targetPlace * 10;
+    final largest = max(fact.a, fact.b);
+    while (source <= largest && (fact.a ~/ source) % 10 == 0) {
+      source *= 10;
+    }
+    return source <= largest ? source : null;
+  }
+
+  static bool hasBorrowAcrossZero(MathFact fact) {
+    if (fact.operation != MathOperation.minus) return false;
+    for (final borrowPlace in subtractionBorrowPlaces(fact)) {
+      final targetPlace = max(1, borrowPlace ~/ 10);
+      final source = subtractionBorrowSourcePlace(fact, targetPlace);
+      if (source != null && source > targetPlace * 10) return true;
+    }
+    return false;
+  }
+
   static int digitwiseAbsoluteSubtraction(MathFact fact) {
     var result = 0;
     var place = 1;
