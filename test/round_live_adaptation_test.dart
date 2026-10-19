@@ -77,6 +77,135 @@ void main() {
     );
   });
 
+  testWidgets(
+    'bewusst verschobene Prozess-Recovery bleibt nach Resume verschoben',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      final now = DateTime.now();
+      final savedPlan = controller.buildMyRound(now: now);
+      controller.microObservations = <MicroCompetencyObservation>[
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeMultiplicationPartialProducts,
+          occurredAt: now.subtract(const Duration(minutes: 5)),
+          correct: false,
+          evidenceWeight: 0.22,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:combinePlaceValueProducts:multiply:247:6:process:combine',
+        ),
+      ];
+      controller.guidedRoundProgress = GuidedRoundProgress(
+        plan: savedPlan,
+        completedRoles: const <GuidedRoundRole>{GuidedRoundRole.warmUp},
+        completedTaskCounts: <GuidedRoundRole, int>{
+          GuidedRoundRole.warmUp: savedPlan
+              .firstWhere((segment) => segment.role == GuidedRoundRole.warmUp)
+              .tasks,
+        },
+        gradeLevel: GradeLevel.third,
+        numberRange: NumberRangeLevel.thousand,
+        startedAt: now.subtract(const Duration(minutes: 12)),
+        updatedAt: now,
+        recoveryRequired: false,
+        deferEmergingRecovery: true,
+        lastAdaptationKind: GuidedRoundAdaptationKind.support,
+        lastAdaptationMessage:
+            'Die neu entdeckte Recovery wird bewusst in die nächste Runde verschoben.',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: MyRoundScreen(controller: controller)),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('step-recovery-button')), findsNothing);
+      expect(controller.guidedRoundProgress?.deferEmergingRecovery, isTrue);
+      expect(controller.guidedRoundProgress?.recoveryRequired, isFalse);
+    },
+  );
+
+  testWidgets(
+    'Meine Runde zeigt fällige Prozess-Abstandskontrolle getrennt vom Lernfokus',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      final now = DateTime.now();
+      final failure = now.subtract(const Duration(days: 4));
+      final firstConfirmation = now.subtract(const Duration(days: 3));
+      final secondConfirmation = firstConfirmation.add(
+        const Duration(minutes: 1),
+      );
+      controller.microObservations = <MicroCompetencyObservation>[
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeMultiplicationPartialProducts,
+          occurredAt: secondConfirmation,
+          correct: true,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:combinePlaceValueProducts:repair:check:multiply:247:6',
+        ),
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeMultiplicationPartialProducts,
+          occurredAt: firstConfirmation,
+          correct: true,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:combinePlaceValueProducts:repair:transfer:multiply:372:4',
+        ),
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeMultiplicationPartialProducts,
+          occurredAt: failure,
+          correct: false,
+          evidenceWeight: 0.22,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:combinePlaceValueProducts:multiply:247:6:process:combine',
+        ),
+      ];
+
+      final due = controller.independentStepRecoveryFocus(now: now);
+      expect(due?.isSpacingReview, isTrue);
+
+      await tester.pumpWidget(
+        MaterialApp(home: MyRoundScreen(controller: controller)),
+      );
+      await tester.pump();
+
+      expect(find.text('Nach Abstand prüfen'), findsOneWidget);
+      expect(
+        find.textContaining('Teilprodukte vollständig zusammenfügen'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('step-recovery-button')),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('Meine Runde zählt adaptiv gekürzte Aufgaben tatsächlich', (
     tester,
   ) async {

@@ -46,6 +46,7 @@ Map<String, dynamic> _focusToJson(IndependentStepRecoveryFocus focus) => {
   'mode': focus.mode.name,
   'lastSeen': focus.lastSeen.toIso8601String(),
   'sourceTaskKey': focus.sourceTaskKey,
+  'reason': focus.reason.name,
 };
 
 IndependentStepRecoveryFocus _focusFromJson(Map<String, dynamic> json) =>
@@ -58,6 +59,9 @@ IndependentStepRecoveryFocus _focusFromJson(Map<String, dynamic> json) =>
       mode: TrainingMode.values.byName(json['mode'] as String),
       lastSeen: DateTime.parse(json['lastSeen'] as String),
       sourceTaskKey: json['sourceTaskKey'] as String,
+      reason: json['reason'] == null
+          ? StepRecoveryReason.repair
+          : StepRecoveryReason.values.byName(json['reason'] as String),
     );
 
 bool _sameFocus(
@@ -67,7 +71,8 @@ bool _sameFocus(
     a.competencyId == b.competencyId &&
     a.stepKey == b.stepKey &&
     a.mode == b.mode &&
-    a.sourceTaskKey == b.sourceTaskKey;
+    a.sourceTaskKey == b.sourceTaskKey &&
+    a.reason == b.reason;
 
 bool _saneSupportTask(RemediationTask task) {
   if (task.taskKey.trim().isEmpty ||

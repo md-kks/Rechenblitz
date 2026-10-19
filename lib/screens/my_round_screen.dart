@@ -56,10 +56,17 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
       lastAdaptationKind = restored.lastAdaptationKind;
       lastAdaptationMessage = restored.lastAdaptationMessage;
       completionSpeechTriggered = restored.isComplete;
+      final currentRecovery = widget.controller.independentStepRecoveryFocus();
       if (recoveryRequired &&
           !stepRecoveryCompleted &&
-          widget.controller.independentStepRecoveryFocus() == null) {
+          currentRecovery == null) {
         recoveryRequired = false;
+      } else if (!recoveryRequired &&
+          !stepRecoveryAttempted &&
+          !deferEmergingRecovery &&
+          currentRecovery != null) {
+        recoveryRequired = true;
+        decisionTrace = widget.controller.guidedRoundDecisionTrace();
       }
     } else {
       roundStartedAt = DateTime.now();
@@ -206,17 +213,22 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                 0,
                 (sum, item) => sum + _completedTaskCountFor(item),
               );
-          if (completedTasks > 9) {
+          if (emergingRecovery.isSpacingReview) {
+            recoveryRequired = true;
+            lastAdaptationKind = GuidedRoundAdaptationKind.support;
+            lastAdaptationMessage =
+                '„${emergingRecovery.label}“ ist jetzt nach Abstand wieder fällig. Die drei kurzen Kontrollaufgaben kommen zusätzlich, ohne den normalen Lernfokus zu verkürzen.';
+          } else if (completedTasks > 9) {
             deferEmergingRecovery = true;
             lastAdaptationKind = GuidedRoundAdaptationKind.support;
             lastAdaptationMessage =
-                'Ein unsicherer Zwischenschritt ist neu aufgefallen. Weil heute schon $completedTasks reguläre Aufgaben erledigt sind, wird die kurze Recovery in die nächste Runde verschoben statt die heutige Runde zu verlängern.';
+                '„${emergingRecovery.label}“ ist als unsicherer Zwischenschritt neu aufgefallen. Weil heute schon $completedTasks reguläre Aufgaben erledigt sind, wird die kurze Recovery in die nächste Runde verschoben statt die heutige Runde zu verlängern.';
           } else {
             recoveryRequired = true;
             _replanRemaining(compactForRecovery: true);
             lastAdaptationKind = GuidedRoundAdaptationKind.support;
             lastAdaptationMessage =
-                'Ein unsicherer Zwischenschritt ist neu aufgefallen. Drei kurze Recovery-Aufgaben kommen jetzt zuerst; die übrige Runde wurde ausgeglichen verkürzt.';
+                '„${emergingRecovery.label}“ ist als unsicherer Zwischenschritt neu aufgefallen. Drei kurze Recovery-Aufgaben kommen jetzt zuerst; die übrige Runde wurde ausgeglichen verkürzt.';
           }
         }
       });
@@ -448,12 +460,16 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Kurz üben',
+                      stepRecovery.isSpacingReview
+                          ? 'Nach Abstand prüfen'
+                          : 'Kurz üben',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Wir schauen uns „${stepRecovery.label}“ in drei kurzen Aufgaben an.',
+                      stepRecovery.isSpacingReview
+                          ? '„${stepRecovery.label}“ hat zuletzt wieder geklappt. Drei neue Aufgaben prüfen jetzt, ob der Schritt auch nach der Pause noch selbstständig sitzt.'
+                          : 'Wir schauen uns „${stepRecovery.label}“ in drei kurzen Aufgaben an.',
                     ),
                     const SizedBox(height: 14),
                     FilledButton.icon(

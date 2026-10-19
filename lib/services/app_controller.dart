@@ -73,6 +73,29 @@ class AppController extends ChangeNotifier {
   static const int _guidedStepIndependentConfirmations = 2;
   static const int _stepRecoveryIndependentConfirmations = 2;
   static const Duration _stepRecoveryFreshness = Duration(days: 2);
+  static const Duration _arithmeticProcessRecoveryFreshness = Duration(days: 7);
+  static const Duration _processFirstSpacingGap = Duration(days: 2);
+  static const Duration _processReinforcedSpacingGap = Duration(days: 7);
+  static const Duration _processStableSpacingGap = Duration(days: 14);
+  static const Set<String> _arithmeticProcessStepKeys = <String>{
+    'firstPlaceValueAddition',
+    'firstPlaceValueSubtraction',
+    'firstPlaceValueProduct',
+    'firstPlaceValueQuotient',
+    'placeValueChunkOrder',
+    'nextPlaceValueAddition',
+    'finalPlaceValueAddition',
+    'nextPlaceValueSubtraction',
+    'finalPlaceValueSubtraction',
+    'nextPlaceValueProduct',
+    'combinePlaceValueProducts',
+    'placeValueMultiplicationBaseFact',
+    'placeValueMultiplicationResult',
+    'nextPlaceValueQuotient',
+    'combinePlaceValueQuotients',
+    'placeValueDivisionBaseFact',
+    'placeValueDivisionResult',
+  };
   static const Duration _unstableReviewRetryGap = Duration(days: 1);
   static const Duration _initialReviewGap = Duration(days: 2);
   static const Duration _reinforcedReviewGap = Duration(days: 7);
@@ -1884,20 +1907,174 @@ class AppController extends ChangeNotifier {
         latest.every((entry) => entry.correct);
   }
 
+  bool _isArithmeticProcessStep(
+    MicroCompetencyId competencyId,
+    String stepKey,
+  ) =>
+      MicroCompetencyCatalog.arithmeticFamilyForCompetency(competencyId) != null &&
+      _arithmeticProcessStepKeys.contains(stepKey);
+
+  List<MicroCompetencyObservation> _independentStepHistory(
+    MicroCompetencyId competencyId,
+    String stepKey,
+  ) {
+    final entries = microObservations
+        .where(
+          (entry) =>
+              entry.id == competencyId &&
+              entry.gradeLevel == gradeLevel &&
+              entry.numberRange == numberRange &&
+              entry.source == MicroEvidenceSource.independentStep &&
+              GuidedStepCatalog.keyFromTaskKey(entry.taskKey) == stepKey,
+        )
+        .toList()
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return entries;
+  }
+
+  DateTime? _independentStepRecoveredAt(
+    MicroCompetencyId competencyId,
+    String stepKey,
+    DateTime after,
+  ) {
+    final confirmations = _independentStepHistory(competencyId, stepKey)
+        .where(
+          (entry) =>
+              !entry.usedHelp &&
+              entry.evidenceWeight >= 0.25 &&
+              entry.occurredAt.isAfter(after),
+        )
+        .toList(growable: false)
+      ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+    var streak = 0;
+    for (final entry in confirmations) {
+      if (!entry.correct) {
+        streak = 0;
+        continue;
+      }
+      streak += 1;
+      if (streak >= _stepRecoveryIndependentConfirmations) {
+        return entry.occurredAt;
+      }
+    }
+    return null;
+  }
+
+  DateTime _addLocalCalendarDays(DateTime value, int days) => DateTime(
+        value.year,
+        value.month,
+        value.day + days,
+        value.hour,
+        value.minute,
+        value.second,
+        value.millisecond,
+        value.microsecond,
+      );
+
+  DateTime? nextIndependentStepReviewDueAt(
+    MicroCompetencyId competencyId,
+    String stepKey,
+  ) {
+    if (!_isArithmeticProcessStep(competencyId, stepKey)) return null;
+    final history = _independentStepHistory(competencyId, stepKey);
+    final failures = history.where((entry) => !entry.correct).toList();
+    if (failures.isEmpty) return null;
+    final latestFailure = failures.first;
+    final recoveredAt = _independentStepRecoveredAt(
+      competencyId,
+      stepKey,
+      latestFailure.occurredAt,
+    );
+    if (recoveredAt == null) return null;
+
+    final successfulSpacing = history
+        .where(
+          (entry) =>
+              entry.correct &&
+              !entry.usedHelp &&
+              entry.taskKey.contains(':spacing-review:') &&
+              entry.occurredAt.isAfter(recoveredAt),
+        )
+        .toList(growable: false);
+    if (successfulSpacing.isEmpty) {
+      return _addLocalCalendarDays(
+        recoveredAt,
+        _processFirstSpacingGap.inDays,
+      );
+    }
+    final gap = successfulSpacing.length >= 6
+        ? _processStableSpacingGap
+        : _processReinforcedSpacingGap;
+    return _addLocalCalendarDays(
+      successfulSpacing.first.occurredAt,
+      gap.inDays,
+    );
+  }
+
+  IndependentStepRecoveryFocus? dueIndependentStepReviewFocus({
+    DateTime? now,
+  }) {
+    final reference = now ?? DateTime.now();
+    final groups = <String, (MicroCompetencyId, String)>{};
+    for (final observation in microObservations) {
+      if (observation.source != MicroEvidenceSource.independentStep ||
+          observation.gradeLevel != gradeLevel ||
+          observation.numberRange != numberRange) {
+        continue;
+      }
+      final stepKey = GuidedStepCatalog.keyFromTaskKey(observation.taskKey);
+      if (stepKey == null ||
+          !_isArithmeticProcessStep(observation.id, stepKey)) {
+        continue;
+      }
+      groups['${observation.id.name}|$stepKey'] = (observation.id, stepKey);
+    }
+
+    final candidates = <(DateTime, IndependentStepRecoveryFocus)>[];
+    for (final group in groups.values) {
+      final dueAt = nextIndependentStepReviewDueAt(group.$1, group.$2);
+      if (dueAt == null || dueAt.isAfter(reference)) continue;
+      final history = _independentStepHistory(group.$1, group.$2);
+      if (history.isEmpty) continue;
+      final latest = history.first;
+      candidates.add((
+        dueAt,
+        IndependentStepRecoveryFocus(
+          competencyId: group.$1,
+          stepKey: group.$2,
+          label: GuidedStepCatalog.labelFor(group.$2),
+          mode: latest.mode,
+          lastSeen: latest.occurredAt,
+          sourceTaskKey: latest.taskKey,
+          reason: StepRecoveryReason.spacingReview,
+        ),
+      ));
+    }
+    candidates.sort((a, b) => a.$1.compareTo(b.$1));
+    return candidates.isEmpty ? null : candidates.first.$2;
+  }
+
   IndependentStepRecoveryFocus? independentStepRecoveryFocus({
     DateTime? now,
   }) {
     final reference = now ?? DateTime.now();
     final candidates = microObservations
         .where(
-          (entry) =>
-              entry.source == MicroEvidenceSource.independentStep &&
-              !entry.correct &&
-              entry.gradeLevel == gradeLevel &&
-              entry.numberRange == numberRange &&
-              !entry.occurredAt.isAfter(reference) &&
-              reference.difference(entry.occurredAt) <=
-                  _stepRecoveryFreshness,
+          (entry) {
+            if (entry.source != MicroEvidenceSource.independentStep ||
+                entry.correct ||
+                entry.gradeLevel != gradeLevel ||
+                entry.numberRange != numberRange ||
+                entry.occurredAt.isAfter(reference)) {
+              return false;
+            }
+            final stepKey = GuidedStepCatalog.keyFromTaskKey(entry.taskKey);
+            final freshness = stepKey != null &&
+                    _isArithmeticProcessStep(entry.id, stepKey)
+                ? _arithmeticProcessRecoveryFreshness
+                : _stepRecoveryFreshness;
+            return reference.difference(entry.occurredAt) <= freshness;
+          },
         )
         .toList()
       ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
@@ -1923,7 +2100,7 @@ class AppController extends ChangeNotifier {
         sourceTaskKey: observation.taskKey,
       );
     }
-    return null;
+    return dueIndependentStepReviewFocus(now: reference);
   }
 
   bool _guidedStepRecoveredIndependently(
@@ -2768,9 +2945,11 @@ class AppController extends ChangeNotifier {
     DateTime? now,
   }) {
     final stepRecovery = independentStepRecoveryFocus(now: now);
-    final learningFocus = stepRecovery == null
+    final repairRecovery =
+        stepRecovery != null && !stepRecovery.isSpacingReview ? stepRecovery : null;
+    final learningFocus = repairRecovery == null
         ? currentMicroFocus()
-        : microCompetencyProgress(stepRecovery.competencyId);
+        : microCompetencyProgress(repairRecovery.competencyId);
     final preFocusReview = learningFocus == null
         ? dueReviewMicroCompetency(now: now)
         : null;
@@ -2781,7 +2960,7 @@ class AppController extends ChangeNotifier {
             excluding: preFocusReview?.definition.id,
           )
         : null;
-    final fluencyFocus = stepRecovery == null && learningFocus == null
+    final fluencyFocus = repairRecovery == null && learningFocus == null
         ? fluencyFocusMicroCompetency(
             excluding: <MicroCompetencyId>[
               ?preFocusReview?.definition.id,
@@ -2951,9 +3130,9 @@ class AppController extends ChangeNotifier {
       GuidedRoundSegment(
         role: GuidedRoundRole.focus,
         mode: focus,
-        tasks: stepRecovery == null ? 5 : 2,
-        reason: stepRecovery != null
-            ? 'Nach der kurzen Arbeit an „${stepRecovery.label}“ reichen zwei passende Gesamtaufgaben, damit die Runde kompakt bleibt.'
+        tasks: repairRecovery == null ? 5 : 2,
+        reason: repairRecovery != null
+            ? 'Nach der kurzen Arbeit an „${repairRecovery.label}“ reichen zwei passende Gesamtaufgaben, damit die Runde kompakt bleibt.'
             : isFluencyFocus
                 ? fluencyFocus.fluencyState == MicroFluencyState.building
                     ? '„${fluencyFocus.definition.label}“ ist fachlich sicher. Jetzt folgen echte Grundaufgaben ohne Zeitdruck, damit die Automatisierung weiterwächst.'
@@ -2969,7 +3148,7 @@ class AppController extends ChangeNotifier {
                         : 'Heute üben wir gezielt: ${microFocus.definition.label}.',
         targetCompetency: focusTarget,
         fluencyEmphasis: isFluencyFocus,
-        scaffoldFading: stepRecovery == null &&
+        scaffoldFading: repairRecovery == null &&
             guidedFocus != null &&
             microFocus != null &&
             guidedFocus.competencyId == microFocus.definition.id,
@@ -3124,12 +3303,14 @@ class AppController extends ChangeNotifier {
         ? apply.targetCompetency
         : null;
     final items = <GuidedRoundDecisionItem>[];
+    final recovery = independentStepRecoveryFocus(now: now);
 
     if (focus.targetCompetency != null) {
       final id = focus.targetCompetency!;
-      final recovery = independentStepRecoveryFocus(now: now);
       final blockedDependent = _blockedDependentWaitingFor(id);
-      final kind = recovery != null && recovery.competencyId == id
+      final kind = recovery != null &&
+              !recovery.isSpacingReview &&
+              recovery.competencyId == id
           ? GuidedRoundDecisionKind.recovery
           : blockedDependent != null
               ? GuidedRoundDecisionKind.prerequisite
@@ -3149,6 +3330,17 @@ class AppController extends ChangeNotifier {
         detail: focus.reason,
         priority: 100,
         selected: true,
+      ));
+    }
+
+    if (recovery != null && recovery.isSpacingReview) {
+      items.add(GuidedRoundDecisionItem(
+        kind: GuidedRoundDecisionKind.dueReview,
+        detail:
+            'Der frühere Prozessfehler „${recovery.label}“ wurde bereits behoben. Jetzt wird genau dieser Zwischenschritt nach zeitlichem Abstand erneut ohne Starthilfe geprüft.',
+        priority: 110,
+        selected: true,
+        competencyId: recovery.competencyId,
       ));
     }
 
@@ -3261,6 +3453,11 @@ class AppController extends ChangeNotifier {
           entry.numberRange == numberRange,
     );
     if (!hasCurrentMicroEvidence && hasCurrentHistory) return null;
+
+    final stepRecovery = independentStepRecoveryFocus(now: now);
+    if (stepRecovery != null) {
+      return microCompetencyProgress(stepRecovery.competencyId);
+    }
 
     final focus = currentMicroFocus();
     if (focus != null) return focus;
@@ -3464,7 +3661,16 @@ class AppController extends ChangeNotifier {
     final review = plan[2];
     final transfer = plan[3];
     final guidedFocus = guidedStepFocus();
+    final stepRecovery = independentStepRecoveryFocus(now: now);
     final parts = <String>[];
+
+    if (stepRecovery != null) {
+      parts.add(
+        stepRecovery.isSpacingReview
+            ? '3 kurze Aufgaben prüfen den früher unsicheren Prozessschritt „${stepRecovery.label}“ nach zeitlichem Abstand ohne Starthilfe'
+            : '3 kurze Recovery-Aufgaben arbeiten gezielt an „${stepRecovery.label}“: erst mit kurzem Hinweis, danach selbstständig und mit veränderten Zahlen',
+      );
+    }
 
     if (warmUp.gradeBridge && warmUp.targetCompetency != null) {
       final label =
@@ -3616,6 +3822,7 @@ class AppController extends ChangeNotifier {
         (hasCurrentMicroEvidence || history.isEmpty)) {
       final currentFocus = currentMicroFocus();
       final guidedFocus = guidedStepFocus();
+      final stepRecovery = independentStepRecoveryFocus(now: now);
       final dueReview = dueReviewMicroCompetency(now: now);
       final transfer = transferCandidateMicroCompetency(
         now: now,
@@ -3653,7 +3860,12 @@ class AppController extends ChangeNotifier {
                     };
 
       late final String focusText;
-      if (currentFocus != null &&
+      if (stepRecovery != null &&
+          stepRecovery.competencyId == priority.definition.id) {
+        focusText = stepRecovery.isSpacingReview
+            ? 'Der früher unsichere Zwischenschritt „${stepRecovery.label}“ wurde bereits selbstständig bestätigt. Jetzt ist genau dieser Prozessschritt nach zeitlichem Abstand wieder fällig.'
+            : 'Beim Rechenweg ist aktuell genau „${stepRecovery.label}“ unsicher. Rechenblitz fördert deshalb nicht pauschal die ganze Rechenart, sondern diesen konkreten Zwischenschritt.';
+      } else if (currentFocus != null &&
           currentFocus.definition.id == priority.definition.id) {
         if (guidedFocus != null &&
             guidedFocus.competencyId == priority.definition.id) {
@@ -3708,7 +3920,12 @@ class AppController extends ChangeNotifier {
           diagnosticStatus != RemediationStatus.stable;
 
       late final String action;
-      if (guidedFocus != null &&
+      if (stepRecovery != null &&
+          stepRecovery.competencyId == priority.definition.id) {
+        action = stepRecovery.isSpacingReview
+            ? 'Drei kurze Aufgaben prüfen „${stepRecovery.label}“ ohne Starthilfe mit neuen Zahlen. Gelingt das erneut selbstständig, vergrößert Rechenblitz den nächsten Abstand automatisch.'
+            : 'Zuerst bekommt „${stepRecovery.label}“ einen kurzen Hinweis, danach wird derselbe Prozessschritt mit veränderten Zahlen selbstständig angewendet und abschließend ohne Vorhilfe kontrolliert. Erst danach geht die normale Runde weiter.';
+      } else if (guidedFocus != null &&
           currentFocus?.definition.id == priority.definition.id &&
           guidedFocus.competencyId == priority.definition.id) {
         action =
@@ -3763,7 +3980,12 @@ class AppController extends ChangeNotifier {
         trend: _weeklyTrendText(),
         confidence:
             '${microEvidenceConfidence(priority.definition.id, now: now).level.label}: ${microEvidenceConfidence(priority.definition.id, now: now).detail}',
-        stability: microStabilityScheduleText(priority.definition.id, now: now),
+        stability: stepRecovery == null ||
+                stepRecovery.competencyId != priority.definition.id
+            ? microStabilityScheduleText(priority.definition.id, now: now)
+            : stepRecovery.isSpacingReview
+                ? 'Der konkrete Prozessschritt „${stepRecovery.label}“ ist jetzt nach Abstand fällig. Bei erneut sicherer Lösung wächst der nächste Abstand automatisch.'
+                : 'Für „${stepRecovery.label}“ läuft zuerst eine kurze Prozess-Recovery. Nach zwei selbstständigen Bestätigungen plant Rechenblitz eine neue Kontrolle nach zwei Tagen.',
         mastery: _parentMasteryText(priority),
         evidence: _parentEvidenceText(priority),
         selection: _parentSelectionText(now: now),

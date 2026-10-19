@@ -987,6 +987,365 @@ void main() {
       },
     );
 
+    test('Prozessfehler steuert exakt denselben Zwischenschritt in die Recovery', () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      controller.microObservations = <MicroCompetencyObservation>[
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeMultiplicationPartialProducts,
+          occurredAt: DateTime(2026, 10, 19, 8),
+          correct: false,
+          evidenceWeight: 0.22,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:combinePlaceValueProducts:multiply:247:6:process:combine',
+        ),
+      ];
+
+      final recovery = controller.independentStepRecoveryFocus(
+        now: DateTime(2026, 10, 19, 9),
+      );
+      expect(recovery, isNotNull);
+      expect(recovery!.reason, StepRecoveryReason.repair);
+      expect(recovery.stepKey, 'combinePlaceValueProducts');
+      expect(
+        recovery.competencyId,
+        MicroCompetencyId.largeMultiplicationPartialProducts,
+      );
+
+      final plan = controller.buildMyRound(now: DateTime(2026, 10, 19, 9));
+      final focus = plan.firstWhere(
+        (segment) => segment.role == GuidedRoundRole.focus,
+      );
+      expect(
+        focus.targetCompetency,
+        MicroCompetencyId.largeMultiplicationPartialProducts,
+      );
+      expect(focus.tasks, 2);
+      expect(focus.reason, contains('Teilprodukte vollständig zusammenfügen'));
+
+      final parent = controller.parentInsight(now: DateTime(2026, 10, 19, 9));
+      expect(parent.focus, contains('Teilprodukte vollständig zusammenfügen'));
+      expect(parent.action, contains('veränderten Zahlen'));
+    });
+
+    test('behobener Prozessfehler wird erst nach Abstand erneut fällig', () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      controller.microObservations = <MicroCompetencyObservation>[
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeDivisionPartialQuotients,
+          occurredAt: DateTime(2026, 10, 16, 9, 11),
+          correct: true,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.divide,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:combinePlaceValueQuotients:repair:check:divide:248:4',
+        ),
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeDivisionPartialQuotients,
+          occurredAt: DateTime(2026, 10, 16, 9, 10),
+          correct: true,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.divide,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:combinePlaceValueQuotients:repair:transfer:divide:372:6',
+        ),
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeDivisionPartialQuotients,
+          occurredAt: DateTime(2026, 10, 16, 9),
+          correct: false,
+          evidenceWeight: 0.22,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.divide,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:combinePlaceValueQuotients:divide:248:4:process:combine',
+        ),
+      ];
+
+      expect(
+        controller.nextIndependentStepReviewDueAt(
+          MicroCompetencyId.largeDivisionPartialQuotients,
+          'combinePlaceValueQuotients',
+        ),
+        DateTime(2026, 10, 18, 9, 11),
+      );
+      expect(
+        controller.independentStepRecoveryFocus(
+          now: DateTime(2026, 10, 17, 12),
+        ),
+        isNull,
+      );
+      final due = controller.independentStepRecoveryFocus(
+        now: DateTime(2026, 10, 18, 9, 12),
+      );
+      expect(due, isNotNull);
+      expect(due!.isSpacingReview, isTrue);
+      expect(due.stepKey, 'combinePlaceValueQuotients');
+      final trace = controller.guidedRoundDecisionTrace(
+        now: DateTime(2026, 10, 18, 9, 12),
+      );
+      expect(trace.primary?.kind, GuidedRoundDecisionKind.dueReview);
+      expect(
+        trace.primary?.detail,
+        contains('Teilquotienten vollständig zusammenfügen'),
+      );
+      final parent = controller.parentInsight(
+        now: DateTime(2026, 10, 18, 9, 12),
+      );
+      expect(parent.focus, contains('nach zeitlichem Abstand'));
+      expect(parent.action, contains('ohne Starthilfe'));
+      expect(parent.stability, contains('nach Abstand fällig'));
+
+      final normalPlan = controller.buildMyRound(
+        now: DateTime(2026, 10, 18, 9, 12),
+      );
+      expect(
+        normalPlan.firstWhere((segment) => segment.role == GuidedRoundRole.focus).tasks,
+        5,
+        reason:
+            'Eine fällige Prozess-Abstandskontrolle soll nicht zusätzlich den normalen Fokus auf zwei Aufgaben reduzieren.',
+      );
+    });
+
+    test('Prozess-Abstandskontrolle nutzt nur neue unabhängige Check-Aufgaben', () {
+      final focus = IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.largeMultiplicationPartialProducts,
+        stepKey: 'combinePlaceValueProducts',
+        label: GuidedStepCatalog.labelFor('combinePlaceValueProducts'),
+        mode: TrainingMode.multiply,
+        lastSeen: DateTime(2026, 10, 17, 10),
+        sourceTaskKey:
+            'independent:combinePlaceValueProducts:repair:check:multiply:247:6',
+        reason: StepRecoveryReason.spacingReview,
+      );
+      final plan = StepRecoveryGenerator(random: Random(1701)).generate(
+        focus: focus,
+        range: NumberRangeLevel.thousand,
+      );
+
+      expect(plan.tasks, hasLength(3));
+      expect(
+        plan.tasks.every((task) => task.stage == RemediationStage.check),
+        isTrue,
+      );
+      expect(plan.tasks.map((task) => task.taskKey).toSet().length, greaterThanOrEqualTo(2));
+      expect(plan.title, contains('nach Abstand'));
+    });
+
+    test('erfolgreiche Abstandskontrollen vergrößern den Prozess-Abstand', () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+
+      MicroCompetencyObservation observation(
+        DateTime at,
+        bool correct,
+        String marker,
+      ) =>
+          MicroCompetencyObservation(
+            id: MicroCompetencyId.largeAdditionMultiRegroup,
+            occurredAt: at,
+            correct: correct,
+            evidenceWeight: 0.35,
+            source: MicroEvidenceSource.independentStep,
+            usedHelp: false,
+            mode: TrainingMode.practice,
+            gradeLevel: GradeLevel.third,
+            numberRange: NumberRangeLevel.thousand,
+            taskKey: 'independent:finalPlaceValueAddition:$marker',
+          );
+
+      controller.microObservations = <MicroCompetencyObservation>[
+        observation(DateTime(2026, 10, 19, 9, 2), true, 'spacing-review:check:6'),
+        observation(DateTime(2026, 10, 19, 9, 1), true, 'spacing-review:check:5'),
+        observation(DateTime(2026, 10, 19, 9), true, 'spacing-review:check:4'),
+        observation(DateTime(2026, 10, 12, 9, 2), true, 'spacing-review:check:3'),
+        observation(DateTime(2026, 10, 12, 9, 1), true, 'spacing-review:check:2'),
+        observation(DateTime(2026, 10, 12, 9), true, 'spacing-review:check:1'),
+        observation(DateTime(2026, 10, 10, 9, 11), true, 'repair:check'),
+        observation(DateTime(2026, 10, 10, 9, 10), true, 'repair:transfer'),
+        observation(DateTime(2026, 10, 10, 9), false, 'process:error'),
+      ];
+
+      expect(
+        controller.nextIndependentStepReviewDueAt(
+          MicroCompetencyId.largeAdditionMultiRegroup,
+          'finalPlaceValueAddition',
+        ),
+        DateTime(2026, 11, 2, 9, 2),
+      );
+      expect(
+        controller.independentStepRecoveryFocus(
+          now: DateTime(2026, 10, 26, 12),
+        ),
+        isNull,
+      );
+    });
+
+    test('Fehler in der Abstandskontrolle öffnet wieder gezielte Recovery', () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      controller.microObservations = <MicroCompetencyObservation>[
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeSubtractionMultiBorrow,
+          occurredAt: DateTime(2026, 10, 18, 10),
+          correct: false,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:nextPlaceValueSubtraction:spacing-review:check:minus:743:286',
+        ),
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeSubtractionMultiBorrow,
+          occurredAt: DateTime(2026, 10, 16, 9, 11),
+          correct: true,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:nextPlaceValueSubtraction:repair:check:minus:743:286',
+        ),
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeSubtractionMultiBorrow,
+          occurredAt: DateTime(2026, 10, 16, 9, 10),
+          correct: true,
+          evidenceWeight: 0.35,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:nextPlaceValueSubtraction:repair:transfer:minus:653:274',
+        ),
+        MicroCompetencyObservation(
+          id: MicroCompetencyId.largeSubtractionMultiBorrow,
+          occurredAt: DateTime(2026, 10, 16, 9),
+          correct: false,
+          evidenceWeight: 0.22,
+          source: MicroEvidenceSource.independentStep,
+          usedHelp: false,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey:
+              'independent:nextPlaceValueSubtraction:minus:743:286:process:chunk-80',
+        ),
+      ];
+
+      final focus = controller.independentStepRecoveryFocus(
+        now: DateTime(2026, 10, 18, 10, 1),
+      );
+      expect(focus, isNotNull);
+      expect(focus!.reason, StepRecoveryReason.repair);
+      expect(focus.stepKey, 'nextPlaceValueSubtraction');
+    });
+
+    test('virtuelle Prozessprofile lösen sich ohne Fokus-Oszillation', () {
+      final cases = <(MicroCompetencyId, TrainingMode, String)>[
+        (
+          MicroCompetencyId.largeAdditionMultiRegroup,
+          TrainingMode.practice,
+          'nextPlaceValueAddition',
+        ),
+        (
+          MicroCompetencyId.largeSubtractionMultiBorrow,
+          TrainingMode.minus,
+          'nextPlaceValueSubtraction',
+        ),
+        (
+          MicroCompetencyId.largeMultiplicationPartialProducts,
+          TrainingMode.multiply,
+          'combinePlaceValueProducts',
+        ),
+        (
+          MicroCompetencyId.largeDivisionPartialQuotients,
+          TrainingMode.divide,
+          'combinePlaceValueQuotients',
+        ),
+      ];
+
+      for (final entry in cases) {
+        final controller = AppController();
+        controller.gradeLevel = GradeLevel.third;
+        controller.numberRange = NumberRangeLevel.thousand;
+        MicroCompetencyObservation obs(
+          DateTime at,
+          bool correct,
+          String marker,
+        ) =>
+            MicroCompetencyObservation(
+              id: entry.$1,
+              occurredAt: at,
+              correct: correct,
+              evidenceWeight: correct ? 0.35 : 0.22,
+              source: MicroEvidenceSource.independentStep,
+              usedHelp: false,
+              mode: entry.$2,
+              gradeLevel: GradeLevel.third,
+              numberRange: NumberRangeLevel.thousand,
+              taskKey: 'independent:${entry.$3}:$marker',
+            );
+        controller.microObservations = <MicroCompetencyObservation>[
+          obs(DateTime(2026, 10, 10, 9, 11), true, 'repair:check'),
+          obs(DateTime(2026, 10, 10, 9, 10), true, 'repair:transfer'),
+          obs(DateTime(2026, 10, 10, 9), false, 'process:error'),
+        ];
+
+        expect(
+          controller.independentStepRecoveryFocus(
+            now: DateTime(2026, 10, 11, 9),
+          ),
+          isNull,
+          reason: entry.$3,
+        );
+        final due = controller.independentStepRecoveryFocus(
+          now: DateTime(2026, 10, 12, 9, 12),
+        );
+        expect(due?.stepKey, entry.$3, reason: entry.$3);
+        expect(due?.isSpacingReview, isTrue, reason: entry.$3);
+
+        controller.microObservations.insertAll(0, <MicroCompetencyObservation>[
+          obs(DateTime(2026, 10, 12, 9, 3), true, 'spacing-review:check:3'),
+          obs(DateTime(2026, 10, 12, 9, 2), true, 'spacing-review:check:2'),
+          obs(DateTime(2026, 10, 12, 9, 1), true, 'spacing-review:check:1'),
+        ]);
+        expect(
+          controller.independentStepRecoveryFocus(
+            now: DateTime(2026, 10, 15, 9),
+          ),
+          isNull,
+          reason: '${entry.$3} soll nach erfolgreicher Kontrolle nicht sofort zurückspringen',
+        );
+      }
+    });
+
     test(
       'aktive Prozesspläne bleiben in allen großen Zahlenräumen familiengetreu',
       () {

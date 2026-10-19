@@ -204,6 +204,7 @@ class IndependentStepRecoveryFocus {
     required this.mode,
     required this.lastSeen,
     required this.sourceTaskKey,
+    this.reason = StepRecoveryReason.repair,
   });
 
   final MicroCompetencyId competencyId;
@@ -212,7 +213,12 @@ class IndependentStepRecoveryFocus {
   final TrainingMode mode;
   final DateTime lastSeen;
   final String sourceTaskKey;
+  final StepRecoveryReason reason;
+
+  bool get isSpacingReview => reason == StepRecoveryReason.spacingReview;
 }
+
+enum StepRecoveryReason { repair, spacingReview }
 
 class StepRecoveryPlan {
   const StepRecoveryPlan({
@@ -223,7 +229,9 @@ class StepRecoveryPlan {
   final IndependentStepRecoveryFocus focus;
   final List<RemediationTask> tasks;
 
-  String get title => '${focus.label} kurz festigen';
+  String get title => focus.isSpacingReview
+      ? '${focus.label} nach Abstand prüfen'
+      : '${focus.label} kurz festigen';
 }
 
 class StepRecoveryGenerator {
@@ -332,26 +340,32 @@ class StepRecoveryGenerator {
         'Für diesen Teilschritt gibt es noch keinen gezielten Recovery-Pfad.',
       );
     }
-    return StepRecoveryPlan(
-      focus: focus,
-      tasks: [
-        _task(
-          focus,
-          RemediationStage.supported,
-          range,
-        ),
-        _task(
-          focus,
-          RemediationStage.transfer,
-          range,
-        ),
-        _task(
-          focus,
-          RemediationStage.check,
-          range,
-        ),
-      ],
-    );
+    final stages = focus.isSpacingReview
+        ? const <RemediationStage>[
+            RemediationStage.check,
+            RemediationStage.check,
+            RemediationStage.check,
+          ]
+        : const <RemediationStage>[
+            RemediationStage.supported,
+            RemediationStage.transfer,
+            RemediationStage.check,
+          ];
+    final tasks = <RemediationTask>[];
+    final usedKeys = <String>{};
+    for (final stage in stages) {
+      RemediationTask? selected;
+      for (var attempt = 0; attempt < 24; attempt++) {
+        final candidate = _task(focus, stage, range);
+        selected ??= candidate;
+        if (usedKeys.add(candidate.taskKey)) {
+          selected = candidate;
+          break;
+        }
+      }
+      tasks.add(selected!);
+    }
+    return StepRecoveryPlan(focus: focus, tasks: tasks);
   }
 
   RemediationTask _task(

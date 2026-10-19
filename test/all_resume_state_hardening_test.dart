@@ -125,6 +125,50 @@ void main() {
     expect(recovery.hasSaneState(now: now), isFalse);
   });
 
+  test('Step-Recovery merkt sich Reparatur oder Abstandskontrolle', () {
+    final now = DateTime(2026, 10, 19, 12);
+    final spacingFocus = IndependentStepRecoveryFocus(
+      competencyId: MicroCompetencyId.largeMultiplicationPartialProducts,
+      stepKey: 'combinePlaceValueProducts',
+      label: 'Teilprodukte vollständig zusammenfügen',
+      mode: TrainingMode.multiply,
+      lastSeen: now.subtract(const Duration(days: 2)),
+      sourceTaskKey:
+          'independent:combinePlaceValueProducts:repair:check:multiply:247:6',
+      reason: StepRecoveryReason.spacingReview,
+    );
+    final progress = StepRecoverySessionProgress(
+      focus: spacingFocus,
+      numberRange: NumberRangeLevel.thousand,
+      tasks: const <RemediationTask>[_supportTask],
+      index: 0,
+      wrongOnCurrent: 0,
+      firstAttemptRecorded: false,
+      showHint: false,
+      updatedAt: now,
+    );
+
+    final json = progress.toJson();
+    final restored = StepRecoverySessionProgress.fromJson(json);
+    expect(restored.focus.reason, StepRecoveryReason.spacingReview);
+    expect(
+      restored.isCompatible(
+        focus: spacingFocus,
+        range: NumberRangeLevel.thousand,
+        now: now,
+      ),
+      isTrue,
+    );
+
+    final legacyJson = Map<String, dynamic>.from(json);
+    final legacyFocus = Map<String, dynamic>.from(
+      legacyJson['focus'] as Map<String, dynamic>,
+    )..remove('reason');
+    legacyJson['focus'] = legacyFocus;
+    final legacy = StepRecoverySessionProgress.fromJson(legacyJson);
+    expect(legacy.focus.reason, StepRecoveryReason.repair);
+  });
+
   test(
     'Speicher heilt unlesbare Resume-Daten aller Nicht-Core-Flows',
     () async {

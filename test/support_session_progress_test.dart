@@ -513,6 +513,100 @@ void main() {
     expect(find.text('Aufgabe 2 von 3 · fortgesetzt'), findsOneWidget);
   });
 
+  testWidgets(
+    'Prozess-Abstandskontrolle startet ohne Starthilfe und markiert Evidenz getrennt',
+    (tester) async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      final spacingFocus = IndependentStepRecoveryFocus(
+        competencyId: MicroCompetencyId.largeMultiplicationPartialProducts,
+        stepKey: 'combinePlaceValueProducts',
+        label: 'Teilprodukte vollständig zusammenfügen',
+        mode: TrainingMode.multiply,
+        lastSeen: DateTime.now().subtract(const Duration(days: 2)),
+        sourceTaskKey:
+            'independent:combinePlaceValueProducts:repair:check:multiply:247:6',
+        reason: StepRecoveryReason.spacingReview,
+      );
+      const spacingTasks = <RemediationTask>[
+        RemediationTask(
+          stage: RemediationStage.check,
+          mode: TrainingMode.multiply,
+          taskKey: 'step-recovery:combinePlaceValueProducts:multiply:214:3',
+          prompt: 'Füge 600 + 30 + 12 zusammen.',
+          answer: 642,
+          maxAnswerValue: 1000,
+          hint: 'Füge jedes Teilprodukt genau einmal zusammen.',
+        ),
+        RemediationTask(
+          stage: RemediationStage.check,
+          mode: TrainingMode.multiply,
+          taskKey: 'step-recovery:combinePlaceValueProducts:multiply:321:2',
+          prompt: 'Füge 600 + 40 + 2 zusammen.',
+          answer: 642,
+          maxAnswerValue: 1000,
+          hint: 'Füge jedes Teilprodukt genau einmal zusammen.',
+        ),
+        RemediationTask(
+          stage: RemediationStage.check,
+          mode: TrainingMode.multiply,
+          taskKey: 'step-recovery:combinePlaceValueProducts:multiply:123:4',
+          prompt: 'Füge 400 + 80 + 12 zusammen.',
+          answer: 492,
+          maxAnswerValue: 1000,
+          hint: 'Füge jedes Teilprodukt genau einmal zusammen.',
+        ),
+      ];
+      controller.stepRecoverySessionProgress = StepRecoverySessionProgress(
+        focus: spacingFocus,
+        numberRange: NumberRangeLevel.thousand,
+        tasks: spacingTasks,
+        index: 0,
+        wrongOnCurrent: 0,
+        firstAttemptRecorded: false,
+        showHint: false,
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StepRecoveryScreen(
+            controller: controller,
+            focus: spacingFocus,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Abstand prüfen'), findsOneWidget);
+      expect(find.text('Ohne Hilfe wieder abrufen'), findsOneWidget);
+      expect(find.text('Probier diese Aufgabe zuerst ohne Hilfe.'), findsOneWidget);
+      expect(find.text(spacingTasks.first.hint), findsNothing);
+      expect(find.text('Hinweis anzeigen'), findsNothing);
+
+      final pad = tester.widget<NumberAnswerPad>(find.byType(NumberAnswerPad));
+      pad.onAnswer(spacingTasks.first.answer);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final evidence = controller.microObservations.where(
+        (entry) =>
+            entry.id ==
+                MicroCompetencyId.largeMultiplicationPartialProducts &&
+            entry.source == MicroEvidenceSource.independentStep,
+      );
+      expect(evidence, hasLength(1));
+      expect(evidence.single.usedHelp, isFalse);
+      expect(
+        evidence.single.taskKey,
+        contains('independent:combinePlaceValueProducts:spacing-review:check:'),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+    },
+  );
+
   testWidgets('Teilfehler-Recovery setzt exakt die gespeicherte Aufgabe fort', (
     tester,
   ) async {

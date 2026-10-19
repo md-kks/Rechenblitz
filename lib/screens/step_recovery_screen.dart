@@ -143,7 +143,8 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
         await _persistSession();
         await widget.controller.recordIndependentStepAttempt(
           mode: answeredTask.mode,
-          taskKey: answeredTask.taskKey,
+          taskKey:
+              '${widget.focus.isSpacingReview ? 'spacing-review' : 'repair'}:${answeredTask.stage.name}:${answeredTask.taskKey}',
           stepKey: widget.focus.stepKey,
           competencyId: widget.focus.competencyId,
           correct: correct,
@@ -232,7 +233,9 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
         title: Text(recovered ? 'Geschafft!' : 'Wir üben noch ein bisschen'),
         content: Text(
           recovered
-              ? 'Dieser Rechenschritt klappt jetzt sicher. Weiter geht es mit deiner normalen Runde.'
+              ? widget.focus.isSpacingReview
+                  ? 'Dieser Rechenschritt klappt auch nach der Pause selbstständig. Rechenblitz vergrößert jetzt den Abstand bis zur nächsten Kontrolle.'
+                  : 'Dieser Rechenschritt klappt jetzt sicher. Weiter geht es mit deiner normalen Runde.'
               : 'Dieser Rechenschritt braucht noch etwas Übung. Rechenblitz zeigt ihn dir später wieder.',
         ),
         actions: [
@@ -254,7 +257,9 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
     final progress = (index + 1) / plan.tasks.length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Kurz üben')),
+      appBar: AppBar(
+        title: Text(widget.focus.isSpacingReview ? 'Abstand prüfen' : 'Kurz üben'),
+      ),
       body: SafeArea(
         child: ListView(
           key: const ValueKey('step-recovery-scroll'),
@@ -276,7 +281,9 @@ class _StepRecoveryScreenState extends State<StepRecoveryScreen> {
             ),
             const SizedBox(height: 18),
             Text(
-              _stageTitle(stage),
+              widget.focus.isSpacingReview
+                  ? 'Ohne Hilfe wieder abrufen'
+                  : _stageTitle(stage),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),
