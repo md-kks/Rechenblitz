@@ -179,6 +179,42 @@ abstract final class EvidenceCoverageAuditCatalog {
     MicroCompetencyId.mentalStrategy: [
       'firstMentalChunk',
     ],
+    MicroCompetencyId.largeAdditionNoRegroup: [
+      'firstPlaceValueAddition',
+    ],
+    MicroCompetencyId.largeAdditionOnesRegroup: [
+      'firstPlaceValueAddition',
+    ],
+    MicroCompetencyId.largeAdditionHigherRegroup: [
+      'firstPlaceValueAddition',
+    ],
+    MicroCompetencyId.largeAdditionMultiRegroup: [
+      'firstPlaceValueAddition',
+    ],
+    MicroCompetencyId.largeSubtractionNoRegroup: [
+      'firstPlaceValueSubtraction',
+    ],
+    MicroCompetencyId.largeSubtractionOnesBorrow: [
+      'firstPlaceValueSubtraction',
+    ],
+    MicroCompetencyId.largeSubtractionHigherBorrow: [
+      'firstPlaceValueSubtraction',
+    ],
+    MicroCompetencyId.largeSubtractionMultiBorrow: [
+      'firstPlaceValueSubtraction',
+    ],
+    MicroCompetencyId.largeMultiplicationPlaceShift: [
+      'firstPlaceValueProduct',
+    ],
+    MicroCompetencyId.largeMultiplicationPartialProducts: [
+      'firstPlaceValueProduct',
+    ],
+    MicroCompetencyId.largeDivisionPlaceShift: [
+      'firstPlaceValueQuotient',
+    ],
+    MicroCompetencyId.largeDivisionPartialQuotients: [
+      'firstPlaceValueQuotient',
+    ],
     MicroCompetencyId.arithmeticLaw: [
       'lawStructureChoice',
     ],
@@ -367,6 +403,42 @@ abstract final class EvidenceCoverageAuditCatalog {
     ],
     MicroCompetencyId.mentalStrategy: [
       'firstMentalChunk',
+    ],
+    MicroCompetencyId.largeAdditionNoRegroup: [
+      'firstPlaceValueAddition',
+    ],
+    MicroCompetencyId.largeAdditionOnesRegroup: [
+      'firstPlaceValueAddition',
+    ],
+    MicroCompetencyId.largeAdditionHigherRegroup: [
+      'firstPlaceValueAddition',
+    ],
+    MicroCompetencyId.largeAdditionMultiRegroup: [
+      'firstPlaceValueAddition',
+    ],
+    MicroCompetencyId.largeSubtractionNoRegroup: [
+      'firstPlaceValueSubtraction',
+    ],
+    MicroCompetencyId.largeSubtractionOnesBorrow: [
+      'firstPlaceValueSubtraction',
+    ],
+    MicroCompetencyId.largeSubtractionHigherBorrow: [
+      'firstPlaceValueSubtraction',
+    ],
+    MicroCompetencyId.largeSubtractionMultiBorrow: [
+      'firstPlaceValueSubtraction',
+    ],
+    MicroCompetencyId.largeMultiplicationPlaceShift: [
+      'firstPlaceValueProduct',
+    ],
+    MicroCompetencyId.largeMultiplicationPartialProducts: [
+      'firstPlaceValueProduct',
+    ],
+    MicroCompetencyId.largeDivisionPlaceShift: [
+      'firstPlaceValueQuotient',
+    ],
+    MicroCompetencyId.largeDivisionPartialQuotients: [
+      'firstPlaceValueQuotient',
     ],
     MicroCompetencyId.arithmeticLaw: [
       'lawStructureChoice',

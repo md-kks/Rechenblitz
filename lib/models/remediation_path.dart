@@ -271,6 +271,10 @@ class StepRecoveryGenerator {
     'placeValueContribution',
     'gapToAnchor',
     'firstMentalChunk',
+    'firstPlaceValueAddition',
+    'firstPlaceValueSubtraction',
+    'firstPlaceValueProduct',
+    'firstPlaceValueQuotient',
     'lawStructureChoice',
     'reasoningRelationType',
     'referenceEstimate',
@@ -432,6 +436,11 @@ class StepRecoveryGenerator {
         'gapToAnchor' => _strategyGapToAnchorStep(focus, stage, range),
         'firstMentalChunk' =>
           _firstMentalChunkStep(focus, stage, range),
+        'firstPlaceValueAddition' ||
+        'firstPlaceValueSubtraction' ||
+        'firstPlaceValueProduct' ||
+        'firstPlaceValueQuotient' =>
+          _firstPlaceValueArithmeticStep(focus, stage, range),
         'lawStructureChoice' =>
           _arithmeticLawStructureStep(focus, stage),
         'reasoningRelationType' =>
@@ -3178,6 +3187,106 @@ class StepRecoveryGenerator {
       answer: choices.indexOf(correct),
       hint:
           'Prüfe, ob Zahlen vertauscht, passende Summanden zuerst verbunden oder eine Zahl über eine glatte Zahl zerlegt wird.',
+    );
+  }
+
+  RemediationTask _firstPlaceValueArithmeticStep(
+    IndependentStepRecoveryFocus focus,
+    RemediationStage stage,
+    NumberRangeLevel range,
+  ) {
+    final family = MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+      focus.competencyId,
+    );
+    if (family == null || family == ArithmeticTaskFamily.basic) {
+      return _firstMentalChunkStep(focus, stage, range);
+    }
+
+    MathFact? parseFact(String key) {
+      final parts = key.split(':');
+      if (parts.length != 3) return null;
+      final a = int.tryParse(parts[1]);
+      final b = int.tryParse(parts[2]);
+      if (a == null || b == null) return null;
+      final operation = switch (parts[0]) {
+        'plus' => MathOperation.plus,
+        'minus' => MathOperation.minus,
+        'multiply' => MathOperation.multiply,
+        'divide' => MathOperation.divide,
+        _ => null,
+      };
+      return operation == null
+          ? null
+          : MathFact(a: a, b: b, operation: operation);
+    }
+
+    final source = parseFact(focus.sourceTaskKey);
+    final useSource = stage == RemediationStage.supported &&
+        source != null &&
+        ArithmeticStrategy.matchesFamily(source, family);
+    late final MathFact fact;
+    if (useSource) {
+      fact = source;
+    } else {
+      final exercise = CurriculumExerciseGenerator(random: _random)
+          .generateDirectArithmetic(
+        mode: focus.mode,
+        gradeLevel: GradeLevel.third,
+        maxValue: max(1000, range.maxValue),
+        directArithmeticStage: 2,
+        targetCompetency: focus.competencyId,
+      );
+      fact = parseFact(exercise.key) ?? source!;
+    }
+
+    late final int expected;
+    late final String prompt;
+    late final String hint;
+    switch (fact.operation) {
+      case MathOperation.plus:
+        final chunk = ArithmeticStrategy.placeValueChunks(fact.b).first;
+        expected = fact.a + chunk;
+        prompt = '${fact.a} + ${fact.b}: Rechne zuerst den größten Stellenwertblock $chunk. Wo landest du nach diesem ersten Schritt?';
+        hint = 'Zerlege ${fact.b} nach Stellenwerten und verrechne zuerst $chunk.';
+      case MathOperation.minus:
+        final chunk = ArithmeticStrategy.placeValueChunks(fact.b).first;
+        expected = fact.a - chunk;
+        prompt = '${fact.a} − ${fact.b}: Ziehe zuerst den größten Stellenwertblock $chunk ab. Wo landest du?';
+        hint = 'Zerlege ${fact.b} nach Stellenwerten und beginne mit $chunk.';
+      case MathOperation.multiply:
+        final parts = ArithmeticStrategy.multiplicationParts(fact);
+        final chunk = ArithmeticStrategy.multiplicationOperandChunks(fact).first;
+        expected = chunk * parts.$2;
+        prompt = '${parts.$1} × ${parts.$2}: Wie groß ist das erste Teilprodukt $chunk × ${parts.$2}?';
+        hint = 'Zerlege ${parts.$1} nach Stellenwerten und berechne zuerst das größte Teilprodukt.';
+      case MathOperation.divide:
+        final dividendChunk = ArithmeticStrategy.divisionDividendChunks(fact).first;
+        expected = dividendChunk ~/ fact.b;
+        prompt = '${fact.a} ÷ ${fact.b}: Wie groß ist der erste Teilquotient $dividendChunk ÷ ${fact.b}?';
+        hint = 'Zerlege ${fact.a} in gut durch ${fact.b} teilbare Blöcke und beginne mit dem größten.';
+    }
+
+    final values = <int>{expected};
+    for (final delta in <int>[1, -1, 10, -10, 100, -100]) {
+      final candidate = expected + delta;
+      if (candidate >= 0) values.add(candidate);
+      if (values.length >= 4) break;
+    }
+    var filler = 0;
+    while (values.length < 4) {
+      values.add(filler);
+      filler += 1;
+    }
+    final choices = values.take(4).map((value) => '$value').toList()
+      ..shuffle(_random);
+    return _choice(
+      focus: focus,
+      stage: stage,
+      key: 'large-arithmetic:${family.name}:${fact.key}',
+      prompt: prompt,
+      choices: choices,
+      answer: choices.indexOf('$expected'),
+      hint: hint,
     );
   }
 

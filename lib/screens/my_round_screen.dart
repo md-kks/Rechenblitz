@@ -94,11 +94,29 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
   Future<void> _persistRound() =>
       widget.controller.saveGuidedRoundProgress(_progressSnapshot());
 
+  bool _usesGeneratedArithmetic(GuidedRoundSegment segment) {
+    if (widget.controller.effectiveNumberRange.maxValue <=
+        NumberRangeLevel.hundred.maxValue) {
+      return false;
+    }
+    return switch (segment.mode) {
+      TrainingMode.practice ||
+      TrainingMode.minus ||
+      TrainingMode.multiply ||
+      TrainingMode.divide ||
+      TrainingMode.mixed ||
+      TrainingMode.speed ||
+      TrainingMode.tempo => true,
+      _ => false,
+    };
+  }
+
   Future<void> _start(int index) async {
     final segment = plan[index];
     final before = widget.controller.history.length;
 
-    if (segment.mode.isUpperPrimary) {
+    final generatedArithmetic = _usesGeneratedArithmetic(segment);
+    if (segment.mode.isUpperPrimary || generatedArithmetic) {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => CurriculumTrainingScreen(
@@ -112,6 +130,7 @@ class _MyRoundScreenState extends State<MyRoundScreen> {
             scaffoldFading: segment.scaffoldFading,
             adaptiveLength: true,
             announceCompletion: false,
+            arithmeticMode: generatedArithmetic ? segment.mode : null,
           ),
         ),
       );

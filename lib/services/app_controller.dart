@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../models/accessibility_preferences.dart';
+import '../models/arithmetic_strategy.dart';
 import '../models/assessment.dart';
 import '../models/beta_feedback.dart';
 import '../models/error_diagnosis.dart';
@@ -3626,6 +3627,10 @@ class AppController extends ChangeNotifier {
           : null;
       final isFluencyPriority =
           fluency?.definition.id == priority.definition.id;
+      final arithmeticFamily =
+          MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+        priority.definition.id,
+      );
 
       final strongestConfidence = strongestMicro == null
           ? null
@@ -3660,9 +3665,11 @@ class AppController extends ChangeNotifier {
           final independentStatus = priority.independentEvidence <= _evidenceEpsilon
               ? 'Es liegen noch keine selbstständigen Basislösungen vor.'
               : 'Selbstständig ${(priority.independentAccuracy * 100).round()} % bei ${priority.independentTaskVariety} unterschiedlichen Aufgaben.';
-          focusText =
-              'Der konkrete Teilschritt „${priority.definition.label}“ braucht aktuell am meisten Übung. '
-              'Status: ${priority.state.label}. $independentStatus';
+          focusText = arithmeticFamily == null
+              ? 'Der konkrete Teilschritt „${priority.definition.label}“ braucht aktuell am meisten Übung. '
+                  'Status: ${priority.state.label}. $independentStatus'
+              : 'Konkret ist ${arithmeticFamily.parentDescription} im Zahlenraum ${numberRange.label} noch der unsicherste Rechentyp. '
+                  'Status: ${priority.state.label}. $independentStatus';
         }
       } else if (dueReview != null &&
           dueReview.definition.id == priority.definition.id) {
@@ -3729,8 +3736,9 @@ class AppController extends ChangeNotifier {
         action =
             'Den Teilschritt zunächst mit wenigen Aufgaben vorsichtig kennenlernen; daraus entsteht erst die Beobachtungsbasis.';
       } else {
-        action =
-            '3–5 Minuten gezielt „${priority.definition.label}“ üben und dabei den gewählten Schul-Rechenweg nutzen.';
+        action = arithmeticFamily == null
+            ? '3–5 Minuten gezielt „${priority.definition.label}“ üben und dabei den gewählten Schul-Rechenweg nutzen.'
+            : '3–5 Minuten gezielt ${arithmeticFamily.parentDescription} im Zahlenraum ${numberRange.label} üben. Rechenblitz wählt dabei genau diese Aufgabenfamilie und behält den schulischen Rechenweg bei.';
       }
 
       final masteryStatus = switch (priority.state) {
@@ -3946,6 +3954,15 @@ class AppController extends ChangeNotifier {
   }
 
   String childRecommendationText() {
+    final microFocus = currentMicroFocus();
+    final arithmeticFamily = microFocus == null
+        ? null
+        : MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+            microFocus.definition.id,
+          );
+    if (arithmeticFamily != null) {
+      return 'Heute üben wir gezielt: ${arithmeticFamily.label}.';
+    }
     final mode = recommendedMode();
     return switch (mode) {
       TrainingMode.practice => 'Starte mit einer kurzen Übungsrunde.',
@@ -3958,6 +3975,16 @@ class AppController extends ChangeNotifier {
   }
 
   String recommendationText() {
+    final microFocus = currentMicroFocus();
+    final arithmeticFamily = microFocus == null
+        ? null
+        : MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+            microFocus.definition.id,
+          );
+    if (arithmeticFamily != null) {
+      return 'Im Zahlenraum ${numberRange.label} ist „${arithmeticFamily.label}“ aktuell der passendste nächste Rechenschritt. '
+          'Die nächste Runde wählt dafür gezielt Aufgaben aus genau dieser Familie.';
+    }
     final mode = recommendedMode();
     if (gradeLevel.index >= GradeLevel.third.index) {
       final accuracy = modeAccuracy(mode);

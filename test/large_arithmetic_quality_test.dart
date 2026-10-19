@@ -1,18 +1,28 @@
 import 'dart:math';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rechenblitz/models/arithmetic_strategy.dart';
 import 'package:rechenblitz/models/curriculum_exercise.dart';
 import 'package:rechenblitz/models/error_diagnosis.dart';
 import 'package:rechenblitz/models/guided_method.dart';
 import 'package:rechenblitz/models/learning_methods.dart';
+import 'package:rechenblitz/models/learning_path.dart';
 import 'package:rechenblitz/models/math_fact.dart';
 import 'package:rechenblitz/models/micro_competency.dart';
 import 'package:rechenblitz/models/remediation_path.dart';
 import 'package:rechenblitz/models/touch_interaction.dart';
 import 'package:rechenblitz/models/training.dart';
+import 'package:rechenblitz/screens/curriculum_training_screen.dart';
+import 'package:rechenblitz/screens/my_round_screen.dart';
+import 'package:rechenblitz/screens/training_screen.dart';
+import 'package:rechenblitz/services/app_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
   group('Stellenwertanalyse für große Grundrechenarten', () {
     test('zerlegt Operanden und erkennt mehrere Übergänge', () {
       final plus = MathFact(a: 347, b: 286, operation: MathOperation.plus);
@@ -24,7 +34,7 @@ void main() {
       expect(ArithmeticStrategy.digitwiseAbsoluteSubtraction(minus), 543);
       expect(
         ArithmeticStrategy.difficultyLabel(plus),
-        'Addition mit mehreren Übergängen',
+        'Addition mit mehreren Stellenübergängen',
       );
       expect(
         ArithmeticStrategy.difficultyLabel(minus),
@@ -68,7 +78,7 @@ void main() {
       expect(result.steps[2].instruction, 'Rechne 627 + 6.');
       expect(
         result.steps.first.evidenceCompetency,
-        MicroCompetencyId.mentalStrategy,
+        MicroCompetencyId.largeAdditionMultiRegroup,
       );
     });
 
@@ -194,12 +204,12 @@ void main() {
       fact: multiply,
     );
 
-    expect(plusTags.first.id, MicroCompetencyId.mentalStrategy);
+    expect(plusTags.first.id, MicroCompetencyId.largeAdditionMultiRegroup);
     expect(
       plusTags.any((tag) => tag.id == MicroCompetencyId.numberDecomposition),
       isTrue,
     );
-    expect(multiplyTags.first.id, MicroCompetencyId.mentalStrategy);
+    expect(multiplyTags.first.id, MicroCompetencyId.largeMultiplicationPartialProducts);
     expect(
       multiplyTags.any((tag) => tag.id == MicroCompetencyId.multiplicationFacts),
       isTrue,
@@ -304,7 +314,7 @@ void main() {
       );
       expect(plan.tasks.every((task) => task.hint.contains('Teilprodukte')), isTrue);
       for (final task in plan.tasks) {
-        expect(task.effectiveTargetCompetency, MicroCompetencyId.mentalStrategy);
+        expect(task.effectiveTargetCompetency, MicroCompetencyId.largeMultiplicationPartialProducts);
         final touch = TouchInteractionPlan.forTask(
           mode: task.mode,
           taskKey: task.sourceTaskKey,
@@ -341,7 +351,7 @@ void main() {
       );
       expect(plan.tasks.every((task) => task.hint.contains('Teilquotienten')), isTrue);
       for (final task in plan.tasks) {
-        expect(task.effectiveTargetCompetency, MicroCompetencyId.mentalStrategy);
+        expect(task.effectiveTargetCompetency, MicroCompetencyId.largeDivisionPartialQuotients);
         final guide = GuidedMethodFactory.forTask(
           mode: task.mode,
           taskKey: task.sourceTaskKey,
@@ -366,6 +376,377 @@ void main() {
         expect(plan.tasks.every((task) => task.sourceTaskKey.split(':').length == 3), isTrue);
       }
     });
+  });
+
+  group('Aufgabenfamilien werden exakt getrennt', () {
+    test('Plus und Minus unterscheiden einzelne und mehrere Übergänge', () {
+      final cases = <MathFact, ArithmeticTaskFamily>{
+        MathFact(a: 342, b: 156, operation: MathOperation.plus):
+            ArithmeticTaskFamily.additionNoRegroup,
+        MathFact(a: 347, b: 126, operation: MathOperation.plus):
+            ArithmeticTaskFamily.additionOnesRegroup,
+        MathFact(a: 342, b: 180, operation: MathOperation.plus):
+            ArithmeticTaskFamily.additionHigherRegroup,
+        MathFact(a: 347, b: 286, operation: MathOperation.plus):
+            ArithmeticTaskFamily.additionMultiRegroup,
+        MathFact(a: 786, b: 243, operation: MathOperation.minus):
+            ArithmeticTaskFamily.subtractionNoRegroup,
+        MathFact(a: 743, b: 126, operation: MathOperation.minus):
+            ArithmeticTaskFamily.subtractionOnesBorrow,
+        MathFact(a: 743, b: 180, operation: MathOperation.minus):
+            ArithmeticTaskFamily.subtractionHigherBorrow,
+        MathFact(a: 743, b: 286, operation: MathOperation.minus):
+            ArithmeticTaskFamily.subtractionMultiBorrow,
+      };
+
+      for (final entry in cases.entries) {
+        expect(ArithmeticStrategy.familyFor(entry.key), entry.value);
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: entry.key.operation == MathOperation.minus
+              ? TrainingMode.minus
+              : TrainingMode.practice,
+          taskKey: entry.key.key,
+          fact: entry.key,
+        );
+        expect(
+          tags.first.id,
+          MicroCompetencyCatalog.competencyForArithmeticFamily(entry.value),
+        );
+      }
+    });
+
+    test('Mal und Geteilt trennen Stellenwertverschiebung und Zerlegung', () {
+      final cases = <MathFact, ArithmeticTaskFamily>{
+        MathFact(a: 300, b: 4, operation: MathOperation.multiply):
+            ArithmeticTaskFamily.multiplicationPlaceShift,
+        MathFact(a: 247, b: 6, operation: MathOperation.multiply):
+            ArithmeticTaskFamily.multiplicationPartialProducts,
+        MathFact(a: 1200, b: 4, operation: MathOperation.divide):
+            ArithmeticTaskFamily.divisionPlaceShift,
+        MathFact(a: 248, b: 4, operation: MathOperation.divide):
+            ArithmeticTaskFamily.divisionPartialQuotients,
+      };
+
+      for (final entry in cases.entries) {
+        expect(ArithmeticStrategy.familyFor(entry.key), entry.value);
+      }
+    });
+
+    test('Familien sind erst ab Klasse 3 und Zahlenraum 1000 Lernziele', () {
+      final hundred = MicroCompetencyCatalog.forContext(
+        GradeLevel.third,
+        NumberRangeLevel.hundred,
+      ).map((entry) => entry.id);
+      final thousand = MicroCompetencyCatalog.forContext(
+        GradeLevel.third,
+        NumberRangeLevel.thousand,
+      ).map((entry) => entry.id);
+
+      expect(hundred, isNot(contains(MicroCompetencyId.largeAdditionOnesRegroup)));
+      expect(thousand, contains(MicroCompetencyId.largeAdditionOnesRegroup));
+      expect(thousand, contains(MicroCompetencyId.largeDivisionPartialQuotients));
+    });
+
+    test('Familien-Evidenz bleibt zwischen großen Zahlenräumen getrennt', () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      final id = MicroCompetencyId.largeAdditionOnesRegroup;
+      controller.microObservations = <MicroCompetencyObservation>[
+        for (var index = 0; index < 4; index++)
+          MicroCompetencyObservation(
+            id: id,
+            occurredAt: DateTime(2026, 10, 18, 8, index),
+            correct: true,
+            evidenceWeight: 1,
+            source: MicroEvidenceSource.practice,
+            usedHelp: false,
+            mode: TrainingMode.practice,
+            gradeLevel: GradeLevel.third,
+            numberRange: NumberRangeLevel.thousand,
+            taskKey: 'plus:${347 + index * 100}:126',
+          ),
+      ];
+
+      expect(controller.microCompetencyProgress(id).observations, 4);
+      controller.numberRange = NumberRangeLevel.tenThousand;
+      expect(controller.microCompetencyProgress(id).observations, 0);
+    });
+  });
+
+  group('Generator zielt auf die schwache Aufgabenfamilie', () {
+    final targets = <(TrainingMode, MicroCompetencyId, ArithmeticTaskFamily)>[
+      (TrainingMode.practice, MicroCompetencyId.largeAdditionNoRegroup,
+          ArithmeticTaskFamily.additionNoRegroup),
+      (TrainingMode.practice, MicroCompetencyId.largeAdditionOnesRegroup,
+          ArithmeticTaskFamily.additionOnesRegroup),
+      (TrainingMode.practice, MicroCompetencyId.largeAdditionHigherRegroup,
+          ArithmeticTaskFamily.additionHigherRegroup),
+      (TrainingMode.practice, MicroCompetencyId.largeAdditionMultiRegroup,
+          ArithmeticTaskFamily.additionMultiRegroup),
+      (TrainingMode.minus, MicroCompetencyId.largeSubtractionNoRegroup,
+          ArithmeticTaskFamily.subtractionNoRegroup),
+      (TrainingMode.minus, MicroCompetencyId.largeSubtractionOnesBorrow,
+          ArithmeticTaskFamily.subtractionOnesBorrow),
+      (TrainingMode.minus, MicroCompetencyId.largeSubtractionHigherBorrow,
+          ArithmeticTaskFamily.subtractionHigherBorrow),
+      (TrainingMode.minus, MicroCompetencyId.largeSubtractionMultiBorrow,
+          ArithmeticTaskFamily.subtractionMultiBorrow),
+      (TrainingMode.multiply, MicroCompetencyId.largeMultiplicationPlaceShift,
+          ArithmeticTaskFamily.multiplicationPlaceShift),
+      (TrainingMode.multiply, MicroCompetencyId.largeMultiplicationPartialProducts,
+          ArithmeticTaskFamily.multiplicationPartialProducts),
+      (TrainingMode.divide, MicroCompetencyId.largeDivisionPlaceShift,
+          ArithmeticTaskFamily.divisionPlaceShift),
+      (TrainingMode.divide, MicroCompetencyId.largeDivisionPartialQuotients,
+          ArithmeticTaskFamily.divisionPartialQuotients),
+    ];
+
+    for (var index = 0; index < targets.length; index++) {
+      final target = targets[index];
+      test('${target.$3.name} wird gezielt in allen großen Zahlenräumen erzeugt', () {
+        final generator = CurriculumExerciseGenerator(random: Random(200 + index));
+        for (final maxValue in <int>[1000, 10000, 1000000]) {
+          for (var round = 0; round < 8; round++) {
+            final exercise = generator.generateDirectArithmetic(
+              mode: target.$1,
+              gradeLevel: GradeLevel.third,
+              maxValue: maxValue,
+              directArithmeticStage: round % 3,
+              targetCompetency: target.$2,
+            );
+            final parts = exercise.key.split(':');
+            final operation = switch (parts.first) {
+              'plus' => MathOperation.plus,
+              'minus' => MathOperation.minus,
+              'multiply' => MathOperation.multiply,
+              'divide' => MathOperation.divide,
+              _ => throw StateError('unerwartete Rechenart ${parts.first}'),
+            };
+            final fact = MathFact(
+              a: int.parse(parts[1]),
+              b: int.parse(parts[2]),
+              operation: operation,
+            );
+            expect(ArithmeticStrategy.familyFor(fact), target.$3);
+            expect(fact.result, lessThanOrEqualTo(maxValue));
+          }
+        }
+      });
+    }
+  });
+
+  group('Adaptive Runde fokussiert die genaue große Aufgabenfamilie', () {
+    test('schwache Mehrfach-Überträge werden eigener Fokus', () async {
+      final controller = AppController();
+      await controller.load();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+
+      for (var index = 0; index < 3; index++) {
+        final fact = MathFact(
+          a: 347 + index * 100,
+          b: 286,
+          operation: MathOperation.plus,
+        );
+        await controller.recordDiagnosticAttempt(
+          mode: TrainingMode.practice,
+          taskKey: fact.key,
+          expected: fact.result,
+          actual: fact.result - 10,
+          fact: fact,
+          usedHelp: false,
+          numberRangeOverride: NumberRangeLevel.thousand,
+        );
+      }
+
+      final focus = controller.currentMicroFocus();
+      expect(focus?.definition.id, MicroCompetencyId.largeAdditionMultiRegroup);
+      final plan = controller.buildMyRound(now: DateTime(2026, 10, 19, 10));
+      final focusSegment = plan.firstWhere(
+        (segment) => segment.role == GuidedRoundRole.focus,
+      );
+      expect(focusSegment.mode, TrainingMode.practice);
+      expect(
+        focusSegment.targetCompetency,
+        MicroCompetencyId.largeAdditionMultiRegroup,
+      );
+      expect(controller.childRecommendationText(), contains('mehreren Stellenübergängen'));
+      expect(controller.recommendationText(), contains('genau dieser Familie'));
+
+      final parent = controller.parentInsight(now: DateTime(2026, 10, 19, 10));
+      expect(parent.focus, contains('mehreren Überträgen'));
+      expect(parent.focus, contains('bis 1.000'));
+      expect(parent.action, contains('Übertrag beim Plus vergessen'));
+    });
+
+    test('Elternhinweis nennt ohne Diagnose genau die schwache Familie', () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      final id = MicroCompetencyId.largeSubtractionHigherBorrow;
+      controller.microObservations = List.generate(
+        3,
+        (index) => MicroCompetencyObservation(
+          id: id,
+          occurredAt: DateTime(2026, 10, 18, 9, index),
+          correct: false,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.minus,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey: 'minus:${743 + index * 100}:180',
+        ),
+      );
+
+      final parent = controller.parentInsight(now: DateTime(2026, 10, 19, 10));
+      expect(parent.focus, contains('Entbündeln an Zehner-/Hunderterstelle'));
+      expect(parent.focus, contains('bis 1.000'));
+      expect(parent.action, contains('genau diese Aufgabenfamilie'));
+    });
+
+    test('Familie plant nach Sicherheit Abstand und Transfer separat', () {
+      final controller = AppController();
+      controller.gradeLevel = GradeLevel.third;
+      controller.numberRange = NumberRangeLevel.thousand;
+      final id = MicroCompetencyId.largeMultiplicationPartialProducts;
+      final base = DateTime(2026, 10, 1, 10);
+      controller.microObservations = List.generate(
+        6,
+        (index) => MicroCompetencyObservation(
+          id: id,
+          occurredAt: base.add(Duration(minutes: index)),
+          correct: true,
+          evidenceWeight: 1,
+          source: MicroEvidenceSource.practice,
+          usedHelp: false,
+          mode: TrainingMode.multiply,
+          gradeLevel: GradeLevel.third,
+          numberRange: NumberRangeLevel.thousand,
+          taskKey: 'multiply:${121 + index}:6',
+        ),
+      );
+
+      final progress = controller.microCompetencyProgress(id);
+      expect(progress.state, MicroCompetencyState.secure);
+      expect(controller.nextReviewDueAt(id), isNotNull);
+      expect(controller.nextTransferDueAt(id), isNotNull);
+      expect(
+        controller.dueReviewMicroCompetency(now: DateTime(2026, 10, 19))
+            ?.definition
+            .id,
+        id,
+      );
+    });
+  });
+
+
+  test('große Aufgabenfamilien haben operationstreue Step-Recovery', () {
+    final cases = <(MicroCompetencyId, String, String)>[
+      (
+        MicroCompetencyId.largeAdditionMultiRegroup,
+        'firstPlaceValueAddition',
+        'plus:347:286',
+      ),
+      (
+        MicroCompetencyId.largeSubtractionMultiBorrow,
+        'firstPlaceValueSubtraction',
+        'minus:743:286',
+      ),
+      (
+        MicroCompetencyId.largeMultiplicationPartialProducts,
+        'firstPlaceValueProduct',
+        'multiply:247:6',
+      ),
+      (
+        MicroCompetencyId.largeDivisionPartialQuotients,
+        'firstPlaceValueQuotient',
+        'divide:248:4',
+      ),
+    ];
+
+    for (var index = 0; index < cases.length; index++) {
+      final entry = cases[index];
+      final definition = MicroCompetencyCatalog.definition(entry.$1);
+      final focus = IndependentStepRecoveryFocus(
+        competencyId: entry.$1,
+        stepKey: entry.$2,
+        label: GuidedStepCatalog.labels[entry.$2]!,
+        mode: definition.preferredMode,
+        lastSeen: DateTime(2026, 10, 19, 9),
+        sourceTaskKey: entry.$3,
+      );
+      final plan = StepRecoveryGenerator(random: Random(300 + index)).generate(
+        focus: focus,
+        range: NumberRangeLevel.thousand,
+      );
+      expect(plan.tasks, hasLength(3));
+      expect(plan.tasks.every((task) => task.mode == definition.preferredMode), isTrue);
+      expect(plan.tasks.every((task) => task.choices?.length == 4), isTrue);
+      expect(
+        plan.tasks.every(
+          (task) => task.taskKey.contains('large-arithmetic:'),
+        ),
+        isTrue,
+      );
+    }
+  });
+
+  testWidgets('Meine Runde nutzt über 100 den skalierenden Curriculum-Rechenweg',
+      (tester) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = AppController();
+    await controller.load();
+    controller.gradeLevel = GradeLevel.third;
+    controller.numberRange = NumberRangeLevel.thousand;
+    controller.guidedRoundProgress = GuidedRoundProgress(
+      plan: const <GuidedRoundSegment>[
+        GuidedRoundSegment(
+          role: GuidedRoundRole.focus,
+          mode: TrainingMode.practice,
+          tasks: 3,
+          reason: 'Gezielte große Addition.',
+          targetCompetency: MicroCompetencyId.largeAdditionMultiRegroup,
+        ),
+      ],
+      completedRoles: const <GuidedRoundRole>{},
+      completedTaskCounts: const <GuidedRoundRole, int>{},
+      gradeLevel: GradeLevel.third,
+      numberRange: NumberRangeLevel.thousand,
+      startedAt: DateTime(2026, 10, 19, 10),
+      updatedAt: DateTime(2026, 10, 19, 10),
+      recoveryRequired: false,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: MyRoundScreen(controller: controller)),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('round-next-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CurriculumTrainingScreen), findsOneWidget);
+    expect(find.byType(TrainingScreen), findsNothing);
+    expect(
+      find.byKey(const ValueKey('curriculum-training-arithmetic-family')),
+      findsOneWidget,
+    );
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byKey(const ValueKey('curriculum-training-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(
+      scrollable.position.maxScrollExtent,
+      0,
+      reason: 'Eine normale große Rechenaufgabe soll auf 412×915 ohne Scrollen bedienbar sein.',
+    );
   });
 
 }

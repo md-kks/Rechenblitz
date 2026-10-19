@@ -2,6 +2,98 @@ import 'dart:math';
 
 import 'math_fact.dart';
 
+
+enum ArithmeticTaskFamily {
+  basic,
+  additionNoRegroup,
+  additionOnesRegroup,
+  additionHigherRegroup,
+  additionMultiRegroup,
+  subtractionNoRegroup,
+  subtractionOnesBorrow,
+  subtractionHigherBorrow,
+  subtractionMultiBorrow,
+  multiplicationPlaceShift,
+  multiplicationPartialProducts,
+  divisionPlaceShift,
+  divisionPartialQuotients,
+}
+
+extension ArithmeticTaskFamilyX on ArithmeticTaskFamily {
+  MathOperation? get operation => switch (this) {
+        ArithmeticTaskFamily.basic => null,
+        ArithmeticTaskFamily.additionNoRegroup ||
+        ArithmeticTaskFamily.additionOnesRegroup ||
+        ArithmeticTaskFamily.additionHigherRegroup ||
+        ArithmeticTaskFamily.additionMultiRegroup => MathOperation.plus,
+        ArithmeticTaskFamily.subtractionNoRegroup ||
+        ArithmeticTaskFamily.subtractionOnesBorrow ||
+        ArithmeticTaskFamily.subtractionHigherBorrow ||
+        ArithmeticTaskFamily.subtractionMultiBorrow => MathOperation.minus,
+        ArithmeticTaskFamily.multiplicationPlaceShift ||
+        ArithmeticTaskFamily.multiplicationPartialProducts =>
+          MathOperation.multiply,
+        ArithmeticTaskFamily.divisionPlaceShift ||
+        ArithmeticTaskFamily.divisionPartialQuotients => MathOperation.divide,
+      };
+
+  String get label => switch (this) {
+        ArithmeticTaskFamily.basic => 'Grundaufgabe',
+        ArithmeticTaskFamily.additionNoRegroup =>
+          'Addition ohne Stellenübergang',
+        ArithmeticTaskFamily.additionOnesRegroup =>
+          'Addition mit Einerübergang',
+        ArithmeticTaskFamily.additionHigherRegroup =>
+          'Addition mit höherem Stellenübergang',
+        ArithmeticTaskFamily.additionMultiRegroup =>
+          'Addition mit mehreren Stellenübergängen',
+        ArithmeticTaskFamily.subtractionNoRegroup =>
+          'Subtraktion ohne Entbündeln',
+        ArithmeticTaskFamily.subtractionOnesBorrow =>
+          'Subtraktion mit Entbündeln bei den Einern',
+        ArithmeticTaskFamily.subtractionHigherBorrow =>
+          'Subtraktion mit Entbündeln an höherer Stelle',
+        ArithmeticTaskFamily.subtractionMultiBorrow =>
+          'Subtraktion mit mehreren Entbündelungen',
+        ArithmeticTaskFamily.multiplicationPlaceShift =>
+          'Malnehmen mit glatten Zehnern/Hundertern',
+        ArithmeticTaskFamily.multiplicationPartialProducts =>
+          'Malnehmen mit Teilprodukten',
+        ArithmeticTaskFamily.divisionPlaceShift =>
+          'Teilen mit glatten Stellenwerten',
+        ArithmeticTaskFamily.divisionPartialQuotients =>
+          'Teilen mit Teilquotienten',
+      };
+
+  String get parentDescription => switch (this) {
+        ArithmeticTaskFamily.basic => 'Grundaufgaben',
+        ArithmeticTaskFamily.additionNoRegroup =>
+          'mehrstellige Addition ohne Übertrag',
+        ArithmeticTaskFamily.additionOnesRegroup =>
+          'mehrstellige Addition mit Übertrag von den Einern zu den Zehnern',
+        ArithmeticTaskFamily.additionHigherRegroup =>
+          'mehrstellige Addition mit Übertrag an Zehner-/Hunderterstelle',
+        ArithmeticTaskFamily.additionMultiRegroup =>
+          'mehrstellige Addition mit mehreren Überträgen',
+        ArithmeticTaskFamily.subtractionNoRegroup =>
+          'mehrstellige Subtraktion ohne Entbündeln',
+        ArithmeticTaskFamily.subtractionOnesBorrow =>
+          'mehrstellige Subtraktion mit Entbündeln von Zehnern zu Einern',
+        ArithmeticTaskFamily.subtractionHigherBorrow =>
+          'mehrstellige Subtraktion mit Entbündeln an Zehner-/Hunderterstelle',
+        ArithmeticTaskFamily.subtractionMultiBorrow =>
+          'mehrstellige Subtraktion mit mehreren Entbündelungen',
+        ArithmeticTaskFamily.multiplicationPlaceShift =>
+          'Multiplikation mit glatten Zehnern/Hundertern',
+        ArithmeticTaskFamily.multiplicationPartialProducts =>
+          'mehrstellige Multiplikation über Teilprodukte',
+        ArithmeticTaskFamily.divisionPlaceShift =>
+          'Division mit glatten Stellenwerten',
+        ArithmeticTaskFamily.divisionPartialQuotients =>
+          'mehrstellige Division über Teilquotienten',
+      };
+}
+
 /// Shared analysis for multi-step arithmetic. It deliberately stays independent
 /// from widgets so generation, diagnosis, help and touch interaction agree on
 /// the same decomposition.
@@ -14,6 +106,36 @@ class ArithmeticStrategy {
         MathOperation.multiply => fact.a > 10 || fact.b > 10,
         MathOperation.divide => fact.a > 100 || fact.result > 10,
       };
+
+
+  static ArithmeticTaskFamily familyFor(MathFact fact) {
+    if (!usesPlaceValueStrategy(fact)) return ArithmeticTaskFamily.basic;
+    return switch (fact.operation) {
+      MathOperation.plus => switch (additionCarryPlaces(fact)) {
+          [] => ArithmeticTaskFamily.additionNoRegroup,
+          [10] => ArithmeticTaskFamily.additionOnesRegroup,
+          [final place] when place > 10 =>
+            ArithmeticTaskFamily.additionHigherRegroup,
+          _ => ArithmeticTaskFamily.additionMultiRegroup,
+        },
+      MathOperation.minus => switch (subtractionBorrowPlaces(fact)) {
+          [] => ArithmeticTaskFamily.subtractionNoRegroup,
+          [10] => ArithmeticTaskFamily.subtractionOnesBorrow,
+          [final place] when place > 10 =>
+            ArithmeticTaskFamily.subtractionHigherBorrow,
+          _ => ArithmeticTaskFamily.subtractionMultiBorrow,
+        },
+      MathOperation.multiply => multiplicationOperandChunks(fact).length <= 1
+          ? ArithmeticTaskFamily.multiplicationPlaceShift
+          : ArithmeticTaskFamily.multiplicationPartialProducts,
+      MathOperation.divide => divisionQuotientChunks(fact).length <= 1
+          ? ArithmeticTaskFamily.divisionPlaceShift
+          : ArithmeticTaskFamily.divisionPartialQuotients,
+    };
+  }
+
+  static bool matchesFamily(MathFact fact, ArithmeticTaskFamily family) =>
+      familyFor(fact) == family;
 
   static List<int> placeValueChunks(int value) {
     var remaining = value.abs();
@@ -151,28 +273,7 @@ class ArithmeticStrategy {
     }
   }
 
-  static String difficultyLabel(MathFact fact) {
-    if (!usesPlaceValueStrategy(fact)) return 'Grundaufgabe';
-    return switch (fact.operation) {
-      MathOperation.plus => additionCarryPlaces(fact).isEmpty
-          ? 'Stellenweise Addition'
-          : additionCarryPlaces(fact).length == 1
-              ? 'Addition mit einem Übergang'
-              : 'Addition mit mehreren Übergängen',
-      MathOperation.minus => subtractionBorrowPlaces(fact).isEmpty
-          ? 'Stellenweise Subtraktion'
-          : subtractionBorrowPlaces(fact).length == 1
-              ? 'Subtraktion mit einem Entbündeln'
-              : 'Subtraktion mit mehreren Entbündelungen',
-      MathOperation.multiply =>
-        multiplicationOperandChunks(fact).length <= 1
-            ? 'Malnehmen mit Stellenwertverschiebung'
-            : 'Malnehmen mit Teilprodukten',
-      MathOperation.divide => divisionQuotientChunks(fact).length <= 1
-          ? 'Teilen mit Stellenwertverschiebung'
-          : 'Teilen mit Teilquotienten',
-    };
-  }
+  static String difficultyLabel(MathFact fact) => familyFor(fact).label;
 
   static String placeLabel(int chunk) {
     final value = chunk.abs();

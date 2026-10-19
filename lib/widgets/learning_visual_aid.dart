@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../models/arithmetic_strategy.dart';
 import '../models/error_diagnosis.dart';
+import '../models/math_fact.dart';
 
 class LearningVisualAid extends StatelessWidget {
   const LearningVisualAid({
@@ -38,7 +40,11 @@ class LearningVisualAid extends StatelessWidget {
         methodKey: methodKey,
       );
     }
-    if (methodKey == 'addition:toFullTen' ||
+    if (methodKey == 'addition:placeValueChunks' ||
+        methodKey == 'subtraction:placeValueChunks' ||
+        methodKey == 'multiplication:placeValueChunks' ||
+        methodKey == 'division:placeValueChunks' ||
+        methodKey == 'addition:toFullTen' ||
         methodKey == 'addition:direct' ||
         methodKey == 'numberFriends:decomposition' ||
         taskKey.startsWith('gap:') ||
@@ -132,7 +138,9 @@ class LearningVisualAid extends StatelessWidget {
         methodKey: methodKey,
       );
     }
-    final processChild = methodKey == 'numberFriends:decomposition'
+    final processChild = methodKey != null && methodKey!.endsWith(':placeValueChunks')
+        ? _placeValueArithmeticAid(context)
+        : methodKey == 'numberFriends:decomposition'
         ? _numberFriendAid()
         : methodKey == 'addition:direct'
             ? _additionDirectAid()
@@ -248,6 +256,110 @@ class LearningVisualAid extends StatelessWidget {
         child: child,
       ),
     );
+  }
+
+  Widget _placeValueArithmeticAid(BuildContext context) {
+    final parts = taskKey.split(':');
+    if (parts.length != 3) return _placeValueAid(context);
+    final a = int.tryParse(parts[1]);
+    final b = int.tryParse(parts[2]);
+    final operation = switch (parts[0]) {
+      'plus' => MathOperation.plus,
+      'minus' => MathOperation.minus,
+      'multiply' => MathOperation.multiply,
+      'divide' => MathOperation.divide,
+      _ => null,
+    };
+    if (a == null || b == null || operation == null) {
+      return _placeValueAid(context);
+    }
+    final fact = MathFact(a: a, b: b, operation: operation);
+    switch (operation) {
+      case MathOperation.plus:
+      case MathOperation.minus:
+        final chunks = ArithmeticStrategy.placeValueChunks(b);
+        final nodes = <int>[a];
+        final operations = <String>[];
+        var current = a;
+        for (final chunk in chunks) {
+          current = operation == MathOperation.plus
+              ? current + chunk
+              : current - chunk;
+          nodes.add(current);
+          operations.add('${operation == MathOperation.plus ? '+' : '−'}$chunk');
+        }
+        return _ProcessAid(
+          title: ArithmeticStrategy.familyFor(fact).label,
+          text: 'Der zweite Operand wird in Stellenwertblöcke zerlegt. Lies den Rechenweg vom größten Block zum kleinsten.',
+          nodes: nodes,
+          nodeLabels: <String>[
+            'Start',
+            for (var index = 0; index < chunks.length; index++)
+              index == chunks.length - 1 ? 'Ergebnis' : 'Zwischenschritt',
+          ],
+          operations: operations,
+          footer: '$a ${operation == MathOperation.plus ? '+' : '−'} $b = ${fact.result}',
+        );
+      case MathOperation.multiply:
+        final factorParts = ArithmeticStrategy.multiplicationParts(fact);
+        final chunks = ArithmeticStrategy.multiplicationOperandChunks(fact);
+        final partials = ArithmeticStrategy.multiplicationPartialProducts(fact);
+        return Column(
+          key: const ValueKey('help-place-value-multiplication'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AidLabel(
+              title: ArithmeticStrategy.familyFor(fact).label,
+              text: 'Zerlege ${factorParts.$1} in Stellenwerte und bilde zu jedem Block ein Teilprodukt mit ${factorParts.$2}.',
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var index = 0; index < chunks.length; index++)
+                  Chip(label: Text('${chunks[index]} × ${factorParts.$2} = ${partials[index]}')),
+              ],
+            ),
+            if (partials.length > 1) ...[
+              const SizedBox(height: 10),
+              Text(
+                '${partials.join(' + ')} = ${fact.result}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ],
+        );
+      case MathOperation.divide:
+        final dividendChunks = ArithmeticStrategy.divisionDividendChunks(fact);
+        final quotientChunks = ArithmeticStrategy.divisionQuotientChunks(fact);
+        return Column(
+          key: const ValueKey('help-place-value-division'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AidLabel(
+              title: ArithmeticStrategy.familyFor(fact).label,
+              text: 'Zerlege $a in gut durch $b teilbare Blöcke und bestimme die Teilquotienten.',
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var index = 0; index < dividendChunks.length; index++)
+                  Chip(label: Text('${dividendChunks[index]} ÷ $b = ${quotientChunks[index]}')),
+              ],
+            ),
+            if (quotientChunks.length > 1) ...[
+              const SizedBox(height: 10),
+              Text(
+                '${quotientChunks.join(' + ')} = ${fact.result}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ],
+        );
+    }
   }
 
   Widget _moneyAid(BuildContext context) {

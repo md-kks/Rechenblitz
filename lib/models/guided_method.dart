@@ -133,6 +133,14 @@ class GuidedStepCatalog {
         'Ergänzung bis zur glatten Zielzahl bestimmen',
     'firstMentalChunk':
         'ersten Stellenwertblock beim halbschriftlichen Rechnen wählen',
+    'firstPlaceValueAddition':
+        'ersten Stellenwertblock beim mehrstelligen Addieren verrechnen',
+    'firstPlaceValueSubtraction':
+        'ersten Stellenwertblock beim mehrstelligen Subtrahieren verrechnen',
+    'firstPlaceValueProduct':
+        'erstes Teilprodukt beim mehrstelligen Malnehmen berechnen',
+    'firstPlaceValueQuotient':
+        'ersten Teilquotienten beim mehrstelligen Teilen berechnen',
     'lawStructureChoice':
         'passende Rechenidee eines Rechengesetzes erkennen',
     'reasoningRelationType':
@@ -1513,8 +1521,11 @@ class GuidedMethodFactory {
           choices: choices,
           correctChoice: choices.indexOf('$next'),
           evidenceKey: index == 0 ? 'firstPlaceValueAddition' : null,
-          evidenceCompetency:
-              index == 0 ? MicroCompetencyId.mentalStrategy : null,
+          evidenceCompetency: index == 0
+              ? MicroCompetencyCatalog.competencyForArithmeticFamily(
+                  ArithmeticStrategy.familyFor(fact),
+                )
+              : null,
           evidenceWeight: index == 0 ? 0.45 : 1,
         ),
       );
@@ -1549,8 +1560,11 @@ class GuidedMethodFactory {
           choices: choices,
           correctChoice: choices.indexOf('$next'),
           evidenceKey: index == 0 ? 'firstPlaceValueSubtraction' : null,
-          evidenceCompetency:
-              index == 0 ? MicroCompetencyId.mentalStrategy : null,
+          evidenceCompetency: index == 0
+              ? MicroCompetencyCatalog.competencyForArithmeticFamily(
+                  ArithmeticStrategy.familyFor(fact),
+                )
+              : null,
           evidenceWeight: index == 0 ? 0.45 : 1,
         ),
       );
@@ -1590,8 +1604,11 @@ class GuidedMethodFactory {
           choices: choices,
           correctChoice: choices.indexOf('$partial'),
           evidenceKey: index == 0 ? 'firstPlaceValueProduct' : null,
-          evidenceCompetency:
-              index == 0 ? MicroCompetencyId.mentalStrategy : null,
+          evidenceCompetency: index == 0
+              ? MicroCompetencyCatalog.competencyForArithmeticFamily(
+                  ArithmeticStrategy.familyFor(fact),
+                )
+              : null,
           evidenceWeight: index == 0 ? 0.45 : 1,
         ),
       );
@@ -1640,8 +1657,11 @@ class GuidedMethodFactory {
           choices: choices,
           correctChoice: choices.indexOf('$quotientChunk'),
           evidenceKey: index == 0 ? 'firstPlaceValueQuotient' : null,
-          evidenceCompetency:
-              index == 0 ? MicroCompetencyId.mentalStrategy : null,
+          evidenceCompetency: index == 0
+              ? MicroCompetencyCatalog.competencyForArithmeticFamily(
+                  ArithmeticStrategy.familyFor(fact),
+                )
+              : null,
           evidenceWeight: index == 0 ? 0.45 : 1,
         ),
       );

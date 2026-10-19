@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'arithmetic_strategy.dart';
 import 'math_fact.dart';
 import 'training.dart';
 
@@ -13,6 +14,30 @@ class TaskDiversity {
 
     final head = parts[0];
     final second = parts[1];
+
+    if (parts.length == 3 &&
+        (head == 'plus' ||
+            head == 'minus' ||
+            head == 'multiply' ||
+            head == 'divide')) {
+      final a = int.tryParse(parts[1]);
+      final b = int.tryParse(parts[2]);
+      final operation = switch (head) {
+        'plus' => MathOperation.plus,
+        'minus' => MathOperation.minus,
+        'multiply' => MathOperation.multiply,
+        'divide' => MathOperation.divide,
+        _ => null,
+      };
+      if (a != null && b != null && operation != null) {
+        final family = ArithmeticStrategy.familyFor(
+          MathFact(a: a, b: b, operation: operation),
+        );
+        return family == ArithmeticTaskFamily.basic
+            ? head
+            : 'arithmetic:${family.name}';
+      }
+    }
 
     if (head == 'story' || head == 'money' || head == 'measure') {
       if (head == 'story' &&

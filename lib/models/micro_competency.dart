@@ -90,6 +90,18 @@ enum MicroCompetencyId {
   planDirections,
   scale,
   volumeCubes,
+  largeAdditionNoRegroup,
+  largeAdditionOnesRegroup,
+  largeAdditionHigherRegroup,
+  largeAdditionMultiRegroup,
+  largeSubtractionNoRegroup,
+  largeSubtractionOnesBorrow,
+  largeSubtractionHigherBorrow,
+  largeSubtractionMultiBorrow,
+  largeMultiplicationPlaceShift,
+  largeMultiplicationPartialProducts,
+  largeDivisionPlaceShift,
+  largeDivisionPartialQuotients,
 }
 
 class MicroCompetencyDefinition {
@@ -665,6 +677,114 @@ class MicroCompetencyCatalog {
       domain: MicroCompetencyDomain.arithmetic,
       preferredMode: TrainingMode.mentalStrategies,
       minGrade: GradeLevel.third,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeAdditionNoRegroup,
+      label: 'Mehrstelliges Plus ohne Übertrag',
+      description: 'Mehrstellige Additionen stellenweise ohne Übertrag sicher lösen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.practice,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeAdditionOnesRegroup,
+      label: 'Mehrstelliges Plus: Einer → Zehner',
+      description: 'Beim halbschriftlichen Addieren einen Übertrag von den Einern zu den Zehnern sicher bewältigen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.practice,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeAdditionHigherRegroup,
+      label: 'Mehrstelliges Plus: höherer Übertrag',
+      description: 'Einen einzelnen Übertrag an Zehner-, Hunderter- oder Tausenderstelle sicher bewältigen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.practice,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeAdditionMultiRegroup,
+      label: 'Mehrstelliges Plus: mehrere Überträge',
+      description: 'Additionen mit mehreren Stellenübergängen vollständig und sicher zerlegen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.practice,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeSubtractionNoRegroup,
+      label: 'Mehrstelliges Minus ohne Entbündeln',
+      description: 'Mehrstellige Subtraktionen stellenweise ohne Entbündeln sicher lösen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.minus,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeSubtractionOnesBorrow,
+      label: 'Mehrstelliges Minus: Zehner → Einer',
+      description: 'Beim Subtrahieren einen Zehner für die Einerstelle sicher entbündeln.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.minus,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeSubtractionHigherBorrow,
+      label: 'Mehrstelliges Minus: höheres Entbündeln',
+      description: 'An Zehner-, Hunderter- oder Tausenderstelle einmal gezielt entbündeln.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.minus,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeSubtractionMultiBorrow,
+      label: 'Mehrstelliges Minus: mehrfach entbündeln',
+      description: 'Subtraktionen mit mehreren Entbündelungen vollständig und sicher bearbeiten.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.minus,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeMultiplicationPlaceShift,
+      label: 'Malnehmen mit glatten Stellenwerten',
+      description: 'Einstellige Faktoren mit glatten Zehnern, Hundertern und Tausendern verknüpfen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.multiply,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeMultiplicationPartialProducts,
+      label: 'Mehrstellig mal mit Teilprodukten',
+      description: 'Eine mehrstellige Zahl zerlegen, Teilprodukte bilden und vollständig zusammensetzen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.multiply,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeDivisionPlaceShift,
+      label: 'Teilen mit glatten Stellenwerten',
+      description: 'Glatte Zehner, Hunderter und Tausender mit bekannten Divisionsbeziehungen teilen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.divide,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
+    ),
+    MicroCompetencyDefinition(
+      id: MicroCompetencyId.largeDivisionPartialQuotients,
+      label: 'Mehrstellig teilen mit Teilquotienten',
+      description: 'Den Dividend in passende Teilbeträge zerlegen und Teilquotienten vollständig zusammensetzen.',
+      domain: MicroCompetencyDomain.arithmetic,
+      preferredMode: TrainingMode.divide,
+      minGrade: GradeLevel.third,
+      minNumberRange: NumberRangeLevel.thousand,
     ),
     MicroCompetencyDefinition(
       id: MicroCompetencyId.strategyChoice,
@@ -1326,6 +1446,68 @@ class MicroCompetencyCatalog {
     return operation == null ? null : MathFact(a: a, b: b, operation: operation);
   }
 
+  static MicroCompetencyId? competencyForArithmeticFamily(
+    ArithmeticTaskFamily family,
+  ) =>
+      switch (family) {
+        ArithmeticTaskFamily.basic => null,
+        ArithmeticTaskFamily.additionNoRegroup =>
+          MicroCompetencyId.largeAdditionNoRegroup,
+        ArithmeticTaskFamily.additionOnesRegroup =>
+          MicroCompetencyId.largeAdditionOnesRegroup,
+        ArithmeticTaskFamily.additionHigherRegroup =>
+          MicroCompetencyId.largeAdditionHigherRegroup,
+        ArithmeticTaskFamily.additionMultiRegroup =>
+          MicroCompetencyId.largeAdditionMultiRegroup,
+        ArithmeticTaskFamily.subtractionNoRegroup =>
+          MicroCompetencyId.largeSubtractionNoRegroup,
+        ArithmeticTaskFamily.subtractionOnesBorrow =>
+          MicroCompetencyId.largeSubtractionOnesBorrow,
+        ArithmeticTaskFamily.subtractionHigherBorrow =>
+          MicroCompetencyId.largeSubtractionHigherBorrow,
+        ArithmeticTaskFamily.subtractionMultiBorrow =>
+          MicroCompetencyId.largeSubtractionMultiBorrow,
+        ArithmeticTaskFamily.multiplicationPlaceShift =>
+          MicroCompetencyId.largeMultiplicationPlaceShift,
+        ArithmeticTaskFamily.multiplicationPartialProducts =>
+          MicroCompetencyId.largeMultiplicationPartialProducts,
+        ArithmeticTaskFamily.divisionPlaceShift =>
+          MicroCompetencyId.largeDivisionPlaceShift,
+        ArithmeticTaskFamily.divisionPartialQuotients =>
+          MicroCompetencyId.largeDivisionPartialQuotients,
+      };
+
+  static ArithmeticTaskFamily? arithmeticFamilyForCompetency(
+    MicroCompetencyId id,
+  ) =>
+      switch (id) {
+        MicroCompetencyId.largeAdditionNoRegroup =>
+          ArithmeticTaskFamily.additionNoRegroup,
+        MicroCompetencyId.largeAdditionOnesRegroup =>
+          ArithmeticTaskFamily.additionOnesRegroup,
+        MicroCompetencyId.largeAdditionHigherRegroup =>
+          ArithmeticTaskFamily.additionHigherRegroup,
+        MicroCompetencyId.largeAdditionMultiRegroup =>
+          ArithmeticTaskFamily.additionMultiRegroup,
+        MicroCompetencyId.largeSubtractionNoRegroup =>
+          ArithmeticTaskFamily.subtractionNoRegroup,
+        MicroCompetencyId.largeSubtractionOnesBorrow =>
+          ArithmeticTaskFamily.subtractionOnesBorrow,
+        MicroCompetencyId.largeSubtractionHigherBorrow =>
+          ArithmeticTaskFamily.subtractionHigherBorrow,
+        MicroCompetencyId.largeSubtractionMultiBorrow =>
+          ArithmeticTaskFamily.subtractionMultiBorrow,
+        MicroCompetencyId.largeMultiplicationPlaceShift =>
+          ArithmeticTaskFamily.multiplicationPlaceShift,
+        MicroCompetencyId.largeMultiplicationPartialProducts =>
+          ArithmeticTaskFamily.multiplicationPartialProducts,
+        MicroCompetencyId.largeDivisionPlaceShift =>
+          ArithmeticTaskFamily.divisionPlaceShift,
+        MicroCompetencyId.largeDivisionPartialQuotients =>
+          ArithmeticTaskFamily.divisionPartialQuotients,
+        _ => null,
+      };
+
   static List<MicroCompetencyTag> _factTags(
     TrainingMode mode,
     MathFact fact,
@@ -1337,30 +1519,47 @@ class MicroCompetencyCatalog {
     }
 
     if (ArithmeticStrategy.usesPlaceValueStrategy(fact)) {
+      final family = ArithmeticStrategy.familyFor(fact);
+      final familyCompetency = competencyForArithmeticFamily(family);
+      final primary = familyCompetency == null
+          ? const <MicroCompetencyTag>[]
+          : <MicroCompetencyTag>[MicroCompetencyTag(familyCompetency)];
       return switch (fact.operation) {
-        MathOperation.plus || MathOperation.minus => const [
-            MicroCompetencyTag(MicroCompetencyId.mentalStrategy),
-            MicroCompetencyTag(
+        MathOperation.plus || MathOperation.minus => [
+            ...primary,
+            const MicroCompetencyTag(
+              MicroCompetencyId.mentalStrategy,
+              weight: 0.55,
+            ),
+            const MicroCompetencyTag(
               MicroCompetencyId.numberDecomposition,
-              weight: 0.65,
+              weight: 0.40,
             ),
           ],
-        MathOperation.multiply => const [
-            MicroCompetencyTag(MicroCompetencyId.mentalStrategy),
-            MicroCompetencyTag(
+        MathOperation.multiply => [
+            ...primary,
+            const MicroCompetencyTag(
+              MicroCompetencyId.mentalStrategy,
+              weight: 0.55,
+            ),
+            const MicroCompetencyTag(
               MicroCompetencyId.multiplicationFacts,
-              weight: 0.35,
+              weight: 0.30,
             ),
           ],
-        MathOperation.divide => const [
-            MicroCompetencyTag(MicroCompetencyId.mentalStrategy),
-            MicroCompetencyTag(
-              MicroCompetencyId.divisionFacts,
-              weight: 0.35,
+        MathOperation.divide => [
+            ...primary,
+            const MicroCompetencyTag(
+              MicroCompetencyId.mentalStrategy,
+              weight: 0.55,
             ),
-            MicroCompetencyTag(
+            const MicroCompetencyTag(
+              MicroCompetencyId.divisionFacts,
+              weight: 0.30,
+            ),
+            const MicroCompetencyTag(
               MicroCompetencyId.inverseRelationship,
-              weight: 0.25,
+              weight: 0.20,
             ),
           ],
       };

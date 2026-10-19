@@ -556,20 +556,20 @@ void main() {
         targetedRecovery: 21,
       ),
       GradeLevel.third: (
-        total: 64,
+        total: 76,
         atomicFullTask: 8,
         fullTaskOnly: 0,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 56,
+        targetedRecovery: 68,
       ),
       GradeLevel.fourth: (
-        total: 66,
+        total: 78,
         atomicFullTask: 8,
         fullTaskOnly: 0,
         guidedOnly: 0,
         independentOnly: 0,
-        targetedRecovery: 58,
+        targetedRecovery: 70,
       ),
     };
 
@@ -1155,6 +1155,32 @@ void main() {
       final grade = definition.minGrade;
       final mode = definition.preferredMode;
       final maxValue = grade.recommendedRange.maxValue;
+
+      if (MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+            definition.id,
+          ) !=
+          null) {
+        final exercise = curriculum.generateDirectArithmetic(
+          mode: mode,
+          gradeLevel: grade,
+          maxValue: max(
+            maxValue,
+            definition.minNumberRange.maxValue,
+          ),
+          directArithmeticStage: 2,
+          targetCompetency: definition.id,
+        );
+        final tags = MicroCompetencyCatalog.tagsForTask(
+          mode: mode,
+          taskKey: exercise.key,
+        );
+        expect(
+          tags.map((tag) => tag.id),
+          contains(definition.id),
+          reason: '${definition.id.name}: ${exercise.key}',
+        );
+        continue;
+      }
 
       if (mode.isUpperPrimary) {
         final exercise = curriculum.generate(

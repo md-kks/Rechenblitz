@@ -10,6 +10,7 @@ class IndependentStepCard extends StatelessWidget {
     required this.feedback,
     required this.locked,
     required this.onChoice,
+    this.compactChoices = false,
   });
 
   final String question;
@@ -19,6 +20,7 @@ class IndependentStepCard extends StatelessWidget {
   final String feedback;
   final bool locked;
   final ValueChanged<int> onChoice;
+  final bool compactChoices;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -43,18 +45,47 @@ class IndependentStepCard extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 10),
-              ...List.generate(
-                choices.length,
-                (choiceIndex) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: FilledButton.tonal(
-                    onPressed: locked
-                        ? null
-                        : () => onChoice(choiceIndex),
-                    child: Text(choices[choiceIndex]),
+              if (compactChoices && choices.length >= 3)
+                ...List.generate(
+                  (choices.length + 1) ~/ 2,
+                  (rowIndex) {
+                    final first = rowIndex * 2;
+                    final second = first + 1;
+                    Widget button(int choiceIndex) => FilledButton.tonal(
+                          onPressed: locked
+                              ? null
+                              : () => onChoice(choiceIndex),
+                          child: Text(choices[choiceIndex]),
+                        );
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Expanded(child: button(first)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: second < choices.length
+                                ? button(second)
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                )
+              else
+                ...List.generate(
+                  choices.length,
+                  (choiceIndex) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: FilledButton.tonal(
+                      onPressed: locked
+                          ? null
+                          : () => onChoice(choiceIndex),
+                      child: Text(choices[choiceIndex]),
+                    ),
                   ),
                 ),
-              ),
               if (feedback.isNotEmpty)
                 Text(
                   feedback,

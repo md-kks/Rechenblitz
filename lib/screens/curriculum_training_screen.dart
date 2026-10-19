@@ -802,14 +802,16 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.sizeOf(context);
-    final compactHeight = screenSize.height < 720 && screenSize.width < 600;
+    final compactHeight =
+        (screenSize.height < 720 && screenSize.width < 600) ||
+            screenSize.width < 480;
     final pagePadding = EdgeInsets.symmetric(
       horizontal: compactHeight ? 16 : 20,
-      vertical: compactHeight ? 10 : 20,
+      vertical: compactHeight ? 8 : 20,
     );
     final topGap = compactHeight ? 10.0 : 20.0;
     final visualGap = compactHeight ? 12.0 : 22.0;
-    final sectionGap = compactHeight ? 10.0 : 18.0;
+    final sectionGap = compactHeight ? 6.0 : 18.0;
     final promptFontSize = compactHeight ? 27.0 : 31.0;
     final remainingSeconds = widget.timeLimit == null
         ? null
@@ -942,8 +944,9 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
                 feedback: checkpointFeedback,
                 locked: checkpointLocked,
                 onChoice: _answerCheckpoint,
+                compactChoices: compactHeight && widget.arithmeticMode != null,
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: compactHeight ? 6 : 10),
             ],
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
@@ -1005,7 +1008,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
                 label: const Text('Ich brauche Hilfe'),
               ),
             ],
-            SizedBox(height: sectionGap),
+            SizedBox(height: _checkpointsComplete ? sectionGap : 0),
             if (_checkpointsComplete)
               if (current.usesChoices &&
                   useTouchInput &&

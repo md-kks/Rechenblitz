@@ -179,6 +179,7 @@ class CurriculumExerciseGenerator {
             gradeLevel,
             maxValue,
             directArithmeticStage,
+            targetCompetency,
           ),
         TrainingMode.largeNumbers =>
           targetCompetency == MicroCompetencyId.largeNumberCompare
@@ -313,21 +314,69 @@ class CurriculumExerciseGenerator {
     GradeLevel grade,
     int maxValue,
     int directArithmeticStage,
+    MicroCompetencyId? targetCompetency,
   ) {
-    final operation = switch (mode) {
+    final targetFamily = targetCompetency == null
+        ? null
+        : MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+            targetCompetency,
+          );
+    final operation = targetFamily?.operation ?? switch (mode) {
       TrainingMode.minus => MathOperation.minus,
       TrainingMode.multiply => MathOperation.multiply,
       TrainingMode.divide => MathOperation.divide,
       TrainingMode.mixed => MathOperation.values[_random.nextInt(4)],
       _ => _random.nextBool() ? MathOperation.plus : MathOperation.minus,
     };
-    final stage = directArithmeticStage.clamp(0, 2).toInt();
-    return switch (operation) {
+    final requestedStage = directArithmeticStage.clamp(0, 2).toInt();
+    final stage = targetFamily == null
+        ? requestedStage
+        : switch (targetFamily) {
+            ArithmeticTaskFamily.additionNoRegroup ||
+            ArithmeticTaskFamily.subtractionNoRegroup ||
+            ArithmeticTaskFamily.multiplicationPlaceShift ||
+            ArithmeticTaskFamily.divisionPlaceShift => 0,
+            ArithmeticTaskFamily.basic => requestedStage,
+            _ => 2,
+          };
+
+    CurriculumExercise generateCandidate() => switch (operation) {
       MathOperation.plus => _directAdd(mode, grade, maxValue, stage),
       MathOperation.minus => _directSubtract(mode, grade, maxValue, stage),
       MathOperation.multiply => _directMultiply(mode, grade, maxValue, stage),
       MathOperation.divide => _directDivide(mode, grade, maxValue, stage),
     };
+
+    if (targetFamily == null || targetFamily == ArithmeticTaskFamily.basic) {
+      return generateCandidate();
+    }
+
+    CurriculumExercise? last;
+    for (var attempt = 0; attempt < 160; attempt++) {
+      final candidate = generateCandidate();
+      last = candidate;
+      final fact = _directFact(candidate.key);
+      if (fact != null && ArithmeticStrategy.matchesFamily(fact, targetFamily)) {
+        return candidate;
+      }
+    }
+    return last ?? generateCandidate();
+  }
+
+  MathFact? _directFact(String key) {
+    final parts = key.split(':');
+    if (parts.length != 3) return null;
+    final a = int.tryParse(parts[1]);
+    final b = int.tryParse(parts[2]);
+    if (a == null || b == null) return null;
+    final operation = switch (parts[0]) {
+      'plus' => MathOperation.plus,
+      'minus' => MathOperation.minus,
+      'multiply' => MathOperation.multiply,
+      'divide' => MathOperation.divide,
+      _ => null,
+    };
+    return operation == null ? null : MathFact(a: a, b: b, operation: operation);
   }
 
   int _mentalPlace(int limit) {

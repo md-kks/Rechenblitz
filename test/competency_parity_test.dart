@@ -29,7 +29,36 @@ void main() {
       List<String>? choices;
       MathFact? fact;
 
-      if (mode.isUpperPrimary) {
+      if (MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+            definition.id,
+          ) !=
+          null) {
+        final exercise = curriculum.generateDirectArithmetic(
+          mode: mode,
+          gradeLevel: grade,
+          maxValue: max(maxValue, definition.minNumberRange.maxValue),
+          directArithmeticStage: 2,
+          targetCompetency: definition.id,
+        );
+        taskKey = exercise.key;
+        expected = exercise.answer;
+        choices = exercise.choices;
+        final parts = exercise.key.split(':');
+        final operation = switch (parts.first) {
+          'plus' => MathOperation.plus,
+          'minus' => MathOperation.minus,
+          'multiply' => MathOperation.multiply,
+          'divide' => MathOperation.divide,
+          _ => null,
+        };
+        if (operation != null) {
+          fact = MathFact(
+            a: int.parse(parts[1]),
+            b: int.parse(parts[2]),
+            operation: operation,
+          );
+        }
+      } else if (mode.isUpperPrimary) {
         final exercise = curriculum.generate(
           mode: mode,
           gradeLevel: grade,
@@ -113,7 +142,37 @@ void main() {
         int expected;
         List<String>? choices;
         MathFact? fact;
-        if (mode.isUpperPrimary) {
+        if (MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+              definition.id,
+            ) !=
+            null) {
+          final exercise = curriculum.generateDirectArithmetic(
+            mode: mode,
+            gradeLevel: grade,
+            maxValue: max(maxValue, definition.minNumberRange.maxValue),
+            directArithmeticStage: 2,
+            targetCompetency: definition.id,
+            recentKeys: recent,
+          );
+          taskKey = exercise.key;
+          expected = exercise.answer;
+          choices = exercise.choices;
+          final parts = exercise.key.split(':');
+          final operation = switch (parts.first) {
+            'plus' => MathOperation.plus,
+            'minus' => MathOperation.minus,
+            'multiply' => MathOperation.multiply,
+            'divide' => MathOperation.divide,
+            _ => null,
+          };
+          if (operation != null) {
+            fact = MathFact(
+              a: int.parse(parts[1]),
+              b: int.parse(parts[2]),
+              operation: operation,
+            );
+          }
+        } else if (mode.isUpperPrimary) {
           final exercise = curriculum.generate(
             mode: mode,
             gradeLevel: grade,
@@ -308,7 +367,29 @@ void main() {
       for (var sample = 0; sample < 6; sample++) {
         TouchInteractionPlan? plan;
         String key;
-        if (mode.isUpperPrimary) {
+        if (MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+              definition.id,
+            ) !=
+            null) {
+          final effectiveMax = max(maxValue, definition.minNumberRange.maxValue);
+          final exercise = curriculum.generateDirectArithmetic(
+            mode: mode,
+            gradeLevel: grade,
+            maxValue: effectiveMax,
+            directArithmeticStage: 2,
+            targetCompetency: definition.id,
+          );
+          key = exercise.key;
+          plan = TouchInteractionPlan.forTask(
+            mode: mode,
+            taskKey: exercise.key,
+            answer: exercise.answer,
+            maxValue: exercise.maxAnswerValue ?? effectiveMax,
+            choices: exercise.choices,
+            answerSuffix: exercise.answerSuffix,
+            targetCompetency: definition.id,
+          );
+        } else if (mode.isUpperPrimary) {
           final exercise = curriculum.generate(
             mode: mode,
             gradeLevel: grade,

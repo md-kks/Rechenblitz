@@ -44,7 +44,19 @@ void main() {
       for (var sample = 0; sample < 20; sample++) {
         String key;
         MathFact? fact;
-        if (mode.isUpperPrimary) {
+        if (MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+              definition.id,
+            ) !=
+            null) {
+          final exercise = curriculum.generateDirectArithmetic(
+            mode: mode,
+            gradeLevel: grade,
+            maxValue: maxValue,
+            directArithmeticStage: 2,
+            targetCompetency: definition.id,
+          );
+          key = exercise.key;
+        } else if (mode.isUpperPrimary) {
           final exercise = curriculum.generate(
             mode: mode,
             gradeLevel: grade,
@@ -205,7 +217,34 @@ void main() {
       final maxValue = max(grade.recommendedRange.maxValue, definition.minNumberRange.maxValue);
       for (var sample = 0; sample < 16; sample++) {
         String key; int expected; List<String>? choices; MathFact? fact;
-        if (mode.isUpperPrimary) {
+        if (MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+              definition.id,
+            ) !=
+            null) {
+          final exercise = curriculum.generateDirectArithmetic(
+            mode: mode,
+            gradeLevel: grade,
+            maxValue: maxValue,
+            directArithmeticStage: 2,
+            targetCompetency: definition.id,
+          );
+          key = exercise.key; expected = exercise.answer; choices = exercise.choices;
+          final parts = key.split(':');
+          final operation = switch (parts.first) {
+            'plus' => MathOperation.plus,
+            'minus' => MathOperation.minus,
+            'multiply' => MathOperation.multiply,
+            'divide' => MathOperation.divide,
+            _ => null,
+          };
+          if (operation != null) {
+            fact = MathFact(
+              a: int.parse(parts[1]),
+              b: int.parse(parts[2]),
+              operation: operation,
+            );
+          }
+        } else if (mode.isUpperPrimary) {
           final exercise = curriculum.generate(mode: mode, gradeLevel: grade, maxValue: maxValue, targetCompetency: definition.id);
           key = exercise.key; expected = exercise.answer; choices = exercise.choices;
         } else if (mode.isStructured) {
