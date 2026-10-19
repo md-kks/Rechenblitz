@@ -67,6 +67,20 @@ enum TouchInteractionKind {
   volumeLayerBuilder,
 }
 
+class TouchProcessStepAttempt {
+  const TouchProcessStepAttempt({
+    required this.stepKey,
+    required this.correct,
+    required this.detailKey,
+    this.evidenceWeight = 0.20,
+  });
+
+  final String stepKey;
+  final bool correct;
+  final String detailKey;
+  final double evidenceWeight;
+}
+
 class TouchInteractionPlan {
   const TouchInteractionPlan({
     required this.taskKey,
@@ -152,6 +166,7 @@ class TouchInteractionPlan {
     int? clockMinute,
     String? answerSuffix,
     MicroCompetencyId? targetCompetency,
+    bool skipFirstArithmeticStep = false,
   }) {
     if (mode == TrainingMode.rounding && taskKey.startsWith('round:')) {
       final parts = taskKey.split(':');
@@ -1493,12 +1508,15 @@ class TouchInteractionPlan {
           ],
       };
       if (values.length >= 3) {
-        final operation = switch (fact.operation) {
+        final baseOperation = switch (fact.operation) {
           MathOperation.plus => '+',
           MathOperation.minus => '-',
           MathOperation.multiply => 'multiply',
           MathOperation.divide => 'divide',
         };
+        final operation = skipFirstArithmeticStep
+            ? '$baseOperation:skip-first'
+            : baseOperation;
         return TouchInteractionPlan(
           taskKey: taskKey,
           kind: TouchInteractionKind.mentalChunkPath,

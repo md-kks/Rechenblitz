@@ -141,6 +141,30 @@ class GuidedStepCatalog {
         'erstes Teilprodukt beim mehrstelligen Malnehmen berechnen',
     'firstPlaceValueQuotient':
         'ersten Teilquotienten beim mehrstelligen Teilen berechnen',
+    'placeValueChunkOrder':
+        'Stellenwertblöcke in sinnvoller Reihenfolge wählen',
+    'nextPlaceValueAddition':
+        'weiteren Stellenwertblock beim mehrstelligen Addieren verrechnen',
+    'finalPlaceValueAddition':
+        'letzten Stellenwertblock beim mehrstelligen Addieren verrechnen',
+    'nextPlaceValueSubtraction':
+        'weiteren Stellenwertblock beim mehrstelligen Subtrahieren verrechnen',
+    'finalPlaceValueSubtraction':
+        'letzten Stellenwertblock beim mehrstelligen Subtrahieren verrechnen',
+    'nextPlaceValueProduct':
+        'weiteres Teilprodukt beim mehrstelligen Malnehmen berechnen',
+    'combinePlaceValueProducts': 'Teilprodukte vollständig zusammenfügen',
+    'placeValueMultiplicationBaseFact':
+        'Grundaufgabe bei glatter Stellenwert-Multiplikation nutzen',
+    'placeValueMultiplicationResult':
+        'Stellenwert auf das Multiplikationsergebnis übertragen',
+    'nextPlaceValueQuotient':
+        'weiteren Teilquotienten beim mehrstelligen Teilen berechnen',
+    'combinePlaceValueQuotients': 'Teilquotienten vollständig zusammenfügen',
+    'placeValueDivisionBaseFact':
+        'Grundaufgabe bei glatter Stellenwert-Division nutzen',
+    'placeValueDivisionResult':
+        'Stellenwert auf das Divisionsergebnis übertragen',
     'lawStructureChoice':
         'passende Rechenidee eines Rechengesetzes erkennen',
     'reasoningRelationType':
@@ -722,6 +746,36 @@ class GuidedMethodFactory {
     required MethodPreferences preferences,
     MicroCompetencyId? targetCompetency,
   }) {
+    final arithmeticFamily = targetCompetency == null
+        ? null
+        : MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+            targetCompetency,
+          );
+    if (arithmeticFamily != null) {
+      final fact = _directArithmeticFactFromKey(taskKey);
+      if (fact == null ||
+          !ArithmeticStrategy.matchesFamily(fact, arithmeticFamily)) {
+        return const <GuidedMethodStep>[];
+      }
+      final evidenceSteps =
+          forTask(
+                mode: mode,
+                taskKey: taskKey,
+                expected: expected,
+                preferences: preferences,
+                targetCompetency: targetCompetency,
+                fact: fact,
+              ).steps
+              .where((step) => step.recordsIntermediateEvidence)
+              .toList(growable: false);
+      if (evidenceSteps.isEmpty ||
+          evidenceSteps.first.evidenceKey == 'placeValueChunkOrder') {
+        return const <GuidedMethodStep>[];
+      }
+      return evidenceSteps.take(1).toList(growable: false);
+    }
+
+
     if (mode == TrainingMode.romanNumerals) {
       if (targetCompetency != MicroCompetencyId.romanNumeral ||
           !taskKey.startsWith('roman:read:')) {
@@ -1504,6 +1558,50 @@ class GuidedMethodFactory {
   static GuidedMethodGuide _placeValueAddition(MathFact fact) {
     final chunks = ArithmeticStrategy.placeValueChunks(fact.b);
     final decomposition = chunks.join(' + ');
+    final familyCompetency =
+        MicroCompetencyCatalog.competencyForArithmeticFamily(
+          ArithmeticStrategy.familyFor(fact),
+        );
+    if (chunks.length == 1) {
+      final chunk = chunks.single;
+      final choices = _numberChoices(chunk, maxValue: max(chunk * 2, 100));
+      return GuidedMethodGuide(
+        methodKey: 'addition:placeValueChunks',
+        methodLabel: 'Stellenweise addieren',
+        nudge:
+            'Erkenne zuerst den Stellenwertblock $chunk. Das Endergebnis rechnest du danach selbst.',
+        steps: [
+          GuidedMethodStep(
+            title: '${ArithmeticStrategy.placeLabel(chunk)} erkennen',
+            instruction:
+                'Konzentriere dich zuerst nur darauf, welcher Stellenwertblock zu ${fact.a} addiert wird.',
+            question: 'Welchen Stellenwertblock rechnest du?',
+            choices: choices,
+            correctChoice: choices.indexOf('$chunk'),
+            evidenceKey: 'placeValueChunkOrder',
+            evidenceCompetency: familyCompetency,
+            evidenceWeight: 0.25,
+          ),
+          GuidedMethodStep(
+            title: 'Block verrechnen',
+            instruction: 'Rechne ${fact.a} + $chunk jetzt selbst zu Ende.',
+            question: 'Wo landest du?',
+            choices: _numberChoices(
+              fact.result,
+              maxValue: max(fact.result + 100, 100),
+            ),
+            correctChoice: _numberChoices(
+              fact.result,
+              maxValue: max(fact.result + 100, 100),
+            ).indexOf('${fact.result}'),
+            evidenceKey: 'finalPlaceValueAddition',
+            evidenceCompetency: familyCompetency,
+            evidenceWeight: 0.25,
+          ),
+        ],
+      );
+    }
+
     final steps = <GuidedMethodStep>[];
     var current = fact.a;
     for (var index = 0; index < chunks.length; index++) {
@@ -1513,6 +1611,7 @@ class GuidedMethodFactory {
         next,
         maxValue: max(fact.result + 100, next + 10),
       );
+      final last = index == chunks.length - 1;
       steps.add(
         GuidedMethodStep(
           title: '${ArithmeticStrategy.placeLabel(chunk)} addieren',
@@ -1520,13 +1619,13 @@ class GuidedMethodFactory {
           question: 'Wo landest du nach diesem Teil?',
           choices: choices,
           correctChoice: choices.indexOf('$next'),
-          evidenceKey: index == 0 ? 'firstPlaceValueAddition' : null,
-          evidenceCompetency: index == 0
-              ? MicroCompetencyCatalog.competencyForArithmeticFamily(
-                  ArithmeticStrategy.familyFor(fact),
-                )
-              : null,
-          evidenceWeight: index == 0 ? 0.45 : 1,
+          evidenceKey: index == 0
+              ? 'firstPlaceValueAddition'
+              : last
+              ? 'finalPlaceValueAddition'
+              : 'nextPlaceValueAddition',
+          evidenceCompetency: familyCompetency,
+          evidenceWeight: index == 0 ? 0.40 : 0.22,
         ),
       );
       current = next;
@@ -1543,15 +1642,57 @@ class GuidedMethodFactory {
   static GuidedMethodGuide _placeValueSubtraction(MathFact fact) {
     final chunks = ArithmeticStrategy.placeValueChunks(fact.b);
     final decomposition = chunks.join(' + ');
+    final familyCompetency =
+        MicroCompetencyCatalog.competencyForArithmeticFamily(
+          ArithmeticStrategy.familyFor(fact),
+        );
+    if (chunks.length == 1) {
+      final chunk = chunks.single;
+      final choices = _numberChoices(chunk, maxValue: max(chunk * 2, 100));
+      return GuidedMethodGuide(
+        methodKey: 'subtraction:placeValueChunks',
+        methodLabel: 'Stellenweise subtrahieren',
+        nudge:
+            'Erkenne zuerst den Stellenwertblock $chunk. Das Endergebnis rechnest du danach selbst.',
+        steps: [
+          GuidedMethodStep(
+            title: '${ArithmeticStrategy.placeLabel(chunk)} erkennen',
+            instruction:
+                'Konzentriere dich zuerst nur darauf, welcher Stellenwertblock von ${fact.a} abgezogen wird.',
+            question: 'Welchen Stellenwertblock rechnest du?',
+            choices: choices,
+            correctChoice: choices.indexOf('$chunk'),
+            evidenceKey: 'placeValueChunkOrder',
+            evidenceCompetency: familyCompetency,
+            evidenceWeight: 0.25,
+          ),
+          GuidedMethodStep(
+            title: 'Block verrechnen',
+            instruction: 'Rechne ${fact.a} − $chunk jetzt selbst zu Ende.',
+            question: 'Wo landest du?',
+            choices: _numberChoices(
+              fact.result,
+              maxValue: max(fact.a, fact.result + 10),
+            ),
+            correctChoice: _numberChoices(
+              fact.result,
+              maxValue: max(fact.a, fact.result + 10),
+            ).indexOf('${fact.result}'),
+            evidenceKey: 'finalPlaceValueSubtraction',
+            evidenceCompetency: familyCompetency,
+            evidenceWeight: 0.25,
+          ),
+        ],
+      );
+    }
+
     final steps = <GuidedMethodStep>[];
     var current = fact.a;
     for (var index = 0; index < chunks.length; index++) {
       final chunk = chunks[index];
       final next = current - chunk;
-      final choices = _numberChoices(
-        next,
-        maxValue: max(fact.a, next + 10),
-      );
+      final choices = _numberChoices(next, maxValue: max(fact.a, next + 10));
+      final last = index == chunks.length - 1;
       steps.add(
         GuidedMethodStep(
           title: '${ArithmeticStrategy.placeLabel(chunk)} abziehen',
@@ -1559,13 +1700,13 @@ class GuidedMethodFactory {
           question: 'Wo landest du nach diesem Teil?',
           choices: choices,
           correctChoice: choices.indexOf('$next'),
-          evidenceKey: index == 0 ? 'firstPlaceValueSubtraction' : null,
-          evidenceCompetency: index == 0
-              ? MicroCompetencyCatalog.competencyForArithmeticFamily(
-                  ArithmeticStrategy.familyFor(fact),
-                )
-              : null,
-          evidenceWeight: index == 0 ? 0.45 : 1,
+          evidenceKey: index == 0
+              ? 'firstPlaceValueSubtraction'
+              : last
+              ? 'finalPlaceValueSubtraction'
+              : 'nextPlaceValueSubtraction',
+          evidenceCompetency: familyCompetency,
+          evidenceWeight: index == 0 ? 0.40 : 0.22,
         ),
       );
       current = next;
@@ -1583,11 +1724,68 @@ class GuidedMethodFactory {
     );
   }
 
+  static int _withoutTrailingZeros(int value) {
+    var reduced = value;
+    while (reduced >= 10 && reduced % 10 == 0) {
+      reduced ~/= 10;
+    }
+    return reduced;
+  }
+
   static GuidedMethodGuide _placeValueMultiplication(MathFact fact) {
     final parts = ArithmeticStrategy.multiplicationParts(fact);
     final chunks = ArithmeticStrategy.multiplicationOperandChunks(fact);
     final partials = ArithmeticStrategy.multiplicationPartialProducts(fact);
     final decomposition = chunks.join(' + ');
+    final familyCompetency =
+        MicroCompetencyCatalog.competencyForArithmeticFamily(
+          ArithmeticStrategy.familyFor(fact),
+        );
+    if (chunks.length == 1) {
+      final base = _withoutTrailingZeros(chunks.single);
+      final baseProduct = base * parts.$2;
+      final choices = _numberChoices(
+        baseProduct,
+        maxValue: max(20, baseProduct + 10),
+      );
+      return GuidedMethodGuide(
+        methodKey: 'multiplication:placeValueChunks',
+        methodLabel: 'Stellenwert verschieben',
+        nudge:
+            'Nutze zuerst die kleine Grundaufgabe $base × ${parts.$2}. Übertrage danach den Stellenwert.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Grundaufgabe rechnen',
+            instruction:
+                'Löse zuerst nur $base × ${parts.$2}. Die Nullen bzw. Stellenwerte kommen danach zurück.',
+            question: 'Wie lautet die Grundaufgabe?',
+            choices: choices,
+            correctChoice: choices.indexOf('$baseProduct'),
+            evidenceKey: 'placeValueMultiplicationBaseFact',
+            evidenceCompetency: familyCompetency,
+            evidenceWeight: 0.40,
+          ),
+          GuidedMethodStep(
+            title: 'Stellenwert übertragen',
+            instruction:
+                'Übertrage jetzt den Stellenwert von ${chunks.single} auf das Ergebnis, ohne die Grundaufgabe neu zu rechnen.',
+            question: 'Welches Produkt entsteht?',
+            choices: _numberChoices(
+              fact.result,
+              maxValue: max(fact.result + 100, 100),
+            ),
+            correctChoice: _numberChoices(
+              fact.result,
+              maxValue: max(fact.result + 100, 100),
+            ).indexOf('${fact.result}'),
+            evidenceKey: 'placeValueMultiplicationResult',
+            evidenceCompetency: familyCompetency,
+            evidenceWeight: 0.25,
+          ),
+        ],
+      );
+    }
+
     final steps = <GuidedMethodStep>[];
     for (var index = 0; index < chunks.length; index++) {
       final chunk = chunks[index];
@@ -1603,37 +1801,35 @@ class GuidedMethodFactory {
           question: 'Wie groß ist dieses Teilprodukt?',
           choices: choices,
           correctChoice: choices.indexOf('$partial'),
-          evidenceKey: index == 0 ? 'firstPlaceValueProduct' : null,
-          evidenceCompetency: index == 0
-              ? MicroCompetencyCatalog.competencyForArithmeticFamily(
-                  ArithmeticStrategy.familyFor(fact),
-                )
-              : null,
-          evidenceWeight: index == 0 ? 0.45 : 1,
+          evidenceKey: index == 0
+              ? 'firstPlaceValueProduct'
+              : 'nextPlaceValueProduct',
+          evidenceCompetency: familyCompetency,
+          evidenceWeight: index == 0 ? 0.40 : 0.22,
         ),
       );
     }
-    if (partials.length > 1) {
-      final choices = _numberChoices(
-        fact.result,
-        maxValue: max(fact.result + 100, 100),
-      );
-      steps.add(
-        GuidedMethodStep(
-          title: 'Teilprodukte zusammenfügen',
-          instruction: '${partials.join(' + ')} = ${fact.result}.',
-          question: 'Wie lautet das Produkt insgesamt?',
-          choices: choices,
-          correctChoice: choices.indexOf('${fact.result}'),
-        ),
-      );
-    }
+    final choices = _numberChoices(
+      fact.result,
+      maxValue: max(fact.result + 100, 100),
+    );
+    steps.add(
+      GuidedMethodStep(
+        title: 'Teilprodukte zusammenfügen',
+        instruction: 'Füge ${partials.join(' + ')} vollständig zusammen.',
+        question: 'Wie lautet das Produkt insgesamt?',
+        choices: choices,
+        correctChoice: choices.indexOf('${fact.result}'),
+        evidenceKey: 'combinePlaceValueProducts',
+        evidenceCompetency: familyCompetency,
+        evidenceWeight: 0.25,
+      ),
+    );
     return GuidedMethodGuide(
       methodKey: 'multiplication:placeValueChunks',
       methodLabel: 'Mit Teilprodukten rechnen',
-      nudge: chunks.length <= 1
-          ? 'Nutze die bekannte Grundaufgabe und verschiebe den Stellenwert passend.'
-          : 'Zerlege ${parts.$1} nach Stellenwerten: $decomposition. Multipliziere jeden Teil mit ${parts.$2}.',
+      nudge:
+          'Zerlege ${parts.$1} nach Stellenwerten: $decomposition. Multipliziere jeden Teil mit ${parts.$2}.',
       steps: steps,
     );
   }
@@ -1641,6 +1837,60 @@ class GuidedMethodFactory {
   static GuidedMethodGuide _placeValueDivision(MathFact fact) {
     final quotientChunks = ArithmeticStrategy.divisionQuotientChunks(fact);
     final dividendChunks = ArithmeticStrategy.divisionDividendChunks(fact);
+    final familyCompetency =
+        MicroCompetencyCatalog.competencyForArithmeticFamily(
+          ArithmeticStrategy.familyFor(fact),
+        );
+    if (quotientChunks.length == 1) {
+      var baseDividend = dividendChunks.single;
+      while (baseDividend >= 10 &&
+          baseDividend % 10 == 0 &&
+          (baseDividend ~/ 10) % fact.b == 0) {
+        baseDividend ~/= 10;
+      }
+      final baseQuotient = baseDividend ~/ fact.b;
+      final choices = _numberChoices(
+        baseQuotient,
+        maxValue: max(20, baseQuotient + 10),
+      );
+      return GuidedMethodGuide(
+        methodKey: 'division:placeValueChunks',
+        methodLabel: 'Stellenwert verschieben',
+        nudge:
+            'Nutze zuerst die kleine Grundaufgabe $baseDividend ÷ ${fact.b}. Übertrage danach den Stellenwert.',
+        steps: [
+          GuidedMethodStep(
+            title: 'Grundaufgabe rechnen',
+            instruction:
+                'Löse zuerst nur $baseDividend ÷ ${fact.b}. Die Stellenwerte kommen danach zurück.',
+            question: 'Wie lautet die Grundaufgabe?',
+            choices: choices,
+            correctChoice: choices.indexOf('$baseQuotient'),
+            evidenceKey: 'placeValueDivisionBaseFact',
+            evidenceCompetency: familyCompetency,
+            evidenceWeight: 0.40,
+          ),
+          GuidedMethodStep(
+            title: 'Stellenwert übertragen',
+            instruction:
+                'Übertrage jetzt den Stellenwert auf den Quotienten, ohne die Grundaufgabe neu zu rechnen.',
+            question: 'Welcher Quotient entsteht?',
+            choices: _numberChoices(
+              fact.result,
+              maxValue: max(fact.result + 20, 20),
+            ),
+            correctChoice: _numberChoices(
+              fact.result,
+              maxValue: max(fact.result + 20, 20),
+            ).indexOf('${fact.result}'),
+            evidenceKey: 'placeValueDivisionResult',
+            evidenceCompetency: familyCompetency,
+            evidenceWeight: 0.25,
+          ),
+        ],
+      );
+    }
+
     final steps = <GuidedMethodStep>[];
     for (var index = 0; index < quotientChunks.length; index++) {
       final quotientChunk = quotientChunks[index];
@@ -1652,41 +1902,39 @@ class GuidedMethodFactory {
       steps.add(
         GuidedMethodStep(
           title: '${ArithmeticStrategy.placeLabel(quotientChunk)} teilen',
-          instruction: 'Teile zuerst $dividendChunk ÷ ${fact.b}.',
+          instruction: 'Teile $dividendChunk ÷ ${fact.b}.',
           question: 'Welcher Teilquotient entsteht?',
           choices: choices,
           correctChoice: choices.indexOf('$quotientChunk'),
-          evidenceKey: index == 0 ? 'firstPlaceValueQuotient' : null,
-          evidenceCompetency: index == 0
-              ? MicroCompetencyCatalog.competencyForArithmeticFamily(
-                  ArithmeticStrategy.familyFor(fact),
-                )
-              : null,
-          evidenceWeight: index == 0 ? 0.45 : 1,
+          evidenceKey: index == 0
+              ? 'firstPlaceValueQuotient'
+              : 'nextPlaceValueQuotient',
+          evidenceCompetency: familyCompetency,
+          evidenceWeight: index == 0 ? 0.40 : 0.22,
         ),
       );
     }
-    if (quotientChunks.length > 1) {
-      final choices = _numberChoices(
-        fact.result,
-        maxValue: max(fact.result + 20, 20),
-      );
-      steps.add(
-        GuidedMethodStep(
-          title: 'Teilquotienten zusammenfügen',
-          instruction: '${quotientChunks.join(' + ')} = ${fact.result}.',
-          question: 'Wie lautet der Quotient insgesamt?',
-          choices: choices,
-          correctChoice: choices.indexOf('${fact.result}'),
-        ),
-      );
-    }
+    final choices = _numberChoices(
+      fact.result,
+      maxValue: max(fact.result + 20, 20),
+    );
+    steps.add(
+      GuidedMethodStep(
+        title: 'Teilquotienten zusammenfügen',
+        instruction: 'Füge ${quotientChunks.join(' + ')} vollständig zusammen.',
+        question: 'Wie lautet der Quotient insgesamt?',
+        choices: choices,
+        correctChoice: choices.indexOf('${fact.result}'),
+        evidenceKey: 'combinePlaceValueQuotients',
+        evidenceCompetency: familyCompetency,
+        evidenceWeight: 0.25,
+      ),
+    );
     return GuidedMethodGuide(
       methodKey: 'division:placeValueChunks',
       methodLabel: 'Mit Teilquotienten rechnen',
-      nudge: dividendChunks.length <= 1
-          ? 'Nutze eine passende Mal-Umkehraufgabe und übertrage den Stellenwert.'
-          : 'Zerlege ${fact.a} in gut teilbare Blöcke: ${dividendChunks.join(' + ')}. Teile jeden Block durch ${fact.b}.',
+      nudge:
+          'Zerlege ${fact.a} in gut teilbare Blöcke: ${dividendChunks.join(' + ')}. Teile jeden Block durch ${fact.b}.',
       steps: steps,
     );
   }

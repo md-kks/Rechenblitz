@@ -7,6 +7,7 @@ import '../models/cube_net.dart';
 import '../models/curriculum_exercise.dart';
 import '../models/active_response_timer.dart';
 import '../models/adaptive_segment.dart';
+import '../models/arithmetic_strategy.dart';
 import '../models/error_diagnosis.dart';
 import '../models/guided_method.dart';
 import '../models/help_preferences.dart';
@@ -74,15 +75,23 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
   NumberRangeLevel get _sessionNumberRange =>
       widget.numberRangeOverride ?? widget.controller.effectiveNumberRange;
   TrainingMode get _generationMode => widget.arithmeticMode ?? widget.mode;
-  TouchInteractionPlan? get _touchInteraction => TouchInteractionPlan.forTask(
-        mode: _generationMode,
-        taskKey: current.key,
-        answer: current.answer,
-        maxValue: current.maxAnswerValue ?? _sessionNumberRange.maxValue,
-        choices: current.choices,
-        answerSuffix: current.answerSuffix,
-        targetCompetency: widget.targetCompetency,
-      );
+  TouchInteractionPlan? get _touchInteraction {
+    final targetedFamily = widget.targetCompetency == null
+        ? null
+        : MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+            widget.targetCompetency!,
+          );
+    return TouchInteractionPlan.forTask(
+      mode: _generationMode,
+      taskKey: current.key,
+      answer: current.answer,
+      maxValue: current.maxAnswerValue ?? _sessionNumberRange.maxValue,
+      choices: current.choices,
+      answerSuffix: current.answerSuffix,
+      targetCompetency: widget.targetCompetency,
+      skipFirstArithmeticStep: targetedFamily != null && checkpointIndex > 0,
+    );
+  }
 
   MicroEvidenceSource get _evidenceSource => widget.transferEmphasis
       ? MicroEvidenceSource.transfer
@@ -494,6 +503,42 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
       _ => null,
     };
     return operation == null ? null : MathFact(a: a, b: b, operation: operation);
+  }
+
+  MicroCompetencyId? get _arithmeticProcessCompetency {
+    final targeted = widget.targetCompetency;
+    if (targeted != null &&
+        MicroCompetencyCatalog.arithmeticFamilyForCompetency(targeted) !=
+            null) {
+      return targeted;
+    }
+    final fact = _currentArithmeticFact();
+    if (fact == null || !ArithmeticStrategy.usesPlaceValueStrategy(fact)) {
+      return null;
+    }
+    return MicroCompetencyCatalog.competencyForArithmeticFamily(
+      ArithmeticStrategy.familyFor(fact),
+    );
+  }
+
+  void _recordTouchProcessStep(TouchProcessStepAttempt attempt) {
+    final competencyId = _arithmeticProcessCompetency;
+    if (competencyId == null) return;
+    if (!attempt.correct) hadCheckpointError = true;
+    unawaited(
+      widget.controller.recordIndependentStepAttempt(
+        mode: _generationMode,
+        taskKey: '${current.key}:process:${attempt.detailKey}',
+        stepKey: attempt.stepKey,
+        competencyId: competencyId,
+        correct: attempt.correct,
+        usedHelp: showHint || helpLevel > 0,
+        helpLevel: helpLevel,
+        methodKey: activeMethodKey,
+        evidenceWeight: attempt.evidenceWeight,
+        numberRangeOverride: widget.numberRangeOverride,
+      ),
+    );
   }
 
   void _recordOperationOutcome(bool firstTryCorrect) {
@@ -1018,6 +1063,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
                   plan: _touchInteraction!,
                   locked: locked,
                   onAnswer: _answer,
+                  onProcessStepAttempt: _recordTouchProcessStep,
                 ),
                 const SizedBox(height: 6),
                 TextButton.icon(
@@ -1073,6 +1119,7 @@ class _CurriculumTrainingScreenState extends State<CurriculumTrainingScreen>
                     plan: _touchInteraction!,
                     locked: locked,
                     onAnswer: _answer,
+                    onProcessStepAttempt: _recordTouchProcessStep,
                   ),
                   const SizedBox(height: 6),
                   TextButton.icon(

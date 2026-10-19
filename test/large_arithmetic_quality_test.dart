@@ -100,9 +100,9 @@ void main() {
 
       expect(result.methodKey, 'division:placeValueChunks');
       expect(result.nudge, contains('240 + 8'));
-      expect(result.steps[0].instruction, 'Teile zuerst 240 ÷ 4.');
-      expect(result.steps[1].instruction, 'Teile zuerst 8 ÷ 4.');
-      expect(result.steps.last.instruction, contains('60 + 2 = 62'));
+      expect(result.steps[0].instruction, 'Teile 240 ÷ 4.');
+      expect(result.steps[1].instruction, 'Teile 8 ÷ 4.');
+      expect(result.steps.last.instruction, contains('60 + 2'));
     });
   });
 
@@ -749,4 +749,328 @@ void main() {
     );
   });
 
+
+  group('Aktive Rechenwege großer Aufgaben', () {
+    test(
+      'glatte Ein-Schritt-Aufgaben verraten die Endlösung nicht im Pflicht-Checkpoint',
+      () {
+        final plusSteps = GuidedMethodFactory.independentWrittenStepsForTask(
+          mode: TrainingMode.practice,
+          taskKey: 'plus:347:200',
+          expected: 547,
+          preferences: const MethodPreferences(),
+          targetCompetency: MicroCompetencyId.largeAdditionNoRegroup,
+        );
+        expect(plusSteps, isEmpty);
+
+        final multiplySteps =
+            GuidedMethodFactory.independentWrittenStepsForTask(
+              mode: TrainingMode.multiply,
+              taskKey: 'multiply:300:3',
+              expected: 900,
+              preferences: const MethodPreferences(),
+              targetCompetency: MicroCompetencyId.largeMultiplicationPlaceShift,
+            );
+        expect(multiplySteps, hasLength(1));
+        expect(
+          multiplySteps.single.evidenceKey,
+          'placeValueMultiplicationBaseFact',
+        );
+        expect(multiplySteps.single.question, contains('Grundaufgabe'));
+        expect(multiplySteps.single.choices, isNot(contains('900')));
+        expect(multiplySteps.single.choices, contains('9'));
+
+        final divideSteps = GuidedMethodFactory.independentWrittenStepsForTask(
+          mode: TrainingMode.divide,
+          taskKey: 'divide:600:3',
+          expected: 200,
+          preferences: const MethodPreferences(),
+          targetCompetency: MicroCompetencyId.largeDivisionPlaceShift,
+        );
+        expect(divideSteps, hasLength(1));
+        expect(divideSteps.single.evidenceKey, 'placeValueDivisionBaseFact');
+        expect(divideSteps.single.choices, isNot(contains('200')));
+      },
+    );
+
+    test(
+      'bereits geprüfter erster Rechenschritt wird im Touch-Pfad nicht doppelt verlangt',
+      () {
+        final plan = TouchInteractionPlan.forTask(
+          mode: TrainingMode.multiply,
+          taskKey: 'multiply:247:6',
+          answer: 1482,
+          maxValue: 10000,
+          targetCompetency:
+              MicroCompetencyId.largeMultiplicationPartialProducts,
+          skipFirstArithmeticStep: true,
+        );
+        expect(plan?.kind, TouchInteractionKind.mentalChunkPath);
+        expect(plan?.dataOperation, 'multiply:skip-first');
+        expect(plan?.dataValues, <int>[247, 6, 200, 40, 7]);
+      },
+    );
+
+    test('alle Prozessschritte besitzen gezielte Recovery-Pfade', () {
+      final cases = <(String, MicroCompetencyId, TrainingMode, String)>[
+        (
+          'placeValueChunkOrder',
+          MicroCompetencyId.largeAdditionMultiRegroup,
+          TrainingMode.practice,
+          'plus:347:286',
+        ),
+        (
+          'nextPlaceValueAddition',
+          MicroCompetencyId.largeAdditionMultiRegroup,
+          TrainingMode.practice,
+          'plus:347:286',
+        ),
+        (
+          'finalPlaceValueAddition',
+          MicroCompetencyId.largeAdditionMultiRegroup,
+          TrainingMode.practice,
+          'plus:347:286',
+        ),
+        (
+          'nextPlaceValueSubtraction',
+          MicroCompetencyId.largeSubtractionMultiBorrow,
+          TrainingMode.minus,
+          'minus:743:286',
+        ),
+        (
+          'finalPlaceValueSubtraction',
+          MicroCompetencyId.largeSubtractionMultiBorrow,
+          TrainingMode.minus,
+          'minus:743:286',
+        ),
+        (
+          'nextPlaceValueProduct',
+          MicroCompetencyId.largeMultiplicationPartialProducts,
+          TrainingMode.multiply,
+          'multiply:247:6',
+        ),
+        (
+          'combinePlaceValueProducts',
+          MicroCompetencyId.largeMultiplicationPartialProducts,
+          TrainingMode.multiply,
+          'multiply:247:6',
+        ),
+        (
+          'placeValueMultiplicationBaseFact',
+          MicroCompetencyId.largeMultiplicationPlaceShift,
+          TrainingMode.multiply,
+          'multiply:300:3',
+        ),
+        (
+          'placeValueMultiplicationResult',
+          MicroCompetencyId.largeMultiplicationPlaceShift,
+          TrainingMode.multiply,
+          'multiply:300:3',
+        ),
+        (
+          'nextPlaceValueQuotient',
+          MicroCompetencyId.largeDivisionPartialQuotients,
+          TrainingMode.divide,
+          'divide:248:4',
+        ),
+        (
+          'combinePlaceValueQuotients',
+          MicroCompetencyId.largeDivisionPartialQuotients,
+          TrainingMode.divide,
+          'divide:248:4',
+        ),
+        (
+          'placeValueDivisionBaseFact',
+          MicroCompetencyId.largeDivisionPlaceShift,
+          TrainingMode.divide,
+          'divide:600:3',
+        ),
+        (
+          'placeValueDivisionResult',
+          MicroCompetencyId.largeDivisionPlaceShift,
+          TrainingMode.divide,
+          'divide:600:3',
+        ),
+      ];
+
+      for (var index = 0; index < cases.length; index++) {
+        final entry = cases[index];
+        expect(
+          StepRecoveryGenerator.supports(entry.$1),
+          isTrue,
+          reason: entry.$1,
+        );
+        final focus = IndependentStepRecoveryFocus(
+          competencyId: entry.$2,
+          stepKey: entry.$1,
+          label: GuidedStepCatalog.labelFor(entry.$1),
+          mode: entry.$3,
+          lastSeen: DateTime(2026, 10, 19, 12),
+          sourceTaskKey: 'independent:${entry.$1}:${entry.$4}:process:test',
+        );
+        final plan = StepRecoveryGenerator(
+          random: Random(900 + index),
+        ).generate(focus: focus, range: NumberRangeLevel.thousand);
+        expect(plan.tasks, hasLength(3), reason: entry.$1);
+        expect(
+          plan.tasks.every((task) => task.taskKey.contains(entry.$1)),
+          isTrue,
+          reason: entry.$1,
+        );
+      }
+    });
+
+    testWidgets(
+      'Curriculum speichert den exakten falschen Teilprodukt-Schritt',
+      (tester) async {
+        final controller = AppController();
+        await controller.load();
+        controller.gradeLevel = GradeLevel.third;
+        controller.numberRange = NumberRangeLevel.thousand;
+        const exercise = CurriculumExercise(
+          mode: TrainingMode.multiply,
+          prompt: 'Wie viel ist 247 × 6?',
+          answer: 1482,
+          hint: 'Zerlege 247 in Stellenwertblöcke.',
+          key: 'multiply:247:6',
+          maxAnswerValue: 10000,
+          method: 'Malnehmen mit Teilprodukten',
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: CurriculumTrainingScreen(
+              controller: controller,
+              mode: TrainingMode.multiply,
+              targetTasks: 1,
+              targetCompetency:
+                  MicroCompetencyId.largeMultiplicationPartialProducts,
+              arithmeticMode: TrainingMode.multiply,
+              exerciseGenerator: _FixedLargeArithmeticGenerator(exercise),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Wie groß ist dieses Teilprodukt?'), findsOneWidget);
+        await tester.tap(find.widgetWithText(FilledButton, '1200'));
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('touch-mental-chunk-200')),
+          findsNothing,
+        );
+        expect(
+          find.byKey(const ValueKey('touch-mental-chunk-40')),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const ValueKey('touch-mental-chunk-40')));
+        await tester.pump();
+        expect(find.text('40 × 6 = ?'), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('touch-mental-step-244')));
+        await tester.pumpAndSettle();
+
+        final processEvidence = controller.microObservations.where(
+          (entry) =>
+              entry.id ==
+                  MicroCompetencyId.largeMultiplicationPartialProducts &&
+              entry.source == MicroEvidenceSource.independentStep &&
+              entry.taskKey.contains(':process:chunk-40'),
+        );
+        expect(processEvidence, hasLength(1));
+        expect(processEvidence.single.correct, isFalse);
+        expect(
+          processEvidence.single.taskKey,
+          contains('independent:nextPlaceValueProduct:'),
+        );
+      },
+    );
+
+    test(
+      'aktive Prozesspläne bleiben in allen großen Zahlenräumen familiengetreu',
+      () {
+        const targets = <MicroCompetencyId>[
+          MicroCompetencyId.largeAdditionNoRegroup,
+          MicroCompetencyId.largeAdditionOnesRegroup,
+          MicroCompetencyId.largeAdditionHigherRegroup,
+          MicroCompetencyId.largeAdditionMultiRegroup,
+          MicroCompetencyId.largeSubtractionNoRegroup,
+          MicroCompetencyId.largeSubtractionOnesBorrow,
+          MicroCompetencyId.largeSubtractionHigherBorrow,
+          MicroCompetencyId.largeSubtractionMultiBorrow,
+          MicroCompetencyId.largeMultiplicationPlaceShift,
+          MicroCompetencyId.largeMultiplicationPartialProducts,
+          MicroCompetencyId.largeDivisionPlaceShift,
+          MicroCompetencyId.largeDivisionPartialQuotients,
+        ];
+        const ranges = <NumberRangeLevel>[
+          NumberRangeLevel.thousand,
+          NumberRangeLevel.tenThousand,
+          NumberRangeLevel.million,
+        ];
+
+        var seed = 1200;
+        for (final range in ranges) {
+          for (final target in targets) {
+            final definition = MicroCompetencyCatalog.definition(target);
+            final family = MicroCompetencyCatalog.arithmeticFamilyForCompetency(
+              target,
+            )!;
+            final generator = CurriculumExerciseGenerator(
+              random: Random(seed++),
+            );
+            for (var sample = 0; sample < 12; sample++) {
+              final exercise = generator.generateDirectArithmetic(
+                mode: definition.preferredMode,
+                gradeLevel: GradeLevel.third,
+                maxValue: range.maxValue,
+                directArithmeticStage: 2,
+                targetCompetency: target,
+              );
+              final parts = exercise.key.split(':');
+              final operation = switch (parts.first) {
+                'plus' => MathOperation.plus,
+                'minus' => MathOperation.minus,
+                'multiply' => MathOperation.multiply,
+                'divide' => MathOperation.divide,
+                _ => throw StateError('Unerwartete Rechenart ${parts.first}'),
+              };
+              final fact = MathFact(
+                a: int.parse(parts[1]),
+                b: int.parse(parts[2]),
+                operation: operation,
+              );
+              expect(ArithmeticStrategy.matchesFamily(fact, family), isTrue);
+              final touch = TouchInteractionPlan.forTask(
+                mode: definition.preferredMode,
+                taskKey: exercise.key,
+                answer: exercise.answer,
+                maxValue: range.maxValue,
+                targetCompetency: target,
+              );
+              expect(touch?.kind, TouchInteractionKind.mentalChunkPath);
+              expect(touch?.dataValues.length, greaterThanOrEqualTo(3));
+            }
+          }
+        }
+      },
+    );
+  });
+}
+
+
+class _FixedLargeArithmeticGenerator extends CurriculumExerciseGenerator {
+  _FixedLargeArithmeticGenerator(this.exercise);
+
+  final CurriculumExercise exercise;
+
+  @override
+  CurriculumExercise generate({
+    required TrainingMode mode,
+    required GradeLevel gradeLevel,
+    required int maxValue,
+    Iterable<String> recentKeys = const <String>[],
+    MicroCompetencyId? targetCompetency,
+  }) => exercise;
 }

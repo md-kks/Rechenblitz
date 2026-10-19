@@ -275,6 +275,19 @@ class StepRecoveryGenerator {
     'firstPlaceValueSubtraction',
     'firstPlaceValueProduct',
     'firstPlaceValueQuotient',
+    'placeValueChunkOrder',
+    'nextPlaceValueAddition',
+    'finalPlaceValueAddition',
+    'nextPlaceValueSubtraction',
+    'finalPlaceValueSubtraction',
+    'nextPlaceValueProduct',
+    'combinePlaceValueProducts',
+    'placeValueMultiplicationBaseFact',
+    'placeValueMultiplicationResult',
+    'nextPlaceValueQuotient',
+    'combinePlaceValueQuotients',
+    'placeValueDivisionBaseFact',
+    'placeValueDivisionResult',
     'lawStructureChoice',
     'reasoningRelationType',
     'referenceEstimate',
@@ -439,8 +452,24 @@ class StepRecoveryGenerator {
         'firstPlaceValueAddition' ||
         'firstPlaceValueSubtraction' ||
         'firstPlaceValueProduct' ||
-        'firstPlaceValueQuotient' =>
-          _firstPlaceValueArithmeticStep(focus, stage, range),
+        'firstPlaceValueQuotient' ||
+        'placeValueChunkOrder' ||
+        'nextPlaceValueAddition' ||
+        'finalPlaceValueAddition' ||
+        'nextPlaceValueSubtraction' ||
+        'finalPlaceValueSubtraction' ||
+        'nextPlaceValueProduct' ||
+        'combinePlaceValueProducts' ||
+        'placeValueMultiplicationBaseFact' ||
+        'placeValueMultiplicationResult' ||
+        'nextPlaceValueQuotient' ||
+        'combinePlaceValueQuotients' ||
+        'placeValueDivisionBaseFact' ||
+        'placeValueDivisionResult' => _firstPlaceValueArithmeticStep(
+          focus,
+          stage,
+          range,
+        ),
         'lawStructureChoice' =>
           _arithmeticLawStructureStep(focus, stage),
         'reasoningRelationType' =>
@@ -3203,12 +3232,14 @@ class StepRecoveryGenerator {
     }
 
     MathFact? parseFact(String key) {
-      final parts = key.split(':');
-      if (parts.length != 3) return null;
-      final a = int.tryParse(parts[1]);
-      final b = int.tryParse(parts[2]);
+      final match = RegExp(
+        r'(plus|minus|multiply|divide):(\d+):(\d+)',
+      ).firstMatch(key);
+      if (match == null) return null;
+      final a = int.tryParse(match.group(2)!);
+      final b = int.tryParse(match.group(3)!);
       if (a == null || b == null) return null;
-      final operation = switch (parts[0]) {
+      final operation = switch (match.group(1)) {
         'plus' => MathOperation.plus,
         'minus' => MathOperation.minus,
         'multiply' => MathOperation.multiply,
@@ -3221,7 +3252,8 @@ class StepRecoveryGenerator {
     }
 
     final source = parseFact(focus.sourceTaskKey);
-    final useSource = stage == RemediationStage.supported &&
+    final useSource =
+        stage == RemediationStage.supported &&
         source != null &&
         ArithmeticStrategy.matchesFamily(source, family);
     late final MathFact fact;
@@ -3230,13 +3262,21 @@ class StepRecoveryGenerator {
     } else {
       final exercise = CurriculumExerciseGenerator(random: _random)
           .generateDirectArithmetic(
-        mode: focus.mode,
-        gradeLevel: GradeLevel.third,
-        maxValue: max(1000, range.maxValue),
-        directArithmeticStage: 2,
-        targetCompetency: focus.competencyId,
-      );
+            mode: focus.mode,
+            gradeLevel: GradeLevel.third,
+            maxValue: max(1000, range.maxValue),
+            directArithmeticStage: 2,
+            targetCompetency: focus.competencyId,
+          );
       fact = parseFact(exercise.key) ?? source!;
+    }
+
+    int withoutTrailingZeros(int value) {
+      var reduced = value;
+      while (reduced >= 10 && reduced % 10 == 0) {
+        reduced ~/= 10;
+      }
+      return reduced;
     }
 
     late final int expected;
@@ -3244,30 +3284,137 @@ class StepRecoveryGenerator {
     late final String hint;
     switch (fact.operation) {
       case MathOperation.plus:
-        final chunk = ArithmeticStrategy.placeValueChunks(fact.b).first;
-        expected = fact.a + chunk;
-        prompt = '${fact.a} + ${fact.b}: Rechne zuerst den größten Stellenwertblock $chunk. Wo landest du nach diesem ersten Schritt?';
-        hint = 'Zerlege ${fact.b} nach Stellenwerten und verrechne zuerst $chunk.';
+        final chunks = ArithmeticStrategy.placeValueChunks(fact.b);
+        if (focus.stepKey == 'placeValueChunkOrder') {
+          expected = chunks.first;
+          prompt =
+              '${fact.a} + ${fact.b}: Welchen Stellenwertblock von ${fact.b} rechnest du zuerst?';
+          hint = 'Beginne beim größten noch offenen Stellenwertblock.';
+        } else {
+          final index = focus.stepKey == 'finalPlaceValueAddition'
+              ? chunks.length - 1
+              : focus.stepKey == 'nextPlaceValueAddition'
+              ? min(1, chunks.length - 1)
+              : 0;
+          var current = fact.a;
+          for (var i = 0; i < index; i++) {
+            current += chunks[i];
+          }
+          final chunk = chunks[index];
+          expected = current + chunk;
+          prompt =
+              '$current + $chunk: Wo landest du nach genau diesem Stellenwertschritt?';
+          hint = index == chunks.length - 1
+              ? 'Rechne nur den letzten noch offenen Block.'
+              : 'Verrechne nur diesen Block und lasse spätere Stellenwerte noch unangetastet.';
+        }
       case MathOperation.minus:
-        final chunk = ArithmeticStrategy.placeValueChunks(fact.b).first;
-        expected = fact.a - chunk;
-        prompt = '${fact.a} − ${fact.b}: Ziehe zuerst den größten Stellenwertblock $chunk ab. Wo landest du?';
-        hint = 'Zerlege ${fact.b} nach Stellenwerten und beginne mit $chunk.';
+        final chunks = ArithmeticStrategy.placeValueChunks(fact.b);
+        if (focus.stepKey == 'placeValueChunkOrder') {
+          expected = chunks.first;
+          prompt =
+              '${fact.a} − ${fact.b}: Welchen Stellenwertblock von ${fact.b} ziehst du zuerst ab?';
+          hint = 'Beginne beim größten noch offenen Stellenwertblock.';
+        } else {
+          final index = focus.stepKey == 'finalPlaceValueSubtraction'
+              ? chunks.length - 1
+              : focus.stepKey == 'nextPlaceValueSubtraction'
+              ? min(1, chunks.length - 1)
+              : 0;
+          var current = fact.a;
+          for (var i = 0; i < index; i++) {
+            current -= chunks[i];
+          }
+          final chunk = chunks[index];
+          expected = current - chunk;
+          prompt =
+              '$current − $chunk: Wo landest du nach genau diesem Stellenwertschritt?';
+          hint = index == chunks.length - 1
+              ? 'Ziehe nur den letzten noch offenen Block ab.'
+              : 'Ziehe nur diesen Block ab und lasse spätere Stellenwerte noch unangetastet.';
+        }
       case MathOperation.multiply:
         final parts = ArithmeticStrategy.multiplicationParts(fact);
-        final chunk = ArithmeticStrategy.multiplicationOperandChunks(fact).first;
-        expected = chunk * parts.$2;
-        prompt = '${parts.$1} × ${parts.$2}: Wie groß ist das erste Teilprodukt $chunk × ${parts.$2}?';
-        hint = 'Zerlege ${parts.$1} nach Stellenwerten und berechne zuerst das größte Teilprodukt.';
+        final chunks = ArithmeticStrategy.multiplicationOperandChunks(fact);
+        final partials = ArithmeticStrategy.multiplicationPartialProducts(fact);
+        if (focus.stepKey == 'placeValueChunkOrder') {
+          expected = chunks.first;
+          prompt =
+              '${parts.$1} × ${parts.$2}: Welchen Stellenwertblock von ${parts.$1} bearbeitest du zuerst?';
+          hint = 'Beginne beim größten Stellenwertblock.';
+        } else if (focus.stepKey == 'placeValueMultiplicationBaseFact') {
+          final base = withoutTrailingZeros(chunks.first);
+          expected = base * parts.$2;
+          prompt =
+              '${chunks.first} × ${parts.$2}: Wie lautet zuerst die kleine Grundaufgabe $base × ${parts.$2}?';
+          hint = 'Rechne noch ohne die Stellenwertnullen.';
+        } else if (focus.stepKey == 'placeValueMultiplicationResult') {
+          expected = fact.result;
+          prompt =
+              'Die Grundaufgabe ist geschafft. Welches Ergebnis entsteht nach der Stellenwertübertragung bei ${parts.$1} × ${parts.$2}?';
+          hint =
+              'Übertrage nur den Stellenwert; die Grundaufgabe musst du nicht neu rechnen.';
+        } else if (focus.stepKey == 'combinePlaceValueProducts') {
+          expected = fact.result;
+          prompt =
+              'Die Teilprodukte ${partials.join(' + ')} sind richtig. Wie groß ist ihre Summe?';
+          hint = 'Füge alle Teilprodukte genau einmal zusammen.';
+        } else {
+          final index = focus.stepKey == 'nextPlaceValueProduct'
+              ? min(1, chunks.length - 1)
+              : 0;
+          expected = partials[index];
+          prompt =
+              '${parts.$1} × ${parts.$2}: Wie groß ist das Teilprodukt ${chunks[index]} × ${parts.$2}?';
+          hint =
+              'Berechne nur dieses Teilprodukt. Die anderen Blöcke kommen separat.';
+        }
       case MathOperation.divide:
-        final dividendChunk = ArithmeticStrategy.divisionDividendChunks(fact).first;
-        expected = dividendChunk ~/ fact.b;
-        prompt = '${fact.a} ÷ ${fact.b}: Wie groß ist der erste Teilquotient $dividendChunk ÷ ${fact.b}?';
-        hint = 'Zerlege ${fact.a} in gut durch ${fact.b} teilbare Blöcke und beginne mit dem größten.';
+        final dividendChunks = ArithmeticStrategy.divisionDividendChunks(fact);
+        final quotientChunks = ArithmeticStrategy.divisionQuotientChunks(fact);
+        if (focus.stepKey == 'placeValueChunkOrder') {
+          expected = dividendChunks.first;
+          prompt =
+              '${fact.a} ÷ ${fact.b}: Welchen gut teilbaren Stellenwertblock bearbeitest du zuerst?';
+          hint = 'Beginne beim größten gut teilbaren Block.';
+        } else if (focus.stepKey == 'placeValueDivisionBaseFact') {
+          var base = dividendChunks.first;
+          while (base >= 10 && base % 10 == 0 && (base ~/ 10) % fact.b == 0) {
+            base ~/= 10;
+          }
+          expected = base ~/ fact.b;
+          prompt =
+              '${dividendChunks.first} ÷ ${fact.b}: Wie lautet zuerst die kleine Grundaufgabe $base ÷ ${fact.b}?';
+          hint = 'Rechne zunächst ohne die übertragbaren Stellenwertnullen.';
+        } else if (focus.stepKey == 'placeValueDivisionResult') {
+          expected = fact.result;
+          prompt =
+              'Die Grundaufgabe ist geschafft. Welcher Quotient entsteht nach der Stellenwertübertragung bei ${fact.a} ÷ ${fact.b}?';
+          hint =
+              'Übertrage nur den Stellenwert; die Grundaufgabe musst du nicht neu rechnen.';
+        } else if (focus.stepKey == 'combinePlaceValueQuotients') {
+          expected = fact.result;
+          prompt =
+              'Die Teilquotienten ${quotientChunks.join(' + ')} sind richtig. Wie groß ist ihre Summe?';
+          hint = 'Füge alle Teilquotienten genau einmal zusammen.';
+        } else {
+          final index = focus.stepKey == 'nextPlaceValueQuotient'
+              ? min(1, quotientChunks.length - 1)
+              : 0;
+          expected = quotientChunks[index];
+          prompt =
+              '${fact.a} ÷ ${fact.b}: Wie groß ist der Teilquotient ${dividendChunks[index]} ÷ ${fact.b}?';
+          hint = 'Teile nur diesen Block. Die anderen Blöcke kommen separat.';
+        }
     }
 
     final values = <int>{expected};
-    for (final delta in <int>[1, -1, 10, -10, 100, -100]) {
+    final placeScale = expected >= 100
+        ? 100
+        : expected >= 10
+        ? 10
+        : 1;
+    for (final delta in <int>[placeScale, -placeScale, 1, -1, 10, -10]) {
       final candidate = expected + delta;
       if (candidate >= 0) values.add(candidate);
       if (values.length >= 4) break;
@@ -3275,14 +3422,14 @@ class StepRecoveryGenerator {
     var filler = 0;
     while (values.length < 4) {
       values.add(filler);
-      filler += 1;
+      filler += max(1, placeScale);
     }
     final choices = values.take(4).map((value) => '$value').toList()
       ..shuffle(_random);
     return _choice(
       focus: focus,
       stage: stage,
-      key: 'large-arithmetic:${family.name}:${fact.key}',
+      key: 'large-arithmetic:${focus.stepKey}:${family.name}:${fact.key}',
       prompt: prompt,
       choices: choices,
       answer: choices.indexOf('$expected'),

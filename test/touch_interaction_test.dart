@@ -4998,17 +4998,92 @@ void main() {
     expect(distribute?.dataValues, <int>[6, 47, 50, 3]);
   });
 
-  testWidgets('mental chunks require the correct order before the final result counts',
-      (tester) async {
+  testWidgets(
+    'mental chunks validate order and each arithmetic step immediately',
+    (tester) async {
+      var answer = -1;
+      final attempts = <TouchProcessStepAttempt>[];
+      const plan = TouchInteractionPlan(
+        taskKey: 'mental:+:583:247',
+        kind: TouchInteractionKind.mentalChunkPath,
+        instruction: 'Rechne in Stellenwertblöcken.',
+        dataValues: <int>[583, 247, 200, 40, 7],
+        dataOperation: '+',
+        expectedAnswer: 830,
+        maxValue: 1000,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TouchAnswerInteraction(
+                plan: plan,
+                onAnswer: (value) => answer = value,
+                onProcessStepAttempt: attempts.add,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('touch-mental-chunk-40')));
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('touch-mental-step-feedback')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('touch-mental-step-equation')),
+        findsNothing,
+      );
+      expect(attempts.last.stepKey, 'placeValueChunkOrder');
+      expect(attempts.last.correct, isFalse);
+
+      await tester.tap(find.byKey(const ValueKey('touch-mental-chunk-200')));
+      await tester.pump();
+      expect(find.text('583 + 200 = ?'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('touch-mental-step-783')));
+      await tester.pump();
+      expect(attempts.last.stepKey, 'firstPlaceValueAddition');
+      expect(attempts.last.correct, isTrue);
+
+      await tester.tap(find.byKey(const ValueKey('touch-mental-chunk-40')));
+      await tester.pump();
+      expect(find.text('783 + 40 = ?'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('touch-mental-step-823')));
+      await tester.pump();
+      expect(attempts.last.stepKey, 'nextPlaceValueAddition');
+
+      await tester.tap(find.byKey(const ValueKey('touch-mental-chunk-7')));
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('touch-mental-result-pad')),
+        findsOneWidget,
+      );
+      for (final label in <String>['8', '3', '0', 'OK']) {
+        await tester.tap(find.widgetWithText(FilledButton, label));
+        await tester.pump();
+      }
+      expect(answer, 830);
+      expect(attempts.last.stepKey, 'finalPlaceValueAddition');
+      expect(attempts.last.correct, isTrue);
+    },
+  );
+
+  testWidgets('partial products are calculated separately before combining', (
+    tester,
+  ) async {
     var answer = -1;
+    final attempts = <TouchProcessStepAttempt>[];
     const plan = TouchInteractionPlan(
-      taskKey: 'mental:+:583:247',
+      taskKey: 'multiply:247:6',
       kind: TouchInteractionKind.mentalChunkPath,
-      instruction: 'Rechne in Stellenwertblöcken.',
-      dataValues: <int>[583, 247, 200, 40, 7],
-      dataOperation: '+',
-      expectedAnswer: 830,
-      maxValue: 1000,
+      instruction: 'Baue Teilprodukte.',
+      dataValues: <int>[247, 6, 200, 40, 7],
+      dataOperation: 'multiply',
+      expectedAnswer: 1482,
+      maxValue: 10000,
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -5017,6 +5092,7 @@ void main() {
             child: TouchAnswerInteraction(
               plan: plan,
               onAnswer: (value) => answer = value,
+              onProcessStepAttempt: attempts.add,
             ),
           ),
         ),
@@ -5024,27 +5100,143 @@ void main() {
     );
     await tester.pump();
 
-    for (final chunk in <int>[40, 200, 7]) {
-      await tester.tap(find.byKey(ValueKey('touch-mental-chunk-$chunk')));
+    for (final step in <(int, int)>[(200, 1200), (40, 240), (7, 42)]) {
+      await tester.tap(find.byKey(ValueKey('touch-mental-chunk-${step.$1}')));
+      await tester.pump();
+      await tester.tap(find.byKey(ValueKey('touch-mental-step-${step.$2}')));
       await tester.pump();
     }
-    for (final label in <String>['8', '3', '0', 'OK']) {
-      await tester.tap(find.widgetWithText(FilledButton, label));
-      await tester.pump();
-    }
-    expect(answer, isNot(830));
+    expect(
+      find.byKey(const ValueKey('touch-mental-completed-parts')),
+      findsOneWidget,
+    );
+    expect(find.text('1200'), findsWidgets);
+    expect(find.text('240'), findsWidgets);
+    expect(find.text('42'), findsWidgets);
 
-    await tester.tap(find.byKey(const ValueKey('touch-mental-reset')));
-    await tester.pump();
-    for (final chunk in <int>[200, 40, 7]) {
-      await tester.tap(find.byKey(ValueKey('touch-mental-chunk-$chunk')));
-      await tester.pump();
-    }
-    for (final label in <String>['8', '3', '0', 'OK']) {
+    for (final label in <String>['1', '4', '8', '2', 'OK']) {
       await tester.tap(find.widgetWithText(FilledButton, label));
       await tester.pump();
     }
-    expect(answer, 830);
+    expect(answer, 1482);
+    expect(
+      attempts.where((entry) => entry.stepKey == 'firstPlaceValueProduct'),
+      hasLength(1),
+    );
+    expect(
+      attempts.where((entry) => entry.stepKey == 'nextPlaceValueProduct'),
+      hasLength(2),
+    );
+    expect(attempts.last.stepKey, 'combinePlaceValueProducts');
+  });
+
+  testWidgets('partial quotients and place-shift base facts stay separate', (
+    tester,
+  ) async {
+    final quotientAttempts = <TouchProcessStepAttempt>[];
+    const dividePlan = TouchInteractionPlan(
+      taskKey: 'divide:248:4',
+      kind: TouchInteractionKind.mentalChunkPath,
+      instruction: 'Baue Teilquotienten.',
+      dataValues: <int>[248, 4, 240, 8],
+      dataOperation: 'divide',
+      expectedAnswer: 62,
+      maxValue: 1000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: dividePlan,
+              onAnswer: (_) {},
+              onProcessStepAttempt: quotientAttempts.add,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    for (final step in <(int, int)>[(240, 60), (8, 2)]) {
+      await tester.tap(find.byKey(ValueKey('touch-mental-chunk-${step.$1}')));
+      await tester.pump();
+      await tester.tap(find.byKey(ValueKey('touch-mental-step-${step.$2}')));
+      await tester.pump();
+    }
+    expect(
+      find.byKey(const ValueKey('touch-mental-result-pad')),
+      findsOneWidget,
+    );
+    expect(
+      quotientAttempts.any((e) => e.stepKey == 'firstPlaceValueQuotient'),
+      isTrue,
+    );
+    expect(
+      quotientAttempts.any((e) => e.stepKey == 'nextPlaceValueQuotient'),
+      isTrue,
+    );
+
+    final shiftAttempts = <TouchProcessStepAttempt>[];
+    const shiftPlan = TouchInteractionPlan(
+      taskKey: 'multiply:300:3',
+      kind: TouchInteractionKind.mentalChunkPath,
+      instruction: 'Nutze die Grundaufgabe.',
+      dataValues: <int>[300, 3, 300],
+      dataOperation: 'multiply',
+      expectedAnswer: 900,
+      maxValue: 1000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TouchAnswerInteraction(
+              plan: shiftPlan,
+              onAnswer: (_) {},
+              onProcessStepAttempt: shiftAttempts.add,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('touch-mental-chunk-300')));
+    await tester.pump();
+    expect(find.text('3 × 3 = ?'), findsOneWidget);
+    expect(find.text('900'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('touch-mental-step-9')));
+    await tester.pump();
+    expect(shiftAttempts.last.stepKey, 'placeValueMultiplicationBaseFact');
+    expect(
+      find.byKey(const ValueKey('touch-mental-result-pad')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('checked place-shift fact never reveals the final result',
+      (tester) async {
+    const plan = TouchInteractionPlan(
+      taskKey: 'multiply:300:3',
+      kind: TouchInteractionKind.mentalChunkPath,
+      instruction: 'Nutze die Grundaufgabe.',
+      dataValues: <int>[300, 3, 300],
+      dataOperation: 'multiply:skip-first',
+      expectedAnswer: 900,
+      maxValue: 1000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TouchAnswerInteraction(plan: plan, onAnswer: (_) {}),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Grundaufgabe geprüft'), findsOneWidget);
+    expect(find.byKey(const ValueKey('touch-mental-result-pad')), findsOneWidget);
+    expect(find.text('900'), findsNothing);
+    expect(find.textContaining('300 → 900'), findsNothing);
   });
 
   testWidgets('anchor strategy requires the exact jump to the smooth target',

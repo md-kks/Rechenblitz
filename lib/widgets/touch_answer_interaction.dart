@@ -11,11 +11,13 @@ class TouchAnswerInteraction extends StatefulWidget {
     super.key,
     required this.plan,
     required this.onAnswer,
+    this.onProcessStepAttempt,
     this.locked = false,
   });
 
   final TouchInteractionPlan plan;
   final ValueChanged<int> onAnswer;
+  final ValueChanged<TouchProcessStepAttempt>? onProcessStepAttempt;
   final bool locked;
 
   @override
@@ -62,6 +64,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
   int? selectedErrorPlaceIndex;
   int? selectedErrorDirection;
   final List<int> mentalSelectedChunks = <int>[];
+  final List<int> mentalStepResults = <int>[];
+  final Set<String> mentalEmittedAttempts = <String>{};
+  int? mentalActiveChunk;
+  String mentalStepFeedback = '';
   int? selectedStrategyJump;
   final Set<int> selectedLawTerms = <int>{};
   final List<int> selectedLawOrder = <int>[];
@@ -194,6 +200,10 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     selectedErrorPlaceIndex = null;
     selectedErrorDirection = null;
     mentalSelectedChunks.clear();
+    mentalStepResults.clear();
+    mentalEmittedAttempts.clear();
+    mentalActiveChunk = null;
+    mentalStepFeedback = '';
     selectedStrategyJump = null;
     selectedLawTerms.clear();
     selectedLawOrder.clear();
@@ -1461,44 +1471,302 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
     );
   }
 
+  void _emitMentalProcessAttempt(
+    String stepKey,
+    bool correct, {
+    required String detailKey,
+    double evidenceWeight = 0.20,
+  }) {
+    final uniqueKey = '$stepKey|$detailKey';
+    if (!mentalEmittedAttempts.add(uniqueKey)) return;
+    widget.onProcessStepAttempt?.call(
+      TouchProcessStepAttempt(
+        stepKey: stepKey,
+        correct: correct,
+        detailKey: detailKey,
+        evidenceWeight: evidenceWeight,
+      ),
+    );
+  }
+
+  List<int> _mentalProcessCandidates(int expected, {int scale = 1}) {
+    final delta = math.max(1, scale);
+    final values = <int>{expected};
+    for (final offset in <int>[delta, -delta, delta * 10, -delta * 10, 1, -1]) {
+      final candidate = expected + offset;
+      if (candidate >= 0) values.add(candidate);
+      if (values.length >= 4) break;
+    }
+    var filler = 0;
+    while (values.length < 4) {
+      values.add(filler);
+      filler += delta;
+    }
+    return values.take(4).toList()..sort();
+  }
+
+  int _withoutTrailingZeros(int value) {
+    var result = value;
+    while (result >= 10 && result % 10 == 0) {
+      result ~/= 10;
+    }
+    return result;
+  }
+
   Widget _buildMentalChunkPath(BuildContext context) {
     final values = widget.plan.dataValues;
     final start = values[0];
     final wholeOperand = values[1];
-    final chunks = values.sublist(2);
+    final allChunks = values.sublist(2);
     final rawOperation = widget.plan.dataOperation ?? '+';
     final multiplication = rawOperation.startsWith('multiply');
     final division = rawOperation.startsWith('divide');
-    final operation = rawOperation.startsWith('-') ? '−' : '+';
+    final subtraction = rawOperation.startsWith('-');
+    final operation = subtraction ? '−' : '+';
     final skipFirst = rawOperation.endsWith(':skip-first');
-    final requiredChunks = skipFirst && chunks.isNotEmpty
-        ? chunks.sublist(1)
-        : chunks;
-    final options = <int>{...requiredChunks, wholeOperand};
-    if (chunks.isNotEmpty) {
-      options.add(chunks.first);
-      final smaller = chunks.first ~/ 10;
+    final verifiedChunks = skipFirst && allChunks.isNotEmpty
+        ? <int>[allChunks.first]
+        : const <int>[];
+    final processChunks = skipFirst && allChunks.isNotEmpty
+        ? allChunks.sublist(1)
+        : allChunks;
+    final expected = widget.plan.expectedAnswer ?? 0;
+    final placeShift = (multiplication || division) && allChunks.length == 1;
+
+    int verifiedIntermediate() {
+      if (verifiedChunks.isEmpty) return start;
+      final chunk = verifiedChunks.first;
+      if (multiplication) return chunk * wholeOperand;
+      if (division) return chunk ~/ wholeOperand;
+      return subtraction ? start - chunk : start + chunk;
+    }
+
+    int currentAddSubValue() {
+      if (mentalStepResults.isNotEmpty) return mentalStepResults.last;
+      return verifiedIntermediate();
+    }
+
+    List<int> completedPartials() {
+      final completed = <int>[];
+      if (!placeShift &&
+          verifiedChunks.isNotEmpty &&
+          (multiplication || division)) {
+        completed.add(verifiedIntermediate());
+      }
+      if (!placeShift) completed.addAll(mentalStepResults);
+      return completed;
+    }
+
+    final processedCount = mentalStepResults.length;
+    final nextChunk = processedCount < processChunks.length
+        ? processChunks[processedCount]
+        : null;
+    final allChunkWorkComplete = processedCount >= processChunks.length;
+    final options = <int>{...processChunks, wholeOperand};
+    if (nextChunk != null) {
+      final smaller = nextChunk ~/ 10;
       if (smaller > 0) options.add(smaller);
     }
-    final optionList = options.where((value) => value > 0).toList()
-      ..sort();
-    final expected = widget.plan.expectedAnswer ?? 0;
-    final complete = mentalSelectedChunks.length == requiredChunks.length;
+    final optionList = options.where((value) => value > 0).toList()..sort();
 
     String structureTitle() {
       if (multiplication) return 'Zerlegung von $start für × $wholeOperand';
       if (division) return 'Zerlegung von $start für ÷ $wholeOperand';
-      return '$start';
+      return '$start $operation $wholeOperand';
     }
 
-    String completionHint() {
+    String finalInstruction() {
       if (multiplication) {
-        return 'Multipliziere jeden Block mit $wholeOperand, addiere die Teilprodukte und gib das Ergebnis ein.';
+        return placeShift
+            ? 'Übertrage jetzt den Stellenwert auf das Produkt.'
+            : 'Füge jetzt alle Teilprodukte zusammen.';
       }
       if (division) {
-        return 'Teile jeden Block durch $wholeOperand, addiere die Teilquotienten und gib das Ergebnis ein.';
+        return placeShift
+            ? 'Übertrage jetzt den Stellenwert auf den Quotienten.'
+            : 'Füge jetzt alle Teilquotienten zusammen.';
       }
-      return 'Rechne den aufgebauten Weg jetzt selbst zu Ende.';
+      return 'Rechne den letzten Stellenwertblock und gib das Endergebnis ein.';
+    }
+
+    String processStepKey({required bool finalStep}) {
+      if (multiplication) {
+        if (placeShift) return 'placeValueMultiplicationBaseFact';
+        return processedCount == 0 && verifiedChunks.isEmpty
+            ? 'firstPlaceValueProduct'
+            : 'nextPlaceValueProduct';
+      }
+      if (division) {
+        if (placeShift) return 'placeValueDivisionBaseFact';
+        return processedCount == 0 && verifiedChunks.isEmpty
+            ? 'firstPlaceValueQuotient'
+            : 'nextPlaceValueQuotient';
+      }
+      if (subtraction) {
+        if (finalStep) return 'finalPlaceValueSubtraction';
+        return processedCount == 0 && verifiedChunks.isEmpty
+            ? 'firstPlaceValueSubtraction'
+            : 'nextPlaceValueSubtraction';
+      }
+      if (finalStep) return 'finalPlaceValueAddition';
+      return processedCount == 0 && verifiedChunks.isEmpty
+          ? 'firstPlaceValueAddition'
+          : 'nextPlaceValueAddition';
+    }
+
+    Widget finalPad() {
+      final finalKey = multiplication
+          ? 'combinePlaceValueProducts'
+          : division
+          ? 'combinePlaceValueQuotients'
+          : subtraction
+          ? 'finalPlaceValueSubtraction'
+          : 'finalPlaceValueAddition';
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          Text(
+            finalInstruction(),
+            key: const ValueKey('touch-mental-final-instruction'),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          if ((multiplication || division) &&
+              completedPartials().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              key: const ValueKey('touch-mental-completed-parts'),
+              alignment: WrapAlignment.center,
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final value in completedPartials())
+                  Chip(label: Text('$value')),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
+          NumberAnswerPad(
+            key: const ValueKey('touch-mental-result-pad'),
+            maxValue: math.max(1, widget.plan.maxValue),
+            onAnswer: widget.locked
+                ? (_) {}
+                : (value) {
+                    final correct = value == expected;
+                    _emitMentalProcessAttempt(
+                      finalKey,
+                      correct,
+                      detailKey: placeShift
+                          ? 'place-shift-result'
+                          : 'combine-${allChunks.length}-parts',
+                      evidenceWeight: 0.25,
+                    );
+                    setState(() {
+                      mentalStepFeedback = correct
+                          ? ''
+                          : multiplication
+                          ? 'Die Teilprodukte stimmen. Prüfe jetzt nur noch ihr Zusammenfügen.'
+                          : division
+                          ? 'Die Teilquotienten stimmen. Prüfe jetzt nur noch ihr Zusammenfügen.'
+                          : 'Prüfe noch einmal den letzten Stellenwertschritt.';
+                    });
+                    widget.onAnswer(value);
+                  },
+          ),
+        ],
+      );
+    }
+
+    Widget activeCalculation(int chunk) {
+      final isLastAddSub =
+          !multiplication &&
+          !division &&
+          processedCount == processChunks.length - 1;
+      if (isLastAddSub) return finalPad();
+
+      late final int stepExpected;
+      late final String equation;
+      var scale = 1;
+      if (multiplication && placeShift) {
+        final base = _withoutTrailingZeros(chunk);
+        stepExpected = base * wholeOperand;
+        equation = '$base × $wholeOperand';
+      } else if (division && placeShift) {
+        var base = chunk;
+        while (base >= 10 &&
+            base % 10 == 0 &&
+            (base ~/ 10) % wholeOperand == 0) {
+          base ~/= 10;
+        }
+        stepExpected = base ~/ wholeOperand;
+        equation = '$base ÷ $wholeOperand';
+      } else if (multiplication) {
+        stepExpected = chunk * wholeOperand;
+        equation = '$chunk × $wholeOperand';
+        scale = math.max(1, chunk ~/ 10);
+      } else if (division) {
+        stepExpected = chunk ~/ wholeOperand;
+        equation = '$chunk ÷ $wholeOperand';
+        scale = math.max(1, stepExpected ~/ 10);
+      } else {
+        final current = currentAddSubValue();
+        stepExpected = subtraction ? current - chunk : current + chunk;
+        equation = '$current $operation $chunk';
+        scale = math.max(1, chunk ~/ 10);
+      }
+      final candidates = _mentalProcessCandidates(stepExpected, scale: scale);
+      final stepKey = processStepKey(finalStep: false);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          Text(
+            '$equation = ?',
+            key: const ValueKey('touch-mental-step-equation'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            key: const ValueKey('touch-mental-step-choices'),
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final candidate in candidates)
+                ChoiceChip(
+                  key: ValueKey('touch-mental-step-$candidate'),
+                  selected: false,
+                  label: Text('$candidate'),
+                  onSelected: widget.locked
+                      ? null
+                      : (_) {
+                          final correct = candidate == stepExpected;
+                          _emitMentalProcessAttempt(
+                            stepKey,
+                            correct,
+                            detailKey: 'chunk-$chunk',
+                            evidenceWeight: placeShift ? 0.30 : 0.20,
+                          );
+                          if (!correct) {
+                            setState(() {
+                              mentalStepFeedback =
+                                  'Der Block $chunk ist richtig gewählt. Prüfe nur die Rechnung $equation noch einmal.';
+                            });
+                            return;
+                          }
+                          setState(() {
+                            mentalStepResults.add(stepExpected);
+                            mentalActiveChunk = null;
+                            mentalStepFeedback = '';
+                          });
+                        },
+                ),
+            ],
+          ),
+        ],
+      );
     }
 
     return Column(
@@ -1508,93 +1776,118 @@ class _TouchAnswerInteractionState extends State<TouchAnswerInteraction> {
           key: const ValueKey('touch-mental-path'),
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             child: Wrap(
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 Chip(label: Text(structureTitle())),
-                if (skipFirst && chunks.isNotEmpty) ...[
-                  if (!multiplication && !division) Text(operation),
+                if (verifiedChunks.isNotEmpty)
                   Chip(
                     avatar: const Icon(Icons.check_rounded, size: 18),
-                    label: Text('${chunks.first}'),
+                    label: Text(
+                      placeShift
+                          ? 'Grundaufgabe geprüft'
+                          : '${verifiedChunks.first} → ${verifiedIntermediate()}',
+                    ),
                   ),
-                ],
-                for (final chunk in mentalSelectedChunks) ...[
-                  Text(multiplication || division ? '+' : operation),
-                  Chip(label: Text('$chunk')),
-                ],
+                for (
+                  var index = 0;
+                  index < mentalSelectedChunks.length;
+                  index++
+                )
+                  Chip(
+                    avatar: CircleAvatar(child: Text('${index + 1}')),
+                    label: Text('${mentalSelectedChunks[index]}'),
+                  ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 10),
-        Text(
-          skipFirst
-              ? 'Der erste Stellenwertblock wurde schon geprüft. Ordne jetzt die restlichen Blöcke.'
-              : multiplication || division
-                  ? 'Baue zuerst die Stellenwertzerlegung vom größten Block zum kleinsten auf.'
-                  : 'Tippe die Stellenwertblöcke vom größten zum kleinsten an.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
         const SizedBox(height: 8),
-        Wrap(
-          key: const ValueKey('touch-mental-chunks'),
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final value in optionList)
-              ActionChip(
-                key: ValueKey('touch-mental-chunk-$value'),
-                avatar: mentalSelectedChunks.contains(value)
-                    ? CircleAvatar(
-                        child: Text('${mentalSelectedChunks.indexOf(value) + 1}'),
-                      )
-                    : null,
-                label: Text('$value'),
-                onPressed: widget.locked ||
-                        mentalSelectedChunks.contains(value) ||
-                        complete
-                    ? null
-                    : () => setState(() => mentalSelectedChunks.add(value)),
-              ),
-          ],
-        ),
-        TextButton.icon(
-          key: const ValueKey('touch-mental-reset'),
-          onPressed: widget.locked || mentalSelectedChunks.isEmpty
-              ? null
-              : () => setState(mentalSelectedChunks.clear),
-          icon: const Icon(Icons.replay_rounded),
-          label: const Text('Blöcke neu ordnen'),
-        ),
-        if (complete) ...[
-          const SizedBox(height: 8),
+        if (processChunks.isEmpty)
+          finalPad()
+        else if (mentalActiveChunk != null)
+          activeCalculation(mentalActiveChunk!)
+        else if (!allChunkWorkComplete && nextChunk != null) ...[
           Text(
-            completionHint(),
+            multiplication || division
+                ? 'Wähle den nächsten Stellenwertblock. Danach rechnest du genau diesen Teil.'
+                : 'Wähle den nächsten Stellenwertblock vom größten zum kleinsten.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelLarge,
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
-          NumberAnswerPad(
-            key: const ValueKey('touch-mental-result-pad'),
-            maxValue: math.max(1, widget.plan.maxValue),
-            onAnswer: widget.locked
-                ? (_) {}
-                : (value) {
-                    final structureCorrect =
-                        _listEqualsInt(mentalSelectedChunks, requiredChunks);
-                    widget.onAnswer(
-                      structureCorrect
-                          ? value
-                          : _wrongAnswer(value, expected),
-                    );
-                  },
+          Wrap(
+            key: const ValueKey('touch-mental-chunks'),
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final value in optionList)
+                ActionChip(
+                  key: ValueKey('touch-mental-chunk-$value'),
+                  avatar: mentalSelectedChunks.contains(value)
+                      ? CircleAvatar(
+                          child: Text(
+                            '${mentalSelectedChunks.indexOf(value) + 1}',
+                          ),
+                        )
+                      : null,
+                  label: Text('$value'),
+                  onPressed:
+                      widget.locked || mentalSelectedChunks.contains(value)
+                      ? null
+                      : () {
+                          final correct = value == nextChunk;
+                          _emitMentalProcessAttempt(
+                            'placeValueChunkOrder',
+                            correct,
+                            detailKey: 'position-$processedCount-chunk-$value',
+                            evidenceWeight: 0.12,
+                          );
+                          if (!correct) {
+                            setState(() {
+                              mentalStepFeedback =
+                                  'Dieser Block kommt noch nicht an die Reihe. Beginne mit dem größten noch offenen Stellenwertblock.';
+                            });
+                            return;
+                          }
+                          setState(() {
+                            mentalSelectedChunks.add(value);
+                            mentalActiveChunk = value;
+                            mentalStepFeedback = '';
+                          });
+                        },
+                ),
+            ],
+          ),
+          TextButton.icon(
+            key: const ValueKey('touch-mental-reset'),
+            onPressed:
+                widget.locked ||
+                    (mentalSelectedChunks.isEmpty && mentalStepResults.isEmpty)
+                ? null
+                : () => setState(() {
+                    mentalSelectedChunks.clear();
+                    mentalStepResults.clear();
+                    mentalActiveChunk = null;
+                    mentalStepFeedback = '';
+                  }),
+            icon: const Icon(Icons.replay_rounded),
+            label: const Text('Rechenweg neu beginnen'),
+          ),
+        ] else
+          finalPad(),
+        if (mentalStepFeedback.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            mentalStepFeedback,
+            key: const ValueKey('touch-mental-step-feedback'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ],
       ],
